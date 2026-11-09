@@ -441,6 +441,10 @@ details.szblok summary h4{margin:6px 0}
 .kleurstip.klein{width:22px;height:22px;border-radius:6px}
 .icoonkeuze.stil{display:inline-flex;align-items:center;justify-content:center;border-style:solid;cursor:default}
 .vink.stil{display:inline-flex;align-items:center;justify-content:center;cursor:default;opacity:.7}
+.trekker3d{background:none;border:0}
+.t3d{display:flex;flex-direction:column;align-items:center;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}
+.t3d canvas{background:radial-gradient(ellipse at 50% 70%,rgba(255,255,255,.55),rgba(255,255,255,0) 70%);border-radius:14px}
+.t3dnaam{background:rgba(31,77,43,.92);color:#fff;font-weight:800;font-size:11.5px;padding:3px 9px;border-radius:9px;margin-top:-6px;white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis}
 /* foto's */
 .fotoveld{background:#f6f8f4;border:1px dashed #c9d4c4;border-radius:12px;padding:8px}
 .fotolijst{display:flex;flex-wrap:wrap;gap:6px}
@@ -1636,6 +1640,10 @@ async function taakFormulier(id, direct, voor = {}) {
   if (id && t.gebied) waarVeld.opties.splice(1, 0, ['bewaar', 'Het getekende stuk houden']), waarVeld.waarde = 'bewaar';
   w_vakken = vakken;
   if (direct) { velden.splice(2, 3); velden.push(...uitvoeringVelden(voor.gepland ? {klaar_op: voor.gepland + 'T12:00:00'} : {})); }   // geen 'wie/uiterlijk', wel wat er gebruikt is
+  const trekkers = [...new Set([...(S.machines || []).filter(m => /trekker|tractor/i.test(m.soort || '') || isTrekkerNaam(m.naam) || /spuitmachine/i.test(m.soort || '') && /agrifac/i.test(m.naam)).map(m => m.naam), ...S.tractoren.map(x => x.naam)])];
+  const werktuigen = [...new Set([...(S.machines || []).filter(m => !trekkers.includes(m.naam)).map(m => m.naam), ...WERKTUIGEN])];
+  velden.push({k: 'trekker', label: '🚜 Welke trekker pak je?', waarde: t.trekker || '', lijst: trekkers, placeholder: trekkers[0] ? 'bijv. ' + trekkers[0] : 'bijv. T1 - Fendt 412'},
+    {k: 'werktuig', label: '⚙️ Welke machine erachter? (optioneel)', waarde: t.werktuig || '', lijst: werktuigen, placeholder: 'bijv. Rotorkopeg'});
   if (!direct) velden.push({k: 'herhaal', label: '🔁 Herhalen', type: 'select', waarde: t.herhaal || '', opties: HERHAAL},
     {k: 'herhaal_tot', label: 'Herhalen tot en met (optioneel)', type: 'date', waarde: t.herhaal_tot || ''});
   velden.push(fotoVeld(t.fotos));
@@ -1665,7 +1673,7 @@ async function slaTaakOp(w, gebied, id) {
   if (w.waar === 'vak') { const v = spuitvakkenVan(perceel(w.perceel_id))[parseInt(w.vak) || 0]; if (v) { van = v.van; tot = v.tot; } }
   const rij = {perceel_id: w.perceel_id, tekst: w.tekst, omschrijving: w.omschrijving || null,
     toegewezen_aan: w.toegewezen_aan || null, deadline: w.deadline || null, gepland: w.gepland || null,
-    gebied: gebied || null, spoor_van: van, spoor_tot: tot, fotos: w.fotos || [], herhaal: w.herhaal || null, herhaal_tot: w.herhaal ? (w.herhaal_tot || null) : null};
+    gebied: gebied || null, spoor_van: van, spoor_tot: tot, fotos: w.fotos || [], trekker: w.trekker || null, werktuig: w.werktuig || null, herhaal: w.herhaal || null, herhaal_tot: w.herhaal ? (w.herhaal_tot || null) : null};
   if (w.direct) { Object.assign(rij, uitvoeringPatch(w)); delete rij.toegewezen_aan; delete rij.deadline; delete rij.gepland; delete rij.herhaal; delete rij.herhaal_tot;
     if (!await middelControle({...rij, id})) return;
     Object.assign(rij, middelPatch(rij)); }
@@ -1676,7 +1684,8 @@ async function slaTaakOp(w, gebied, id) {
   fotosOpruimen(w._oudeFotos, rij.fotos);
   const i = S.taken.findIndex(x => x.id === res.data.id);
   if (i >= 0) S.taken[i] = res.data; else S.taken.push(res.data);
-  taakFocus = res.data.id; render(true);
+  taakFocus = res.data.id; render(true); verbergTrekker3d();
+  if (!w.direct) setTimeout(() => { if (taakFocus === res.data.id) toonTrekker3d(S.taken.find(x => x.id === res.data.id)); }, 450);
   toast(w.direct ? 'Werk geregistreerd' : id ? 'Taak opgeslagen' : 'Taak toegevoegd');
 }
 async function vinkTaak(id) {
@@ -2330,9 +2339,9 @@ const taakWaar = t => isVerplaats(t) ? `${locNaam(t, 'van')} → ${locNaam(t, 'n
   (t.spoor_van && perceel(t.perceel_id) && spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot))
     ? 'vak ' + spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot).letter : t.spoor_van ? (t.spoor_tot && t.spoor_tot !== t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot}` : `spoor ${t.spoor_van}`) : 'hele perceel';
 function focusTaak(id) {
-  if (taakFocus === id) { taakFocus = undefined; render(true); return; }
+  if (taakFocus === id) { taakFocus = undefined; verbergTrekker3d(); render(true); return; }
   const t = S.taken.find(x => x.id === id); if (!t) return;
-  taakFocus = id;
+  taakFocus = id; verbergTrekker3d(); setTimeout(() => { if (taakFocus === id) toonTrekker3d(t); }, 450);
   if (isVerplaats(t)) {
     if (tab === 'percelen' && t.perceel_id) actief = t.perceel_id;
     render(true);
@@ -2992,7 +3001,7 @@ function taakHtml(t, metPerceel) {
       ${t.omschrijving ? `<div class="omschr">${esc(t.omschrijving).replace(/\n/g, '<br>')}</div>` : ''}
       ${fotoRij(t.fotos)}
       ${t.bezig_door && !t.klaar ? `<div class="bezigregel">${bezigTekst(t)}</div>` : ''}
-      <small>${metPerceel && p && !isVerplaats(t) ? `📍 ${esc(p.naam)} · ` : ''}${info}${t.herhaal ? ' · ' + herhaalTekst(t) : ''}${t.klaar && t.verbruik != null && middel(t.middel_id) ? ` · 📦 −${getal(t.verbruik, 2)} ${esc(middel(t.middel_id).voorraad_eenheid || '')}` : ''}</small>
+      <small>${metPerceel && p && !isVerplaats(t) ? `📍 ${esc(p.naam)} · ` : ''}${info}${t.trekker || t.werktuig ? ` · 🚜 ${esc([t.trekker, t.werktuig].filter(Boolean).join(' + '))}` : ''}${t.herhaal ? ' · ' + herhaalTekst(t) : ''}${t.klaar && t.verbruik != null && middel(t.middel_id) ? ` · 📦 −${getal(t.verbruik, 2)} ${esc(middel(t.middel_id).voorraad_eenheid || '')}` : ''}</small>
       ${!t.klaar && mag('taken_afvinken') ? `<button class="bezigknop ${t.bezig_door ? 'aan' : ''}" onclick="event.stopPropagation();zetBezig('${t.id}')">${t.bezig_door ? '⏸ Niet meer bezig' : '▶ Ik ben bezig'}</button>` : ''}</div>
     ${mag('taken_toevoegen') && !t.klaar ? `<button class="weg" title="Bewerken" onclick="taakFormulier('${t.id}')">✏️</button>` : ''}
     ${mag('taken_verwijderen') ? `<button class="weg" title="Verwijderen" onclick="verwijderTaak('${t.id}')">×</button>` : ''}</div>`;
@@ -3110,6 +3119,7 @@ function agKaart(t, groot) {
     <b>${t.klaar ? '✓ ' : ''}${isVerplaats(t) ? '🚚 ' : ''}${t.herhaal ? '🔁 ' : ''}${esc(t.tekst)}</b>
     ${waar ? `<small>📍 ${waar}</small>` : ''}
     <small>${t.bezig_door && !t.klaar ? `🟡 ${esc(t.bezig_door)} is bezig` : t.klaar ? '👤 ' + esc(t.klaar_door || '?') : wie ? '👤 ' + esc(wie.naam) : '👤 nog niemand'}${telaat ? ' · <span class="rood">te laat</span>' : ''}${!t.klaar && !t.gepland && t.deadline ? ' · uiterlijk' : ''}</small>
+    ${t.trekker || t.werktuig ? `<small>🚜 ${esc([t.trekker, t.werktuig].filter(Boolean).join(' + '))}</small>` : ''}
     ${groot && t.omschrijving ? `<div class="agomschr">${esc(t.omschrijving).replace(/\n/g, '<br>')}</div>` : ''}
     ${groot ? fotoRij(t.fotos) : t.fotos?.length ? `<small>📷 ${t.fotos.length}</small>` : ''}
     ${groot && t.product ? `<small>🧪 ${esc(t.product)}${t.dosering != null ? ' · ' + (+t.dosering).toLocaleString('nl-NL') + ' ' + esc(t.eenheid || '') : ''}</small>` : ''}
@@ -5196,7 +5206,7 @@ const WERK_KOL = [{t: 'Datum', w: 1.3}, {t: 'Werk', w: 2.2, vet: true}, {t: 'Mid
 function werkRijen(taken) {
   return taken.filter(t => t.klaar).sort((a, b) => (a.klaar_op || '').localeCompare(b.klaar_op || '')).map(t => {
     const m = middel(t.middel_id);
-    return [pdfDatum(t.klaar_op), t.tekst + (isVerplaats(t) ? ` (${locNaam(t, 'van')} > ${locNaam(t, 'naar')})` : ''), t.product || '', t.dosering != null ? `${pdfGetal(t.dosering, 2)} ${t.eenheid || ''}` : '',
+    return [pdfDatum(t.klaar_op), t.tekst + (isVerplaats(t) ? ` (${locNaam(t, 'van')} > ${locNaam(t, 'naar')})` : '') + (t.trekker || t.werktuig ? ` [${[t.trekker, t.werktuig].filter(Boolean).join(' + ')}]` : ''), t.product || '', t.dosering != null ? `${pdfGetal(t.dosering, 2)} ${t.eenheid || ''}` : '',
       t.verbruik != null && m ? `${pdfGetal(t.verbruik, 1)} ${m.voorraad_eenheid || ''}` : '', t.klaar_door || '', t.uitvoering || ''];
   });
 }
@@ -5490,6 +5500,168 @@ function sluit3D() {
   if (drieDTimer) { cancelAnimationFrame(drieDTimer); drieDTimer = null; }
   if (drieD) { const c = drieD.getCenter(); map.setView([c.lat, c.lng]); drieD.remove(); drieD = null; }
   $('#drieD')?.classList.remove('open');
+}
+
+/* ============================================================
+   KLEINE 3D-TREKKER (eigen tekenaar op canvas, geen bibliotheek)
+   Bij een aangeklikte taak zweeft de trekker met het werktuig boven het veld en draait rond.
+   ============================================================ */
+const WERKTUIGEN = ['Rotorkopeg', 'Frees', 'Spitmachine', 'Ploeg', 'Cultivator', 'Schoffelmachine', 'Spuitmachine', 'Kunstmeststrooier', 'Mestinjecteur', 'Plantmachine', 'Pootmachine', 'Zaaimachine', 'Rooier', 'Maaier', 'Klepelmaaier', 'Aanhanger', 'Kipper', 'Rol', 'Bedden­vormer'];
+const isTrekkerNaam = s => /trekker|tractor|fendt|deere|massey|holland|case|claas|deutz|valtra|kubota|mccormick|zetor|landini|steyr|same|ford/i.test(s || '');
+function werktuigSoort(t) {   // welk model tekenen: eerst het gekozen werktuig, anders het werk zelf
+  const s = `${t.werktuig || ''} ${machineOpNaam(t.werktuig)?.soort || ''}`.toLowerCase(), w = (t.tekst || '').toLowerCase();
+  const kies = x => /spuit/.test(x) ? 'spuit' : /fre(e)?s|rotorkop|kopeg|spit/.test(x) ? 'frees' : /ploeg/.test(x) ? 'ploeg' : /cultivator|schoffel|eg\b|wiedeg/.test(x) ? 'cultivator'
+    : /strooi|kunstmest|bemest/.test(x) ? 'strooier' : /plant|poot|zaai|poten/.test(x) ? 'plant' : /rooi|oogst/.test(x) ? 'rooier' : /maai|klepel|mulch/.test(x) ? 'maaier'
+    : /aanhang|kipper|kar|wagen|transport|verplaats|rijden/.test(x) ? 'kar' : /mest|injecte|tank/.test(x) ? 'tank' : /rol\b|rollen/.test(x) ? 'rol' : '';
+  if (/agrifac/i.test(t.trekker || '')) return 'spuit';
+  return kies(s) || kies(w) || (t.werktuig ? 'werktuig' : '');
+}
+const machineOpNaam = n => n ? (S.machines || []).find(m => m.naam.trim().toLowerCase() === String(n).trim().toLowerCase()) : null;
+function merkKleuren(naam) {
+  const n = (naam || '').toLowerCase();
+  if (/deere/.test(n)) return {romp: '#367c2b', velg: '#ffde00', cabine: '#2b2b2b'};
+  if (/fendt/.test(n)) return {romp: '#3f8f2f', velg: '#9e9e9e', cabine: '#2b2b2b'};
+  if (/massey|\bmf\b|mccormick|zetor|valtra|case|h[uü]rlimann/.test(n)) return {romp: '#c8102e', velg: '#cfcfcf', cabine: '#2b2b2b'};
+  if (/holland|\bnh\b|landini/.test(n)) return {romp: '#1f4fa3', velg: '#e0e0e0', cabine: '#2b2b2b'};
+  if (/claas/.test(n)) return {romp: '#a4c639', velg: '#e53935', cabine: '#3a3a3a'};
+  if (/kubota/.test(n)) return {romp: '#f37021', velg: '#e0e0e0', cabine: '#2b2b2b'};
+  if (/deutz|same/.test(n)) return {romp: '#6aa84f', velg: '#e0e0e0', cabine: '#2b2b2b'};
+  return {romp: '#2e7d32', velg: '#d9d9d9', cabine: '#2b2b2b'};
+}
+function werktuigKleur(naam) {
+  const n = (naam || '').toLowerCase();
+  return /kuhn|grimme|kverneland|vicon|pottinger|pöttinger/.test(n) ? '#c62828' : /lemken|rabe|dewulf/.test(n) ? '#1565c0' : /amazone|hardi|agrifac/.test(n) ? '#2e7d32' : /imants|baselier/.test(n) ? '#f9a825' : '#ef6c00';
+}
+// ---- bouwstenen: vlakken met 3D-punten (x = vooruit, y = omhoog, z = opzij; in meters) ----
+function blok(x0, y0, z0, x1, y1, z1, kleur) {
+  const p = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]];
+  return [[0, 3, 2, 1], [4, 5, 6, 7], [0, 1, 5, 4], [3, 7, 6, 2], [0, 4, 7, 3], [1, 2, 6, 5]].map(f => ({p: f.map(i => p[i]), k: kleur}));
+}
+function wiel(cx, cy, cz, r, breed, kleur, velg, draai = 0, n = 14) {   // as langs z
+  const uit = [], ring = (zz, rr, hoek0 = 0) => Array.from({length: n}, (_, i) => { const a = hoek0 + i / n * Math.PI * 2; return [cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, zz]; });
+  const a = ring(cz - breed / 2, r, draai), b = ring(cz + breed / 2, r, draai);
+  for (let i = 0; i < n; i++) uit.push({p: [a[i], a[(i + 1) % n], b[(i + 1) % n], b[i]], k: i % 2 ? kleur : '#2a2a2a'});   // profiel
+  uit.push({p: [...a].reverse(), k: kleur}, {p: b, k: kleur});
+  const vr = r * .55;
+  uit.push({p: ring(cz - breed / 2 - .06, vr, draai).reverse(), k: velg, voorrang: 1}, {p: ring(cz + breed / 2 + .06, vr, draai), k: velg, voorrang: 1});
+  return uit;
+}
+function trekkerModel(k, t, tijd) {
+  const v = [], rol = tijd * 2.2;
+  v.push(...blok(-1.1, .55, -.55, 1.9, 1.0, .55, '#3a3a3a'));                       // chassis
+  v.push(...blok(-.3, .95, -.5, 2.05, 1.6, .5, k.romp));                            // motorkap
+  v.push(...blok(1.95, 1.0, -.42, 2.12, 1.5, .42, '#555555'));                       // grille
+  v.push(...blok(-1.35, 1.0, -.72, .05, 1.3, .72, k.romp));                         // spatborden/onder cabine
+  v.push(...blok(-1.25, 1.3, -.62, -.05, 2.55, .62, '#9fd3e6'));                     // cabine (glas)
+  v.push(...blok(-1.35, 2.55, -.72, .05, 2.7, .72, k.romp));                        // dak
+  v.push(...blok(.9, 1.6, .25, 1.0, 2.35, .35, '#444444'));                         // uitlaat
+  [[-.9, .85, -.98, .85, .5], [-.9, .85, .98, .85, .5], [1.45, .55, -.85, .55, .34], [1.45, .55, .85, .55, .34]]
+    .forEach(([x, y, z, r, b]) => v.push(...wiel(x, y, z, r, b, '#1e1e1e', k.velg, -rol / r * .5)));
+  return v;
+}
+function werktuigModel(soort, kleur, tijd) {
+  const v = [], x0 = -1.75;   // aan de achterkant
+  v.push(...blok(x0 - .15, .6, -.08, -1.2, .8, .08, '#555555'));                   // trekhaak / hef
+  if (soort === 'frees' || soort === 'cultivator' || soort === 'rol') {
+    v.push(...blok(x0 - 1.0, .35, -1.45, x0, 1.0, 1.45, kleur));                    // kap
+    const n = 8, a0 = tijd * (soort === 'rol' ? 3 : 9);
+    for (let i = 0; i < n; i++) { const a = a0 + i / n * Math.PI * 2, cx = x0 - .5 + Math.cos(a) * .25, cy = .3 + Math.sin(a) * .25;
+      for (let z = -1.3; z <= 1.31; z += .65) v.push(...blok(cx - .05, cy - .05, z - .05, cx + .05, cy + .05, z + .05, '#9e9e9e')); }
+  } else if (soort === 'spuit') {
+    v.push(...blok(x0 - 1.4, .7, -.6, x0 - .1, 1.8, .6, '#eeeeee'));                // tank
+    v.push(...blok(x0 - 1.6, 1.2, -6, x0 - 1.45, 1.3, 6, kleur));                   // spuitboom
+    for (let z = -5.5; z <= 5.6; z += 1) v.push(...blok(x0 - 1.58, .95, z - .03, x0 - 1.5, 1.2, z + .03, '#555555'));
+  } else if (soort === 'ploeg') {
+    v.push(...blok(x0 - 3.2, .75, -.12, x0, .95, .12, kleur));                      // balk
+    for (let i = 0; i < 4; i++) { const x = x0 - .6 - i * .75, z = -.6 + i * .45; v.push(...blok(x - .45, .05, z - .12, x, .75, z + .12, '#8d8d8d')); }
+  } else if (soort === 'strooier') {
+    v.push(...blok(x0 - 1.3, .9, -.75, x0 - .1, 1.8, .75, kleur));                  // trechter
+    const a = tijd * 12;
+    [-.35, .35].forEach(z => { for (let i = 0; i < 4; i++) { const h = a + i * Math.PI / 2; v.push(...blok(x0 - .7 + Math.cos(h) * .25 - .03, .72, z + Math.sin(h) * .25 - .03, x0 - .7 + Math.cos(h) * .25 + .03, .76, z + Math.sin(h) * .25 + .03, '#bdbdbd')); } });
+  } else if (soort === 'plant') {
+    v.push(...blok(x0 - 2.2, .4, -1.3, x0, .6, 1.3, kleur));                        // raam
+    [-.8, 0, .8].forEach(z => { v.push(...blok(x0 - 1.8, .6, z - .25, x0 - 1.3, 1.1, z + .25, '#455a64')); v.push(...blok(x0 - 1.2, .9, z - .3, x0 - .5, 1.0, z + .3, '#8bc34a')); });
+  } else if (soort === 'rooier') {
+    v.push(...blok(x0 - 3.2, .5, -.9, x0, 1.6, .9, kleur)); v.push(...blok(x0 - 3.4, .2, -.7, x0 - 2.8, .5, .7, '#757575'));
+    [[x0 - 2.3, -1.0], [x0 - 2.3, 1.0]].forEach(([x, z]) => v.push(...wiel(x, .45, z, .45, .3, '#1e1e1e', '#cfcfcf', -tijd * 2)));
+  } else if (soort === 'maaier') {
+    v.push(...blok(x0 - .9, .15, -1.5, x0, .55, 1.5, kleur));
+  } else if (soort === 'kar' || soort === 'tank') {
+    v.push(...blok(x0 - .9, .55, -.06, x0, .65, .06, '#555555'));
+    if (soort === 'tank') v.push(...blok(x0 - 5, .9, -.95, x0 - .9, 2.3, .95, kleur));
+    else { v.push(...blok(x0 - 5, .9, -1.1, x0 - .9, 1.0, 1.1, kleur)); v.push(...blok(x0 - 5, 1.0, -1.1, x0 - .9, 1.9, -1.0, kleur)); v.push(...blok(x0 - 5, 1.0, 1.0, x0 - .9, 1.9, 1.1, kleur));
+      v.push(...blok(x0 - 5, 1.0, -1.1, x0 - 4.9, 1.9, 1.1, kleur)); v.push(...blok(x0 - 1.0, 1.0, -1.1, x0 - .9, 1.9, 1.1, kleur)); }
+    [[x0 - 3.3, -1.05], [x0 - 3.3, 1.05], [x0 - 2.4, -1.05], [x0 - 2.4, 1.05]].forEach(([x, z]) => v.push(...wiel(x, .5, z, .5, .3, '#1e1e1e', '#cfcfcf', -tijd * 2)));
+  } else if (soort === 'werktuig') {
+    v.push(...blok(x0 - 1.2, .4, -1.2, x0, 1.2, 1.2, kleur));
+  }
+  return v;
+}
+function tint3d(hex, f) {
+  const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(x => Math.max(0, Math.min(255, Math.round(x * f))));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function tekenTrekker3d(ctx, b, h, t, tijd, grondKleur) {
+  const k = merkKleuren(t.trekker), soort = werktuigSoort(t);
+  const vlakken = [...trekkerModel(k, t, tijd), ...werktuigModel(soort, werktuigKleur(t.werktuig), tijd)];
+  const hoek = tijd * .6, pitch = .42, cos = Math.cos(hoek), sin = Math.sin(hoek), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const breedte = (soort === 'spuit' ? 13.5 : soort === 'kar' || soort === 'tank' ? 10.5 : 8.6), schaal = Math.min(b, h * 1.3) / breedte, afst = 16;
+  const midX = soort === 'kar' || soort === 'tank' || soort === 'ploeg' || soort === 'rooier' ? -1.3 : -.2;
+  const proj = ([x, y, z]) => {
+    x -= midX; const xr = x * cos - z * sin, zr = x * sin + z * cos;     // draaien om de hoogte-as
+    const yr = (y - 1) * cp - zr * sp, zz = (y - 1) * sp + zr * cp;      // schuin van boven kijken
+    const f = afst / (afst + zz); return [b / 2 + xr * schaal * f, h * .6 - yr * schaal * f, zz];
+  };
+  ctx.clearRect(0, 0, b, h);
+  // grondvlak (stukje veld) met schaduw
+  const g = [[-6, 0, -4.5], [5, 0, -4.5], [5, 0, 4.5], [-6, 0, 4.5]].map(p => proj([p[0] + midX, 0, p[2]]));
+  ctx.beginPath(); g.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+  ctx.fillStyle = grondKleur || '#8d6e63'; ctx.globalAlpha = .55; ctx.fill(); ctx.globalAlpha = 1;
+  const s = [[-1.5, 0, -1.1], [2.2, 0, -1.1], [2.2, 0, 1.1], [-1.5, 0, 1.1]].map(proj);
+  ctx.beginPath(); s.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill();
+  // vlakken sorteren (verste eerst) en belichten
+  const licht = [.4, .8, .45], ll = Math.hypot(...licht);
+  vlakken.map(v => {
+    const q = v.p.map(proj), [a, bb, c] = v.p;
+    const u = [bb[0] - a[0], bb[1] - a[1], bb[2] - a[2]], w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]], nl = Math.hypot(...n) || 1;
+    const nr = [n[0] * cos - n[2] * sin, n[1], n[0] * sin + n[2] * cos];   // normaal mee draaien voor het licht
+    const helder = .55 + .55 * Math.max(0, (nr[0] * licht[0] + nr[1] * licht[1] + nr[2] * licht[2]) / nl / ll);
+    const area = q.reduce((s2, p, i) => { const r = q[(i + 1) % q.length]; return s2 + (p[0] * r[1] - r[0] * p[1]); }, 0);
+    return {q, z: q.reduce((s2, p) => s2 + p[2], 0) / q.length - (v.voorrang ? .08 : 0), kleur: tint3d(v.k, helder), voor: area < 0};
+  }).filter(v => v.voor).sort((a, b2) => b2.z - a.z).forEach(v => {
+    ctx.beginPath(); v.q.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+    ctx.fillStyle = v.kleur; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = .6; ctx.stroke();
+  });
+}
+// ---- op de kaart boven het veld laten zweven ----
+let trekker3d = null;
+function toonTrekker3d(t) {
+  verbergTrekker3d();
+  if (!t || !map || t.klaar) return;
+  if (!t.trekker && !t.werktuig && !werktuigSoort(t)) return;
+  const geb = taakGebied(t); const p = perceel(t.perceel_id || t.van_perceel);
+  const vorm = geb[0] || p?.geo; if (!vorm) return;
+  const [lng, lat] = turf.centroid(vorm).geometry.coordinates;
+  const B = 190, H = 140, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const label = [t.trekker, t.werktuig].filter(Boolean).join(' + ') || t.tekst;
+  const icon = L.divIcon({className: 'trekker3d', iconSize: [B, H + 26], iconAnchor: [B / 2, H + 40],
+    html: `<div class="t3d"><canvas width="${B * dpr}" height="${H * dpr}" style="width:${B}px;height:${H}px"></canvas><div class="t3dnaam">🚜 ${esc(label)}</div></div>`});
+  const mk = L.marker([lat, lng], {icon, interactive: false, keyboard: false, zIndexOffset: 2000}).addTo(map);
+  const grond = (() => { const tl = p && [...teeltOppervlak(p).keys()].map(teelt).find(Boolean); return tl?.kleur || '#8d6e63'; })();
+  trekker3d = {mk, t0: performance.now(), id: t.id};
+  const stap = () => {
+    if (!trekker3d || trekker3d.mk !== mk) return;
+    const cv = mk.getElement()?.querySelector('canvas');
+    if (cv) { const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); tekenTrekker3d(ctx, B, H, t, (performance.now() - trekker3d.t0) / 1000, grond); }
+    trekker3d.raf = requestAnimationFrame(stap);
+  };
+  stap();
+}
+function verbergTrekker3d() {
+  if (!trekker3d) return;
+  cancelAnimationFrame(trekker3d.raf); try { map.removeLayer(trekker3d.mk); } catch {}
+  trekker3d = null;
 }
 
 initPaneel();
