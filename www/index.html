@@ -263,6 +263,16 @@ textarea.veld{resize:vertical;font-family:inherit}
 .inforij a{color:var(--groen2)}
 .inforij .kl{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
 .infonotitie{display:block;font-size:11.5px;color:var(--grijs)}
+.urentotaal{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--licht)}
+.urentotaal span{font-size:13px;color:var(--grijs)}
+.urentotaal b{font-size:20px;color:var(--groen)}
+.urenkop{display:flex;justify-content:space-between;gap:8px}
+.urenkop .lopend{font-size:11px;background:#fff3cd;color:#8a6d00;border-radius:8px;padding:1px 6px;margin-left:4px;text-transform:none;letter-spacing:0}
+.urendetail{background:none;border:0;color:var(--groen2);font-weight:600;font-size:13px;padding:8px 0 2px;cursor:pointer}
+.urenregel{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--rand);font-size:13px}
+.urenregel span{flex:1;min-width:0}
+.urenregel small{color:var(--grijs)}
+.urenregel.loopt{background:#fffbea}
 .infosub{font-size:12px;font-weight:700;color:var(--groen2);margin:10px 0 2px}
 .seizoenrij{display:flex;align-items:center;gap:8px;padding:10px 4px;border-top:1px solid var(--rand)}
 .seizoenrij:first-of-type{border-top:0}
@@ -270,6 +280,10 @@ textarea.veld{resize:vertical;font-family:inherit}
 .seizoenrij small{color:var(--grijs);font-size:12px}
 .seizoenrij.bekeken{background:var(--licht);border-radius:10px;padding-left:8px}
 .archiefbadge{background:#ede7f6;color:#4527a0}
+.abrij .abwaarde{font-size:13px;margin:4px 0 8px}
+.abrij .abwaarde a{color:var(--rood);margin-left:6px}
+.abrij .schakel button{font-size:12.5px;padding:7px 4px}
+.abpunt{background:#00e5ff;color:#003040;border:2px solid #fff;border-radius:50%;font-weight:900;font-size:13px;display:flex!important;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(0,0,0,.4)}
 .gewasjes{font-weight:400;font-size:14px;margin-left:2px}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
@@ -430,7 +444,7 @@ const datumKort = d => d ? new Date(d).toLocaleDateString('nl-NL', {day: 'numeri
 const vandaag = () => new Date().toISOString().slice(0, 10);
 
 let sb = null, me = null, gestart = false, wachtRender = false;
-const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], profielen: [], seizoenen: []};
+const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], profielen: [], seizoenen: [], uren: [], inst: {}};
 let bekeken = null, archief = false, livePercelen = null;   // seizoen dat je bekijkt
 let perceelTab = 'info', actief = null, tab = 'percelen', kwast, gereedschap, taakFocus, tekenDoel = 'perceel', markLagen = {}, gekozenPlant, openPlant, openRechten, takenFilter = 'open', vormLaag = null;
 let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, locatieLaag, basis = {}, laagModus = 'sat';
@@ -503,11 +517,15 @@ const RECHTEN = [
   ['seizoen_starten', 'Een nieuw seizoen starten', 'Historie'],
   ['tractoren_volgen', 'Tractoren op de kaart zien en volgen', 'Tractoren'],
   ['tractor_rijden', 'Locatie delen als tractor (telefoon in de trekker)', 'Tractoren'],
-  ['tractoren_beheren', 'Tractoren toevoegen, hernoemen en verwijderen', 'Tractoren']];
+  ['tractoren_beheren', 'Tractoren toevoegen, hernoemen en verwijderen', 'Tractoren'],
+  ['uren_bekijken', 'Uren van iedereen bekijken (eigen uren ziet iedereen)', 'Uren'],
+  ['uren_beheren', 'Uren corrigeren, toevoegen en verwijderen', 'Uren'],
+  ['uren_mailen', 'Urenoverzicht mailen', 'Uren']];
 const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, spuitsporen_bewerken: true, deelvelden_bewerken: true,
   percelen_uitschakelen: false, percelen_verwijderen: false, soorten_indelen: true, soorten_beheren: false,
   taken_toevoegen: true, taken_afvinken: true, werk_registreren: true, taken_verwijderen: false, markeringen_maken: true,
-  weer_bekijken: true, historie_bekijken: true, seizoen_starten: false, tractoren_volgen: true, tractor_rijden: true, tractoren_beheren: false};
+  weer_bekijken: true, historie_bekijken: true, seizoen_starten: false, tractoren_volgen: true, tractor_rijden: true, tractoren_beheren: false,
+  uren_bekijken: false, uren_beheren: false, uren_mailen: false};
 const recht = r => isBeheerder() || !!({...STANDAARD, ...(mijnProfiel()?.rechten || {})})[r];
 const ziet = recht;                                  // bekijk-rechten (ook in het archief)
 const mag = r => !archief && recht(r);            // wijzig-rechten (niet in het archief)
@@ -647,6 +665,7 @@ async function opstarten() {
   let bezig = null; try { bezig = localStorage.getItem('rijdt'); } catch {}
   if (bezig && S.tractoren.find(t => t.id === bezig)) { startRijden(bezig, true); }
   setInterval(() => { if (S.tractoren.length) { tekenTractoren(); if (tab === 'tractoren') render(); } }, 30000);   // "laatst gezien" bijwerken
+  setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
 }
 const actiefSeizoen = () => S.seizoenen.find(s => s.actief);
 const seizoenNaam = id => S.seizoenen.find(s => s.id === id)?.naam || '';
@@ -666,7 +685,8 @@ async function laadAlles() {
     sb.from('rassen').select('*').order('naam'),
     sb.from('markeringen').select('*').order('created_at'),
     sb.from('tractoren').select('*'),
-    sb.from('profielen').select('*').order('naam')
+    sb.from('profielen').select('*').order('naam'),
+    laadInstellingen()
   ]);
   if (p.error) toast('Database niet bereikbaar: ' + p.error.message, 1);
   if (archief) livePercelen = p.data || []; else S.percelen = p.data || [];
@@ -678,6 +698,7 @@ function verwerkLive(pl) {
     if (pl.eventType !== 'DELETE' && pl.new.actief && pl.new.id !== actiefSeizoen()?.id) toast(`Nieuw seizoen gestart: ${pl.new.naam}`);
     laadAlles(); return;
   }
+  if (pl.table === 'taken' && tab === 'uren') setTimeout(laadUren, 800);   // bezig/gestopt → urenregel is bijgewerkt
   if (pl.table === 'taken' && pl.eventType !== 'DELETE' && bekeken && pl.new.seizoen_id !== bekeken) {
     S.taken = S.taken.filter(x => x.id !== pl.new.id); render(); return;
   }
@@ -737,6 +758,74 @@ async function verwijderPerceel() {
   if (error) { toast('Verwijderen mislukt: ' + error.message, 1); return; }
   S.percelen = S.percelen.filter(x => x.id !== p.id); S.taken = S.taken.filter(t => t.perceel_id !== p.id);
   actief = null; render(true); toast('Perceel verwijderd');
+}
+/* ---- vast A-punt van de GPS-lijn ---- */
+function rdNaarWgs(x, y) {   // Rijksdriehoek (RD New) -> WGS84, benadering tot op ± 1 meter
+  const dX = (x - 155000) * 1e-5, dY = (y - 463000) * 1e-5;
+  const n = 3235.65389 * dY - 32.58297 * dX ** 2 - 0.2475 * dY ** 2 - 0.84978 * dX ** 2 * dY - 0.0655 * dY ** 3 - 0.01709 * dX ** 2 * dY ** 2
+    - 0.00738 * dX + 0.0053 * dX ** 4 - 0.00039 * dX ** 2 * dY ** 3 + 0.00033 * dX ** 4 * dY - 0.00012 * dX * dY;
+  const e = 5260.52916 * dX + 105.94684 * dX * dY + 2.45656 * dX * dY ** 2 - 0.81885 * dX ** 3 + 0.05594 * dX * dY ** 3 - 0.05607 * dX ** 3 * dY
+    + 0.01199 * dY - 0.00256 * dX ** 3 * dY ** 2 + 0.00128 * dX * dY ** 4 + 0.00022 * dY ** 2 - 0.00022 * dX ** 2 + 0.00026 * dX ** 5;
+  return [5.387206 + e / 3600, 52.15517 + n / 3600];   // [lengtegraad, breedtegraad]
+}
+function leesCoordinaat(tekst) {   // "51.48234, 5.98122" (graden) of "191234.5, 391234.7" (RD)
+  const g = String(tekst).trim().replace(/;/g, ' ').match(/-?\d+(?:[.,]\d+)?/g);
+  if (!g || g.length < 2) return null;
+  let [a, b] = g.slice(0, 2).map(x => parseFloat(x.replace(',', '.')));
+  if (Math.abs(a) > 1000 && Math.abs(b) > 1000) {   // RD-coördinaten
+    const [x, y] = a < b ? [a, b] : [b, a];
+    if (x < 0 || x > 300000 || y < 289000 || y > 629000) return null;
+    return rdNaarWgs(x, y);
+  }
+  if (Math.abs(a) <= 90 && Math.abs(b) <= 180) { if (a < 20 && b > 40) [a, b] = [b, a]; return [b, a]; }   // breedte, lengte -> [lengte, breedte]
+  return null;
+}
+function zoneVoorAB(zoneId) { const p = perceel(actief); return alleZones(p).find(z => z.id === zoneId) || p; }
+function zetABPunt(zoneId, punt, uitlijning) {
+  const p = perceel(actief), z = zoneVoorAB(zoneId);
+  const patch = {}; if (punt !== undefined) patch.ab_punt = punt; if (uitlijning) patch.ab_uitlijning = uitlijning;
+  if (!z._vak) wijzig(p.id, patch);
+  else wijzig(p.id, {vakken: (p.vakken || []).map(v => v.id === z._vak.id ? {...v, ...patch} : v)});
+  if (punt) toast('A-punt ingesteld. De sporen lopen nu precies vanaf dit punt.'); else if (punt === null) toast('A-punt verwijderd');
+}
+function abTyp(zoneId) {
+  const veld = document.getElementById('abIn_' + zoneId.replace(/[^a-z0-9]/gi, '_'));
+  const c = leesCoordinaat(veld?.value || '');
+  if (!c) { toast('Die coördinaat begrijp ik niet. Gebruik bijv. 51.48234, 5.98122 of RD: 191234, 391234', 1); return; }
+  zetABPunt(zoneId, c);
+}
+async function abAanwijzen(zoneId) {
+  const punt = await wijsPuntAan('Tik op het A-punt van de GPS-lijn'); if (!punt) return;
+  zetABPunt(zoneId, punt.geometry.coordinates);
+}
+function abHier(zoneId) {
+  if (!navigator.geolocation || !window.isSecureContext) { toast('Je locatie is hier niet beschikbaar', 1); return; }
+  toast('Locatie bepalen… blijf even stil staan op het A-punt');
+  navigator.geolocation.getCurrentPosition(pos => {
+    zetABPunt(zoneId, [pos.coords.longitude, pos.coords.latitude]);
+    toast(`A-punt gezet op je locatie (nauwkeurigheid ± ${Math.round(pos.coords.accuracy)} m)`);
+  }, () => toast('Locatie niet beschikbaar', 1), {enableHighAccuracy: true, timeout: 20000, maximumAge: 0});
+}
+function abInvoer(z, bew) {
+  const id = z.id.replace(/[^a-z0-9]/gi, '_'), ab = z.ab_punt;
+  return `<div class="spuitrij abrij"><div class="spuitkop">📍 Vast A-punt van de GPS-lijn</div>
+    ${ab ? `<div class="abwaarde">A = <b>${(+ab[1]).toFixed(6)}, ${(+ab[0]).toFixed(6)}</b>${bew ? ` <a href="#" onclick="zetABPunt('${z.id}',null);return false">wissen</a>` : ''}</div>` :
+      '<p class="hint" style="margin:2px 0 6px">Nog niet ingesteld: de sporen beginnen nu aan de rand van het perceel.</p>'}
+    ${bew ? `<div class="rij"><input class="veld" id="abIn_${id}" placeholder="51.48234, 5.98122  of  RD 191234, 391234" onkeydown="if(event.key==='Enter')abTyp('${z.id}')">
+      <button class="knop klein" onclick="abTyp('${z.id}')">Zet</button></div>
+      <div class="rij" style="margin-top:6px"><button class="knop klein licht" onclick="abAanwijzen('${z.id}')">📍 Op de kaart</button><button class="knop klein licht" onclick="abHier('${z.id}')">📡 Mijn locatie</button></div>
+      <label>Het A-punt ligt op</label>
+      <div class="schakel" style="margin:0"><button class="${(z.ab_uitlijning || 'midden') === 'midden' ? 'aan' : ''}" onclick="zetABPunt('${z.id}',undefined,'midden')">het midden van een spoor</button>
+        <button class="${z.ab_uitlijning === 'rand' ? 'aan' : ''}" onclick="zetABPunt('${z.id}',undefined,'rand')">de rand van een spoor</button></div>` : ''}
+  </div>`;
+}
+function tekenABLijn(z) {
+  if (!Array.isArray(z.ab_punt)) return;
+  const [x, y] = z.ab_punt, r = +z.richting || 0, bb = turf.bbox(z._vak ? z.geo : z.geo);
+  const l = Math.max(turf.distance([bb[0], bb[1]], [bb[2], bb[3]]), 0.05);
+  const p1 = turf.destination([x, y], l, r).geometry.coordinates, p2 = turf.destination([x, y], l, r + 180).geometry.coordinates;
+  geenSnap(L.polyline([[p2[1], p2[0]], [p1[1], p1[0]]], {color: '#00e5ff', weight: 2, dashArray: '8,6', opacity: .9, interactive: false})).addTo(pijlLaag);
+  geenSnap(L.marker([y, x], {interactive: false, icon: L.divIcon({className: 'abpunt', html: 'A', iconSize: [24, 24], iconAnchor: [12, 12]})})).addTo(pijlLaag);
 }
 function zetGetal(veld, waarde) {
   let n = parseFloat(String(waarde).replace(',', '.'));
@@ -963,13 +1052,20 @@ async function zetBezig(id) {
   const t = S.taken.find(x => x.id === id); if (!t || t.klaar) return;
   if (!mag('taken_afvinken')) { toast('Je mag deze taak niet bijwerken', 1); return; }
   const patch = t.bezig_door ? {bezig_door: null, bezig_sinds: null} : {bezig_door: naamMe(), bezig_sinds: new Date().toISOString()};
+  // Je kunt maar met één ding tegelijk bezig zijn: je andere taak stopt automatisch
+  const andere = patch.bezig_door ? S.taken.filter(x => x.id !== id && !x.klaar && x.bezig_door === naamMe()) : [];
+  for (const x of andere) {
+    Object.assign(x, {bezig_door: null, bezig_sinds: null});
+    await sb.from('taken').update({bezig_door: null, bezig_sinds: null}).eq('id', x.id);
+  }
   Object.assign(t, patch); render(true);
   const {error} = await sb.from('taken').update(patch).eq('id', id);
   if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1);
-  else toast(patch.bezig_door ? `Je bent bezig met "${t.tekst}"` : 'Niet meer bezig');
+  else toast(patch.bezig_door ? `⏱️ De klok loopt: "${t.tekst}"${andere.length ? ` (gestopt met "${andere[0].tekst}")` : ''}` : 'Gestopt, je uren zijn bijgeschreven');
+  if (tab === 'uren') setTimeout(laadUren, 500);
 }
 const bezigTekst = t => t.bezig_door ? `🟡 Bezig: ${esc(t.bezig_door)}${t.bezig_sinds ? ' sinds ' + new Date(t.bezig_sinds).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) +
-  (new Date(t.bezig_sinds).toDateString() !== new Date().toDateString() ? ' (' + datumKort(t.bezig_sinds) + ')' : '') : ''}` : '';
+  (new Date(t.bezig_sinds).toDateString() !== new Date().toDateString() ? ' (' + datumKort(t.bezig_sinds) + ')' : '') + ' · ⏱️ ' + duurTekst(Date.now() - new Date(t.bezig_sinds)) : ''}` : '';
 async function rondAf(id) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
   const w = await formulier(`✓ Afronden: ${t.tekst}`, uitvoeringVelden(t), 'Afronden');
@@ -1333,7 +1429,8 @@ function vakZone(p, v) {
     vulCache.set(ck, {sl, g, binnen});
   }
   return {id: p.id + ':' + v.id, _perceel: p, _vak: v, naam: v.naam, vulgeo: g, binnen, geo: v.geo, type: p.type, banen_aan: !v.zonderSporen, gewas: v.gewas || null,
-    richting: +v.richting || 0, breedte: +v.breedte || +p.breedte || 3, aantal: +v.aantal || 0, verschuiving: +v.verschuiving || 0, banen: v.banen || []};
+    richting: +v.richting || 0, breedte: +v.breedte || +p.breedte || 3, aantal: +v.aantal || 0, verschuiving: +v.verschuiving || 0, banen: v.banen || [],
+    ab_punt: v.ab_punt || null, ab_uitlijning: v.ab_uitlijning || 'midden'};
 }
 const zoneVlak = z => z._vak ? z.vulgeo : vulGebied(z);            // het stuk dat bij deze zone hoort
 const zoneGewas = z => !banenVan(z).length && teelt(z.gewas) ? z.gewas : null;   // heel vlak één gewas (alleen zonder sporen)
@@ -1362,7 +1459,7 @@ function banenVan(p) {
   if (!p || p.type === 'pand' || !p.banen_aan || !(+p.breedte > 0)) return [];
   const gebied = p._vak ? p.vulgeo : vulGebied(p);   // waar sporen mogen komen
   if (!gebied) return [];
-  const sleutel = JSON.stringify([p.geo, gebied, p.richting, p.breedte, p.aantal, p.verschuiving]);
+  const sleutel = JSON.stringify([p.geo, gebied, p.richting, p.breedte, p.aantal, p.verschuiving, p.ab_punt, p.ab_uitlijning]);
   const c = banenCache.get(p.id); if (c && c.sleutel === sleutel) return c.res;
   const res = [];
   try {
@@ -1379,8 +1476,11 @@ function banenVan(p) {
     const dwars = pts.map(q => q[0] * n[0] + q[1] * n[1]);
     const lengte = Math.max(...pts.map(q => Math.abs(q[0] * d[0] + q[1] * d[1]))) + 50;
     const min = Math.min(...dwars), max = Math.max(...dwars), b = +p.breedte;
-    const v = (((+p.verschuiving || 0) % b) + b) % b;
-    let a = min + v - (v > 0 ? b : 0);
+    // Uitlijning: vanaf het vaste A-punt van de GPS-lijn (als dat er is), anders vanaf de rand van het perceel
+    let ref = min;
+    if (Array.isArray(p.ab_punt)) { const q = naarM(p.ab_punt); ref = q[0] * n[0] + q[1] * n[1] - (p.ab_uitlijning === 'rand' ? 0 : b / 2); }
+    const start = ref + (+p.verschuiving || 0);
+    let a = start - Math.ceil((start - min) / b) * b;
     const maxAantal = +p.aantal > 0 ? +p.aantal : Infinity;
     for (let i = 0; a < max && res.length < maxAantal && i < 5000; i++, a += b) {
       const r = [[a, -lengte], [a + b, -lengte], [a + b, lengte], [a, lengte], [a, -lengte]]
@@ -1910,7 +2010,7 @@ function renderKaart() {
       fillOpacity: !toonOmtrek ? 0.001 : p.type === 'pand' ? .4 : p.type === 'kas' ? .25 : isA ? .06 : .12}})
       .on('click', () => { if (!tekent()) kies(p.id); }).addTo(laag);
     const zb = zichtbaar(p.id);
-    if (!p.uitgeschakeld) alleZones(p).forEach(z => { if (zb.sporen) { tekenGewasVlak(z, p); tekenZone(z, isA); } if (zb.spuit) { tekenSpuit(z); tekenVakLetters(z); } });
+    if (!p.uitgeschakeld) alleZones(p).forEach(z => { if (zb.sporen) { tekenGewasVlak(z, p); tekenZone(z, isA); if (isA) tekenABLijn(z); } if (zb.spuit) { tekenSpuit(z); tekenVakLetters(z); } });
     if (toonOmtrek) {
       (p.vakken || []).map(v => vakZone(p, v).binnen).filter(Boolean).forEach(g => L.geoJSON(g, {interactive: false,
         style: {color: '#ffffff', weight: isA ? 2.5 : 1.5, dashArray: '6,5', fill: false, opacity: .9}}).addTo(laag));
@@ -1993,7 +2093,7 @@ function render(forceer) {
 }
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
-function zetTab(t) { tab = t; if (t !== 'percelen') { kwast = undefined; gekozenPlant = undefined; } render(true); $('#inhoud').scrollTop = 0; }
+function zetTab(t) { if (t === 'uren' && tab !== 'uren') laadUren(); tab = t; if (t !== 'percelen') { kwast = undefined; gekozenPlant = undefined; } render(true); $('#inhoud').scrollTop = 0; }
 
 function renderPaneel() {
   const open = S.taken.filter(t => !t.klaar).length;
@@ -2001,6 +2101,7 @@ function renderPaneel() {
   if (tab === 'team' && !isBeheerder()) tab = 'percelen';
   if (tab === 'tractoren' && !(ziet('tractoren_volgen') || ziet('tractor_rijden'))) tab = 'percelen';
   $('#tabs').innerHTML = [['percelen', 'Percelen'], ['taken', 'Taken' + (open ? `<span class="tel">${open}</span>` : '')], ['soorten', 'Planten'], ['seizoenen', '📅'], ...(ziet('tractoren_volgen') || ziet('tractor_rijden') ? [['tractoren', '🚜' + (S.tractoren.some(isLive) ? '<span class="tel live">' + S.tractoren.filter(isLive).length + '</span>' : '')]] : []),
+    ['uren', '⏱️' + (S.taken.some(t => t.bezig_door && !t.klaar) ? `<span class="tel live">${S.taken.filter(t => t.bezig_door && !t.klaar).length}</span>` : '')],
     ...(isBeheerder() ? [['team', 'Team']] : [])]
     .map(([k, l]) => `<button class="${tab === k ? 'aan' : ''}" onclick="zetTab('${k}')">${l}</button>`).join('');
   let h = '';
@@ -2009,6 +2110,7 @@ function renderPaneel() {
   else if (tab === 'team') h = htmlTeam();
   else if (tab === 'tractoren') h = htmlTractoren();
   else if (tab === 'seizoenen') h = htmlSeizoenen();
+  else if (tab === 'uren') h = htmlUren();
   else h = htmlSoorten();
   $('#inhoud').innerHTML = h;
   document.querySelector('.fab').style.display = mag('percelen_tekenen') ? '' : 'none';
@@ -2147,6 +2249,7 @@ function htmlInfo(p) {
     const s = spuitVan(p), vk = spuitvakkenVan(p);
     h += blok('🟩 Sporen', banen.length ? rij('Richting (GPS)', `${(+p.richting || 0).toLocaleString('nl-NL', {maximumFractionDigits: 3})}°`) +
       rij('Breedte per spoor', `${(+p.breedte).toLocaleString('nl-NL')} m`) + rij('Aantal sporen', totaalSporen) +
+      rij('A-punt GPS-lijn', Array.isArray(p.ab_punt) ? `${(+p.ab_punt[1]).toFixed(6)}, ${(+p.ab_punt[0]).toFixed(6)} <small>(${p.ab_uitlijning === 'rand' ? 'rand' : 'midden'} spoor)</small>` : 'niet ingesteld') +
       rij('Spuitsporen', spuitSet(p).size ? `${spuitSet(p).size}${s.elke ? ` (elke ${s.elke}, eerste spoor ${s.start || s.elke})` : ''}` : '') +
       (vk.length ? `<table class="verdeling vakkentabel"><tr><td><b>Vak</b></td><td><b>Rijen</b></td><td><b>m²</b></td><td><b>Lengte</b></td></tr>${vk.map((v, i) =>
         `<tr onclick="zoomVak('${p.id}',${i})" style="cursor:pointer"><td><b>${v.letter}</b></td><td>${v.rijen}</td><td>${Math.round(v.m2).toLocaleString('nl-NL')}</td><td>${Math.round(v.lengte)} m</td></tr>`).join('')}</table>` : '')
@@ -2291,7 +2394,8 @@ function htmlDetail(p) {
     ${bew ? `<button class="knop ${p.banen_aan ? 'licht' : ''}" onclick="wijzig(actief,{banen_aan:${!p.banen_aan}})">${p.banen_aan ? 'Sporen verbergen' : 'Sporen maken'}</button>` : ''}
     ${mag('spuitsporen_bewerken') && totaalSporen ? `<button class="knop ${gereedschap === 'spuit' ? '' : 'licht'}" onclick="zetGereedschap('spuit')">🚜 ${gereedschap === 'spuit' ? 'Klaar met spuitsporen aanklikken' : 'Spuitsporen aanklikken op de kaart'}</button>
       ${gereedschap === 'spuit' ? '<p class="hint"><b>Tik op een spoor</b> om er een spuitspoor van te maken, of tik op een spuitspoor (oranje streep) om het weg te halen. Werkt ook in deelvelden.</p>' : ''}` : ''}
-    <p class="hint">0° = noord, 90° = oost. Gebruik dezelfde hoek als in je GPS. Laat "Aantal" leeg om het hele perceel te vullen. Met "Verschuif" schuif je de sporen opzij zodat ze precies op je AB-lijn liggen.</p>
+    ${abInvoer(p, bew)}
+    <p class="hint">0° = noord, 90° = oost. Gebruik dezelfde hoek als in je GPS. Met een vast A-punt liggen de sporen precies op je GPS-lijnen; "Verschuif" kun je dan op 0 laten. Laat "Aantal" leeg om het hele perceel te vullen.</p>
   </section>
   <section class="kaartje"><h4>🌱 Gewas zonder sporen</h4>
     <p class="hint" style="margin-top:0">Gebruik je op dit perceel geen sporen? Geef het dan in één keer één plant, bijvoorbeeld braak of groenbemester.
@@ -2334,7 +2438,7 @@ function htmlVakken(p, bew) {
         <div><label>Verschuif (m)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="0.1" value="${+v.verschuiving || 0}" onchange="zetVak('${v.id}','verschuiving',this.value)"></div>
       </div>${n ? spuitInvoer(z, mag('spuitsporen_bewerken')) : ''}
       <label class="vinkje"><input type="checkbox" ${v.zonderSporen ? 'checked' : ''} ${bew ? '' : 'disabled'} onchange="zetZonderSporen('${v.id}',this.checked)"> Geen sporen: heel deelveld één gewas</label>
-      ${v.zonderSporen ? `<div style="margin-top:6px">${gewasKeuze(z, mag('soorten_indelen'))}</div>` : ''}</div>`; }).join('')}
+      ${v.zonderSporen ? `<div style="margin-top:6px">${gewasKeuze(z, mag('soorten_indelen'))}</div>` : abInvoer(z, bew)}</div>`; }).join('')}
     ${bew ? `<button class="knop licht" onclick="tekenVak()">▦ Deelveld tekenen</button>
       <p class="hint">Teken een stuk van het veld waar de sporen een andere kant op lopen (een deelveld). Het hoofdveld stopt daar automatisch.</p>` : ''}
   </section>`;
@@ -2476,6 +2580,219 @@ function rechtenLijst(aan, attr) {
   return groepen.map(g => `<div class="rechtgroep">${g}</div>` + RECHTEN.filter(r => r[2] === g).map(([k, l]) =>
     `<label class="vinkje"><input type="checkbox" ${aan(k) ? 'checked' : ''} ${attr(k)}> ${l}</label>`).join('')).join('');
 }
+/* ============ uren ============ */
+let urenPer = 'week', urenVan = '', urenTot = '', urenWie = '', urenOpen = new Set();
+const UUR = 3600000;
+function duurTekst(ms) {
+  const min = Math.max(0, Math.round(ms / 60000)), u = Math.floor(min / 60), m = min % 60;
+  return u ? `${u}u ${String(m).padStart(2, '0')}m` : `${m} min`;
+}
+const uurDec = ms => (Math.round(ms / UUR * 100) / 100).toLocaleString('nl-NL', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const urenDuur = r => Math.max(0, (r.eind ? new Date(r.eind) : new Date()) - new Date(r.start));
+const tijdKort = d => new Date(d).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'});
+const dagKort = d => new Date(d).toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric', month: 'short'});
+function weekNr(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())), dag = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - dag);
+  return Math.ceil(((t - new Date(Date.UTC(t.getUTCFullYear(), 0, 1))) / 864e5 + 1) / 7);
+}
+// Begin en eind (niet meer meegeteld) van de gekozen periode
+function urenPeriode() {
+  const nu = new Date(), dag = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate());
+  const plus = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const maandag = plus(dag, -((dag.getDay() + 6) % 7));
+  const tot = d => plus(d, -1).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'});
+  const maandNaam = d => d.toLocaleDateString('nl-NL', {month: 'long', year: 'numeric'});
+  if (urenPer === 'vandaag') return [dag, plus(dag, 1), 'vandaag ' + dag.toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})];
+  if (urenPer === 'week') return [maandag, plus(maandag, 7), `week ${weekNr(maandag)} (${maandag.toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})} t/m ${tot(plus(maandag, 7))})`];
+  if (urenPer === 'vorigeweek') { const m = plus(maandag, -7); return [m, maandag, `week ${weekNr(m)} (${m.toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})} t/m ${tot(maandag)})`]; }
+  if (urenPer === 'maand') { const m = new Date(dag.getFullYear(), dag.getMonth(), 1); return [m, new Date(m.getFullYear(), m.getMonth() + 1, 1), maandNaam(m)]; }
+  if (urenPer === 'vorigemaand') { const m = new Date(dag.getFullYear(), dag.getMonth() - 1, 1); return [m, new Date(dag.getFullYear(), dag.getMonth(), 1), maandNaam(m)]; }
+  const v = urenVan ? new Date(urenVan + 'T00:00') : maandag, t = urenTot ? plus(new Date(urenTot + 'T00:00'), 1) : plus(v, 7);
+  return [v, t > v ? t : plus(v, 1), `${v.toLocaleDateString('nl-NL', {day: 'numeric', month: 'short', year: 'numeric'})} t/m ${tot(t > v ? t : plus(v, 1))}`];
+}
+async function laadUren() {
+  if (!sb) return;
+  const [v, t] = urenPeriode();
+  const [a, b] = await Promise.all([
+    sb.from('uren').select('*').gte('start', v.toISOString()).lt('start', t.toISOString()).order('start'),
+    sb.from('uren').select('*').is('eind', null)]);
+  if (a.error) { if (/uren/.test(a.error.message || '')) toast('Draai eerst het nieuwe beheer.sql in Supabase', 1); return; }
+  const kaart = new Map(S.uren.map(r => [r.id, r]));
+  [...(a.data || []), ...(b.data || [])].forEach(r => kaart.set(r.id, r));
+  S.uren = [...kaart.values()];
+  if (tab === 'uren') renderPaneel();
+}
+async function laadInstellingen() {
+  const {data} = await sb.from('instellingen').select('*');
+  S.inst = Object.fromEntries((data || []).map(r => [r.sleutel, r.waarde]));
+}
+function urenVerversen() {   // lopende klokken bijwerken, maar niet terwijl iemand iets invult
+  const a = document.activeElement;
+  if (a && $('#inhoud').contains(a) && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) return;
+  if ($('#modal').classList.contains('open')) return;
+  renderPaneel();
+}
+function urenWissel(n) { if (urenOpen.has(n)) urenOpen.delete(n); else urenOpen.add(n); renderPaneel(); }
+function urenZetPer(p) { urenPer = p; urenOpen.clear(); renderPaneel(); laadUren(); }
+function urenZetDatum(k, w) { if (k === 'van') urenVan = w; else urenTot = w; urenPer = 'zelf'; laadUren(); renderPaneel(); }
+// De regels die in beeld zijn: binnen de periode (of nu nog lopend), en voor wie je mag zien
+function urenRegels() {
+  const [v, t] = urenPeriode(), alles = ziet('uren_bekijken');
+  return S.uren.filter(r => { const s = new Date(r.start); return s >= v && s < t; })
+    .filter(r => alles ? (!urenWie || r.naam === urenWie) : r.user_id === me?.id || r.naam === naamMe())
+    .sort((a, b) => new Date(a.start) - new Date(b.start));
+}
+const urenTaak = r => r.taak_tekst || 'Overig werk';
+const urenPlek = r => r.perceel_id ? (perceel(r.perceel_id)?.naam || '') : '';
+// Per persoon → per taak optellen
+function urenGroepen(regels) {
+  const pp = new Map();
+  regels.forEach(r => {
+    if (!pp.has(r.naam)) pp.set(r.naam, {naam: r.naam, ms: 0, taken: new Map(), regels: [], loopt: false});
+    const p = pp.get(r.naam), d = urenDuur(r), k = (r.taak_id || '') + '|' + urenTaak(r) + '|' + (r.perceel_id || '');
+    p.ms += d; p.regels.push(r); if (!r.eind) p.loopt = true;
+    if (!p.taken.has(k)) p.taken.set(k, {tekst: urenTaak(r), plek: urenPlek(r), ms: 0, keer: 0, loopt: false});
+    const t = p.taken.get(k); t.ms += d; t.keer++; if (!r.eind) t.loopt = true;
+  });
+  return [...pp.values()].sort((a, b) => a.naam.localeCompare(b.naam, 'nl'))
+    .map(p => ({...p, taken: [...p.taken.values()].sort((a, b) => b.ms - a.ms)}));
+}
+function htmlUren() {
+  const [, , label] = urenPeriode(), alles = ziet('uren_bekijken'), beheer = mag('uren_beheren');
+  const regels = urenRegels(), groepen = urenGroepen(regels), totaal = groepen.reduce((s, p) => s + p.ms, 0);
+  const lopend = S.uren.filter(r => !r.eind && (alles || r.user_id === me?.id || r.naam === naamMe()));
+  const namen = [...new Set([...S.profielen.map(p => p.naam), ...S.uren.map(r => r.naam)])].sort((a, b) => a.localeCompare(b, 'nl'));
+  const [v, t] = urenPeriode(), iso = d => dKey(d);
+  let h = `<section class="kaartje"><h4>⏱️ Uren</h4>
+    <div class="ptabs" style="grid-template-columns:repeat(3,1fr)">${[['vandaag', 'Vandaag'], ['week', 'Deze week'], ['vorigeweek', 'Vorige week'], ['maand', 'Deze maand'], ['vorigemaand', 'Vorige maand'], ['zelf', 'Zelf kiezen']]
+      .map(([k, l]) => `<button class="${urenPer === k ? 'aan' : ''}" onclick="urenZetPer('${k}')">${l}</button>`).join('')}</div>
+    ${urenPer === 'zelf' ? `<div class="rij"><div style="flex:1"><label>Van</label><input class="veld" type="date" value="${iso(v)}" onchange="urenZetDatum('van',this.value)"></div>
+      <div style="flex:1"><label>Tot en met</label><input class="veld" type="date" value="${iso(new Date(t - 864e5))}" onchange="urenZetDatum('tot',this.value)"></div></div>` : ''}
+    ${alles ? `<label>Wie</label><select class="veld" onchange="urenWie=this.value;renderPaneel()"><option value="">Iedereen</option>${namen.map(n => `<option ${n === urenWie ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>` : ''}
+    <div class="urentotaal"><span>${esc(label)}</span><b>${duurTekst(totaal)}</b></div>
+    ${!alles ? '<p class="hint">Je ziet alleen je eigen uren.</p>' : ''}
+    <div class="rij" style="margin-top:8px">${beheer ? `<button class="knop licht klein" onclick="urenBewerk()">＋ Uren toevoegen</button>` : ''}
+      ${mag('uren_mailen') ? `<button class="knop klein" onclick="urenMail()">📧 Mail dit overzicht</button>` : ''}</div>
+    ${mag('uren_mailen') ? `<p class="hint" style="margin-bottom:0">${S.inst.mail_aan ? `Gaat naar <b>${esc(S.inst.mail_aan)}</b>${S.inst.mail_sleutel ? '' : ' (via je eigen mailprogramma)'}` : 'Er is nog geen e-mailadres ingesteld' + (isBeheerder() ? ' (zie onderaan).' : '. Vraag dit aan de beheerder.')}</p>` : ''}
+  </section>`;
+  if (lopend.length) h += `<section class="kaartje"><h4>🟡 Nu bezig</h4>${lopend.map(r => `<div class="inforij"><span><b style="color:var(--tekst)">${esc(r.naam)}</b> · ${esc(urenTaak(r))}${urenPlek(r) ? ' · ' + esc(urenPlek(r)) : ''}<br><small>sinds ${tijdKort(r.start)}${new Date(r.start).toDateString() !== new Date().toDateString() ? ' (' + dagKort(r.start) + ')' : ''}</small></span><b>${duurTekst(urenDuur(r))}</b></div>`).join('')}</section>`;
+  if (!groepen.length) h += `<div class="leeg"><div class="groot">⏱️</div><b>Geen uren in deze periode</b>Tik bij een taak op <b>▶ Ik ben bezig</b>. De klok loopt dan tot je op <b>⏸ Niet meer bezig</b> tikt of de taak afrondt.</div>`;
+  h += groepen.map(p => `<section class="kaartje"><h4 class="urenkop"><span>👤 ${esc(p.naam)}${p.loopt ? ' <span class="lopend">loopt</span>' : ''}</span><span>${duurTekst(p.ms)}</span></h4>
+    ${p.taken.map(t => `<div class="inforij"><span>${esc(t.tekst)}${t.plek ? ' · ' + esc(t.plek) : ''}${t.keer > 1 ? ` <small>(${t.keer}×)</small>` : ''}</span><b>${duurTekst(t.ms)}</b></div>`).join('')}
+    <button class="urendetail" onclick="urenWissel(this.dataset.n)" data-n="${esc(p.naam)}">${urenOpen.has(p.naam) ? '▾ Verberg tijden' : '▸ Toon alle tijden'}</button>
+    ${urenOpen.has(p.naam) ? p.regels.map(r => `<div class="urenregel ${r.eind ? '' : 'loopt'}">
+      <span><b>${dagKort(r.start)}</b> ${tijdKort(r.start)}–${r.eind ? tijdKort(r.eind) : 'nu'}<br><small>${esc(urenTaak(r))}${urenPlek(r) ? ' · ' + esc(urenPlek(r)) : ''}${r.handmatig ? ' · ✍️' : ''}${r.opmerking ? ' · ' + esc(r.opmerking) : ''}</small></span>
+      <b>${duurTekst(urenDuur(r))}</b>${beheer ? `<button class="icoon" title="Aanpassen" onclick="urenBewerk('${r.id}')">✏️</button><button class="weg" title="Verwijderen" onclick="urenWeg('${r.id}')">×</button>` : ''}</div>`).join('') : ''}
+  </section>`).join('');
+  if (isBeheerder() && !archief) h += htmlMailInstellingen();
+  return h;
+}
+// Een urenregel toevoegen of corrigeren (bijv. als iemand vergat op stop te drukken)
+async function urenBewerk(id) {
+  const r = id ? S.uren.find(x => x.id === id) : null;
+  if (id && !r) return;
+  const s = r ? new Date(r.start) : new Date(new Date().setHours(8, 0, 0, 0)), e = r?.eind ? new Date(r.eind) : r ? null : new Date(s.getTime() + 2 * UUR);
+  const hhmm = d => d ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
+  const namen = [...new Set([...S.profielen.map(p => p.naam), ...(r ? [r.naam] : [])])].sort((a, b) => a.localeCompare(b, 'nl'));
+  const takenLijst = [...new Set(S.taken.map(t => t.tekst).filter(Boolean))];
+  const w = await formulier(r ? '✏️ Uren aanpassen' : '＋ Uren toevoegen', [
+    {k: 'naam', label: 'Wie', type: 'select', waarde: r?.naam || urenWie || naamMe(), opties: namen.map(n => [n, n])},
+    {k: 'taak', label: 'Wat (taak of werk)', waarde: r ? (r.taak_tekst || '') : '', lijst: takenLijst, placeholder: 'bijv. Spuiten'},
+    {k: 'perceel', label: 'Waar', type: 'select', waarde: r?.perceel_id || '', opties: [['', '— geen perceel —'], ...[...S.percelen].sort((a, b) => a.naam.localeCompare(b.naam, 'nl')).map(p => [p.id, p.naam])]},
+    {k: 'datum', label: 'Datum', type: 'date', waarde: dKey(s)},
+    {k: 'start', label: 'Begon om', type: 'time', waarde: hhmm(s)},
+    {k: 'eind', label: 'Gestopt om (leeg = loopt nog)', type: 'time', waarde: hhmm(e)},
+    {k: 'opmerking', label: 'Opmerking (optioneel)', waarde: r?.opmerking || '', placeholder: 'bijv. stoppen vergeten, gecorrigeerd'}], r ? 'Opslaan' : 'Toevoegen');
+  if (!w) return;
+  if (!w.datum || !/^\d\d:\d\d$/.test(w.start)) { toast('Vul een datum en begintijd in', 1); return; }
+  const start = new Date(`${w.datum}T${w.start}`);
+  let eind = w.eind ? new Date(`${w.datum}T${w.eind}`) : null;
+  if (eind && eind <= start) eind = new Date(eind.getTime() + 864e5);   // over middernacht
+  if (eind && eind - start > 24 * UUR) { toast('Meer dan 24 uur achter elkaar kan niet', 1); return; }
+  const taak = w.taak ? S.taken.find(t => t.tekst === w.taak) : null;
+  const rij = {naam: w.naam, taak_tekst: w.taak || null, perceel_id: w.perceel || taak?.perceel_id || null, start: start.toISOString(), eind: eind ? eind.toISOString() : null, opmerking: w.opmerking || null};
+  if (!r || (r.taak_tekst || '') !== (w.taak || '')) rij.taak_id = taak?.id || null;
+  if (!r) { rij.handmatig = true; rij.user_id = S.profielen.find(p => p.naam === w.naam)?.id || null; }
+  const res = r ? await sb.from('uren').update(rij).eq('id', r.id).select().single() : await sb.from('uren').insert(rij).select().single();
+  if (res.error) { toast('Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
+  const i = S.uren.findIndex(x => x.id === res.data.id); if (i >= 0) S.uren[i] = res.data; else S.uren.push(res.data);
+  urenOpen.add(w.naam); renderPaneel(); toast(r ? 'Uren aangepast' : 'Uren toegevoegd');
+}
+async function urenWeg(id) {
+  const r = S.uren.find(x => x.id === id); if (!r) return;
+  if (!await bevestig('Deze uren verwijderen?', `${r.naam} · ${urenTaak(r)} · ${dagKort(r.start)} ${tijdKort(r.start)} (${duurTekst(urenDuur(r))})`)) return;
+  const {error} = await sb.from('uren').delete().eq('id', id);
+  if (error) { toast('Verwijderen mislukt: ' + foutTekst(error), 1); return; }
+  S.uren = S.uren.filter(x => x.id !== id); renderPaneel();
+}
+// Het overzicht als mail: per persoon wat en hoelang, en daaronder alle tijden
+function urenMailInhoud() {
+  const [, , label] = urenPeriode(), groepen = urenGroepen(urenRegels()), totaal = groepen.reduce((s, p) => s + p.ms, 0);
+  const onderwerp = `Urenoverzicht ${label}${urenWie ? ' – ' + urenWie : ''}`;
+  const td = 'style="padding:6px 10px;border-bottom:1px solid #e3e8e3"', tdr = 'style="padding:6px 10px;border-bottom:1px solid #e3e8e3;text-align:right;white-space:nowrap"';
+  const th = 'style="padding:6px 10px;text-align:left;background:#eef4ef;color:#1f4d2b;font-size:13px"', thr = th.replace('left', 'right');
+  let html = `<div style="font-family:Arial,Helvetica,sans-serif;color:#1d2a20;max-width:680px">
+    <h2 style="color:#1f4d2b;margin:0 0 4px">⏱️ Urenoverzicht</h2><div style="color:#667;margin-bottom:16px">${esc(label)}${urenWie ? ' · ' + esc(urenWie) : ''} · verstuurd door ${esc(naamMe())}</div>
+    <table style="border-collapse:collapse;width:100%;margin-bottom:20px"><tr><th ${th}>Wie</th><th ${thr}>Uren</th></tr>
+    ${groepen.map(p => `<tr><td ${td}>${esc(p.naam)}${p.loopt ? ' <i>(nog bezig)</i>' : ''}</td><td ${tdr}><b>${duurTekst(p.ms)}</b> (${uurDec(p.ms)} u)</td></tr>`).join('')}
+    <tr><td ${td}><b>Totaal</b></td><td ${tdr}><b>${duurTekst(totaal)}</b> (${uurDec(totaal)} u)</td></tr></table>`;
+  let tekst = `URENOVERZICHT ${label}${urenWie ? ' – ' + urenWie : ''}\n\n`;
+  groepen.forEach(p => {
+    html += `<h3 style="color:#1f4d2b;margin:18px 0 6px">👤 ${esc(p.naam)} – ${duurTekst(p.ms)}</h3>
+      <table style="border-collapse:collapse;width:100%"><tr><th ${th}>Wat</th><th ${th}>Waar</th><th ${thr}>Hoelang</th></tr>
+      ${p.taken.map(t => `<tr><td ${td}>${esc(t.tekst)}${t.keer > 1 ? ` <span style="color:#889">(${t.keer}×)</span>` : ''}</td><td ${td}>${esc(t.plek || '–')}</td><td ${tdr}>${duurTekst(t.ms)} (${uurDec(t.ms)} u)</td></tr>`).join('')}</table>
+      <div style="font-size:12px;color:#667;margin-top:6px">${p.regels.map(r => `${dagKort(r.start)} ${tijdKort(r.start)}–${r.eind ? tijdKort(r.eind) : 'nu'} · ${esc(urenTaak(r))} · ${duurTekst(urenDuur(r))}${r.opmerking ? ' · ' + esc(r.opmerking) : ''}`).join('<br>')}</div>`;
+    tekst += `${p.naam}: ${duurTekst(p.ms)} (${uurDec(p.ms)} u)\n` + p.taken.map(t => `  - ${t.tekst}${t.plek ? ' (' + t.plek + ')' : ''}: ${duurTekst(t.ms)}${t.keer > 1 ? ' in ' + t.keer + ' keer' : ''}`).join('\n') + '\n\n';
+  });
+  if (!groepen.length) { html += '<p>Geen uren in deze periode.</p>'; tekst += 'Geen uren in deze periode.\n'; }
+  tekst += `Totaal: ${duurTekst(totaal)} (${uurDec(totaal)} u)\n`;
+  html += `<p style="font-size:12px;color:#889;margin-top:24px">Verstuurd vanuit de Perceel App</p></div>`;
+  return {onderwerp, html, tekst};
+}
+async function urenMail() {
+  if (!mag('uren_mailen')) return;
+  await laadInstellingen();
+  if (!S.inst.mail_aan) { toast(isBeheerder() ? 'Vul eerst onderaan een e-mailadres in' : 'Er is nog geen e-mailadres ingesteld, vraag het de beheerder', 1); renderPaneel(); return; }
+  const m = urenMailInhoud();
+  if (!S.inst.mail_sleutel) {   // geen mailserver ingesteld: open het eigen mailprogramma met alles al ingevuld
+    location.href = `mailto:${encodeURIComponent(S.inst.mail_aan).replace(/%40/g, '@').replace(/%2C/gi, ',')}?subject=${encodeURIComponent(m.onderwerp)}&body=${encodeURIComponent(m.tekst)}`;
+    return;
+  }
+  toast('📧 Mail wordt verstuurd…');
+  const {data: req, error} = await sb.rpc('verstuur_mail', {p_onderwerp: m.onderwerp, p_html: m.html, p_tekst: m.tekst});
+  if (error) { toast('Versturen mislukt: ' + foutTekst(error), 1); return; }
+  for (const wacht of [1500, 2500, 4000, 6000]) {
+    await new Promise(r => setTimeout(r, wacht));
+    const {data: st} = await sb.rpc('mail_status', {p_id: req});
+    if (!st) continue;
+    if (st.status >= 200 && st.status < 300) { toast(`✓ Mail verstuurd naar ${S.inst.mail_aan}`); return; }
+    let uitleg = st.fout || ''; try { uitleg = JSON.parse(st.inhoud).message || uitleg; } catch {}
+    toast('Mail niet verstuurd: ' + (uitleg || 'fout ' + st.status), 1); return;
+  }
+  toast('Mail is verstuurd naar de mailserver (nog geen bevestiging)');
+}
+function htmlMailInstellingen() {
+  return `<section class="kaartje"><h4>📧 Mail-instellingen</h4>
+    <label>Naar welk e-mailadres gaat het overzicht?</label>
+    <input class="veld" id="miAan" type="text" value="${esc(S.inst.mail_aan || '')}" placeholder="bijv. administratie@dekemp.nl (meerdere: met komma)">
+    <label>Resend-sleutel ${S.inst.mail_sleutel ? '<small style="color:var(--groen2)">✓ ingesteld</small>' : '<small>(optioneel)</small>'}</label>
+    <input class="veld" id="miSleutel" type="password" autocomplete="off" placeholder="${S.inst.mail_sleutel ? '•••••••• (leeg laten = zo houden)' : 're_...'}">
+    <label>Afzender <small>(alleen met een eigen domein bij Resend)</small></label>
+    <input class="veld" id="miVan" type="text" value="${esc(S.inst.mail_van || '')}" placeholder="bijv. Perceel App <uren@dekemp.nl>">
+    <div class="rij" style="margin-top:8px"><button class="knop" onclick="slaMailOp()">Opslaan</button>${S.inst.mail_sleutel ? `<button class="knop licht" onclick="slaMailOp(true)">Sleutel wissen</button>` : ''}</div>
+    <p class="hint"><b>Zonder sleutel</b> opent de knop je eigen mailprogramma met het overzicht al ingevuld; je drukt zelf op verzenden.<br>
+    <b>Met een Resend-sleutel</b> gaat de mail direct weg met één tik. Gratis account op resend.com → API Keys → Create. Zonder eigen domein mag Resend alleen mailen naar het adres waarmee je het account maakte.</p>
+  </section>`;
+}
+async function slaMailOp(wis) {
+  const aan = $('#miAan').value.trim(), van = $('#miVan').value.trim(), sl = $('#miSleutel').value.trim();
+  if (aan && !aan.split(/[,;]/).every(x => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x.trim()))) { toast('Dat e-mailadres klopt niet', 1); return; }
+  const {error} = await sb.rpc('zet_mail', {p_aan: aan, p_van: van, p_sleutel: wis ? '' : (sl || null)});
+  if (error) { toast('Opslaan mislukt: ' + foutTekst(error), 1); return; }
+  await laadInstellingen(); renderPaneel(); toast('Mail-instellingen opgeslagen');
+}
+
 function htmlTeam() {
   const lijst = [...S.profielen].sort((a, b) => (a.rol === b.rol ? a.naam.localeCompare(b.naam, 'nl') : a.rol === 'beheerder' ? -1 : 1));
   return `<section class="kaartje"><h4>Nieuwe medewerker</h4>
