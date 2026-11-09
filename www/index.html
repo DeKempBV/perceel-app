@@ -404,6 +404,20 @@ textarea.veld{resize:vertical;font-family:inherit}
 .spuitbalk i span{position:absolute;top:17px;left:0;font-size:9.5px;color:var(--grijs);font-style:normal}
 .spuitweer .bron{display:block;margin-top:14px}
 .vorsttekst{background:#e8f1ff;color:#0d47a1;border-radius:10px;padding:7px 10px;font-size:13.5px;font-weight:600;margin:8px 0}
+.sztegels{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px;margin:0 0 10px}
+.sztegels div{background:var(--licht);border-radius:12px;padding:9px 6px;text-align:center}
+.sztegels b{display:block;font-size:18px;color:var(--groen);white-space:nowrap}
+.sztegels small{color:var(--grijs);font-size:11.5px}
+details.szblok{padding-top:4px}
+details.szblok summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+details.szblok summary::-webkit-details-marker{display:none}
+details.szblok summary::after{content:'▾';color:var(--grijs);font-size:14px;transition:.2s}
+details.szblok:not([open]) summary::after{transform:rotate(-90deg)}
+details.szblok summary h4{margin:6px 0}
+.sztabel td{font-size:12.5px}
+.szscroll{overflow-x:auto;margin:0 -4px}
+.szvergelijk td{font-size:12.5px;white-space:nowrap;vertical-align:top}
+.szvergelijk td.bekeken{background:#eef7ec}
 /* foto's */
 .fotoveld{background:#f6f8f4;border:1px dashed #c9d4c4;border-radius:12px;padding:8px}
 .fotolijst{display:flex;flex-wrap:wrap;gap:6px}
@@ -1226,7 +1240,7 @@ async function bekijkSeizoen(id) {
   const sz = S.seizoenen.find(s => s.id === id); if (!sz) return;
   if (sz.actief) {
     if (archief) { S.percelen = livePercelen || S.percelen; livePercelen = null; }
-    archief = false; bekeken = id; await laadTaken(); banenCache.clear(); vulCache.clear(); stukCache.clear();
+    archief = false; bekeken = id; await Promise.all([laadTaken(), laadBedrijf()]); seizoenCachesLeeg(); banenCache.clear(); vulCache.clear(); stukCache.clear();
     toonArchiefBalk(); render(true); toast(`Terug in het huidige seizoen (${sz.naam})`); return;
   }
   const {data, error} = await sb.from('seizoen_percelen').select('perceel_id,gegevens').eq('seizoen_id', id);
@@ -1236,7 +1250,7 @@ async function bekijkSeizoen(id) {
   S.percelen = (data || []).map(r => ({...r.gegevens, id: r.perceel_id})).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
   if (actief && !perceel(actief)) actief = null;
   banenCache.clear(); vulCache.clear(); stukCache.clear(); kwast = undefined; gereedschap = undefined;
-  await laadTaken(); toonArchiefBalk(); render(true);
+  await Promise.all([laadTaken(), laadBedrijf()]); seizoenCachesLeeg(); toonArchiefBalk(); render(true);
   toast(`Je bekijkt seizoen ${sz.naam}`);
 }
 function toonArchiefBalk() {
@@ -1260,7 +1274,7 @@ async function startSeizoen() {
   if (!await bevestig(`Seizoen "${naam}" starten?`, 'Dit geldt voor iedereen. Het huidige seizoen wordt bewaard en kun je altijd terugkijken.').then(x => x)) return;
   const {error} = await sb.rpc('start_seizoen', {p_naam: naam, p_leegmaken: $('#szLeeg').checked, p_open_meenemen: $('#szMee').checked, p_inschakelen: $('#szAan').checked});
   if (error) { toast(foutTekst(error), 1); return; }
-  $('#modal').classList.remove('open'); archief = false; seizoenStats = null; await laadAlles(); toast(`Seizoen ${naam} is gestart`);
+  $('#modal').classList.remove('open'); archief = false; seizoenStats = null; szVergelijk = null; seizoenCachesLeeg(); await laadAlles(); toast(`Seizoen ${naam} is gestart`);
 }
 async function hernoemSeizoen(id) {
   const s = S.seizoenen.find(x => x.id === id);
@@ -1297,7 +1311,7 @@ function htmlSeizoenen() {
         ${mag('seizoen_starten') || (isBeheerder() && !archief) ? `<button class="icoon" title="Naam wijzigen" onclick="hernoemSeizoen('${s.id}')">✏️</button>` : ''}
       </div>`; }).join('')}
   </section>
-  <section class="kaartje"><h4>🌱 Gewassen in ${esc(seizoenNaam(bekeken))}</h4>${gewassen || '<p class="hint" style="margin:0">Nog niets ingedeeld.</p>'}</section>
+  ${htmlSeizoenOverzicht()}
   ${mag('seizoen_starten') ? `<section class="kaartje">${nieuwSeizoenHtml()}</section>` : ''}`;
 }
 function seizoenMenu() { zetTab('seizoenen'); }
@@ -2679,7 +2693,7 @@ function htmlInfo(p) {
   }
   // kosten
   if (ziet('kosten_bekijken') && p.type !== 'pand') {
-    if (!kostenUren) setTimeout(laadKostenUren, 0);
+    if (!kostenUren || kostenUren.seizoen !== bekeken) setTimeout(laadKostenUren, 0);
     const k = kostenVan(p.id);
     if (k.totaal) h += blok('💶 Kosten dit seizoen', rij('Arbeid', k.arbeid ? `${geld(k.arbeid)} <small>(${getal(k.uren, 1)} u)</small>` : '') + rij('Middelen', k.middelen ? geld(k.middelen) : '') + rij('Overig', k.overig ? geld(k.overig) : '') +
       rij('Totaal', `<b>${geld(k.totaal)}</b>`) + rij('Per hectare', geld(k.perHa)) + (k.per1000 ? rij('Per 1000 planten', geld(k.per1000)) : ''));
@@ -4353,9 +4367,10 @@ function htmlMachines() {
 /* ---------- kosten per perceel ---------- */
 let kostenUren = null;
 async function laadKostenUren() {
-  kostenUren = {laden: true, rijen: []};
-  const {data} = await sb.from('uren').select('perceel_id,start,eind').gte('start', seizoenStart().toISOString()).lt('start', new Date(Math.min(seizoenEind().getTime(), 8.6e15)).toISOString());
-  kostenUren = {rijen: data || []}; render(true);
+  const sz = bekeken; kostenUren = {laden: true, rijen: [], seizoen: sz};
+  const {data} = await sb.from('uren').select('naam,perceel_id,start,eind').gte('start', seizoenStart().toISOString()).lt('start', new Date(Math.min(seizoenEind().getTime(), 8.6e15)).toISOString());
+  if (sz !== bekeken) return;
+  kostenUren = {rijen: data || [], seizoen: sz}; render(true);
 }
 function kostenVan(pid) {
   const tarief = parseFloat(S.inst.uurtarief) || 0;
@@ -4398,7 +4413,7 @@ async function zetUurtarief() {
   await laadInstellingen(); render(true);
 }
 function htmlKosten() {
-  if (!kostenUren) setTimeout(laadKostenUren, 0);
+  if (!kostenUren || kostenUren.seizoen !== bekeken) setTimeout(laadKostenUren, 0);
   const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld);
   const rijen = velden.map(p => ({p, k: kostenVan(p.id)})).sort((a, b) => b.k.totaal - a.k.totaal);
   const alg = (S.kosten || []).filter(k => !k.perceel_id).reduce((s, k) => s + +k.bedrag, 0);
@@ -4708,6 +4723,137 @@ async function laadUitCache() {
   return true;
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) bewaarCache(); else if (navigator.onLine) verwerkWachtrij(); });
+
+/* ============ seizoensoverzicht ============ */
+const szOpen = {};
+function seizoenCachesLeeg() { kostenUren = null; Object.keys(urenPerceelCache).forEach(k => delete urenPerceelCache[k]); }
+const percelenNu = () => archief ? (livePercelen || []) : S.percelen;
+// Alles over het seizoen dat je bekijkt
+function seizoenData() {
+  const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld);
+  const ha_ = velden.reduce((s, p) => s + turf.area(p.geo), 0);
+  const perPlant = new Map(), planten = new Map();
+  velden.forEach(p => teeltOppervlak(p).forEach((x, id) => { const t = teelt(id); if (!t) return;
+    perPlant.set(t.plantId, (perPlant.get(t.plantId) || 0) + x.m2);
+    const a = plantAantal(p, id, x); if (a) planten.set(t.plantId, (planten.get(t.plantId) || 0) + a.totaal); }));
+  const klaar = S.taken.filter(t => t.klaar), open = S.taken.filter(t => !t.klaar);
+  const werk = new Map(); klaar.forEach(t => { const k = (t.tekst || '').trim() || 'Overig'; const x = werk.get(k) || {n: 0, percelen: new Set()}; x.n++; if (t.perceel_id) x.percelen.add(t.perceel_id); werk.set(k, x); });
+  const mid = new Map(); klaar.filter(t => t.product || t.middel_id).forEach(t => { const m = middel(t.middel_id) || middelOpNaam(t.product), k = m?.naam || t.product;
+    const x = mid.get(k) || {n: 0, verbruik: 0, eenheid: m?.voorraad_eenheid || '', kosten: 0, percelen: new Set()};
+    x.n++; if (t.verbruik) { x.verbruik += +t.verbruik; x.kosten += +t.verbruik * (+m?.prijs || 0); } if (t.perceel_id) x.percelen.add(t.perceel_id); mid.set(k, x); });
+  const oogst = S.oogst || [], oogstTot = oogst.reduce((s, o) => s + oogstPlanten(o), 0);
+  const oogstPerTeelt = new Map(); oogst.forEach(o => { const t = teelt(o.teelt_id), k = t ? t.naam : 'Overig'; oogstPerTeelt.set(k, (oogstPerTeelt.get(k) || 0) + oogstPlanten(o)); });
+  const oogstPerPerceel = new Map(); oogst.forEach(o => oogstPerPerceel.set(o.perceel_id, (oogstPerPerceel.get(o.perceel_id) || 0) + oogstPlanten(o)));
+  const uren = kostenUren?.rijen || [], urenTot = uren.reduce((s, r) => s + urenDuur(r), 0) / UUR;
+  const perPersoon = new Map(); uren.forEach(r => perPersoon.set(r.naam || '?', (perPersoon.get(r.naam || '?') || 0) + urenDuur(r) / UUR));
+  const urenPerPerceel = new Map(); uren.forEach(r => { const k = r.perceel_id || ''; urenPerPerceel.set(k, (urenPerPerceel.get(k) || 0) + urenDuur(r) / UUR); });
+  const tarief = parseFloat(S.inst.uurtarief) || 0;
+  const middelKosten = [...mid.values()].reduce((s, x) => s + x.kosten, 0), losse = (S.kosten || []).reduce((s, k) => s + +k.bedrag, 0);
+  const kostenCat = new Map(); (S.kosten || []).forEach(k => kostenCat.set(k.categorie || 'Overig', (kostenCat.get(k.categorie || 'Overig') || 0) + +k.bedrag));
+  const van = seizoenStart(), tot = seizoenEind();
+  const mlog = (S.machine_log || []).filter(l => { const d = new Date(l.datum + 'T12:00'); return d >= van && d < tot && l.soort !== 'draaiuren'; });
+  const machineKosten = mlog.reduce((s, l) => s + (+l.kosten || 0), 0);
+  return {velden, ha_, perPlant, planten, klaar, open, werk, mid, oogst, oogstTot, oogstPerTeelt, oogstPerPerceel, urenTot, perPersoon, urenPerPerceel, tarief,
+    arbeid: urenTot * tarief, middelKosten, losse, kostenCat, mlog, machineKosten, totaalKosten: urenTot * tarief + middelKosten + losse + machineKosten};
+}
+function htmlSeizoenOverzicht() {
+  if (!kostenUren || kostenUren.seizoen !== bekeken) setTimeout(laadKostenUren, 0);
+  const d = seizoenData(), naam = esc(seizoenNaam(bekeken));
+  const rij = (k, v, klik) => `<div class="inforij" ${klik ? `onclick="${klik}" style="cursor:pointer"` : ''}><span>${k}</span><b>${v}</b></div>`;
+  const blok = (titel, inhoud, open) => { const k = titel.replace(/[^a-z]/gi, '').slice(0, 14); if (szOpen[k] === undefined) szOpen[k] = !!open;
+    return inhoud ? `<details class="kaartje szblok" data-k="${k}" ${szOpen[k] ? 'open' : ''} ontoggle="szOpen[this.dataset.k]=this.open"><summary><h4>${titel}</h4></summary>${inhoud}</details>` : ''; };
+  const kanKosten = ziet('kosten_bekijken'), kanOogst = ziet('oogst_bekijken') || ziet('oogst_registreren');
+  const tegels = [
+    [ha(d.ha_), 'hectare in gebruik'], [d.velden.length, 'percelen'], [d.klaar.length, 'taken gedaan'], [d.open.length, 'open taken'],
+    ...(kanOogst ? [[getal(d.oogstTot), 'planten geoogst']] : []), [getal(d.urenTot, 0), 'uren geklokt'],
+    ...(kanKosten ? [[geld(d.totaalKosten).replace(',00', ''), 'kosten']] : [])];
+  let h = `<section class="kaartje"><h4>📊 Overzicht seizoen ${naam}</h4>
+    <div class="sztegels">${tegels.map(([v, l]) => `<div><b>${v}</b><small>${l}</small></div>`).join('')}</div>
+    ${!ziet('uren_bekijken') ? '<p class="hint">Je ziet alleen je eigen uren.</p>' : ''}
+    <button class="knop licht" onclick="seizoenExcel()">📊 Hele seizoensoverzicht als Excel</button></section>`;
+  // gewassen
+  h += blok(`🌱 Gewassen (${d.perPlant.size})`, [...d.perPlant.entries()].sort((a, b) => b[1] - a[1]).map(([id, m2]) => { const s = soort(id);
+    return rij(`<i class="kl" style="background:${esc(s.kleur)}"></i>${icoonHtml(plantIcoon(s))} ${esc(s.naam)}`, `${ha(m2)} ha${d.planten.get(id) ? ` · ≈ ${getal(Math.round(d.planten.get(id)))} pl` : ''} <small>(${Math.round(m2 / (d.ha_ || 1) * 100)}%)</small>`); }).join('') || '<p class="hint">Nog niets ingedeeld.</p>', true);
+  // percelen
+  h += blok(`🗺️ Percelen (${d.velden.length})`, `<table class="verdeling sztabel"><tr><td><b>Perceel</b></td><td><b>ha</b></td><td><b>Gewas</b></td><td><b>Taken</b></td>${kanOogst ? '<td><b>Oogst</b></td>' : ''}<td><b>Uren</b></td></tr>
+    ${d.velden.map(p => { const tk = S.taken.filter(t => betreft(t, p.id)), ok = tk.filter(t => t.klaar).length;
+      return `<tr onclick="kies('${p.id}')" style="cursor:pointer"><td>${typeVan(p).icoon} ${esc(p.naam)}</td><td>${ha(turf.area(p.geo))}</td><td>${gewasIcoontjes(p, 3) || '–'}</td><td>${ok}/${tk.length}</td>${kanOogst ? `<td>${d.oogstPerPerceel.get(p.id) ? getal(d.oogstPerPerceel.get(p.id)) : '–'}</td>` : ''}<td>${d.urenPerPerceel.get(p.id) ? getal(d.urenPerPerceel.get(p.id), 1) : '–'}</td></tr>`; }).join('')}</table>`);
+  // werk
+  h += blok(`📋 Uitgevoerd werk (${d.klaar.length})`, [...d.werk.entries()].sort((a, b) => b[1].n - a[1].n).map(([k, x]) => rij(esc(k), `${x.n}× <small>op ${x.percelen.size} ${x.percelen.size === 1 ? 'perceel' : 'percelen'}</small>`)).join('') +
+    (d.open.length ? `<div class="infosub">Nog open (${d.open.length})</div>` + d.open.slice(0, 15).map(t => rij(esc(t.tekst), `${t.perceel_id ? esc(perceel(t.perceel_id)?.naam || '') : ''}${t.gepland ? ' · ' + datumKort(t.gepland) : ''}`, `zetTab('taken');focusTaak('${t.id}')`)).join('') : ''));
+  // middelen
+  h += blok(`🧪 Middelen &amp; bemesting (${d.mid.size})`, [...d.mid.entries()].sort((a, b) => b[1].n - a[1].n).map(([k, x]) => rij(esc(k), `${x.n}×${x.verbruik ? ` · ${getal(x.verbruik, 1)} ${esc(x.eenheid)}` : ''}${x.kosten && kanKosten ? ` · ${geld(x.kosten)}` : ''} <small>(${x.percelen.size} perc.)</small>`)).join('') +
+    (d.mid.size ? `<button class="link" onclick="spuitlogExcel()">📒 Spuitlogboek als Excel ›</button>` : ''));
+  // oogst
+  if (kanOogst) h += blok(`🌱 Oogst · ${getal(d.oogstTot)} planten`, [...d.oogstPerTeelt.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => rij(esc(k), getal(n) + ' pl')).join('') +
+    (d.oogstPerPerceel.size ? `<div class="infosub">Per perceel</div>` + [...d.oogstPerPerceel.entries()].sort((a, b) => b[1] - a[1]).map(([pid, n]) => { const p = perceel(pid);
+      return rij(esc(p?.naam || '?'), `${getal(n)} pl${p ? ` · ${getal(n / (turf.area(p.geo) / 10000))}/ha` : ''}`, `kies('${pid}');perceelTab='oogst';render(true)`); }).join('') : ''));
+  // uren
+  h += blok(`⏱️ Uren · ${getal(d.urenTot, 1)} u`, (d.perPersoon.size ? `<div class="infosub">Per persoon</div>` + [...d.perPersoon.entries()].sort((a, b) => b[1] - a[1]).map(([k, u]) => rij(esc(k), getal(u, 1) + ' u')).join('') : '') +
+    (d.urenPerPerceel.size ? `<div class="infosub">Per perceel</div>` + [...d.urenPerPerceel.entries()].sort((a, b) => b[1] - a[1]).map(([pid, u]) => rij(pid ? esc(perceel(pid)?.naam || '?') : 'Zonder perceel', getal(u, 1) + ' u')).join('') : '') ||
+    (kostenUren?.laden ? '<p class="hint">Laden…</p>' : '<p class="hint">Nog geen uren geklokt in dit seizoen.</p>'));
+  // kosten
+  if (kanKosten) h += blok(`💶 Kosten · ${geld(d.totaalKosten)}`, rij('Arbeid', `${geld(d.arbeid)} <small>(${getal(d.urenTot, 1)} u × ${geld(d.tarief)})</small>`) + rij('Middelen', geld(d.middelKosten)) +
+    rij('Machines (onderhoud/reparatie)', geld(d.machineKosten)) + [...d.kostenCat.entries()].map(([k, b]) => rij(esc(k), geld(b))).join('') + rij('<b>Totaal</b>', geld(d.totaalKosten)) +
+    rij('Per hectare', d.ha_ ? geld(d.totaalKosten / (d.ha_ / 10000)) : '–') + (d.oogstTot ? rij('Per 1000 planten', geld(d.totaalKosten / d.oogstTot * 1000)) : ''));
+  // machines
+  if (d.mlog.length) h += blok(`🔧 Onderhoud &amp; reparaties (${d.mlog.length})`, d.mlog.map(l => rij(`${datumKort(l.datum + 'T12:00')} · ${esc(machine(l.machine_id)?.naam || '?')} · ${esc(l.omschrijving || l.soort)}`, l.kosten ? geld(l.kosten) : '')).join(''));
+  h += htmlSeizoenVergelijk();
+  return h;
+}
+// Alle seizoenen naast elkaar
+let szVergelijk = null;
+async function laadSeizoenVergelijk() {
+  szVergelijk = {laden: true};
+  const q = async (t, kol) => { const r = await sb.from(t).select(kol); return r.error ? [] : r.data || []; };
+  const [ta, oo, ko, ur, sp] = await Promise.all([q('taken', 'seizoen_id,klaar,middel_id,verbruik,product'), q('oogst', 'seizoen_id,aantal,eenheid,per_tray'),
+    q('kosten', 'seizoen_id,bedrag'), q('uren', 'start,eind'), ziet('historie_bekijken') ? q('seizoen_percelen', 'seizoen_id,perceel_id,gegevens') : []]);
+  const lijst = [...S.seizoenen].sort((a, b) => new Date(a.gestart) - new Date(b.gestart));
+  const uit = lijst.map((sz, i) => {
+    const van = new Date(sz.gestart), tot = lijst[i + 1] ? new Date(lijst[i + 1].gestart) : new Date(8.6e15);
+    let velden = sz.actief ? percelenNu() : sp.filter(r => r.seizoen_id === sz.id).map(r => ({...r.gegevens, id: r.perceel_id}));
+    velden = velden.filter(p => p.type !== 'pand' && !p.uitgeschakeld);
+    const perPlant = new Map();
+    velden.forEach(p => { try { teeltOppervlak({...p, id: 'vgl:' + sz.id + ':' + p.id}).forEach((x, id) => { const t = teelt(id); if (t) perPlant.set(t.plantId, (perPlant.get(t.plantId) || 0) + x.m2); }); } catch {} });
+    const tk = ta.filter(t => t.seizoen_id === sz.id), urenS = ur.filter(r => { const d = new Date(r.start); return d >= van && d < tot; }).reduce((s, r) => s + urenDuur(r), 0) / UUR;
+    const midK = tk.filter(t => t.klaar && t.verbruik && t.middel_id).reduce((s, t) => s + +t.verbruik * (+middel(t.middel_id)?.prijs || 0), 0);
+    return {sz, ha: velden.reduce((s, p) => s + turf.area(p.geo), 0), percelen: velden.length, perPlant, klaar: tk.filter(t => t.klaar).length, open: tk.filter(t => !t.klaar).length,
+      spuit: tk.filter(t => t.klaar && (t.product || t.middel_id)).length, oogst: oo.filter(o => o.seizoen_id === sz.id).reduce((s, o) => s + oogstPlanten(o), 0), uren: urenS,
+      kosten: urenS * (parseFloat(S.inst.uurtarief) || 0) + midK + ko.filter(k => k.seizoen_id === sz.id).reduce((s, k) => s + +k.bedrag, 0)};
+  });
+  [banenCache, stukCache, vulCache].forEach(m => [...m.keys()].filter(k => String(k).includes('vgl:')).forEach(k => m.delete(k)));
+  szVergelijk = {rijen: uit.reverse(), t: Date.now()}; if (tab === 'seizoenen') render(true);
+}
+function htmlSeizoenVergelijk() {
+  if (!szVergelijk || (!szVergelijk.laden && Date.now() - szVergelijk.t > 120000)) { setTimeout(laadSeizoenVergelijk, 0); if (!szVergelijk) szVergelijk = {laden: true}; }
+  if (szVergelijk.laden) return `<section class="kaartje"><h4>📈 Seizoenen vergelijken</h4><p class="hint">Laden…</p></section>`;
+  const r = szVergelijk.rijen, kanK = ziet('kosten_bekijken'), kanO = ziet('oogst_bekijken') || ziet('oogst_registreren');
+  const kol = [['Hectare', x => ha(x.ha)], ['Percelen', x => x.percelen], ['Taken gedaan', x => x.klaar], ['Bespuitingen / bemesting', x => x.spuit],
+    ...(kanO ? [['Planten geoogst', x => getal(x.oogst)]] : []), ['Uren', x => getal(x.uren, 0)], ...(kanK ? [['Kosten', x => geld(x.kosten).replace(',00', '')]] : []),
+    ['Gewassen', x => [...x.perPlant.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([id, m2]) => soort(id) ? `${icoonHtml(plantIcoon(soort(id)))} ${ha(m2)}` : '').join('<br>') || '–']];
+  return `<details class="kaartje szblok" open><summary><h4>📈 Seizoenen vergelijken</h4></summary>
+    <div class="szscroll"><table class="verdeling szvergelijk"><tr><td></td>${r.map(x => `<td class="${x.sz.id === bekeken ? 'bekeken' : ''}"><b>${esc(x.sz.naam)}</b>${x.sz.actief ? '<br><small>huidig</small>' : ''}</td>`).join('')}</tr>
+      ${kol.map(([l, f]) => `<tr><td><b>${l}</b></td>${r.map(x => `<td class="${x.sz.id === bekeken ? 'bekeken' : ''}">${f(x)}</td>`).join('')}</tr>`).join('')}</table></div>
+    ${!ziet('historie_bekijken') ? '<p class="hint">Gewassen van vorige seizoenen zie je alleen met het recht "Logboek en vorige seizoenen bekijken".</p>' : ''}</details>`;
+}
+function seizoenExcel() {
+  const d = seizoenData(), naam = seizoenNaam(bekeken), K = l => l.map(v => ({v, s: 1})), n = x => Math.round(x * 100) / 100;
+  const bladen = [
+    {naam: 'Samenvatting', breedtes: [30, 18], rijen: [K(['Seizoen ' + naam, '']), ['Hectare in gebruik', {v: n(d.ha_ / 10000), s: 2}], ['Percelen', d.velden.length], ['Taken gedaan', d.klaar.length], ['Open taken', d.open.length],
+      ['Planten geoogst', d.oogstTot], ['Uren geklokt', {v: n(d.urenTot), s: 2}], ...(ziet('kosten_bekijken') ? [['Kosten arbeid', {v: n(d.arbeid), s: 2}], ['Kosten middelen', {v: n(d.middelKosten), s: 2}],
+      ['Kosten machines', {v: n(d.machineKosten), s: 2}], ['Losse kosten', {v: n(d.losse), s: 2}], [{v: 'Totaal kosten', s: 8}, {v: n(d.totaalKosten), s: 5}]] : [])]},
+    {naam: 'Gewassen', breedtes: [24, 10, 14], rijen: [K(['Plant', 'Hectare', 'Planten (geschat)']), ...[...d.perPlant.entries()].map(([id, m2]) => [soort(id)?.naam || '', {v: n(m2 / 10000), s: 2}, Math.round(d.planten.get(id) || 0)])], filter: true},
+    {naam: 'Percelen', breedtes: [22, 10, 30, 10, 10, 12, 10], rijen: [K(['Perceel', 'Hectare', 'Gewassen', 'Taken gedaan', 'Taken open', 'Planten geoogst', 'Uren']),
+      ...d.velden.map(p => { const tk = S.taken.filter(t => betreft(t, p.id)); return [p.naam, {v: n(turf.area(p.geo) / 10000), s: 2}, teeltNamen(p), tk.filter(t => t.klaar).length, tk.filter(t => !t.klaar).length, d.oogstPerPerceel.get(p.id) || 0, {v: n(d.urenPerPerceel.get(p.id) || 0), s: 2}]; })], filter: true},
+    {naam: 'Werk', breedtes: [12, 18, 26, 22, 10, 10, 16, 30], rijen: [K(['Datum', 'Perceel', 'Werk', 'Middel / product', 'Dosering', 'Eenheid', 'Door', 'Opmerking']),
+      ...d.klaar.sort((a, b) => (a.klaar_op || '').localeCompare(b.klaar_op || '')).map(t => [t.klaar_op ? {v: Math.floor(xlDatum(t.klaar_op)), s: 3} : '', perceel(t.perceel_id)?.naam || '', t.tekst, t.product || '', t.dosering != null ? {v: +t.dosering, s: 2} : '', t.eenheid || '', t.klaar_door || '', t.uitvoering || ''])], filter: true},
+    {naam: 'Middelen', breedtes: [24, 8, 12, 10, 12], rijen: [K(['Middel / product', 'Keer', 'Verbruik', 'Eenheid', 'Kosten']), ...[...d.mid.entries()].map(([k, x]) => [k, x.n, {v: n(x.verbruik), s: 2}, x.eenheid, {v: n(x.kosten), s: 2}])], filter: true},
+    {naam: 'Uren', breedtes: [24, 10], rijen: [K(['Persoon', 'Uren']), ...[...d.perPersoon.entries()].map(([k, u]) => [k, {v: n(u), s: 2}]), [], K(['Perceel', 'Uren']), ...[...d.urenPerPerceel.entries()].map(([pid, u]) => [perceel(pid)?.naam || 'Zonder perceel', {v: n(u), s: 2}])]}];
+  if (szVergelijk?.rijen) bladen.push({naam: 'Vergelijking', breedtes: [14, 10, 9, 10, 12, 14, 10, 12], rijen: [K(['Seizoen', 'Hectare', 'Percelen', 'Taken gedaan', 'Bespuitingen', 'Planten geoogst', 'Uren', 'Kosten']),
+    ...szVergelijk.rijen.map(x => [x.sz.naam, {v: n(x.ha / 10000), s: 2}, x.percelen, x.klaar, x.spuit, x.oogst, {v: n(x.uren), s: 2}, {v: n(x.kosten), s: 2}])]});
+  bewaarBestand(`Seizoensoverzicht ${naam}.xlsx`, maakXlsx(bladen));
+}
+
 
 initPaneel();
 // service worker: nodig om de app te kunnen installeren
