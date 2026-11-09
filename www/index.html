@@ -190,6 +190,35 @@ textarea.veld{resize:vertical;font-family:inherit}
 .uitbalk button{background:var(--groen2);color:#fff;border:0;border-radius:9px;padding:7px 12px;font-weight:700;flex:none}
 .item.uit{opacity:.55}
 .rechtgroep{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--groen2);margin:12px 0 0}
+.weergave{margin-bottom:10px}
+.planbalk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:space-between;margin-bottom:10px}
+.plannav{display:flex;align-items:center;gap:6px;flex:1;justify-content:center;min-width:180px}
+.plannav b{font-size:13.5px;text-align:center;text-transform:capitalize}
+.plannav button{border:0;background:var(--licht);color:var(--groen);border-radius:9px;width:32px;height:32px;font-size:18px;font-weight:800}
+.plandag{background:#fff;border:1px solid var(--rand);border-radius:12px;padding:6px 10px;margin-bottom:8px}
+.plandag.vandaag{border-color:var(--groen2);box-shadow:0 0 0 2px rgba(47,122,61,.15)}
+.plandagkop{display:flex;align-items:center;gap:8px;font-size:13px;padding:2px 0 4px;cursor:pointer;text-transform:capitalize}
+.plandagkop b{flex:1}.plandagkop span:first-child{flex:1;color:var(--grijs)}
+.plannieuw{margin-left:auto;border:0;background:var(--licht);color:var(--groen);border-radius:8px;width:28px;height:28px;font-weight:800}
+.planregel{display:flex;align-items:center;gap:8px;padding:6px 4px;border-top:1px solid var(--rand);cursor:pointer;font-size:13.5px}
+.planregel .t{flex:1;min-width:0}
+.planregel small{display:block;color:var(--grijs);font-size:11.5px}
+.planregel.klaar b{text-decoration:line-through;color:var(--grijs)}
+.planregel.telaat small{color:var(--rood);font-weight:600}
+.planregel.focus{background:#ffe6fb;border-radius:8px}
+.planstip{width:18px;height:18px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:900;border:2px solid #fff;box-shadow:0 0 0 1px #ccd}
+.maand{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.mkop{font-size:11px;font-weight:700;color:var(--grijs);text-align:center;padding:2px 0}
+.mcel{min-height:58px;background:#fff;border:1px solid var(--rand);border-radius:8px;padding:3px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;overflow:hidden;text-align:left}
+.mcel.anders{opacity:.4}
+.mcel.vandaag{border-color:var(--groen2);background:var(--licht)}
+.mdag{font-size:12px;font-weight:800}
+.mtel{font-size:10px;font-weight:800;background:#fff4d6;color:#8a6200;border-radius:6px;padding:0 4px}
+.mtel.laat{background:#fdecea;color:var(--rood)}
+.mtel.klaar{background:#e8f5e9;color:var(--groen)}
+.mtaak{font-size:9.5px;color:var(--grijs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.zonder{margin-top:6px;font-size:13px}
+.zonder summary{cursor:pointer;color:var(--groen2);font-weight:700;padding:6px 0}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
 .raster2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -831,12 +860,99 @@ function logboekHtml(p) {
   </section>`;
 }
 
+/* ============ planning ============ */
+let takenWeergave = 'lijst', planModus = 'week', planDatum = new Date();
+const dKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const vanKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const plusDagen = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const maandag = d => plusDagen(d, -((d.getDay() + 6) % 7));
+function taakDag(t) {
+  if (t.klaar && t.klaar_op) return dKey(new Date(t.klaar_op));
+  return t.gepland || t.deadline || null;
+}
+function planBladeren(n) {
+  if (planModus === 'dag') planDatum = plusDagen(planDatum, n);
+  else if (planModus === 'week') planDatum = plusDagen(planDatum, 7 * n);
+  else { const x = new Date(planDatum); x.setDate(1); x.setMonth(x.getMonth() + n); planDatum = x; }
+  render(true);
+}
+function planNaarDag(k) { planDatum = vanKey(k); planModus = 'dag'; render(true); }
+function planRegel(t, metPerceel) {
+  const p = perceel(t.perceel_id), wie = S.profielen.find(u => u.id === t.toegewezen_aan);
+  const telaat = !t.klaar && t.deadline && t.deadline < vandaag();
+  return `<div class="planregel ${t.klaar ? 'klaar' : ''} ${telaat ? 'telaat' : ''} ${taakFocus === t.id ? 'focus' : ''}" onclick="focusTaak('${t.id}')">
+    <span class="planstip" style="background:${typeVan(p).kleur}">${t.klaar ? '✓' : ''}</span>
+    <div class="t"><b>${esc(t.tekst)}</b>${t.product ? ' · ' + esc(t.product) : ''}
+      <small>${metPerceel && p ? esc(p.naam) + ' · ' : ''}${t.klaar ? 'gedaan door ' + esc(t.klaar_door || '?') : wie ? '👤 ' + esc(wie.naam) : 'nog niemand'}${!t.klaar && !t.gepland && t.deadline ? ' · uiterlijk' : ''}${telaat ? ' · te laat' : ''}</small></div>
+    ${!t.klaar && mag('taken_toevoegen') ? `<button class="weg" title="Inplannen / bewerken" onclick="event.stopPropagation();taakFormulier('${t.id}')">✏️</button>` : ''}
+  </div>`;
+}
+function htmlPlanning(perceelId) {
+  const taken = S.taken.filter(t => !perceelId || t.perceel_id === perceelId);
+  const perDag = new Map();
+  taken.forEach(t => { const k = taakDag(t); if (!k) return; if (!perDag.has(k)) perDag.set(k, []); perDag.get(k).push(t); });
+  perDag.forEach(l => l.sort((a, b) => (a.klaar - b.klaar) || a.tekst.localeCompare(b.tekst, 'nl')));
+  const metPerceel = !perceelId, nu = vandaag();
+  const nieuw = k => mag('taken_toevoegen') ? `<button class="plannieuw" title="Taak op deze dag" onclick="event.stopPropagation();taakFormulier(null,false,{gepland:'${k}'${perceelId ? `,perceel_id:'${perceelId}'` : ''}})">＋</button>` : '';
+  let titel, inhoud;
+  if (planModus === 'dag') {
+    const k = dKey(planDatum), l = perDag.get(k) || [];
+    titel = planDatum.toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'});
+    inhoud = `<div class="plandag ${k === nu ? 'vandaag' : ''}"><div class="plandagkop"><span>${l.length} ${l.length === 1 ? 'taak' : 'taken'}</span>${nieuw(k)}</div>
+      ${l.map(t => planRegel(t, metPerceel)).join('') || '<p class="hint" style="margin:6px 0">Niets gepland op deze dag.</p>'}</div>`;
+  } else if (planModus === 'week') {
+    const start = maandag(planDatum), eind = plusDagen(start, 6);
+    titel = `Week ${weekNr(start)} · ${start.toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})} – ${eind.toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})}`;
+    inhoud = [...Array(7)].map((_, i) => { const d = plusDagen(start, i), k = dKey(d), l = perDag.get(k) || [];
+      return `<div class="plandag ${k === nu ? 'vandaag' : ''}"><div class="plandagkop" onclick="planNaarDag('${k}')">
+        <b>${d.toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric', month: 'short'})}</b>${k === nu ? '<span class="badge">vandaag</span>' : ''}${nieuw(k)}</div>
+        ${l.map(t => planRegel(t, metPerceel)).join('')}</div>`; }).join('');
+  } else {
+    const eerste = new Date(planDatum.getFullYear(), planDatum.getMonth(), 1), start = maandag(eerste);
+    titel = eerste.toLocaleDateString('nl-NL', {month: 'long', year: 'numeric'});
+    const cellen = [...Array(42)].map((_, i) => { const d = plusDagen(start, i), k = dKey(d), l = perDag.get(k) || [];
+      const open = l.filter(t => !t.klaar).length, klaar = l.length - open, laat = l.some(t => !t.klaar && t.deadline && t.deadline < nu);
+      return `<button class="mcel ${d.getMonth() !== eerste.getMonth() ? 'anders' : ''} ${k === nu ? 'vandaag' : ''}" onclick="planNaarDag('${k}')">
+        <span class="mdag">${d.getDate()}</span>${open ? `<span class="mtel ${laat ? 'laat' : ''}">${open}</span>` : ''}${klaar ? `<span class="mtel klaar">✓${klaar}</span>` : ''}
+        ${l.slice(0, 2).map(t => `<span class="mtaak">${esc(t.tekst)}</span>`).join('')}</button>`; });
+    if (!cellen.slice(35).some(c => !c.includes('anders'))) cellen.length = 35;
+    inhoud = `<div class="maand">${['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'].map(d => `<span class="mkop">${d}</span>`).join('')}${cellen.join('')}</div>
+      <p class="hint">Getal = open taken, ✓ = afgerond. Tik op een dag voor de details.</p>`;
+  }
+  const zonder = taken.filter(t => !t.klaar && !taakDag(t));
+  return `<div class="planbalk">
+      <div class="schakel" style="margin:0">${[['dag', 'Dag'], ['week', 'Week'], ['maand', 'Maand']].map(([k, l]) =>
+        `<button class="${planModus === k ? 'aan' : ''}" onclick="planModus='${k}';render(true)">${l}</button>`).join('')}</div>
+      <div class="plannav"><button onclick="planBladeren(-1)">‹</button><b>${titel}</b><button onclick="planBladeren(1)">›</button></div>
+      <button class="link" style="margin:0" onclick="planDatum=new Date();render(true)">Vandaag</button></div>
+    ${inhoud}
+    ${zonder.length ? `<details class="zonder"><summary>Nog niet ingepland (${zonder.length})</summary>${zonder.map(t => planRegel(t, metPerceel)).join('')}</details>` : ''}`;
+}
+function weekNr(d) {
+  const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const dag = x.getUTCDay() || 7;
+  x.setUTCDate(x.getUTCDate() + 4 - dag); const jan1 = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+  return Math.ceil(((x - jan1) / 86400000 + 1) / 7);
+}
+const weergaveSchakel = () => `<div class="schakel weergave"><button class="${takenWeergave === 'lijst' ? 'aan' : ''}" onclick="takenWeergave='lijst';render(true)">☰ Lijst</button>
+  <button class="${takenWeergave === 'planning' ? 'aan' : ''}" onclick="takenWeergave='planning';render(true)">📅 Planning</button></div>`;
+function kiesPerceelVoorTaak(direct, voor) {
+  const lijst = S.percelen.filter(p => !p.uitgeschakeld);
+  if (!lijst.length) { toast('Maak eerst een perceel aan', 1); return; }
+  $('#modal').innerHTML = `<div class="dialoog groot"><h3>Voor welk perceel?</h3>${lijst.map(p =>
+    `<button class="item" data-p="${p.id}"><span class="typeicoon" style="background:${typeVan(p).kleur}33">${typeVan(p).icoon}</span><span class="t"><b>${esc(p.naam)}</b></span></button>`).join('')}
+    <button class="knop licht" id="mNee">Annuleren</button></div>`;
+  const m = $('#modal'); m.classList.add('open');
+  m.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { m.classList.remove('open'); taakFormulier(null, direct, {...voor, perceel_id: b.dataset.p}); });
+  $('#mNee').onclick = () => m.classList.remove('open');
+}
+
 let w_vakken = [];
 const WERK = ['Ploegen', 'Spitten', 'Zaaien', 'Poten', 'Planten', 'Spuiten', 'Bemesten', 'Kunstmest strooien', 'Mest uitrijden',
   'Schoffelen', 'Eggen', 'Rollen', 'Aanaarden', 'Beregenen', 'Loof doodspuiten', 'Rooien', 'Oogsten', 'Maaien', 'Grondmonster nemen', 'Controleren'];
-async function taakFormulier(id, direct) {
-  const t = id ? S.taken.find(x => x.id === id) : {};
-  const pid = t.perceel_id || actief, p = perceel(pid); if (!p) return;
+async function taakFormulier(id, direct, voor = {}) {
+  const t = id ? S.taken.find(x => x.id === id) : {...voor};
+  const pid = t.perceel_id || actief, p = perceel(pid);
+  if (!p) { kiesPerceelVoorTaak(direct, voor); return; }
   const aantal = banenVan(p).length, vakken = spuitvakkenVan(p);
   const vakVanTaak = vakken.findIndex(v => v.van === t.spoor_van && v.tot === t.spoor_tot);
   const waar = t.gebied ? 'tekenen' : vakVanTaak >= 0 ? 'vak' : t.spoor_van ? 'sporen' : 'heel';
@@ -845,6 +961,7 @@ async function taakFormulier(id, direct) {
     {k: 'omschrijving', label: 'Omschrijving', type: 'textarea', waarde: t.omschrijving || '', placeholder: 'Wat moet er precies gebeuren? Middel, hoeveelheid, machine…'},
     {k: 'toegewezen_aan', label: 'Wie doet het?', type: 'select', waarde: t.toegewezen_aan || '',
       opties: [['', 'Nog niemand'], ...S.profielen.map(u => [u.id, u.naam + (u.id === me.id ? ' (ik)' : '')])]},
+    {k: 'gepland', label: '📅 Gepland op', type: 'date', waarde: t.gepland || ''},
     {k: 'deadline', label: 'Uiterlijk op', type: 'date', waarde: t.deadline || ''},
     {k: 'waar', label: 'Waar op het veld?', type: 'select', waarde: waar,
       opties: [['heel', 'Hele perceel'], ...(vakken.length ? [['vak', 'Een vak (tussen spuitpaden)']] : []), ...(aantal ? [['sporen', 'Bepaalde sporen']] : []), ['tekenen', t.gebied ? 'Getekend stuk (opnieuw tekenen)' : 'Zelf een stuk tekenen']]},
@@ -852,9 +969,10 @@ async function taakFormulier(id, direct) {
       opties: vakken.map((v, i) => [i, `Vak ${v.letter} · ${v.rijen} rijen · ${Math.round(v.m2).toLocaleString('nl-NL')} m²`]), als: ['waar', 'vak']},
     {k: 'spoor_van', label: `Van spoor (1–${aantal})`, type: 'number', waarde: t.spoor_van || 1, als: ['waar', 'sporen']},
     {k: 'spoor_tot', label: 'Tot en met spoor', type: 'number', waarde: t.spoor_tot || aantal, als: ['waar', 'sporen']}];
-  if (id && t.gebied) velden[4].opties.splice(1, 0, ['bewaar', 'Het getekende stuk houden']), velden[4].waarde = 'bewaar';
+  const waarVeld = velden.find(v => v.k === 'waar');
+  if (id && t.gebied) waarVeld.opties.splice(1, 0, ['bewaar', 'Het getekende stuk houden']), waarVeld.waarde = 'bewaar';
   w_vakken = vakken;
-  if (direct) { velden.splice(2, 2); velden.push(...uitvoeringVelden()); }   // geen 'wie/uiterlijk', wel wat er gebruikt is
+  if (direct) { velden.splice(2, 3); velden.push(...uitvoeringVelden(voor.gepland ? {klaar_op: voor.gepland + 'T12:00:00'} : {})); }   // geen 'wie/uiterlijk', wel wat er gebruikt is
   const w = await formulier(direct ? `✓ Werk registreren · ${p.naam}` : id ? 'Taak bewerken' : `Nieuwe taak · ${p.naam}`, velden, direct ? 'Registreren' : id ? 'Opslaan' : 'Toevoegen');
   if (!w) return;
   if (!w.tekst) { toast('Vul de werkzaamheden in', 1); return; }
@@ -878,9 +996,9 @@ async function slaTaakOp(w, gebied, id) {
   }
   if (w.waar === 'vak') { const v = spuitvakkenVan(perceel(w.perceel_id))[parseInt(w.vak) || 0]; if (v) { van = v.van; tot = v.tot; } }
   const rij = {perceel_id: w.perceel_id, tekst: w.tekst, omschrijving: w.omschrijving || null,
-    toegewezen_aan: w.toegewezen_aan || null, deadline: w.deadline || null,
+    toegewezen_aan: w.toegewezen_aan || null, deadline: w.deadline || null, gepland: w.gepland || null,
     gebied: gebied || null, spoor_van: van, spoor_tot: tot};
-  if (w.direct) { Object.assign(rij, uitvoeringPatch(w)); delete rij.toegewezen_aan; delete rij.deadline; }
+  if (w.direct) { Object.assign(rij, uitvoeringPatch(w)); delete rij.toegewezen_aan; delete rij.deadline; delete rij.gepland; }
   let res;
   if (id) res = await sb.from('taken').update(rij).eq('id', id).select().single();
   else res = await sb.from('taken').insert({...rij, aangemaakt_door: naamMe()}).select().single();
@@ -1629,7 +1747,8 @@ function htmlDetail(p) {
     <button class="chip ${lagenVan(p.id).taken ? 'aan' : ''}" onclick="zetLaag('${p.id}','taken')">📋 Taken</button></div>`;
   let inhoud = '';
   if (perceelTab === 'weer') inhoud = htmlWeer(p);
-  else if (perceelTab === 'taken') inhoud = `<section class="kaartje"><h4>📋 Open taken</h4>
+  else if (perceelTab === 'taken' && takenWeergave === 'planning') inhoud = weergaveSchakel() + `<section class="kaartje">${htmlPlanning(p.id)}</section>`;
+  else if (perceelTab === 'taken') inhoud = weergaveSchakel() + `<section class="kaartje"><h4>📋 Open taken</h4>
     ${mag('taken_toevoegen') ? `<button class="knop" style="margin:0 0 6px" onclick="taakFormulier()">＋ Nieuwe taak</button>` : ''}
     ${mag('werk_registreren') ? `<button class="knop licht" style="margin:0 0 6px" onclick="taakFormulier(null, true)">✓ Werk registreren (al gedaan)</button>` : ''}
     ${open.length ? '<p class="hint" style="margin:0 0 4px">Tik op een taak om het stuk van het veld te laten oplichten.</p>' : ''}
@@ -1756,7 +1875,7 @@ function taakHtml(t, metPerceel) {
   const wie = S.profielen.find(u => u.id === t.toegewezen_aan);
   const info = t.klaar
     ? `✓ Gedaan door <b>${esc(t.klaar_door || '?')}</b> · ${datumKort(t.klaar_op)}${t.product ? ' · ' + esc(t.product) : ''}${t.dosering != null ? ' · ' + (+t.dosering).toLocaleString('nl-NL') + ' ' + esc(t.eenheid || '') : ''}`
-    : `${wie ? `👤 <b>${esc(wie.naam)}</b> · ` : '👤 nog niemand · '}${t.deadline ? `<span class="${telaat ? 'telaat' : ''}">📅 ${datumKort(t.deadline)}${telaat ? ' (te laat)' : ''}</span> · ` : ''}📐 ${taakWaar(t)}`;
+    : `${wie ? `👤 <b>${esc(wie.naam)}</b> · ` : '👤 nog niemand · '}${t.gepland ? `🗓️ ${datumKort(t.gepland)} · ` : ''}${t.deadline ? `<span class="${telaat ? 'telaat' : ''}">📅 ${datumKort(t.deadline)}${telaat ? ' (te laat)' : ''}</span> · ` : ''}📐 ${taakWaar(t)}`;
   return `<div class="taak ${t.klaar ? 'klaar' : ''} ${taakFocus === t.id ? 'focus' : ''}"><button class="vink" ${mag('taken_afvinken') ? '' : 'disabled'} onclick="vinkTaak('${t.id}')">${t.klaar ? '✓' : ''}</button>
     <div class="t" onclick="focusTaak('${t.id}')" style="cursor:pointer"><span>${esc(t.tekst)}</span>
       ${t.omschrijving ? `<div class="omschr">${esc(t.omschrijving).replace(/\n/g, '<br>')}</div>` : ''}
@@ -1766,11 +1885,13 @@ function taakHtml(t, metPerceel) {
 }
 
 function htmlAlleTaken() {
+  if (takenWeergave === 'planning') return weergaveSchakel() +
+    (mag('taken_toevoegen') ? `<button class="knop" style="margin:0 0 10px" onclick="taakFormulier(null,false,{gepland:'${dKey(planDatum)}'})">＋ Nieuwe taak</button>` : '') + htmlPlanning(null);
   const lijst = S.taken.filter(t => takenFilter === 'mij' ? !t.klaar && t.toegewezen_aan === me.id : takenFilter === 'open' ? !t.klaar : t.klaar)
     .sort((a, b) => takenFilter !== 'klaar'
-      ? (a.deadline || '9999').localeCompare(b.deadline || '9999')
+      ? (a.gepland || a.deadline || '9999').localeCompare(b.gepland || b.deadline || '9999')
       : (b.klaar_op || '').localeCompare(a.klaar_op || ''));
-  const schakel = `<div class="schakel"><button class="${takenFilter === 'mij' ? 'aan' : ''}" onclick="takenFilter='mij';render(true)">Voor mij</button>
+  const schakel = weergaveSchakel() + `<div class="schakel"><button class="${takenFilter === 'mij' ? 'aan' : ''}" onclick="takenFilter='mij';render(true)">Voor mij</button>
     <button class="${takenFilter === 'open' ? 'aan' : ''}" onclick="takenFilter='open';render(true)">Alle open</button>
     <button class="${takenFilter === 'klaar' ? 'aan' : ''}" onclick="takenFilter='klaar';render(true)">Gedaan</button></div>`;
   if (!lijst.length) return schakel + `<div class="leeg"><div class="groot">${takenFilter !== 'klaar' ? '✅' : '📋'}</div>
