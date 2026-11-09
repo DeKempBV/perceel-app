@@ -182,6 +182,14 @@ textarea.veld{resize:vertical;font-family:inherit}
 .logregel .t{flex:1;min-width:0;font-size:14px}
 .logregel small{display:block;color:var(--grijs);font-size:12px;margin-top:2px}
 .logregel .opm{color:#4a544a}
+.ptabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.ptabs button{background:#fff;border:1.5px solid var(--rand);border-radius:12px;padding:8px 2px;font-size:12px;font-weight:700;color:var(--grijs)}
+.ptabs button span{display:block;font-size:19px;margin-bottom:2px}
+.ptabs button.aan{border-color:var(--groen2);background:var(--licht);color:var(--groen)}
+.uitbalk{background:#eceff1;color:#455a64;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:13px;display:flex;align-items:center;gap:10px;justify-content:space-between}
+.uitbalk button{background:var(--groen2);color:#fff;border:0;border-radius:9px;padding:7px 12px;font-weight:700;flex:none}
+.item.uit{opacity:.55}
+.rechtgroep{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--groen2);margin:12px 0 0}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
 .raster2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -343,7 +351,7 @@ const vandaag = () => new Date().toISOString().slice(0, 10);
 let sb = null, me = null, gestart = false, wachtRender = false;
 const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], profielen: [], seizoenen: []};
 let bekeken = null, archief = false, livePercelen = null;   // seizoen dat je bekijkt
-let actief = null, tab = 'percelen', kwast, gereedschap, taakFocus, tekenDoel = 'perceel', markLagen = {}, gekozenPlant, openPlant, openRechten, takenFilter = 'open', vormLaag = null;
+let perceelTab = 'weer', actief = null, tab = 'percelen', kwast, gereedschap, taakFocus, tekenDoel = 'perceel', markLagen = {}, gekozenPlant, openPlant, openRechten, takenFilter = 'open', vormLaag = null;
 let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, locatieLaag, basis = {}, laagModus = 'sat';
 
 const mijnProfiel = () => S.profielen.find(x => x.id === me?.id);
@@ -372,19 +380,33 @@ function teelt(id) {
 }
 // Rechten
 const RECHTEN = [
-  ['percelen_tekenen', 'Percelen tekenen'],
-  ['percelen_bewerken', 'Percelen bewerken (naam, vorm, sporen)'],
-  ['percelen_verwijderen', 'Percelen verwijderen'],
-  ['soorten_indelen', 'Planten op sporen indelen'],
-  ['soorten_beheren', 'Planten en soorten beheren'],
-  ['taken_toevoegen', 'Taken toevoegen en wijzigen'],
-  ['taken_afvinken', 'Taken afvinken'],
-  ['taken_verwijderen', 'Taken verwijderen'],
-  ['markeringen_maken', 'Markeringen, vlaggen en kopeindes maken'],
-  ['tractor_rijden', 'Locatie delen als tractor (telefoon in de trekker)']];
-const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, percelen_verwijderen: false, soorten_indelen: true,
-  soorten_beheren: false, taken_toevoegen: true, taken_afvinken: true, taken_verwijderen: false, markeringen_maken: true, tractor_rijden: true};
-const mag = r => !archief && (isBeheerder() || !!({...STANDAARD, ...(mijnProfiel()?.rechten || {})})[r]);
+  // [sleutel, omschrijving, groep]
+  ['percelen_tekenen', 'Percelen tekenen', 'Percelen'],
+  ['percelen_bewerken', 'Naam, soort, vorm en sporen aanpassen', 'Percelen'],
+  ['spuitsporen_bewerken', 'Spuitsporen instellen', 'Percelen'],
+  ['deelvelden_bewerken', 'Deelvelden (andere richting) tekenen en aanpassen', 'Percelen'],
+  ['percelen_uitschakelen', 'Percelen uit- en inschakelen', 'Percelen'],
+  ['percelen_verwijderen', 'Percelen verwijderen', 'Percelen'],
+  ['soorten_indelen', 'Planten op sporen indelen', 'Planten'],
+  ['soorten_beheren', 'Planten en soorten beheren', 'Planten'],
+  ['taken_toevoegen', 'Taken toevoegen en wijzigen', 'Taken'],
+  ['taken_afvinken', 'Taken afronden', 'Taken'],
+  ['werk_registreren', 'Uitgevoerd werk direct registreren', 'Taken'],
+  ['taken_verwijderen', 'Taken verwijderen', 'Taken'],
+  ['markeringen_maken', 'Vlaggen, gebieden en kopeindes maken', 'Kaart'],
+  ['weer_bekijken', 'Weer en buienradar bekijken', 'Kaart'],
+  ['historie_bekijken', 'Logboek en vorige seizoenen bekijken', 'Historie'],
+  ['seizoen_starten', 'Een nieuw seizoen starten', 'Historie'],
+  ['tractoren_volgen', 'Tractoren op de kaart zien en volgen', 'Tractoren'],
+  ['tractor_rijden', 'Locatie delen als tractor (telefoon in de trekker)', 'Tractoren'],
+  ['tractoren_beheren', 'Tractoren toevoegen, hernoemen en verwijderen', 'Tractoren']];
+const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, spuitsporen_bewerken: true, deelvelden_bewerken: true,
+  percelen_uitschakelen: false, percelen_verwijderen: false, soorten_indelen: true, soorten_beheren: false,
+  taken_toevoegen: true, taken_afvinken: true, werk_registreren: true, taken_verwijderen: false, markeringen_maken: true,
+  weer_bekijken: true, historie_bekijken: true, seizoen_starten: false, tractoren_volgen: true, tractor_rijden: true, tractoren_beheren: false};
+const recht = r => isBeheerder() || !!({...STANDAARD, ...(mijnProfiel()?.rechten || {})})[r];
+const ziet = recht;                                  // bekijk-rechten (ook in het archief)
+const mag = r => !archief && recht(r);            // wijzig-rechten (niet in het archief)
 // Variatie op een kleur, voor nieuwe soorten binnen een plant
 function tint(hex, i) {
   const n = parseInt(hex.slice(1), 16), f = [0.35, -0.3, 0.6, -0.5, 0.15, -0.15][i % 6];
@@ -592,7 +614,14 @@ async function nieuwPerceel(geo) {
   if (!perceel(data.id)) S.percelen.push(data);
   kies(data.id); toast(`${typeVan(data).naam} "${naam}" aangemaakt`);
 }
+async function schakelPerceel() {
+  const p = perceel(actief); if (!p) return;
+  const uit = !p.uitgeschakeld;
+  if (uit && !await bevestig('Perceel uitschakelen?', `"${p.naam}" wordt grijs en telt dit seizoen niet mee. Je kunt het altijd weer inschakelen.`)) return;
+  wijzig(p.id, {uitgeschakeld: uit}); toast(uit ? 'Perceel uitgeschakeld' : 'Perceel weer in gebruik');
+}
 async function hernoem() {
+  if (!mag('percelen_bewerken')) return;
   const p = perceel(actief);
   const naam = await vraag('Nieuwe naam', {waarde: p.naam});
   if (naam) wijzig(p.id, {naam});
@@ -640,7 +669,7 @@ function klikBaan(p, bn, ll) {
   const magIndelen = mag('soorten_indelen');
 
   if (gereedschap === 'spuit') {
-    if (!mag('percelen_bewerken')) { toast('Je mag geen spuitsporen aanpassen', 1); return; }
+    if (!mag('spuitsporen_bewerken')) { toast('Je mag geen spuitsporen aanpassen', 1); return; }
     wisselSpuit(p, bn.nr); return;
   }
   if (gereedschap === 'knip' && magIndelen) {
@@ -726,17 +755,18 @@ function seizoenKnop() {
   return `<button class="seizoenknop ${archief ? 'archief' : ''}" onclick="seizoenMenu()">📅 Seizoen ${esc(seizoenNaam(bekeken) || '–')} ${archief ? '(archief)' : ''} ▾</button>`;
 }
 function seizoenMenu() {
-  const beh = isBeheerder() && !archief, nu = actiefSeizoen();
+  const beh = mag('seizoen_starten'), nu = actiefSeizoen(), hist = ziet('historie_bekijken');
   const volgende = nu && /^\d{4}$/.test(nu.naam) ? String(+nu.naam + 1) : '';
   $('#modal').innerHTML = `<div class="dialoog groot"><h3>📅 Seizoenen</h3>
     ${[...S.seizoenen].reverse().map(s => `<div class="soort"><div class="t"><b>${esc(s.naam)}</b> ${s.actief ? '<span class="badge">huidig</span>' : ''}<br>
       <small>gestart ${new Date(s.gestart).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short', year: 'numeric'})}${s.gestart_door ? ' door ' + esc(s.gestart_door) : ''}</small></div>
-      ${s.id === bekeken ? '<small>bekijk je nu</small>' : `<button class="knop klein licht" data-s="${s.id}">Bekijken</button>`}</div>`).join('')}
+      ${s.id === bekeken ? '<small>bekijk je nu</small>' : (hist || s.actief) ? `<button class="knop klein licht" data-s="${s.id}">Bekijken</button>` : ''}</div>`).join('')}
     ${beh ? `<div class="nieuwseizoen"><b>Nieuw seizoen starten</b>
       <p class="hint">De indeling van alle percelen (wat er staat, sporen, vakken) en het logboek van ${esc(nu?.naam || 'nu')} blijven bewaard en kun je altijd terugkijken.</p>
       <label>Naam</label><input class="veld" id="szNaam" value="${esc(volgende)}" placeholder="bijv. 2027 of Najaar 2026">
       <label class="vinkje"><input type="checkbox" id="szLeeg" checked> Planten-indeling leegmaken voor het nieuwe seizoen</label>
       <label class="vinkje"><input type="checkbox" id="szMee" checked> Open taken meenemen naar het nieuwe seizoen</label>
+      <label class="vinkje"><input type="checkbox" id="szAan" checked> Uitgeschakelde percelen weer inschakelen</label>
       <button class="knop" id="szStart">Nieuw seizoen starten</button></div>` : ''}
     <button class="knop licht" id="mNee">Sluiten</button></div>`;
   const m = $('#modal'); m.classList.add('open');
@@ -745,7 +775,7 @@ function seizoenMenu() {
   if (beh) $('#szStart').onclick = async () => {
     const naam = $('#szNaam').value.trim(); if (!naam) { toast('Geef het seizoen een naam', 1); return; }
     if (!confirm(`Seizoen "${naam}" starten? Dit geldt voor iedereen.`)) return;
-    const {error} = await sb.rpc('start_seizoen', {p_naam: naam, p_leegmaken: $('#szLeeg').checked, p_open_meenemen: $('#szMee').checked});
+    const {error} = await sb.rpc('start_seizoen', {p_naam: naam, p_leegmaken: $('#szLeeg').checked, p_open_meenemen: $('#szMee').checked, p_inschakelen: $('#szAan').checked});
     if (error) { toast(foutTekst(error), 1); return; }
     m.classList.remove('open'); archief = false; await laadAlles(); toast(`Seizoen ${naam} is gestart`);
   };
@@ -790,7 +820,7 @@ async function rondAf(id) {
 function logboekHtml(p) {
   const lijst = S.taken.filter(t => t.perceel_id === p.id && t.klaar).sort((a, b) => (b.klaar_op || '').localeCompare(a.klaar_op || ''));
   return `<section class="kaartje"><h4>📒 Logboek · seizoen ${esc(seizoenNaam(bekeken))}</h4>
-    ${mag('taken_afvinken') && mag('taken_toevoegen') ? `<button class="knop licht" style="margin:0 0 6px" onclick="taakFormulier(null, true)">✓ Werk registreren</button>` : ''}
+    ${mag('werk_registreren') ? `<button class="knop licht" style="margin:0 0 6px" onclick="taakFormulier(null, true)">✓ Werk registreren</button>` : ''}
     ${lijst.map(t => `<div class="logregel" onclick="focusTaak('${t.id}')">
       <div class="logdatum">${new Date(t.klaar_op).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})}</div>
       <div class="t"><b>${esc(t.tekst)}</b>${t.product ? ` · ${esc(t.product)}` : ''}${t.dosering != null ? ` · <b>${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}</b>` : ''}
@@ -1404,16 +1434,17 @@ function renderKaart() {
       fillOpacity: !toonOmtrek ? 0.001 : p.type === 'pand' ? .4 : p.type === 'kas' ? .25 : isA ? .06 : .12}})
       .on('click', () => { if (!tekent()) kies(p.id); }).addTo(laag);
     const zb = zichtbaar(p.id);
-    alleZones(p).forEach(z => { if (zb.sporen) tekenZone(z, isA); if (zb.spuit) { tekenSpuit(z); tekenVakLetters(z); } });
+    if (!p.uitgeschakeld) alleZones(p).forEach(z => { if (zb.sporen) tekenZone(z, isA); if (zb.spuit) { tekenSpuit(z); tekenVakLetters(z); } });
     if (toonOmtrek) {
       (p.vakken || []).map(v => vakZone(p, v).binnen).filter(Boolean).forEach(g => L.geoJSON(g, {interactive: false,
         style: {color: '#ffffff', weight: isA ? 2.5 : 1.5, dashArray: '6,5', fill: false, opacity: .9}}).addTo(laag));
-      L.geoJSON(p.geo, {interactive: false, style: {color: isA ? '#ffffff' : T.kleur, weight: isA ? 3.5 : 2.5, fill: false}}).addTo(laag);
+      L.geoJSON(p.geo, {interactive: false, style: p.uitgeschakeld ? {color: '#9e9e9e', weight: isA ? 3 : 2, dashArray: '6,6', fill: false}
+        : {color: isA ? '#ffffff' : T.kleur, weight: isA ? 3.5 : 2.5, fill: false}}).addTo(laag);
     }
     if (toonNamen) {
       const pt = turf.pointOnFeature(p.geo).geometry.coordinates;
       L.tooltip({permanent: true, direction: 'center', className: 'perceel-label', interactive: false})
-        .setLatLng([pt[1], pt[0]]).setContent((p.type && p.type !== 'veld' ? T.icoon + ' ' : '') + esc(p.naam)).addTo(laag);
+        .setLatLng([pt[1], pt[0]]).setContent((p.type && p.type !== 'veld' ? T.icoon + ' ' : '') + esc(p.naam) + (p.uitgeschakeld ? ' ⏸️' : '')).addTo(laag);
     }
   });
   tekenMarkeringen();
@@ -1474,7 +1505,8 @@ function renderPaneel() {
   const open = S.taken.filter(t => !t.klaar).length;
   $('#wie').innerHTML = `${esc(naamMe())}<br><small>${isBeheerder() ? 'Beheerder' : 'Medewerker'}</small>`;
   if (tab === 'team' && !isBeheerder()) tab = 'percelen';
-  $('#tabs').innerHTML = [['percelen', 'Percelen'], ['taken', 'Taken' + (open ? `<span class="tel">${open}</span>` : '')], ['soorten', 'Planten'], ['tractoren', '🚜' + (S.tractoren.some(isLive) ? '<span class="tel live">' + S.tractoren.filter(isLive).length + '</span>' : '')],
+  if (tab === 'tractoren' && !(ziet('tractoren_volgen') || ziet('tractor_rijden'))) tab = 'percelen';
+  $('#tabs').innerHTML = [['percelen', 'Percelen'], ['taken', 'Taken' + (open ? `<span class="tel">${open}</span>` : '')], ['soorten', 'Planten'], ...(ziet('tractoren_volgen') || ziet('tractor_rijden') ? [['tractoren', '🚜' + (S.tractoren.some(isLive) ? '<span class="tel live">' + S.tractoren.filter(isLive).length + '</span>' : '')]] : []),
     ...(isBeheerder() ? [['team', 'Team']] : [])]
     .map(([k, l]) => `<button class="${tab === k ? 'aan' : ''}" onclick="zetTab('${k}')">${l}</button>`).join('');
   let h = '';
@@ -1485,21 +1517,24 @@ function renderPaneel() {
   else h = htmlSoorten();
   $('#inhoud').innerHTML = h;
   document.querySelector('.fab').style.display = mag('percelen_tekenen') ? '' : 'none';
+  document.getElementById('radarKnop').style.display = ziet('weer_bekijken') ? '' : 'none';
 }
 
 function htmlLijst() {
   actief = null;
   if (!S.percelen.length) return seizoenKnop() + `<div class="leeg"><div class="groot">🗺️</div><b>Nog geen percelen</b>
     Zoek je bedrijf op of zoom in op de kaart en tik op <b>＋ Toevoegen</b> om een veld, trayveld, kas of bedrijfspand te tekenen.</div>`;
-  const velden = S.percelen.filter(p => p.type !== 'pand');
+  const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld);
   const totaal = velden.reduce((s, p) => s + turf.area(p.geo), 0);
-  const telT = k => S.percelen.filter(p => (p.type || 'veld') === k).length;
+  const telT = k => S.percelen.filter(p => (p.type || 'veld') === k && !p.uitgeschakeld).length;
+  const uitLijst = S.percelen.filter(p => p.uitgeschakeld);
   const volgorde = {veld: 0, tray: 1, kas: 2, pand: 3};
   return seizoenKnop() + `<div class="samenvatting">${Object.entries(TYPES).filter(([k]) => telT(k)).map(([k, T]) => `${T.icoon} ${telT(k)} ${k === 'pand' ? (telT(k) === 1 ? 'pand' : 'panden') : k === 'kas' ? (telT(k) === 1 ? 'kas' : 'kassen') : k === 'tray' ? (telT(k) === 1 ? 'trayveld' : 'trayvelden') : (telT(k) === 1 ? 'veld' : 'velden')}`).join(' · ')} · ${ha(totaal)} ha grond</div>` +
-    [...S.percelen].sort((a, b) => (volgorde[a.type || 'veld'] - volgorde[b.type || 'veld']) || a.naam.localeCompare(b.naam, 'nl')).map(p => {
+    [...S.percelen].sort((a, b) => ((a.uitgeschakeld ? 1 : 0) - (b.uitgeschakeld ? 1 : 0)) || (volgorde[a.type || 'veld'] - volgorde[b.type || 'veld']) || a.naam.localeCompare(b.naam, 'nl')).map((p, i, alle) => {
       const open = S.taken.filter(t => t.perceel_id === p.id && !t.klaar).length;
       const n = banenVan(p).length;
-      return `<button class="item" onclick="kies('${p.id}')"><span class="typeicoon" style="background:${typeVan(p).kleur}33">${typeVan(p).icoon}</span>
+      const kop = p.uitgeschakeld && !alle[i - 1]?.uitgeschakeld ? `<div class="groepkop" style="cursor:default">⏸️ Niet in gebruik dit seizoen (${uitLijst.length})</div>` : '';
+      return kop + `<button class="item ${p.uitgeschakeld ? 'uit' : ''}" onclick="kies('${p.id}')"><span class="typeicoon" style="background:${typeVan(p).kleur}33">${typeVan(p).icoon}</span>
         <span class="t"><b>${esc(p.naam)}</b><small>${typeVan(p).naam} · ${oppTekst(p)}${n ? ` · ${n} sporen` : ''}</small></span>
         ${open ? `<span class="badge">${open} open</span>` : ''}<span class="pijl">›</span></button>`;
     }).join('');
@@ -1524,7 +1559,7 @@ function htmlDetail(p) {
   const open = taken.filter(t => !t.klaar).sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
   const klaar = taken.filter(t => t.klaar).sort((a, b) => (b.klaar_op || '').localeCompare(a.klaar_op || ''));
 
-  let soortenBlok = '';
+  let soortenBlok = '', verdeling = '';
   if (zones.length) {
     const tel = new Map();
     zones.forEach(z => banenVan(z).forEach(bn => {
@@ -1577,26 +1612,38 @@ function htmlDetail(p) {
                spuitvakkenVan(z).map((v, i) => `<button class="chip" onclick="vulVak('${z.id}',${i})">${z._vak ? esc(z.naam) + ' · ' : ''}${v.letter}</button>`).join('')).join('')}</div>` : ''}`
           : `<p class="hint">Kies een plant (en eventueel de soort) en tik daarna op de sporen op de kaart. Wisselt de plant halverwege een spoor? Gebruik dan ✂️.</p>`}`;
     }
-    soortenBlok = !lagenVan(p.id).sporen ? '' : `<section class="kaartje"><h4>Planten per spoor</h4>${indelen}<table class="verdeling">${rijen}</table></section>`;
+    soortenBlok = `<section class="kaartje"><h4>Planten per spoor</h4>${indelen}<table class="verdeling">${rijen}</table></section>`;
+    verdeling = `<section class="kaartje"><h4>🌱 Wat staat er (seizoen ${esc(seizoenNaam(bekeken))})</h4><table class="verdeling">${rijen}</table></section>`;
   }
   const bew = mag('percelen_bewerken'), uit = bew ? '' : 'disabled';
 
-  return `<div class="rij" style="justify-content:space-between;margin-bottom:8px"><button class="terug" style="margin:0" onclick="kies(null)">‹ Alles</button>${seizoenKnop()}</div>
-  <div class="titel"><span class="typeicoon groot" style="background:${typeVan(p).kleur}33">${typeVan(p).icoon}</span><h2>${esc(p.naam)}</h2>${bew ? '<button class="icoon" title="Naam wijzigen" onclick="hernoem()">✏️</button>' : ''}</div>
-  ${bew ? `<div class="lagen"><span>Soort</span>${Object.entries(TYPES).map(([k, T]) =>
-      `<button class="chip ${(p.type || 'veld') === k ? 'aan' : ''}" onclick="wijzig(actief,{type:'${k}'})">${T.icoon} ${T.naam}</button>`).join('')}</div>` : ''}
-  <div class="stats"><div><b>${p.type === 'pand' ? Math.round(opp).toLocaleString('nl-NL') : ha(opp)}</b><small>${p.type === 'pand' ? 'm²' : 'hectare'}</small></div>
-    <div><b>${totaalSporen || '–'}</b><small>sporen</small></div>
-    <div><b>${open.length}</b><small>open taken</small></div></div>
-  ${htmlWeer(p)}
-  <div class="lagen"><span>Lagen</span>
+  const tabs = [['weer', '🌦️', 'Weer', ziet('weer_bekijken')], ['taken', '📋', 'Taken', true],
+    ['historie', '📒', 'Historie', ziet('historie_bekijken')], ['aanpassen', '✏️', 'Aanpassen', true]].filter(t => t[3]);
+  if (!tabs.some(t => t[0] === perceelTab)) perceelTab = tabs[0][0];
+  const lagen = `<div class="lagen"><span>Lagen</span>
     <button class="chip ${!LAAG.some(k => lagenVan(p.id)[k]) ? 'aan' : ''}" onclick="zetLaag('${p.id}','blanco')">⬜ Blanco</button>
     ${p.type === 'pand' ? '' : `<button class="chip ${lagenVan(p.id).sporen ? 'aan' : ''}" onclick="zetLaag('${p.id}','sporen')">🟩 Sporen</button>`}
     ${p.type === 'pand' ? '' : `<button class="chip ${lagenVan(p.id).spuit ? 'aan' : ''}" onclick="zetLaag('${p.id}','spuit')">🚜 Spuitsporen</button>`}
     <button class="chip ${lagenVan(p.id).grond ? 'aan' : ''}" onclick="zetLaag('${p.id}','grond')">🟫 Grond</button>
     <button class="chip ${lagenVan(p.id).vlag ? 'aan' : ''}" onclick="zetLaag('${p.id}','vlag')">🚩 Vlaggen</button>
-    <button class="chip ${lagenVan(p.id).taken ? 'aan' : ''}" onclick="zetLaag('${p.id}','taken')">📋 Taken</button></div>
-
+    <button class="chip ${lagenVan(p.id).taken ? 'aan' : ''}" onclick="zetLaag('${p.id}','taken')">📋 Taken</button></div>`;
+  let inhoud = '';
+  if (perceelTab === 'weer') inhoud = htmlWeer(p);
+  else if (perceelTab === 'taken') inhoud = `<section class="kaartje"><h4>📋 Open taken</h4>
+    ${mag('taken_toevoegen') ? `<button class="knop" style="margin:0 0 6px" onclick="taakFormulier()">＋ Nieuwe taak</button>` : ''}
+    ${mag('werk_registreren') ? `<button class="knop licht" style="margin:0 0 6px" onclick="taakFormulier(null, true)">✓ Werk registreren (al gedaan)</button>` : ''}
+    ${open.length ? '<p class="hint" style="margin:0 0 4px">Tik op een taak om het stuk van het veld te laten oplichten.</p>' : ''}
+    ${open.map(t => taakHtml(t)).join('')}
+    ${!open.length ? '<p class="hint">Geen open taken voor dit perceel.</p>' : ''}
+    ${klaar.length && ziet('historie_bekijken') ? `<button class="link" onclick="perceelTab='historie';render(true)">✓ ${klaar.length} afgerond — bekijk in Historie ›</button>` : ''}
+  </section>`;
+  else if (perceelTab === 'historie') inhoud = `${verdeling}${logboekHtml(p)}
+    <section class="kaartje"><h4>📅 Andere seizoenen</h4><p class="hint" style="margin-top:0">Bekijk hoe dit perceel er in een vorig seizoen bij lag: wat er stond en wat er is gedaan.</p>
+      <button class="knop licht" onclick="seizoenMenu()">Seizoen kiezen</button></section>`;
+  else inhoud = `
+  ${bew ? `<section class="kaartje"><h4>Algemeen</h4><div class="lagen" style="margin:0"><span>Soort</span>${Object.entries(TYPES).map(([k, T]) =>
+      `<button class="chip ${(p.type || 'veld') === k ? 'aan' : ''}" onclick="wijzig(actief,{type:'${k}'})">${T.icoon} ${T.naam}</button>`).join('')}</div>
+      <div class="rij acties" style="margin-top:8px"><button class="knop licht" onclick="hernoem()">✏️ Naam</button><button class="knop licht" onclick="vormAanpassen()">⬡ Vorm</button></div></section>` : ''}
   ${p.type === 'pand' ? '' : `<section class="kaartje"><h4>Sporen &amp; GPS-richting</h4>
     <div class="richting">${kompasSVG(+p.richting || 0)}
       <div class="flex1"><label style="margin-top:0">Richting AB-lijn (graden)</label>
@@ -1607,29 +1654,31 @@ function htmlDetail(p) {
       <div><label>Aantal sporen</label><input class="veld" ${uit} type="number" inputmode="numeric" min="0" placeholder="alles" value="${+p.aantal || ''}" onchange="zetGetal('aantal',this.value||0)"></div>
       <div><label>Verschuif (m)</label><input class="veld" ${uit} type="number" inputmode="decimal" step="0.1" value="${+p.verschuiving || 0}" onchange="zetGetal('verschuiving',this.value)"></div>
     </div>
-    ${banen.length ? spuitInvoer(p, bew) : ''}
+    ${banen.length ? spuitInvoer(p, mag('spuitsporen_bewerken')) : ''}
     ${bew ? `<button class="knop ${p.banen_aan ? 'licht' : ''}" onclick="wijzig(actief,{banen_aan:${!p.banen_aan}})">${p.banen_aan ? 'Sporen verbergen' : 'Sporen maken'}</button>` : ''}
-    ${bew && totaalSporen ? `<button class="knop ${gereedschap === 'spuit' ? '' : 'licht'}" onclick="zetGereedschap('spuit')">🚜 ${gereedschap === 'spuit' ? 'Klaar met spuitsporen aanklikken' : 'Spuitsporen aanklikken op de kaart'}</button>
-      ${gereedschap === 'spuit' ? '<p class="hint"><b>Tik op een spoor</b> om er een spuitspoor van te maken, of tik op een spuitspoor (oranje streep) om het weg te halen. Werkt ook in vakken.</p>' : ''}` : ''}
+    ${mag('spuitsporen_bewerken') && totaalSporen ? `<button class="knop ${gereedschap === 'spuit' ? '' : 'licht'}" onclick="zetGereedschap('spuit')">🚜 ${gereedschap === 'spuit' ? 'Klaar met spuitsporen aanklikken' : 'Spuitsporen aanklikken op de kaart'}</button>
+      ${gereedschap === 'spuit' ? '<p class="hint"><b>Tik op een spoor</b> om er een spuitspoor van te maken, of tik op een spuitspoor (oranje streep) om het weg te halen. Werkt ook in deelvelden.</p>' : ''}` : ''}
     <p class="hint">0° = noord, 90° = oost. Gebruik dezelfde hoek als in je GPS. Laat "Aantal" leeg om het hele perceel te vullen. Met "Verschuif" schuif je de sporen opzij zodat ze precies op je AB-lijn liggen.</p>
   </section>
-  ${htmlVakken(p, bew)}`}
-
+  ${htmlVakken(p, mag('deelvelden_bewerken'))}`}
   ${soortenBlok}
-  ${lagenVan(p.id).grond ? htmlMarkeringen(p, 'grond') : ''}
-  ${lagenVan(p.id).vlag ? htmlMarkeringen(p, 'vlag') : ''}
-
-  ${!lagenVan(p.id).taken ? '' : `<section class="kaartje"><h4>📋 Taken</h4>
-    ${mag('taken_toevoegen') ? `<button class="knop" style="margin:0 0 6px" onclick="taakFormulier()">＋ Nieuwe taak</button>` : ''}
-    ${taken.length ? '<p class="hint" style="margin:0 0 4px">Tik op een taak om het stuk van het veld te laten oplichten.</p>' : ''}
-    ${open.map(t => taakHtml(t)).join('')}
-    ${!open.length ? '<p class="hint">Geen open taken voor dit perceel.</p>' : ''}
-  </section>`}
-  ${logboekHtml(p)}
-
-  <div class="rij acties">${bew ? '<button class="knop licht" onclick="vormAanpassen()">Vorm aanpassen</button>' : ''}
-    ${mag('percelen_verwijderen') ? '<button class="knop rood" onclick="verwijderPerceel()">Verwijderen</button>' : ''}</div>
+  ${htmlMarkeringen(p, 'grond')}
+  ${htmlMarkeringen(p, 'vlag')}
+  ${mag('percelen_uitschakelen') || mag('percelen_verwijderen') ? `<section class="kaartje"><h4>Beheer</h4>
+    ${mag('percelen_uitschakelen') ? `<button class="knop licht" onclick="schakelPerceel()">${p.uitgeschakeld ? '▶️ Weer in gebruik nemen' : '⏸️ Uitschakelen (niet in gebruik dit seizoen)'}</button>` : ''}
+    ${mag('percelen_verwijderen') ? '<button class="knop rood" onclick="verwijderPerceel()">🗑️ Perceel verwijderen</button>' : ''}</section>` : ''}
   <p class="hint">Aangemaakt door ${esc(p.aangemaakt_door || 'onbekend')}</p>`;
+
+  return `<div class="rij" style="justify-content:space-between;margin-bottom:8px"><button class="terug" style="margin:0" onclick="kies(null)">‹ Alles</button>${seizoenKnop()}</div>
+  <div class="titel"><span class="typeicoon groot" style="background:${typeVan(p).kleur}33">${typeVan(p).icoon}</span><h2>${esc(p.naam)}</h2></div>
+  ${p.uitgeschakeld ? `<div class="uitbalk">⏸️ Dit perceel is uitgeschakeld en wordt dit seizoen niet gebruikt.
+    ${mag('percelen_uitschakelen') ? '<button onclick="schakelPerceel()">Inschakelen</button>' : ''}</div>` : ''}
+  <div class="stats"><div><b>${p.type === 'pand' ? Math.round(opp).toLocaleString('nl-NL') : ha(opp)}</b><small>${p.type === 'pand' ? 'm²' : 'hectare'}</small></div>
+    <div><b>${totaalSporen || '–'}</b><small>sporen</small></div>
+    <div><b>${open.length}</b><small>open taken</small></div></div>
+  <div class="ptabs">${tabs.map(([k, i, l]) => `<button class="${perceelTab === k ? 'aan' : ''}" onclick="perceelTab='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
+  ${lagen}
+  ${inhoud}`;
 }
 
 function htmlVakken(p, bew) {
@@ -1643,13 +1692,13 @@ function htmlVakken(p, bew) {
         <div><label>Richting (°)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="any" value="${+v.richting || 0}" onchange="zetVak('${v.id}','richting',this.value)"></div>
         <div><label>Breedte (m)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="0.01" value="${z.breedte}" onchange="zetVak('${v.id}','breedte',this.value)"></div>
         <div><label>Verschuif (m)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="0.1" value="${+v.verschuiving || 0}" onchange="zetVak('${v.id}','verschuiving',this.value)"></div>
-      </div>${n ? spuitInvoer(z, bew) : ''}</div>`; }).join('')}
+      </div>${n ? spuitInvoer(z, mag('spuitsporen_bewerken')) : ''}</div>`; }).join('')}
     ${bew ? `<button class="knop licht" onclick="tekenVak()">▦ Deelveld tekenen</button>
       <p class="hint">Teken een stuk van het veld waar de sporen een andere kant op lopen (een deelveld). Het hoofdveld stopt daar automatisch.</p>` : ''}
   </section>`;
 }
 function tekenVak() {
-  if (!mag('percelen_bewerken')) return;
+  if (!mag('deelvelden_bewerken')) return;
   stopVorm(); map.pm.disableDraw();
   paneelKlein();
   map.pm.enableDraw('Polygon', {snappable: false, pathOptions: {color: '#ffffff'}});
@@ -1765,6 +1814,11 @@ function htmlSoorten() {
 }
 
 /* ============ team (alleen beheerder) ============ */
+function rechtenLijst(aan, attr) {
+  const groepen = [...new Set(RECHTEN.map(r => r[2]))];
+  return groepen.map(g => `<div class="rechtgroep">${g}</div>` + RECHTEN.filter(r => r[2] === g).map(([k, l]) =>
+    `<label class="vinkje"><input type="checkbox" ${aan(k) ? 'checked' : ''} ${attr(k)}> ${l}</label>`).join('')).join('');
+}
 function htmlTeam() {
   const lijst = [...S.profielen].sort((a, b) => (a.rol === b.rol ? a.naam.localeCompare(b.naam, 'nl') : a.rol === 'beheerder' ? -1 : 1));
   return `<section class="kaartje"><h4>Nieuwe medewerker</h4>
@@ -1772,8 +1826,7 @@ function htmlTeam() {
       <label>E-mail (hiermee logt hij in)</label><input class="veld" id="tMail" type="email" placeholder="jan@voorbeeld.nl" autocomplete="off">
       <label>Wachtwoord (minimaal 6 tekens)</label><input class="veld" id="tWw" type="text" placeholder="bijv. Trekker2026" autocomplete="off">
       <label>Rol</label><select class="veld" id="tRol" onchange="document.getElementById('tRechten').style.display=this.value==='beheerder'?'none':''"><option value="medewerker">Medewerker</option><option value="beheerder">Beheerder</option></select>
-      <div id="tRechten"><label>Wat mag deze medewerker?</label>${RECHTEN.map(([k, l]) =>
-        `<label class="vinkje"><input type="checkbox" data-recht="${k}" ${STANDAARD[k] ? 'checked' : ''}> ${l}</label>`).join('')}</div>
+      <div id="tRechten"><label>Wat mag deze medewerker?</label>${rechtenLijst(k => STANDAARD[k], k => `data-recht="${k}"`)}</div>
       <button class="knop" id="tKnop" onclick="maakMedewerker()">Account aanmaken</button>
       <p class="hint">Geef de medewerker zijn e-mail en wachtwoord door. Hij kan het wachtwoord daarna zelf wijzigen met 🔑.</p>
     </section>
@@ -1786,8 +1839,8 @@ function htmlTeam() {
         ${u.id !== me.id ? `<button class="icoon" title="Rol wisselen" onclick="teamRol('${u.id}')">⭐</button>
         <button class="weg" title="Account verwijderen" onclick="teamVerwijder('${u.id}')">×</button>` : ''}
       </div>
-      ${openRechten === u.id && u.rol !== 'beheerder' ? `<div class="rechten"><b>Wat mag ${esc(u.naam)}?</b>${RECHTEN.map(([k, l]) =>
-        `<label class="vinkje"><input type="checkbox" ${({...STANDAARD, ...(u.rechten || {})})[k] ? 'checked' : ''} onchange="zetRecht('${u.id}','${k}',this.checked)"> ${l}</label>`).join('')}
+      ${openRechten === u.id && u.rol !== 'beheerder' ? `<div class="rechten"><b>Wat mag ${esc(u.naam)}?</b>${rechtenLijst(k => ({...STANDAARD, ...(u.rechten || {})})[k],
+        k => `onchange="zetRecht('${u.id}','${k}',this.checked)"`)}
         <p class="hint">Wijzigingen gelden meteen.</p></div>` : ''}`).join('')}
       <p class="hint">✏️ naam · 🔑 nieuw wachtwoord · 🛡️ rechten · ⭐ beheerder/medewerker · × verwijderen. Beheerders mogen alles.</p>
     </section>`;
@@ -1926,7 +1979,7 @@ function tractorIcoon(t) {
 function tekenTractoren() {
   if (!tractorLaag) return;
   tractorLaag.clearLayers();
-  if (weergave._tractoren === false) return;
+  if (weergave._tractoren === false || !ziet('tractoren_volgen')) return;
   if (volgId && routes[volgId]?.length > 1)
     L.polyline(routes[volgId], {color: '#ff6d00', weight: 4, opacity: .85, interactive: false}).addTo(tractorLaag);
   S.tractoren.forEach(t => {
@@ -2057,7 +2110,7 @@ async function tractorSleutel(id) {
     uitleg: 'Hiermee kan een apparaat zonder inloggen de positie van deze tractor doorgeven. Deel hem met niemand.'});
 }
 function htmlTractoren() {
-  const beh = isBeheerder();
+  const beh = mag('tractoren_beheren');
   const lijst = [...S.tractoren].sort((a, b) => (isLive(b) - isLive(a)) || a.naam.localeCompare(b.naam, 'nl'));
   return `${rijdt ? `<section class="kaartje rijkaart"><h4>Deze telefoon</h4>
       <p>Je deelt je locatie als <b>${esc(S.tractoren.find(t => t.id === rijdt)?.naam || '')}</b>. ${bgWatcher
@@ -2092,6 +2145,7 @@ const tijdNL = s => s.slice(11, 16);
 const dagNL = s => new Date(s + 'T12:00').toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric'});
 const mm = x => (Math.round(x * 10) / 10).toLocaleString('nl-NL');
 function htmlWeer(p) {
+  if (!ziet('weer_bekijken')) return '<p class="hint">Je hebt geen recht om het weer te bekijken.</p>';
   const c = weerCache[p.id];
   if (!c || Date.now() - c.t > 10 * 60 * 1000) setTimeout(() => laadWeer(p.id), 0);
   return `<section class="kaartje weer" id="weerKaart">${c?.html || '<p class="hint" style="margin:0">🌦️ Weer laden…</p>'}</section>`;
