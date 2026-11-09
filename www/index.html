@@ -142,7 +142,7 @@ textarea.veld{resize:vertical;font-family:inherit}
 .keuzes button{background:var(--licht);border:2px solid transparent;border-radius:14px;padding:16px 4px;font-weight:700;font-size:13px;color:var(--groen)}
 .keuzes button:hover{border-color:var(--groen2)}
 .keuzes span{display:block;font-size:30px;margin-bottom:6px}
-.vak-label{background:rgba(255,255,255,.92);color:#1b241d;border:2px solid #1b241d;border-radius:8px;font-weight:900;font-size:15px;padding:1px 8px;box-shadow:none}
+.vak-label{background:rgba(255,255,255,.92);color:#1b241d;border:max(1px,calc(2px * var(--ls,1))) solid #1b241d;border-radius:calc(8px * var(--ls,1));font-weight:900;font-size:calc(15px * var(--ls,1));padding:calc(1px * var(--ls,1)) calc(8px * var(--ls,1));box-shadow:none;line-height:1.25}
 .vak-label:before{display:none}
 .spuitvakken{margin-top:10px}
 .vakkentabel td{text-align:left !important}
@@ -239,10 +239,18 @@ textarea.veld{resize:vertical;font-family:inherit}
 .icoonraster button{aspect-ratio:1;border:1.5px solid var(--rand);background:#fff;border-radius:10px;font-size:24px;display:flex;align-items:center;justify-content:center}
 .icoonraster button .ic{width:28px;height:28px}
 .icoonraster button.aan{border-color:var(--groen2);background:var(--licht)}
-.gewasicoon{background:rgba(255,255,255,.85);border-radius:50%;display:flex!important;align-items:center;justify-content:center;font-size:18px;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.gewasicoon{background:none;border:0}
+.gewasicoon .gi{width:30px;height:30px;background:rgba(255,255,255,.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 1px 4px rgba(0,0,0,.3);transform:scale(var(--ls,1))}
 .gewasicoon .ic{width:20px;height:20px}
-.labelgewas{text-align:center;font-size:15px;line-height:1.2;margin-top:1px;letter-spacing:1px}
-.labelgewas .ic{width:16px;height:16px}
+.labelgewas{text-align:center;font-size:calc(15px * var(--ls,1));line-height:1.2;margin-top:1px;letter-spacing:1px}
+.labelgewas .ic{width:calc(16px * var(--ls,1));height:calc(16px * var(--ls,1))}
+.vak-label .ic{width:1.05em;height:1.05em}
+.vlagje svg{transform:scale(var(--ls,1));transform-origin:5px 34px}
+.trekker .tw{position:absolute;left:0;top:0;width:46px;height:46px;transform:scale(var(--ls,1))}
+.verplaatsicoon{transform-origin:center}
+.grootteRij{display:flex;align-items:center;gap:10px;margin:2px 0 12px;padding:10px 12px;background:var(--licht);border-radius:12px}
+.grootteRij input{flex:1;accent-color:var(--groen)}
+.grootteRij b{min-width:44px;text-align:right;color:var(--groen)}
 .perceel-label.alleen-iconen{background:rgba(255,255,255,.85);padding:2px 6px}
 .markvorm{display:flex;gap:3px;flex:none}
 .markvorm .mini{border:0;background:var(--licht);border-radius:8px;width:30px;height:30px;font-size:14px}
@@ -326,7 +334,7 @@ textarea.veld{resize:vertical;font-family:inherit}
 .banner .rij{margin-top:10px}
 .banner .knop{margin:0;padding:9px}
 .leaflet-top.leaflet-right{top:calc(env(safe-area-inset-top));}
-.perceel-label{background:rgba(18,32,20,.78);color:#fff;border:0;border-radius:8px;font-weight:700;font-size:12px;box-shadow:none;padding:3px 8px}
+.perceel-label{background:rgba(18,32,20,.78);color:#fff;border:0;border-radius:calc(8px * var(--ls,1));font-weight:700;font-size:calc(12px * var(--ls,1));box-shadow:none;padding:calc(3px * var(--ls,1)) calc(8px * var(--ls,1))}
 .perceel-label:before{display:none}
 .tractor{font-size:24px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))}
 
@@ -352,7 +360,7 @@ textarea.veld{resize:vertical;font-family:inherit}
 .trekker{background:none;border:0}
 .trekker svg{position:absolute;left:0;top:0;transition:transform .4s}
 .trekker span{position:absolute;left:0;top:0;width:46px;height:46px;display:flex;align-items:center;justify-content:center;font-size:15px}
-.tractor-label{background:#ff6d00;color:#fff;border:0;border-radius:7px;font-weight:700;font-size:11px;padding:2px 7px;box-shadow:none}
+.tractor-label{background:#ff6d00;color:#fff;border:0;border-radius:7px;font-weight:700;font-size:calc(11px * var(--ls,1));padding:calc(2px * var(--ls,1)) calc(7px * var(--ls,1));box-shadow:none}
 .tractor-label:before{display:none}
 .trstip{width:34px;height:34px;border-radius:50%;background:#eceee9;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none}
 .trstip.live{background:#ffe0cc;box-shadow:0 0 0 3px #ff6d0055}
@@ -1977,6 +1985,8 @@ function alleLagen() {
   const aan = (k, std = true) => (weergave[k] ?? std) !== false;
   const rij = (id, label, check) => `<label class="vinkje"><input type="checkbox" id="${id}" ${check ? 'checked' : ''}> ${label}</label>`;
   $('#modal').innerHTML = `<div class="dialoog"><h3>🗂️ Kaartweergave · alle velden</h3>
+    <div style="font-weight:700;font-size:13px;margin:4px 0 6px">🔠 Grootte van letters, iconen en trekkers</div>
+    <div class="grootteRij"><small>A</small><input type="range" id="kwGrootte" min="50" max="250" step="5" value="${Math.round(kaartGrootte() * 100)}"><span style="font-size:20px">A</span><b id="kwGrootteW">${Math.round(kaartGrootte() * 100)}%</b></div>
     ${rij('kw_sporen', '🟩 Sporen', overal('sporen'))}
     ${rij('kw_spuit', '🚜 Spuitsporen', overal('spuit'))}
     ${rij('kw_grond', '🟫 Grond (gebieden, kopeindes, lijnen)', overal('grond'))}
@@ -1995,8 +2005,11 @@ function alleLagen() {
     weergave._namen = $('#kwNamen').checked; weergave._gewasIcoon = $('#kwGewas').checked; weergave._omtrek = $('#kwOmtrek').checked; weergave._tractoren = $('#kwTrekkers').checked;
     bewaarWeergave(); render(true);
   };
-  m.querySelectorAll('input').forEach(i => i.onchange = toepassen);
-  const alles = v => { m.querySelectorAll('input[type=checkbox]').forEach(i => i.checked = v); toepassen(); };
+  m.querySelectorAll('input[type=checkbox]').forEach(i => i.onchange = toepassen);
+  const gr = $('#kwGrootte');   // live meeschuiven, pas bij loslaten bewaren
+  gr.oninput = () => { weergave._grootte = gr.value / 100; $('#kwGrootteW').textContent = gr.value + '%'; zetKaartSchaal(); };
+  gr.onchange = () => { weergave._grootte = gr.value / 100; bewaarWeergave(); };
+  const alles = v => { m.querySelectorAll('input[type=checkbox]').forEach(i => i.checked = v); toepassen(); };   // grootte blijft staan
   $('#kwAlles').onclick = () => alles(true); $('#kwNiets').onclick = () => alles(false);
   $('#mJa').onclick = () => m.classList.remove('open');
 }
@@ -2381,6 +2394,27 @@ function focusTaak(id) {
   if (g.length) map.fitBounds(L.geoJSON({type: 'FeatureCollection', features: g}).getBounds(), {padding: [50, 50], maxZoom: 19});
 }
 
+/* ============ grootte van letters, iconen en trekkers op de kaart ============
+   Kleiner bij uitzoomen, en met de schuifbalk (🗂️) alles tegelijk groter of kleiner. */
+const kaartGrootte = () => Math.max(.5, Math.min(2.5, +weergave._grootte || 1));
+function kaartSchaal() {
+  const z = map?.getZoom?.() ?? 17, zf = Math.max(.38, Math.min(1.15, Math.pow(2, (z - 17) * .45)));
+  return zf * kaartGrootte();
+}
+function zetKaartSchaal() {
+  if (!map?.getContainer) return;
+  map.getContainer().style.setProperty('--ls', kaartSchaal().toFixed(3));
+  [laag, markLaag, focusLaag, tractorLaag].forEach(g => g?.eachLayer?.(l => { try { if (l instanceof L.Tooltip) l.update(); else l.getTooltip?.()?.update(); } catch {} }));
+  requestAnimationFrame(ontwarLetters);
+}
+// vakletters die over elkaar (of over een veldnaam) vallen verbergen
+function ontwarLetters() {
+  const bezet = [], raak = (a, b) => a.left < b.right + 2 && a.right > b.left - 2 && a.top < b.bottom + 2 && a.bottom > b.top - 2;
+  document.querySelectorAll('#map .perceel-label').forEach(el => { const r = el.getBoundingClientRect(); if (r.width) bezet.push(r); });
+  document.querySelectorAll('#map .vak-label').forEach(el => { el.style.visibility = ''; const r = el.getBoundingClientRect(); if (!r.width) return;
+    if (bezet.some(b => raak(r, b))) el.style.visibility = 'hidden'; else bezet.push(r); });
+}
+
 /* ============ kaart ============ */
 function initKaart() {
   if (map) return;
@@ -2392,6 +2426,7 @@ function initKaart() {
   L.control.zoom({position: 'topright'}).addTo(map);
   laag = L.layerGroup().addTo(map); markLaag = L.layerGroup().addTo(map); focusLaag = L.layerGroup().addTo(map); pijlLaag = L.layerGroup().addTo(map);
   tractorLaag = L.layerGroup().addTo(map); locatieLaag = L.layerGroup().addTo(map);
+  map.on('zoomend', zetKaartSchaal);
 
   map.pm.setLang('nl');
   map.pm.setGlobalOptions({snappable: true, snapDistance: 15, allowSelfIntersection: false,
@@ -2528,6 +2563,7 @@ function renderKaart() {
     style: {color: '#ff00d4', weight: 3, dashArray: '8,5', fillColor: '#ff00d4', fillOpacity: .45}}).addTo(focusLaag));
   tekenTractoren();
   [focusLaag, tractorLaag, locatieLaag, pijlLaag].forEach(g => g.eachLayer(geenSnap));
+  zetKaartSchaal();
 }
 function tekenVakLetters(z) {
   if (map.getZoom() < 15) return;
@@ -2547,7 +2583,7 @@ function tekenGewasVlak(z, p) {
     .on('click', () => { if (!tekent()) kies(p.id); }).addTo(laag);
   if (s.icoon && map.getZoom() >= 15) {
     const pt = turf.pointOnFeature(g).geometry.coordinates;
-    L.marker([pt[1], pt[0]], {interactive: false, icon: L.divIcon({className: 'gewasicoon', html: icoonHtml(s.icoon), iconSize: [30, 30], iconAnchor: [15, 15]})}).addTo(laag);
+    L.marker([pt[1], pt[0]], {interactive: false, icon: L.divIcon({className: 'gewasicoon', html: `<div class="gi">${icoonHtml(s.icoon)}</div>`, iconSize: [30, 30], iconAnchor: [15, 15]})}).addTo(laag);
   }
 }
 function tekenZone(p, isA) {
@@ -3754,8 +3790,8 @@ function geleden(d) {
 function tractorIcoon(t) {
   const kleur = isLive(t) ? '#ff6d00' : '#8d968a', r = +t.richting || 0;
   return L.divIcon({className: 'trekker', iconSize: [46, 46], iconAnchor: [23, 23], html:
-    `<svg width="46" height="46" viewBox="0 0 46 46" style="transform:rotate(${r}deg)"><path d="M23 1 L30 12 L16 12 Z" fill="${kleur}" stroke="#fff" stroke-width="1.5"/>
-      <circle cx="23" cy="23" r="13" fill="${kleur}" stroke="#fff" stroke-width="3"/></svg><span>🚜</span>`});
+    `<div class="tw"><svg width="46" height="46" viewBox="0 0 46 46" style="transform:rotate(${r}deg)"><path d="M23 1 L30 12 L16 12 Z" fill="${kleur}" stroke="#fff" stroke-width="1.5"/>
+      <circle cx="23" cy="23" r="13" fill="${kleur}" stroke="#fff" stroke-width="3"/></svg><span>🚜</span></div>`});
 }
 function tekenTractoren() {
   if (!tractorLaag) return;
@@ -7091,7 +7127,7 @@ function tekenVloot2d(nu) {
       }
       zien.add(t.id);
       const ppm = 256 * Math.pow(2, z) / (40075016.686 * Math.cos(it.lat0 * Math.PI / 180));
-      const sk = Math.round(Math.max(1, 30 / (4.3 * ppm)) * 4) / 4;   // minstens ±30 px lang, anders groter tekenen
+      const sk = Math.round(Math.max(1, 34 * kaartSchaal() / (4.3 * ppm)) * 4) / 4;   // lengte op het scherm volgt de kaartgrootte
       if (it.sk !== sk) { it.sk = sk; it.schaal = sk; it.baan = rijBaan(t, sk, it.m.werkbreedte, it.m.aanLengte > 6 ? 8 : 5); }
       if (!it.baan) continue;
       const leider = volgt && V2.items.get(volgt), basis = leider?.st ? leider : it;
@@ -7112,7 +7148,7 @@ function tekenVloot2d(nu) {
       if (!it || it.key !== key) { it = {t, key, fase: fase(t.id), sk: null}; V2.items.set(t.id, it); }
       zien.add(t.id);
       const b0 = it.baan || rijBaan(t, 1, 3); if (!b0) continue;
-      const ppm = 256 * Math.pow(2, z) / (40075016.686 * Math.cos(b0.lat0 * Math.PI / 180)), sk = Math.round(Math.max(1, 30 / (4.3 * ppm)) * 4) / 4;
+      const ppm = 256 * Math.pow(2, z) / (40075016.686 * Math.cos(b0.lat0 * Math.PI / 180)), sk = Math.round(Math.max(1, 34 * kaartSchaal() / (4.3 * ppm)) * 4) / 4;
       if (it.sk !== sk) { it.sk = sk; it.schaal = sk; it.baan = rijBaan(t, sk, 3); }
       const o = map.latLngToContainerPoint([it.baan.lat0, it.baan.lng0]), st = vlootStand(it, nu, 2.2 * sk), k = st.p.kop, s = sk * ppm;
       const fw = [Math.sin(k), Math.cos(k)], li = [-Math.cos(k), Math.sin(k)], px = o.x + st.p.e * ppm, py = o.y - st.p.n * ppm;
