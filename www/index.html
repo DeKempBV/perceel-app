@@ -294,6 +294,7 @@ textarea.veld{resize:vertical;font-family:inherit}
 .vak .raster3 label{margin-top:4px}
 .subchips{background:var(--licht);border-radius:12px;padding:10px;margin-top:10px}
 .subkop{font-size:12px;font-weight:700;color:var(--groen);margin-bottom:6px}
+.notitie{font-size:12.5px;color:#4a544a;background:#fffbea;border-radius:7px;padding:4px 7px;margin-top:4px;line-height:1.4;overflow-wrap:anywhere}
 .rassen{margin:0 0 6px 44px;border-left:3px solid var(--rand);padding-left:10px}
 .rassen .soort{padding:5px 0}
 .rassen .soort input[type=color]{width:26px;height:26px}
@@ -516,7 +517,7 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
     <div style="display:flex;align-items:center;gap:10px;padding:6px 0">
       <div class="logo">🌾 Perceel App</div>
       <div class="wie" id="wie"></div>
-      <button class="uit agknop" title="Agenda openen" onclick="openAgenda()">📆 Agenda</button>
+      <button class="uit agknop" title="Agenda openen" onclick="openAgenda()" style="font-size:16px;padding:4px 8px">📆</button>
       <button class="uit" title="Wachtwoord wijzigen" onclick="eigenWachtwoord()">🔑</button>
       <button class="uit" onclick="uitloggen()">Uitloggen</button>
     </div>
@@ -1632,6 +1633,34 @@ async function rasErbij(plantId, invoerId) {
   if (error) { toast('Toevoegen mislukt: ' + foutTekst(error), 1); return; }
   if (!ras(data.id)) S.rassen.push(data);
   render(true); document.getElementById(invoerId)?.focus();
+}
+// Naam en aantekeningen van een plant of soort aanpassen
+async function bewerkPlant(id) {
+  const s = soort(id); if (!s || !mag('soorten_beheren')) return;
+  const w = await formulier(`✏️ ${s.naam}`, [
+    {k: 'naam', label: 'Naam van de plant', waarde: s.naam},
+    {k: 'notitie', label: '📝 Aantekeningen', type: 'textarea', waarde: s.notitie || '', placeholder: 'bijv. zaaiafstand, bemesting, waar het zaad vandaan komt…'}]);
+  if (!w) return;
+  if (!w.naam) { toast('Geef de plant een naam', 1); return; }
+  if (S.soorten.some(x => x.id !== id && x.naam.toLowerCase() === w.naam.toLowerCase())) { toast(`Er is al een plant "${w.naam}"`, 1); return; }
+  const patch = {naam: w.naam, notitie: w.notitie || null}, oud = {naam: s.naam, notitie: s.notitie};
+  Object.assign(s, patch); S.soorten.sort((a, b) => a.naam.localeCompare(b.naam, 'nl')); render(true);
+  const {error} = await sb.from('soorten').update(patch).eq('id', id);
+  if (error) { Object.assign(s, oud); render(true); toast('Opslaan mislukt: ' + foutTekst(error), 1); } else toast('Plant opgeslagen');
+}
+async function bewerkRas(id) {
+  const r = ras(id); if (!r || !mag('soorten_beheren')) return;
+  const pl = soort(r.soort_id);
+  const w = await formulier(`✏️ ${pl ? pl.naam + ' – ' : ''}${r.naam}`, [
+    {k: 'naam', label: 'Naam van de soort', waarde: r.naam},
+    {k: 'notitie', label: '📝 Aantekeningen', type: 'textarea', waarde: r.notitie || '', placeholder: 'bijv. vroeg/laat ras, gevoelig voor phytophthora, opbrengst vorig jaar, leverancier…'}]);
+  if (!w) return;
+  if (!w.naam) { toast('Geef de soort een naam', 1); return; }
+  if (rassenVan(r.soort_id).some(x => x.id !== id && x.naam.toLowerCase() === w.naam.toLowerCase())) { toast(`Deze plant heeft al een soort "${w.naam}"`, 1); return; }
+  const patch = {naam: w.naam, notitie: w.notitie || null}, oud = {naam: r.naam, notitie: r.notitie};
+  Object.assign(r, patch); render(true);
+  const {error} = await sb.from('rassen').update(patch).eq('id', id);
+  if (error) { Object.assign(r, oud); render(true); toast('Opslaan mislukt: ' + foutTekst(error), 1); } else toast('Soort opgeslagen');
 }
 async function rasKleur(id, kleur) {
   ras(id).kleur = kleur; render(true);
@@ -2843,14 +2872,18 @@ function htmlSoorten() {
           <input type="color" value="${esc(s.kleur)}" ${beh ? '' : 'disabled'} onchange="soortKleur('${s.id}',this.value)">
           <button class="icoonkeuze" title="Icoontje kiezen" ${beh ? '' : 'disabled'} onclick="kiesIcoon('${s.id}')">${icoonHtml(plantIcoon(s)) || '＋'}</button>
           <div class="t" onclick="openPlant=${open ? 'undefined' : `'${s.id}'`};render(true)" style="cursor:pointer"><b>${esc(s.naam)}</b><br>
-            <small>${totHa.get(s.id) ? '<b>' + ha(totHa.get(s.id)) + ' ha</b> · ' : ''}${rs.length} ${rs.length === 1 ? 'soort' : 'soorten'} · ${gebruik(s.id)} sporen${vlakken(s.id) ? ' · ' + vlakken(s.id) + ' hele vlak(ken)' : ''}</small></div>
+            <small>${totHa.get(s.id) ? '<b>' + ha(totHa.get(s.id)) + ' ha</b> · ' : ''}${rs.length} ${rs.length === 1 ? 'soort' : 'soorten'} · ${gebruik(s.id)} sporen${vlakken(s.id) ? ' · ' + vlakken(s.id) + ' hele vlak(ken)' : ''}</small>
+            ${s.notitie ? `<div class="notitie">📝 ${esc(s.notitie).replace(/\n/g, '<br>')}</div>` : ''}</div>
+          ${beh ? `<button class="icoon" title="Naam en aantekeningen" onclick="bewerkPlant('${s.id}')">✏️</button>` : ''}
           <button class="icoon" onclick="openPlant=${open ? 'undefined' : `'${s.id}'`};render(true)">${open ? '▴' : '▾'}</button>
           ${beh ? `<button class="weg" title="Plant verwijderen" onclick="verwijderSoort('${s.id}')">×</button>` : ''}
         </div>
         ${open ? `<div class="rassen">
           ${rs.map(r => `<div class="soort"><input type="color" value="${esc(r.kleur || s.kleur)}" ${beh ? '' : 'disabled'} onchange="rasKleur('${r.id}',this.value)">
-            <div class="t">${esc(r.naam)}</div>
-            ${beh ? `<button class="weg" title="Soort verwijderen" onclick="verwijderRas('${r.id}')">×</button>` : ''}</div>`).join('')
+            <div class="t" ${beh ? `onclick="bewerkRas('${r.id}')" style="cursor:pointer"` : ''}>${esc(r.naam)}
+              ${r.notitie ? `<div class="notitie">📝 ${esc(r.notitie).replace(/\n/g, '<br>')}</div>` : ''}</div>
+            ${beh ? `<button class="icoon" title="Naam en aantekeningen" onclick="bewerkRas('${r.id}')">✏️</button>
+              <button class="weg" title="Soort verwijderen" onclick="verwijderRas('${r.id}')">×</button>` : ''}</div>`).join('')
             || '<p class="hint" style="margin:6px 0">Nog geen soorten.</p>'}
           ${beh ? `<div class="rij" style="margin:8px 0 4px"><input id="ras_${s.id}" class="veld" placeholder="Nieuwe soort, bijv. ${esc(s.naam === 'Aardappel' ? 'Bintje' : 'naam')}" onkeydown="if(event.key==='Enter')rasErbij('${s.id}','ras_${s.id}')">
             <button class="knop klein" onclick="rasErbij('${s.id}','ras_${s.id}')">＋</button></div>` : ''}
