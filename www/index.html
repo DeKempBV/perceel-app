@@ -298,6 +298,9 @@ textarea.veld{resize:vertical;font-family:inherit}
 .subchips{background:var(--licht);border-radius:12px;padding:10px;margin-top:10px}
 .subkop{font-size:12px;font-weight:700;color:var(--groen);margin-bottom:6px}
 .notitie{font-size:12.5px;color:#4a544a;background:#fffbea;border-radius:7px;padding:4px 7px;margin-top:4px;line-height:1.4;overflow-wrap:anywhere}
+.vakkop{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.vakkop b{flex:1}
+.vakkop small{color:var(--grijs);font-size:12px}
 .rassen{margin:0 0 6px 44px;border-left:3px solid var(--rand);padding-left:10px}
 .rassen .soort{padding:5px 0}
 .rassen .soort input[type=color]{width:26px;height:26px}
@@ -427,7 +430,12 @@ details.szblok summary h4{margin:6px 0}
 .verslagknoppen b{display:block;color:var(--groen);font-size:14px}
 .verslagknoppen small{display:block;color:var(--grijs);font-size:12px;margin-top:2px;line-height:1.35}
 /* 3D */
-#drieD{position:fixed;inset:0;z-index:3500;background:#111;display:none}
+#drieD{position:fixed;inset:0;z-index:900;background:#c9d6bf;display:none}
+#drieDDoek{position:absolute;inset:0;pointer-events:none;z-index:2}
+.drieDtaak{position:absolute;top:12px;left:12px;z-index:5;background:rgba(255,255,255,.94);border-radius:12px;padding:8px 12px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:70%}
+.drieDtaak b{display:block;font-size:14px;color:var(--groen)}
+.drieDtaak small{display:block;font-size:12px;color:var(--grijs)}
+
 #drieD.open{display:block}
 #drieDKaart{position:absolute;inset:0}
 .drieDbalk{position:absolute;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:rgba(20,40,25,.88);color:#fff;border-radius:14px;padding:10px 12px;z-index:5;font-size:13px}
@@ -1685,7 +1693,7 @@ async function slaTaakOp(w, gebied, id) {
   const i = S.taken.findIndex(x => x.id === res.data.id);
   if (i >= 0) S.taken[i] = res.data; else S.taken.push(res.data);
   taakFocus = res.data.id; render(true); verbergTrekker3d();
-  if (!w.direct) setTimeout(() => { if (taakFocus === res.data.id) toonTrekker3d(S.taken.find(x => x.id === res.data.id)); }, 450);
+  if (!w.direct && (res.data.trekker || res.data.werktuig)) setTimeout(() => { if (taakFocus === res.data.id) open3D({taak: S.taken.find(x => x.id === res.data.id)}); }, 450);
   toast(w.direct ? 'Werk geregistreerd' : id ? 'Taak opgeslagen' : 'Taak toegevoegd');
 }
 async function vinkTaak(id) {
@@ -2339,9 +2347,10 @@ const taakWaar = t => isVerplaats(t) ? `${locNaam(t, 'van')} → ${locNaam(t, 'n
   (t.spoor_van && perceel(t.perceel_id) && spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot))
     ? 'vak ' + spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot).letter : t.spoor_van ? (t.spoor_tot && t.spoor_tot !== t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot}` : `spoor ${t.spoor_van}`) : 'hele perceel';
 function focusTaak(id) {
-  if (taakFocus === id) { taakFocus = undefined; verbergTrekker3d(); render(true); return; }
+  if (taakFocus === id) { taakFocus = undefined; verbergTrekker3d(); if (drieD) sluit3D(); render(true); return; }
   const t = S.taken.find(x => x.id === id); if (!t) return;
-  taakFocus = id; verbergTrekker3d(); setTimeout(() => { if (taakFocus === id) toonTrekker3d(t); }, 450);
+  taakFocus = id; verbergTrekker3d(); if (drieD) sluit3D();
+  if (!t.klaar && (t.trekker || t.werktuig || werktuigSoort(t))) setTimeout(() => { if (taakFocus === id) open3D({taak: t}); }, 450);
   if (isVerplaats(t)) {
     if (tab === 'percelen' && t.perceel_id) actief = t.perceel_id;
     render(true);
@@ -2461,6 +2470,7 @@ function kies(id) {
 
 function renderKaart() {
   if (!map) return;
+  if (trekker3d) { const tk = S.taken.find(x => x.id === trekker3d.id); if (!tk || tk.klaar || !zichtbaar(tk.perceel_id || tk.van_perceel)?.taken || taakFocus !== tk.id) verbergTrekker3d(); }
   laag.clearLayers(); pijlLaag.clearLayers(); tractorLaag.clearLayers();
   const toonNamen = weergave._namen !== false, toonOmtrek = weergave._omtrek !== false, toonGewas = weergave._gewasIcoon !== false;
   S.percelen.forEach(p => {
@@ -2607,14 +2617,14 @@ function htmlLijst() {
     }).join('');
 }
 
-function kompasSVG(r) {
+function kompasSVG(r, naaldId = 'naald') {
   return `<svg class="kompas" width="64" height="64" viewBox="0 0 64 64">
     <circle cx="32" cy="32" r="29" fill="#f3f7f1" stroke="#cfdacb" stroke-width="2"/>
     <text x="32" y="13" text-anchor="middle" font-size="9" font-weight="700" fill="#c0392b">N</text>
     <text x="54" y="35" text-anchor="middle" font-size="8" fill="#8a9486">O</text>
     <text x="32" y="58" text-anchor="middle" font-size="8" fill="#8a9486">Z</text>
     <text x="10" y="35" text-anchor="middle" font-size="8" fill="#8a9486">W</text>
-    <g id="naald" transform="rotate(${r} 32 32)"><path d="M32 14 L37 34 L32 31 L27 34 Z" fill="#2f7a3d"/><path d="M32 50 L32 34" stroke="#2f7a3d" stroke-width="3" stroke-linecap="round"/></g>
+    <g id="${naaldId}" transform="rotate(${r} 32 32)"><path d="M32 14 L37 34 L32 31 L27 34 Z" fill="#2f7a3d"/><path d="M32 50 L32 34" stroke="#2f7a3d" stroke-width="3" stroke-linecap="round"/></g>
   </svg>`;
 }
 
@@ -2919,20 +2929,50 @@ function htmlDetail(p) {
 function htmlVakken(p, bew) {
   const vakken = p.vakken || [];
   if (!vakken.length && !bew) return '';
-  return `<section class="kaartje"><h4>Deelvelden met een andere richting</h4>
-    ${vakken.map(v => { const z = vakZone(p, v), n = banenVan(z).length; return `<div class="vak">
-      <div class="rij"><b style="flex:1">▦ ${esc(v.naam)}</b><small style="color:var(--grijs)">${n} sporen</small>
-        ${bew ? `<button class="weg" title="Deelveld verwijderen" onclick="verwijderVak('${v.id}')">×</button>` : ''}</div>
+  const spuit = mag('spuitsporen_bewerken'), indeel = mag('soorten_indelen');
+  return `<section class="kaartje"><h4>▦ Deelvelden</h4>
+    ${vakken.map(v => { const z = vakZone(p, v), n = banenVan(z).length, vid = v.id.replace(/[^a-z0-9]/gi, '_'), sporenAan = !v.zonderSporen;
+      return `<div class="vak">
+      <div class="vakkop"><b>▦ ${esc(v.naam)}</b><small>${z.binnen ? ha(turf.area(z.binnen)) + ' ha · ' : ''}${sporenAan ? n + ' sporen' : 'geen sporen'}</small>
+        ${bew ? `<button class="icoon" title="Naam wijzigen" onclick="hernoemVak('${v.id}')">✏️</button><button class="icoon" title="Vorm aanpassen" onclick="vormVak('${v.id}')">⬡</button>
+          <button class="weg" title="Deelveld verwijderen" onclick="verwijderVak('${v.id}')">×</button>` : ''}</div>
+      ${sporenAan ? `<div class="richting">${kompasSVG(+v.richting || 0, 'naald_' + vid)}
+        <div class="flex1"><label style="margin-top:0">Richting sporen (graden)</label>
+          <div class="rij"><input type="range" min="0" max="359.5" step="0.5" value="${+v.richting || 0}" oninput="liveVakRichting('${v.id}',this.value)" onchange="zetVak('${v.id}','richting',this.value)">
+          <input id="vakRichting_${vid}" class="veld klein" type="number" inputmode="decimal" step="any" min="0" max="360" value="${+v.richting || 0}" onchange="zetVak('${v.id}','richting',this.value)"></div></div></div>
       <div class="raster3">
-        <div><label>Richting (°)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="any" value="${+v.richting || 0}" onchange="zetVak('${v.id}','richting',this.value)"></div>
-        <div><label>Breedte (m)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="0.01" value="${z.breedte}" onchange="zetVak('${v.id}','breedte',this.value)"></div>
-        <div><label>Verschuif (m)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="0.1" value="${+v.verschuiving || 0}" onchange="zetVak('${v.id}','verschuiving',this.value)"></div>
-      </div>${n ? spuitInvoer(z, mag('spuitsporen_bewerken')) : ''}
-      <label class="vinkje"><input type="checkbox" ${v.zonderSporen ? 'checked' : ''} ${bew ? '' : 'disabled'} onchange="zetZonderSporen('${v.id}',this.checked)"> Geen sporen: heel deelveld één gewas</label>
-      ${v.zonderSporen ? `<div style="margin-top:6px">${gewasKeuze(z, mag('soorten_indelen'))}</div>` : abInvoer(z, bew)}</div>`; }).join('')}
+        <div><label>Breedte (m)</label><input class="veld" type="number" inputmode="decimal" step="0.01" value="${z.breedte}" onchange="zetVak('${v.id}','breedte',this.value)"></div>
+        <div><label>Aantal sporen</label><input class="veld" type="number" inputmode="numeric" min="0" placeholder="alles" value="${+v.aantal || ''}" onchange="zetVak('${v.id}','aantal',this.value||0)"></div>
+        <div><label>Verschuif (m)</label><input class="veld" type="number" inputmode="decimal" step="0.1" value="${+v.verschuiving || 0}" onchange="zetVak('${v.id}','verschuiving',this.value)"></div>
+      </div>
+      ${n && spuit ? spuitInvoer(z, true) : ''}
+      ${abInvoer(z, bew)}` : ''}
+      <button class="knop ${sporenAan ? 'licht' : ''}" onclick="zetZonderSporen('${v.id}',${sporenAan})">${sporenAan ? 'Sporen verbergen (heel deelveld één gewas)' : 'Sporen maken'}</button>
+      ${!sporenAan && indeel ? `<label>🌱 Gewas op het hele deelveld</label>${gewasKeuze(z, true)}` : ''}
+      ${sporenAan && spuit && n ? `<button class="knop ${gereedschap === 'spuit' ? '' : 'licht'}" onclick="zetGereedschap('spuit')">🚜 ${gereedschap === 'spuit' ? 'Klaar met spuitsporen aanklikken' : 'Spuitsporen aanklikken op de kaart'}</button>` : ''}
+      </div>`; }).join('')}
     ${bew ? `<button class="knop licht" onclick="tekenVak()">▦ Deelveld tekenen</button>
-      <p class="hint">Teken een stuk van het veld waar de sporen een andere kant op lopen (een deelveld). Het hoofdveld stopt daar automatisch.</p>` : ''}
+      <p class="hint">Een deelveld werkt als een eigen veld binnen het perceel: eigen richting, breedte, aantal sporen, spuitsporen, A-punt en gewas. Het hoofdveld stopt daar automatisch.</p>` : ''}
   </section>`;
+}
+function liveVakRichting(id, waarde) {
+  const p = perceel(actief), v = (p?.vakken || []).find(x => x.id === id); if (!v) return;
+  v.richting = +waarde; renderKaart();
+  const vid = id.replace(/[^a-z0-9]/gi, '_'), naald = document.getElementById('naald_' + vid), getal = document.getElementById('vakRichting_' + vid);
+  if (naald) naald.setAttribute('transform', `rotate(${waarde} 32 32)`); if (getal) getal.value = waarde;
+}
+async function hernoemVak(id) {
+  const p = perceel(actief), v = (p?.vakken || []).find(x => x.id === id); if (!v) return;
+  const naam = await vraag('Naam van het deelveld', {waarde: v.naam}); if (!naam) return;
+  wijzig(p.id, {vakken: p.vakken.map(x => x.id === id ? {...x, naam} : x)});
+}
+function vormVak(id) {
+  const p = perceel(actief), v = (p?.vakken || []).find(x => x.id === id); if (!v || vormLaag || !mag('deelvelden_bewerken')) return;
+  vormLaag = L.geoJSON(v.geo, {style: {color: '#ffffff', weight: 3, dashArray: '6,4', fillOpacity: .1}}).getLayers()[0];
+  vormLaag.addTo(map); vormLaag.pm.enable({allowSelfIntersection: false});
+  map.fitBounds(vormLaag.getBounds(), {padding: [40, 40]}); paneelKlein();
+  banner(`<b>⬡ Vorm van ${esc(v.naam)} aanpassen</b><br>Sleep de hoekpunten (ze haken vast aan de randen). Tik op een tussenpunt om een hoek toe te voegen, houd een hoek ingedrukt om hem weg te halen.`,
+    [['Annuleren', stopVorm], ['Opslaan', () => { const geo = vormLaag.toGeoJSON(); stopVorm(); wijzig(p.id, {vakken: p.vakken.map(x => x.id === id ? {...x, geo} : x)}); toast('Vorm deelveld opgeslagen'); }]]);
 }
 function tekenVak() {
   if (!mag('deelvelden_bewerken')) return;
@@ -2962,6 +3002,7 @@ function zetVak(id, veld, waarde) {
   const p = perceel(actief); let n = parseFloat(String(waarde).replace(',', '.')); if (isNaN(n)) n = 0;
   if (veld === 'richting') n = ((n % 360) + 360) % 360;
   if (veld === 'breedte' && n < 0.1) { toast('Breedte moet minimaal 0,1 m zijn', 1); render(true); return; }
+  if (veld === 'aantal') n = Math.max(0, Math.round(n));
   wijzig(p.id, {vakken: (p.vakken || []).map(v => v.id === id ? {...v, [veld]: n} : v)});
 }
 async function verwijderVak(id) {
@@ -5431,76 +5472,259 @@ async function gerooidAangeven(pid) {
   nieuweMarkering('gerooid', geo);
 }
 
-/* ============ 3D-weergave (MapLibre) ============ */
-let drieD = null;
+/* ============ 3D-weergave (MapLibre) met draaiende camera en rijdende trekker ============ */
+function plantHoogte(t) {   // ongeveer hoe hoog het gewas staat (meters), alleen voor het beeld
+  const n = (soort(t.plantId)?.naam || t.naam).toLowerCase();
+  return /appel|peer|kers|pruim|boom/.test(n) ? 3 : /bes|druif/.test(n) ? 1.5 : /asperge|mais|maïs/.test(n) ? 1.2 : /gras|groenbemester|braak/.test(n) ? .25 : .5;
+}
 function laadScript(src) { return new Promise((ok, fout) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => fout(new Error('Laden mislukt: ' + src)); document.head.appendChild(s); }); }
-async function open3D() {
+let drieD = null, drieDBaan = null, drieDOrbit = null, drieDOverlay = null;
+function drieDVak() {   // de 3D-weergave over de kaart leggen, het paneel blijft zichtbaar
+  const el = $('#drieD'), pan = $('#panel').getBoundingClientRect(), telefoon = innerWidth < 760;
+  if (telefoon) { el.style.left = '0'; el.style.right = '0'; el.style.top = '0'; el.style.bottom = Math.max(0, innerHeight - pan.top) + 'px'; }
+  else { el.style.top = '0'; el.style.bottom = '0'; el.style.right = '0'; el.style.left = (document.body.classList.contains('dicht') ? 0 : Math.max(0, pan.right)) + 'px'; }
+}
+async function open3D(opt = {}) {
   let el = $('#drieD');
   if (!el) { el = document.createElement('div'); el.id = 'drieD'; document.body.appendChild(el); }
-  el.innerHTML = `<div id="drieDKaart"></div>
-    <div class="drieDbalk"><b>🧊 3D-weergave</b><span>Sleep met twee vingers (of rechtermuisknop) om te kantelen en draaien</span>
-      <button onclick="drieDHoek(0)">Bovenaf</button><button onclick="drieDHoek(60)">Schuin</button><button onclick="drieDDraai()">↻ Draaien</button><button class="sluit" onclick="sluit3D()">✕ Sluiten</button></div>`;
-  el.classList.add('open');
+  const t = opt.taak, p = t ? perceel(t.perceel_id || t.van_perceel) : perceel(opt.perceel || actief);
+  el.innerHTML = `<div id="drieDKaart"></div><canvas id="drieDDoek"></canvas>
+    ${t ? `<div class="drieDtaak"><b>${esc(t.tekst)}</b>${p ? `<small>📍 ${esc(p.naam)}</small>` : ''}${t.trekker || t.werktuig ? `<small>🚜 ${esc([t.trekker, t.werktuig].filter(Boolean).join(' + '))}</small>` : ''}</div>` : ''}
+    <div class="drieDbalk"><b>🧊 3D</b><span>${p ? 'De camera draait om ' + esc(p.naam) : 'Sleep met twee vingers om te kantelen en draaien'}</span>
+      <button onclick="drieDHoek(0)">Bovenaf</button><button onclick="drieDHoek(62)">Schuin</button><button onclick="drieDDraai()">↻ Draaien</button><button class="sluit" onclick="sluit3D()">✕ Sluiten</button></div>`;
+  el.classList.add('open'); drieDVak();
   try {
     if (!window.maplibregl) {
       const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css'; document.head.appendChild(css);
       toast('🧊 3D laden…'); await laadScript('https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js');
     }
-  } catch (e) { toast('3D kon niet geladen worden (geen internet?)', 1); sluit3D(); return; }
-  if (!window.maplibregl?.Map) { toast('3D kon niet geladen worden (geen internet?)', 1); sluit3D(); return; }
+  } catch (e) {}
+  if (!window.maplibregl?.Map) { sluit3D(); if (t) toonTrekker3d(t); else toast('3D kon niet geladen worden (geen internet?)', 1); return false; }
+  if (drieD) { try { drieD.remove(); } catch {} drieD = null; }
   const c = map.getCenter();
-  drieD = new maplibregl.Map({container: 'drieDKaart', center: [c.lng, c.lat], zoom: Math.max(map.getZoom() - .5, 12), pitch: 60, bearing: -20, maxPitch: 80, attributionControl: {compact: true},
-    style: {version: 8, sources: {sat: {type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 19, attribution: 'Esri'}},
-      layers: [{id: 'sat', type: 'raster', source: 'sat'}]}});
+  drieD = new maplibregl.Map({container: 'drieDKaart', center: [c.lng, c.lat], zoom: Math.max(map.getZoom() - .5, 12), pitch: 62, bearing: -20, maxPitch: 80, attributionControl: {compact: true},
+    style: {version: 8, sources: {sat: {type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 18, attribution: 'Esri'}},
+      layers: [{id: 'achtergrond', type: 'background', paint: {'background-color': '#c9d6bf'}}, {id: 'sat', type: 'raster', source: 'sat', paint: {'raster-fade-duration': 150}}]}});
   drieD.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
-  drieD.on('load', () => { drieDLagen(); });
+  ['mousedown', 'touchstart', 'wheel'].forEach(e => drieD.getCanvas().addEventListener(e, () => stopOrbit(), {passive: true}));
+  drieD.on('load', () => {
+    drieDLagen(t);
+    if (p) {   // camera op het perceel (of het stuk van de taak) en eromheen draaien
+      const geb = t ? taakGebied(t)[0] || p.geo : p.geo, bb = turf.bbox(geb);
+      const cam = drieD.cameraForBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {padding: 50});
+      drieD.jumpTo({center: cam?.center || turf.centroid(geb).geometry.coordinates, zoom: (cam?.zoom || 16) - .55, pitch: 62, bearing: drieD.getBearing()});
+      drieDDraai(true);
+    }
+    if (t) startRijden3d(t, p);
+  });
+  drieD.on('render', tekenOverlay3d);
+  window.addEventListener('resize', drieDVak);
+  return true;
 }
-function drieDData() {
-  const sporen = [], velden = [], gebouwen = [], gerooid = [];
+function drieDData(t) {
+  const sporen = [], velden = [], gebouwen = [], gerooid = [], taak = [];
   const f = (geo, props) => ({type: 'Feature', properties: props, geometry: geo.geometry || geo});
   S.percelen.forEach(p => {
-    if (p.type === 'pand' || p.type === 'kas') { gebouwen.push(f(p.geo, {kleur: p.type === 'kas' ? '#b3e5fc' : '#bcaaa4', hoogte: p.type === 'kas' ? 5 : 8, naam: p.naam})); return; }
+    if (p.type === 'pand' || p.type === 'kas') { gebouwen.push(f(p.geo, {kleur: p.type === 'kas' ? '#d7eef7' : '#bcaaa4', hoogte: p.type === 'kas' ? 5 : 8, naam: p.naam})); return; }
     velden.push(f(p.geo, {kleur: p.uitgeschakeld ? '#9e9e9e' : '#ffffff', naam: p.naam}));
     alleZones(p).forEach(z => {
-      if (zoneGewas(z)) { const g = zoneVlak(z), t = teelt(z.gewas); if (g && t) sporen.push(f(g, {kleur: t.kleur, hoogte: plantHoogte(t)})); return; }
-      banenVan(z).forEach(bn => stukkenVan(z, bn).forEach(st => { const t = teelt(st.id); if (t) sporen.push(f(st.geo, {kleur: t.kleur, hoogte: plantHoogte(t)})); }));
+      if (zoneGewas(z)) { const g = zoneVlak(z), tl = teelt(z.gewas); if (g && tl) sporen.push(f(g, {kleur: tl.kleur || '#8bc34a', hoogte: plantHoogte(tl)})); return; }
+      banenVan(z).forEach(bn => stukkenVan(z, bn).forEach(st => { const tl = teelt(st.id); if (tl) sporen.push(f(st.geo, {kleur: tl.kleur || '#8bc34a', hoogte: plantHoogte(tl)})); }));
     });
   });
   S.markeringen.filter(m => m.soort === 'gerooid').forEach(m => gerooid.push(f(m.geo, {})));
+  if (t) taakGebied(t).forEach(g => taak.push(f(g, {})));
   const fc = l => ({type: 'FeatureCollection', features: l});
-  return {velden: fc(velden), sporen: fc(sporen), gebouwen: fc(gebouwen), gerooid: fc(gerooid)};
+  return {velden: fc(velden), sporen: fc(sporen), gebouwen: fc(gebouwen), gerooid: fc(gerooid), taakvlak: fc(taak)};
 }
-function plantHoogte(t) {   // ongeveer hoe hoog het gewas staat (meters), alleen voor het beeld
-  const n = (soort(t.plantId)?.naam || t.naam).toLowerCase();
-  return /appel|peer|kers|pruim|boom/.test(n) ? 3 : /bes|druif/.test(n) ? 1.5 : /asperge|mais|maïs/.test(n) ? 1.2 : /gras|groenbemester|braak/.test(n) ? .25 : .5;
-}
-function drieDLagen() {
+function drieDLagen(t) {
   if (!drieD) return;
-  const d = drieDData();
+  const d = drieDData(t);
   Object.entries(d).forEach(([k, v]) => { if (drieD.getSource(k)) drieD.getSource(k).setData(v); else drieD.addSource(k, {type: 'geojson', data: v}); });
   if (!drieD.getLayer('velden')) {
-    drieD.addLayer({id: 'velden', type: 'fill', source: 'velden', paint: {'fill-color': ['get', 'kleur'], 'fill-opacity': .12}});
-    drieD.addLayer({id: 'sporen', type: 'fill-extrusion', source: 'sporen', paint: {'fill-extrusion-color': ['get', 'kleur'], 'fill-extrusion-height': ['get', 'hoogte'], 'fill-extrusion-opacity': .85}});
+    const kleur = ['coalesce', ['get', 'kleur'], '#9e9e9e'], hoogte = ['coalesce', ['get', 'hoogte'], .5];
+    drieD.addLayer({id: 'velden', type: 'fill', source: 'velden', paint: {'fill-color': kleur, 'fill-opacity': .1}});
+    drieD.addLayer({id: 'sporen', type: 'fill-extrusion', source: 'sporen', paint: {'fill-extrusion-color': kleur, 'fill-extrusion-height': hoogte, 'fill-extrusion-opacity': .8}});
     drieD.addLayer({id: 'gerooid', type: 'fill', source: 'gerooid', paint: {'fill-color': '#78909c', 'fill-opacity': .6}});
-    drieD.addLayer({id: 'gebouwen', type: 'fill-extrusion', source: 'gebouwen', paint: {'fill-extrusion-color': ['get', 'kleur'], 'fill-extrusion-height': ['get', 'hoogte'], 'fill-extrusion-opacity': .9}});
+    drieD.addLayer({id: 'taakvlak', type: 'fill', source: 'taakvlak', paint: {'fill-color': '#ff00d4', 'fill-opacity': .22}});
+    drieD.addLayer({id: 'taakrand', type: 'line', source: 'taakvlak', paint: {'line-color': '#ff00d4', 'line-width': 2, 'line-dasharray': [2, 2]}});
+    drieD.addLayer({id: 'gebouwen', type: 'fill-extrusion', source: 'gebouwen', paint: {'fill-extrusion-color': kleur, 'fill-extrusion-height': hoogte, 'fill-extrusion-opacity': .92}});
     drieD.addLayer({id: 'randen', type: 'line', source: 'velden', paint: {'line-color': '#ffffff', 'line-width': 2}});
   }
   (drieD._namen || []).forEach(m => m.remove());
   drieD._namen = S.percelen.map(p => { const [x, y] = turf.centroid(p.geo).geometry.coordinates, e = document.createElement('div'); e.className = 'drieDnaam'; e.textContent = p.naam;
     e.onclick = () => { sluit3D(); kies(p.id); }; return new maplibregl.Marker({element: e}).setLngLat([x, y]).addTo(drieD); });
-  S.tractoren.filter(t => t.lat != null && isLive(t)).forEach(t => { const e = document.createElement('div'); e.className = 'drieDnaam trekker'; e.textContent = '🚜 ' + t.naam; drieD._namen.push(new maplibregl.Marker({element: e}).setLngLat([t.lng, t.lat]).addTo(drieD)); });
+  S.tractoren.filter(x => x.lat != null && isLive(x)).forEach(x => { const e = document.createElement('div'); e.className = 'drieDnaam trekker'; e.textContent = '🚜 ' + x.naam; drieD._namen.push(new maplibregl.Marker({element: e}).setLngLat([x.lng, x.lat]).addTo(drieD)); });
 }
-function drieDHoek(p) { drieD?.easeTo({pitch: p, duration: 800}); }
-let drieDTimer = null;
-function drieDDraai() {
-  if (drieDTimer) { cancelAnimationFrame(drieDTimer); drieDTimer = null; return; }
-  const stap = () => { if (!drieD) return; drieD.setBearing(drieD.getBearing() + .15); drieDTimer = requestAnimationFrame(stap); }; stap();
+function drieDHoek(p) { stopOrbit(); drieD?.easeTo({pitch: p, duration: 800}); }
+function drieDDraai(aan) {
+  if (drieDOrbit && aan !== true) { stopOrbit(); return; }
+  stopOrbit();
+  let vorige = performance.now();
+  const stap = nu => { if (!drieD) return; drieD.setBearing(drieD.getBearing() + (nu - vorige) * .006); vorige = nu; drieDOrbit = requestAnimationFrame(stap); };
+  drieDOrbit = requestAnimationFrame(stap);
+}
+function stopOrbit() { if (drieDOrbit) cancelAnimationFrame(drieDOrbit); drieDOrbit = null; }
+// De trekker rijdt in de spoorrichting heen en weer over het stuk van de taak
+function startRijden3d(t, p) {
+  const geb = taakGebied(t)[0] || p?.geo; if (!geb) return;
+  const [lng0, lat0] = turf.centroid(geb).geometry.coordinates, K = 111320, cl = Math.cos(lat0 * Math.PI / 180);
+  const rich = (+p?.richting || 0) * Math.PI / 180, d = [Math.sin(rich), Math.cos(rich)];
+  const langs = turf.coordAll(geb).map(([x, y]) => ((x - lng0) * K * cl) * d[0] + ((y - lat0) * K) * d[1]);
+  const lo = Math.min(...langs), hi = Math.max(...langs), diag = Math.max(hi - lo, 20);
+  const schaal = Math.min(6, Math.max(1, diag / 55 / 4.3));   // groter dan echt, zodat je hem goed ziet
+  drieDBaan = {t, lng0, lat0, cl, rich, lo: lo + 6 * schaal, hi: Math.max(lo + 6 * schaal + 1, hi - 6 * schaal), schaal, start: performance.now(), grond: (() => { const tl = p && [...teeltOppervlak(p).keys()].map(teelt).find(Boolean); return tl?.kleur || '#8d6e63'; })()};
+  const loop = () => { if (!drieD || !drieDBaan) return; drieD.triggerRepaint(); drieDBaan.raf = requestAnimationFrame(loop); };
+  drieDBaan.raf = requestAnimationFrame(loop);
+}
+function tekenOverlay3d() {
+  const cv = $('#drieDDoek'); if (!cv || !drieD) return;
+  const box = drieD.getContainer(), B = box.clientWidth, H = box.clientHeight, dpr = Math.min(devicePixelRatio || 1, 2);
+  if (cv.width !== Math.round(B * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(B * dpr); cv.height = Math.round(H * dpr); cv.style.width = B + 'px'; cv.style.height = H + 'px'; }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, B, H);
+  const b = drieDBaan; if (!b) return;
+  if (!zichtbaar(b.t.perceel_id || b.t.van_perceel)?.taken || b.t.klaar) return;   // laag Taken uit: geen trekker
+  const M = drieD.transform?.customLayerMatrix?.(); if (!M) return;
+  const tijd = (performance.now() - b.start) / 1000, snel = 9 * Math.sqrt(b.schaal), lengte = b.hi - b.lo;
+  const fase = (tijd * snel) % (2 * lengte), heen = fase < lengte, pos = b.lo + (heen ? fase : 2 * lengte - fase);
+  const kop = heen ? b.rich : b.rich + Math.PI, fw = [Math.sin(kop), Math.cos(kop)], links = [-Math.cos(kop), Math.sin(kop)];
+  const anker = maplibregl.MercatorCoordinate.fromLngLat([b.lng0 + pos * Math.sin(b.rich) / (111320 * b.cl), b.lat0 + pos * Math.cos(b.rich) / 111320], 0), u = anker.meterInMercatorCoordinateUnits() * b.schaal;
+  const naarScherm = ([x, y, z]) => {   // model (meters) → wereld → scherm, met de echte 3D-camera van de kaart
+    const oost = x * fw[0] + z * links[0], noord = x * fw[1] + z * links[1];
+    const mx = anker.x + oost * u, my = anker.y - noord * u, mz = y * u;
+    const cx = M[0] * mx + M[4] * my + M[8] * mz + M[12], cy = M[1] * mx + M[5] * my + M[9] * mz + M[13], cw = M[3] * mx + M[7] * my + M[11] * mz + M[15];
+    return [(cx / cw + 1) / 2 * B, (1 - cy / cw) / 2 * H, cw];
+  };
+  const naarWereld = ([x, y, z]) => [x * fw[0] + z * links[0], y, -(x * fw[1] + z * links[1])];   // voor de belichting
+  tekenModel3d(ctx, b.t, tijd, naarScherm, naarWereld, b.grond);
 }
 function sluit3D() {
-  if (drieDTimer) { cancelAnimationFrame(drieDTimer); drieDTimer = null; }
+  stopOrbit(); if (drieDBaan?.raf) cancelAnimationFrame(drieDBaan.raf); drieDBaan = null;
+  window.removeEventListener('resize', drieDVak);
   if (drieD) { const c = drieD.getCenter(); map.setView([c.lat, c.lng]); drieD.remove(); drieD = null; }
   $('#drieD')?.classList.remove('open');
 }
+
+
+
+// Welke plant staat er op het stuk van de taak (voor het juiste soort rooier)
+function teeltVanTaak(t) {
+  const p = perceel(t.perceel_id); if (!p) return null;
+  if (t.spoor_van) {
+    const tel = new Map();
+    (p.banen || []).slice(t.spoor_van - 1, t.spoor_tot || t.spoor_van).forEach(v => waarden(v).forEach(id => id && tel.set(id, (tel.get(id) || 0) + 1)));
+    const top = [...tel.entries()].sort((a, b) => b[1] - a[1])[0]; if (top) return teelt(top[0]);
+  }
+  const top = [...teeltOppervlak(p).entries()].filter(([id]) => teelt(id)).sort((a, b) => b[1].m2 - a[1].m2)[0];
+  return top ? teelt(top[0]) : null;
+}
+function rooierSoort(t) {   // eerst wat er bij de taak staat (werk/machine), anders wat er op het veld groeit
+  const kies = n => /aardbei|asperge|plantenrooier|frigo/.test(n) ? 'plantenrooier' : /appel|peer|boom|bomen|bes\b|bessen|struik|haag|kers|pruim/.test(n.replace(/aardappel/g, '')) ? 'bomenrooier'
+    : /aardappel|\bui(en)?\b|wortel|biet|bloembol|lelie|tulp|knol|bunker/.test(n) ? 'rooier' : '';
+  const tl = teeltVanTaak(t);
+  return kies(`${t.werktuig || ''} ${t.tekst || ''}`.toLowerCase()) || kies(`${tl ? soort(tl.plantId)?.naam || tl.naam : ''}`.toLowerCase()) || 'rooier';
+}
+// Plantenrooier (aardbei- en aspergeplanten): rooimes, rooirol, pennenband omhoog en een zijafvoerband naar de wagen ernaast
+function plantenrooierModel(kleur, tijd, plantKleur) {
+  const v = [], x0 = -1.85, staal = '#8a8f93', pk = plantKleur || '#6aa84f';
+  v.push(...kastje(x0 - .12, .45, -.5, x0, 1.15, .5, kleur, .03));                                        // bok
+  [-1, 1].forEach(s => v.push(...kastje(x0 - 2.5, .1, s * .78 - .04, x0 - .1, 1.35, s * .78 + .04, kleur, .02)));   // zijwanden
+  v.push(...kastje(x0 - .55, 0, -.75, x0 - .1, .05, .75, '#c9ced1'));                                    // rooimes
+  v.push(...draailichaam(x0 - .55, .22, 0, [[.16, -.72], [.16, .72]], '#6d7275', 14, -tijd * 6, {}, i => i % 2 ? '#5f6467' : '#7b8084'));   // rooirol
+  // pennenband schuin omhoog naar achteren
+  const A = [x0 - .65, .3], Bp = [x0 - 2.25, 1.15];
+  v.push(vl([[A[0], A[1], -.72], [Bp[0], Bp[1], -.72], [Bp[0], Bp[1], .72], [A[0], A[1], .72]], '#3b3b3b', {dubbel: true}));
+  const lang = Math.hypot(Bp[0] - A[0], Bp[1] - A[1]);
+  for (let i = 0; i < 9; i++) { const f = ((tijd * .5 + i / 9) % 1), x = A[0] + (Bp[0] - A[0]) * f, y = A[1] + (Bp[1] - A[1]) * f + .03;
+    v.push(...kastje(x - .015, y, -.7, x + .015, y + .05, .7, staal));                                    // pennen
+    if (i % 2 === 0) [-.4, 0, .4].forEach(z => { v.push(...kastje(x - .05, y + .04, z - .05, x + .05, y + .1, z + .05, '#6d4c41', .02)); v.push(...kastje(x - .07, y + .1, z - .07, x + .07, y + .2, z + .07, pk, .04)); }); }
+  // zijafvoerband dwars naar links (naar de wagen van de bijrijder)
+  const zy = 1.22, za = .2, zb = 3.2, xb = x0 - 2.45;
+  v.push(vl([[xb - .25, zy, za], [xb + .25, zy, za], [xb + .25, zy + .45, zb], [xb - .25, zy + .45, zb]], '#3b3b3b', {dubbel: true}));
+  v.push(...kastje(xb - .28, zy - .05, za, xb - .24, zy + .55, zb, kleur), ...kastje(xb + .24, zy - .05, za, xb + .28, zy + .55, zb, kleur));
+  for (let i = 0; i < 6; i++) { const f = ((tijd * .6 + i / 6) % 1), z = za + (zb - za) * f, y = zy + .45 * f + .03;
+    v.push(...kastje(xb - .05, y, z - .05, xb + .05, y + .06, z + .05, '#6d4c41', .02), ...kastje(xb - .07, y + .06, z - .07, xb + .07, y + .16, z + .07, pk, .04)); }
+  [-1, 1].forEach(s => v.push(...wielCompleet(x0 - 1.6, .32, s * .95, .32, .18, -tijd * 3, '#cfcfcf', s, false)));   // steunwielen
+  return {vlakken: v, deeltjes: {soort: 'stof', x: x0 - .5}};
+}
+// Bomen- en struikenrooier: U-vormige rooischaar met trilkast; gerooide bomen blijven achter op de rij
+function bomenrooierModel(kleur, tijd, plantKleur) {
+  const v = [], x0 = -1.85, pk = plantKleur || '#558b2f';
+  v.push(...kastje(x0 - .12, .45, -.5, x0, 1.15, .5, kleur, .03));
+  v.push(...kastje(x0 - 1.4, .9, -.6, x0 - .1, 1.15, .6, kleur, .03));                                   // raam
+  v.push(...kastje(x0 - 1.0, 1.15, -.35, x0 - .5, 1.55, .35, '#424242', .05));                           // trilkast
+  [-1, 1].forEach(s => v.push(...kastje(x0 - 1.2, -.1, s * .7 - .05, x0 - .9, .95, s * .7 + .05, '#9aa0a4')));   // poten van de U
+  v.push(...kastje(x0 - 1.25, -.12, -.75, x0 - .85, -.06, .75, '#c9ced1'));                              // rooischaar
+  for (let i = 0; i < 4; i++) { const x = x0 - 1.8 - (((tijd * 1.2) + i * 1.3) % 5.2);                   // gerooide bomen schuin op de rij
+    v.push(...buis([x, .05, 0], [x - .9, .9, .05], .035, '#6d4c41', 6), ...kastje(x - 1.15, .8, -.3, x - .7, 1.3, .3, pk, .12));
+    v.push(...kastje(x + .05, 0, -.25, x + .3, .2, .25, '#795548', .06)); }
+  return {vlakken: v, deeltjes: {soort: 'stof', x: x0 - 1.0}};
+}
+// Alle vlakken van wat er rijdt: trekker + werktuig, en bij rooien met bijrijden een tweede trekker met aanhanger ernaast
+const metBijrijder = t => /rooi|oogst/i.test(`${t.tekst} ${t.werktuig || ''}`) && /bijrij|meerij|aanhanger|kipper|\bkar\b|afvoer/i.test(`${t.tekst} ${t.werktuig || ''} ${t.omschrijving || ''}`);
+function machineVlakken(t, tijd) {
+  const kl = merkKleuren(t.trekker); let soort = metBijrijder(t) ? 'rooier' : werktuigSoort(t);
+  if (soort === 'rooier') soort = rooierSoort(t);
+  const pk = teeltVanTaak(t)?.kleur;
+  const wt = soort === 'plantenrooier' ? plantenrooierModel(werktuigKleur(t.werktuig), tijd, pk) : soort === 'bomenrooier' ? bomenrooierModel(werktuigKleur(t.werktuig), tijd, pk) : werktuigModel2(soort, werktuigKleur(t.werktuig), tijd);
+  const vlakken = [...trekkerModel2(kl, t, tijd), ...wt.vlakken], deeltjes = wt.deeltjes ? [wt.deeltjes] : [];
+  let achter = soort === 'kar' || soort === 'tank' ? 7.2 : soort === 'rooier' ? 6.5 : soort === 'ploeg' ? 5.6 : soort === 'bomenrooier' ? 7 : soort ? 4.2 : 1.9, zij = soort === 'spuit' ? 6.2 : 1.6, zijL = soort === 'plantenrooier' ? 3.3 : zij;
+  if (metBijrijder(t)) {   // bijrijder rijdt links naast de rooier, iets naar achteren, onder de afvoerband
+    const dx = soort === 'plantenrooier' ? -.4 : -2.6, dz = 4.3, mee = v => ({...v, p: v.p.map(([x, y, z]) => [x + dx, y, z + dz])});
+    vlakken.push(...trekkerModel2(merkKleuren(t.trekker), t, tijd).map(mee), ...werktuigModel2('kar', '#9e9e9e', tijd).vlakken.map(mee));
+    // afvoerband van de rooier naar de aanhanger, met rollende knollen/planten (de plantenrooier heeft zijn eigen zijband)
+    if (soort === 'rooier') vlakken.push(...buis([-5.6, 2.3, .2], [-4.9, 2.9, 3.1], .09, werktuigKleur(t.werktuig), 8));
+    if (soort === 'rooier') for (let i = 0; i < 6; i++) { const f = ((tijd * .8 + i / 6) % 1), x = -5.6 + f * .7, y = 2.38 + f * .6, z = .2 + f * 2.9;
+      vlakken.push(...kastje(x - .08, y, z - .08, x + .08, y + .14, z + .08, '#8d6e63', .04)); }
+    achter = Math.max(achter, 9.8); zijL = dz + 1.6;
+  }
+  return {vlakken, deeltjes, soort, achter, zij, zijL};
+}
+/* ---- het model tekenen met een willekeurige projectie (eigen camera of de 3D-kaart) ---- */
+function tekenModel3d(ctx, t, tijd, naarScherm, naarWereld, grondKleur, opt = {}) {
+  const mv = machineVlakken(t, tijd), vlakken = mv.vlakken;
+  // schaduw onder de machine(s)
+  const sch = [[2.7, 0, -mv.zij], [2.7, 0, mv.zijL], [-1.6 - mv.achter, 0, mv.zijL], [-1.6 - mv.achter, 0, -mv.zij]].map(naarScherm);
+  if (sch.every(p => p[2] > 0)) { ctx.beginPath(); sch.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.filter = 'blur(4px)'; ctx.fill(); ctx.filter = 'none'; }
+  // welke draairichting op het scherm "naar de camera toe" is: een vlak met de normaal omhoog is van boven altijd zichtbaar
+  const opp2 = q => { let o = 0; for (let i = 0; i < q.length; i++) { const a = q[i], c = q[(i + 1) % q.length]; o += a[0] * c[1] - c[0] * a[1]; } return o; };
+  const boven = [[0, 3, 0], [0, 3, 1], [1, 3, 0]];   // normaal = (0,1,0)×... wijst omhoog
+  const vb = v3.kruis(v3.min(boven[1], boven[0]), v3.min(boven[2], boven[0])), zichtTeken = Math.sign(opp2(boven.map(naarScherm))) * (vb[1] > 0 ? 1 : -1);
+  const licht = v3.norm([.35, .85, .4]);
+  const lijst = [];
+  for (const f of vlakken) {
+    const q = f.p.map(naarScherm); if (q.some(p => p[2] <= 0)) continue;
+    // modelnormaal (naar buiten, door vl()) → wereld
+    let n = v3.kruis(v3.min(f.p[1], f.p[0]), v3.min(f.p[2], f.p[0])); const nl = Math.hypot(...n); if (!nl) continue;
+    let nw = naarWereld(v3.maal(n, 1 / nl)), achter = Math.sign(opp2(q)) !== zichtTeken;
+    if (achter && !f.dubbel && !f.glas) continue;
+    if (achter) nw = v3.maal(nw, -1);
+    const diff = Math.max(0, v3.punt(nw, licht)), hel = .48 + .64 * diff;
+    let spec = 0;
+    if (f.glas || f.metaal || f.lak) { const r = v3.min(v3.maal(nw, 2 * v3.punt(nw, licht)), licht); spec = Math.pow(Math.max(0, r[1] * .6 + .4 * Math.abs(r[0])), f.lak ? 18 : 10) * (f.lak ? .45 : .7); }
+    lijst.push({q, z: q.reduce((s, p) => s + p[2], 0) / q.length, kleur: tintHex(f.k, hel + spec), rand: tintHex(f.k, hel * .5), glas: f.glas});
+  }
+  lijst.sort((a, c) => c.z - a.z);
+  ctx.lineJoin = 'round';
+  for (const f of lijst) {
+    ctx.beginPath(); f.q.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+    if (f.glas) { ctx.globalAlpha = .45; ctx.fillStyle = f.kleur; ctx.fill(); ctx.globalAlpha = .7; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .4; ctx.stroke(); ctx.globalAlpha = 1; continue; }
+    ctx.fillStyle = f.kleur; ctx.fill(); ctx.strokeStyle = f.rand; ctx.lineWidth = .4; ctx.stroke();
+  }
+  for (const dl of mv.deeltjes) if (dl?.soort) {
+    for (let i = 0; i < 30; i++) {
+      const fase = ((tijd * .9 + i / 30) % 1), z = (((i * 7919) % 100) / 100 - .5) * (dl.breed ? dl.breed * 2 : 3);
+      const p = dl.soort === 'nevel' ? [dl.x - fase * .4, .85 - fase * .8, z] : dl.soort === 'korrels' ? [dl.x - fase * 2.5, .6 + Math.sin(fase * 3) * .3, z * (1 + fase * 2)] : [dl.x - fase * 1.6, .1 + fase * .9 + Math.sin(i) * .2, z];
+      const [x, y, w] = naarScherm(p); if (w <= 0) continue;
+      const ref = naarScherm([p[0], p[1] + .3, p[2]]), r = Math.max(.6, Math.abs(ref[1] - y) * (dl.soort === 'korrels' ? .25 : .8)) * (1 + fase);
+      ctx.globalAlpha = (1 - fase) * (dl.soort === 'nevel' ? .35 : .5);
+      ctx.fillStyle = dl.soort === 'nevel' ? '#e3f4ff' : dl.soort === 'korrels' ? '#ffffff' : tintHex(grondKleur || '#8d6e63', .8);
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
 
 /* ============================================================
    KLEINE 3D-TREKKER (eigen tekenaar op canvas, geen bibliotheek)
@@ -5517,16 +5741,20 @@ function werktuigSoort(t) {   // welk model tekenen: eerst het gekozen werktuig,
   return kies(s) || kies(w) || (t.werktuig ? 'werktuig' : '');
 }
 const machineOpNaam = n => n ? (S.machines || []).find(m => m.naam.trim().toLowerCase() === String(n).trim().toLowerCase()) : null;
-function merkKleuren(naam) {
+function merkKleuren(naam) {   // romp, velgen, dak, onderstel – volgens de kleurstelling van het merk
   const n = (naam || '').toLowerCase();
-  if (/deere/.test(n)) return {romp: '#367c2b', velg: '#ffde00', cabine: '#2b2b2b'};
-  if (/fendt/.test(n)) return {romp: '#3d8a2e', velg: '#8f9396', cabine: '#2b2b2b', dak: '#3d8a2e'};
-  if (/massey|\bmf\b|mccormick|zetor|valtra|case|h[uü]rlimann/.test(n)) return {romp: '#c8102e', velg: '#cfcfcf', cabine: '#2b2b2b'};
-  if (/holland|\bnh\b|landini/.test(n)) return {romp: '#1f4fa3', velg: '#e0e0e0', cabine: '#2b2b2b', dak: '#f2f2f2'};
-  if (/claas/.test(n)) return {romp: '#a4c639', velg: '#c62828', cabine: '#3a3a3a', dak: '#f2f2f2'};
-  if (/kubota/.test(n)) return {romp: '#f37021', velg: '#d6d6d6', cabine: '#2b2b2b', dak: '#2b2b2b'};
-  if (/deutz|same/.test(n)) return {romp: '#6aa84f', velg: '#e0e0e0', cabine: '#2b2b2b'};
-  return {romp: '#2e7d32', velg: '#d9d9d9', cabine: '#2b2b2b'};
+  if (/deere/.test(n)) return {romp: '#367c2b', velg: '#ffde00', dak: '#367c2b', chassis: '#1f1f1f'};
+  if (/fendt/.test(n)) return {romp: '#3f7d3b', velg: '#8e2f25', dak: '#f2f2ef', chassis: '#5b6064'};          // Nature Green, Terra Red velgen, Sky White dak, Tech Grey
+  if (/massey|\bmf\b/.test(n)) return {romp: '#c8102e', velg: '#a7a9ac', dak: '#c8102e', chassis: '#333333'};
+  if (/case/.test(n)) return {romp: '#b5121b', velg: '#b5b5b5', dak: '#f2f2f2', chassis: '#222222'};
+  if (/mccormick|zetor|valtra|steyr/.test(n)) return {romp: '#c62828', velg: '#bdbdbd', dak: '#f2f2f2', chassis: '#2b2b2b'};
+  if (/holland|\bnh\b|landini/.test(n)) return {romp: '#1d4f9c', velg: '#e8e8e8', dak: '#f2f2f2', chassis: '#2b2b2b'};
+  if (/claas/.test(n)) return {romp: '#b5c334', velg: '#c62828', dak: '#f2f2f2', chassis: '#6b6f72'};
+  if (/kubota/.test(n)) return {romp: '#f37021', velg: '#3a3a3a', dak: '#f37021', chassis: '#1f1f1f'};
+  if (/deutz|same/.test(n)) return {romp: '#6a9a45', velg: '#cfcfcf', dak: '#f2f2f2', chassis: '#2b2b2b'};
+  if (/h[uü]rlimann/.test(n)) return {romp: '#4d7c3a', velg: '#d0d0d0', dak: '#f2f2f2', chassis: '#2b2b2b'};
+  if (/agrifac/.test(n)) return {romp: '#00843d', velg: '#e0e0e0', dak: '#f2f2f2', chassis: '#2b2b2b'};
+  return {romp: '#2e7d32', velg: '#d9d9d9', dak: '#2e7d32', chassis: '#2b2b2b'};
 }
 function werktuigKleur(naam) {
   const n = (naam || '').toLowerCase();
@@ -5709,7 +5937,7 @@ function tintHex(hex, f) { const n = parseInt(hex.slice(1), 16), c = [n >> 16, (
 /* ---- de trekker ---- */
 function trekkerModel2(kl, t, tijd) {
   const v = [], rol = -tijd * 1.6, RA = .84, RV = .6, xa = -.95, xv = 1.55, sp = .98;   // achter- en voorwielen
-  const romp = kl.romp, donker = '#2f2f2f', grijs = '#5b5f61';
+  const romp = kl.romp, donker = kl.chassis || '#2f2f2f', grijs = tintHex(kl.chassis || '#5b5f61', 1.15);
   // chassis, motorblok, brandstoftank, vooras
   v.push(...kastje(-1.25, .48, -.42, 2.15, .95, .42, donker, .05));
   v.push(...kastje(xv - .1, .5, -.75, xv + .1, .62, .75, donker, .03));
@@ -5717,7 +5945,8 @@ function trekkerModel2(kl, t, tijd) {
   // motorkap: doorsneden van achter naar voor (iets aflopend, afgeronde bovenkant)
   const sec = (x, hb, ho, b, ronding) => [x, [[ho, -b], [hb - ronding, -b], [hb, -b + ronding], [hb, b - ronding], [hb - ronding, b], [ho, b]]];
   v.push(...loft([sec(-.15, 1.78, .92, .47, .14), sec(.6, 1.74, .92, .46, .14), sec(1.4, 1.66, .94, .44, .14), sec(2.05, 1.56, .98, .41, .16), sec(2.22, 1.44, 1.04, .36, .18)],
-    (i, j) => j === 0 || j === 5 ? tintHex(romp, .82) : romp, {}, '#202020', null));
+    (i, j) => j === 0 || j === 5 ? tintHex(romp, .82) : romp, {lak: true}, '#202020', null));
+  [-1, 1].forEach(s => { for (let i = 0; i < 5; i++) v.push(...kastje(1.35 + i * .13, 1.18, s * .445, 1.42 + i * .13, 1.45, s * .455, '#1d1d1d')); });   // ventilatieroosters
   // grille + koplampen + gewicht voorop
   for (let y = 1.1; y < 1.4; y += .07) v.push(...kastje(2.215, y, -.3, 2.235, y + .03, .3, '#4a4a4a'));
   [-1, 1].forEach(s => v.push(...kastje(2.13, 1.2, s * .3, 2.24, 1.3, s * .4, '#fff6c2', .02)));
@@ -5733,7 +5962,10 @@ function trekkerModel2(kl, t, tijd) {
   v.push(vl([[cx1, cy0, -cz], [cx1, cy0, cz], [cx1 - .08, cy1, cz], [cx1 - .08, cy1, -cz]], gk, glas, [-.7, 1.9, 0]));
   v.push(vl([[cx0, cy0, -cz], [cx0, cy0, cz], [cx0, cy1, cz], [cx0, cy1, -cz]], gk, glas, [-.7, 1.9, 0]));
   [-1, 1].forEach(s => v.push(vl([[cx0, cy0, s * cz], [cx1, cy0, s * cz], [cx1 - .08, cy1, s * cz], [cx0, cy1, s * cz]], gk, glas, [-.7, 1.9, 0])));
-  v.push(...kastje(cx0 - .12, cy1, -cz - .1, cx1 + .1, cy1 + .16, cz + .1, kl.dak || romp, .07));   // dak
+  v.push(...kastje(cx0 - .12, cy1, -cz - .1, cx1 + .1, cy1 + .16, cz + .1, kl.dak || romp, .07, {lak: true}));   // dak
+  v.push(...buis([cx0 + .1, cy1 + .16, -.4], [cx0 + .1, cy1 + .7, -.4], .008, '#222222', 4));   // antenne (GPS-ontvanger)
+  v.push(...kastje(cx0 + .35, cy1 + .16, -.18, cx0 + .65, cy1 + .26, .18, '#e8e8e8', .04));        // GPS-schotel
+  v.push(...buis([cx1 - .04, cy0 + .05, -.1], [cx1 - .1, cy1 - .25, -.45], .012, '#111111', 4));  // ruitenwisser
   v.push(...kastje(cx1 + .02, cy1 - .02, -.45, cx1 + .12, cy1 + .05, .45, '#222222'));          // werklampen
   [-.3, 0, .3].forEach(z => v.push(...kastje(cx1 + .09, cy1 - .01, z - .07, cx1 + .13, cy1 + .04, z + .07, '#fff6c2')));
   v.push(...buis([cx0 + .25, cy1 + .16, .45], [cx0 + .25, cy1 + .3, .45], .06, '#ff9800', 10));   // zwaailamp
@@ -5748,7 +5980,7 @@ function trekkerModel2(kl, t, tijd) {
   // wielen + spatborden
   [[xa, RA, .52, sp, true], [xv, RV, .42, .86, true]].forEach(([x, R, W, z, achter]) => [-1, 1].forEach(s => {
     v.push(...wielCompleet(x, R, s * z, R, W, rol * (RA / R), kl.velg, s, true));
-    v.push(...boog(x, R, s * (z - W / 2 - .06), s * (z + W / 2 + .06), R + .1, achter ? Math.PI * .1 : Math.PI * .25, achter ? Math.PI * .85 : Math.PI * .75, achter ? romp : tintHex(romp, .9), 12));
+    v.push(...boog(x, R, s * (z - W / 2 - .06), s * (z + W / 2 + .06), R + .1, achter ? Math.PI * .1 : Math.PI * .25, achter ? Math.PI * .85 : Math.PI * .75, achter ? romp : tintHex(romp, .9), 14).map(f => ({...f, lak: true})));
   }));
   // hefinrichting achter (onderste armen, topstang, aftakas)
   [-1, 1].forEach(s => v.push(...buis([-1.15, .58, s * .32], [-1.85, .5, s * .45], .04, '#3d3d3d', 6)));
@@ -5856,13 +6088,13 @@ function werktuigModel2(soort, kleur, tijd) {
 
 /* ---- tekenen ---- */
 function tekenTrekker3d(ctx, b, h, t, tijd, grondKleur) {
-  const kl = merkKleuren(t.trekker), soort = werktuigSoort(t), wk = werktuigKleur(t.werktuig);
-  const wt = werktuigModel2(soort, wk, tijd), vlakken = [...trekkerModel2(kl, t, tijd), ...wt.vlakken];
+  const mv = machineVlakken(t, tijd), vlakken = mv.vlakken, soort = mv.soort, wt = {deeltjes: mv.deeltjes[0]};
   const hoek = tijd * .45 + .6, pitch = .38, cos = Math.cos(hoek), sin = Math.sin(hoek), cp = Math.cos(pitch), spi = Math.sin(pitch);
-  const lengteAchter = soort === 'kar' || soort === 'tank' ? 7.2 : soort === 'rooier' ? 6.5 : soort === 'ploeg' ? 5.6 : soort ? 4.2 : 1.9;
-  const breedte = soort === 'spuit' ? 13.2 : Math.max(5.6, 4.4 + lengteAchter * .7), midX = (2.6 - lengteAchter) / 2;
+  const lengteAchter = mv.achter;
+  const breedte = soort === 'spuit' ? 13.2 : Math.max(5.6, 4.4 + lengteAchter * .7, (mv.zij + mv.zijL) * 1.2), midX = (2.6 - lengteAchter) / 2;
   const schaal = Math.min(b, h * 1.35) / breedte, afst = 22;
-  const naarCam = ([x, y, z]) => { x -= midX; const xr = x * cos - z * sin, zr = x * sin + z * cos; return [xr, (y - .9) * cp + zr * spi, -(y - .9) * spi + zr * cp]; };   // schuin van boven
+  const midZ = (mv.zijL - mv.zij) / 2;
+  const naarCam = ([x, y, z]) => { x -= midX; z -= midZ; const xr = x * cos - z * sin, zr = x * sin + z * cos; return [xr, (y - .9) * cp + zr * spi, -(y - .9) * spi + zr * cp]; };   // schuin van boven
   const proj = c => { const f = afst / (afst + c[2]); return [b / 2 + c[0] * schaal * f, h * .58 - c[1] * schaal * f]; };
   ctx.clearRect(0, 0, b, h);
   // zachte schaduw op de grond
