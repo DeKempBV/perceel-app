@@ -1781,37 +1781,56 @@ const MARK_TITELS = ['Ziekte in de grond', 'Natte plek', 'Steen / obstakel', 'On
 const vlagIcoon = kleur => L.divIcon({className: 'vlagje', iconSize: [30, 36], iconAnchor: [5, 34], popupAnchor: [8, -30],
   html: `<svg width="30" height="36" viewBox="0 0 30 36"><path d="M5 2v32" stroke="#222" stroke-width="2.5" stroke-linecap="round"/><path d="M6 3h19l-5 6.5 5 6.5H6z" fill="${kleur}" stroke="#fff" stroke-width="1.5"/></svg>`});
 const kopCache = new Map();
+// Een kopeinde bestaat uit lijnen (met een breedte) en/of vlakken (precies het getekende stuk)
+const isVlak = g => /Polygon/.test(g?.geometry?.type || '');
+const kopHeeftLijn = m => /LineString/.test(m.geo?.geometry?.type || '');
+function kopVlakken(m) {
+  const v = [...(m.geo?.properties?.vlakken || [])], g = m.geo?.geometry;
+  if (g?.type === 'Polygon') v.push(g.coordinates);
+  if (g?.type === 'MultiPolygon') v.push(...g.coordinates);
+  return v;
+}
 function kopeindeGeo(m) {
   const p = perceel(m.perceel_id); if (!p) return null;
   const sl = JSON.stringify([m.geo, m.breedte, p.geo]), c = kopCache.get(m.id);
   if (c && c.sl === sl) return c.geo;
   let geo = null;
-  try { geo = turf.intersect(turf.buffer(m.geo, +m.breedte || 12, {units: 'meters'}), p.geo); } catch (e) { console.warn(e); }
+  try {
+    const delen = [];
+    if (kopHeeftLijn(m)) delen.push(turf.buffer({type: 'Feature', properties: {}, geometry: m.geo.geometry}, +m.breedte || 12, {units: 'meters'}));
+    kopVlakken(m).forEach(c => { try { delen.push(turf.polygon(c)); } catch {} });
+    let u = delen.shift() || null;
+    for (const d of delen) { try { u = turf.union(u, d) || u; } catch (e) { console.warn(e); } }
+    geo = u ? turf.intersect(u, p.geo) : null;
+  } catch (e) { console.warn(e); }
   kopCache.set(m.id, {sl, geo}); return geo;
 }
-function tekenMarkering(soort) {
+const KOP_VLAK_UITLEG = 'Tik de hoeken aan van het stuk dat kopeinde moet worden. Precies dat vlak wordt kopeinde, een breedte is niet nodig. Tik op het eerste punt om af te ronden.';
+function tekenMarkering(soort, vorm) {
   if (!mag('markeringen_maken')) return;
   stopVorm(); map.pm.disableDraw();
   weergave[actief] = {...lagenVan(actief), [soort === 'vlag' ? 'vlag' : 'grond']: true}; bewaarWeergave();
   paneelKlein();
-  const M = MARK[soort];
-  map.pm.enableDraw(M.vorm, M.vorm === 'Marker' ? {markerStyle: {icon: vlagIcoon('#e53935')}} : {});
-  banner(`<b>${M.icoon} ${M.naam} tekenen</b><br>${M.uitleg}`, [['Annuleren', () => tekenModus(false)]]);
+  const M = MARK[soort], v = vorm || M.vorm, vlak = soort === 'kopeinde' && v === 'Polygon';
+  map.pm.enableDraw(v, v === 'Marker' ? {markerStyle: {icon: vlagIcoon('#e53935')}} : {});
+  banner(`<b>${M.icoon} ${M.naam} tekenen${soort === 'kopeinde' ? (vlak ? ' als vlak' : ' als lijn') : ''}</b><br>${vlak ? KOP_VLAK_UITLEG : M.uitleg}`,
+    [['Annuleren', () => tekenModus(false)], ...(soort === 'kopeinde' ? [[vlak ? '↔️ Toch als lijn' : '▭ Als vlak tekenen', () => tekenMarkering(soort, vlak ? 'Line' : 'Polygon')]] : [])]);
   tekenDoel = soort;
 }
-async function markFormulier(soort, m = {}) {
+async function markFormulier(soort, m = {}, metLijn = true) {
   const velden = [
     {k: 'titel', label: 'Wat is het?', waarde: m.titel ?? MARK[soort].titel, lijst: soort === 'kopeinde' ? null : MARK_TITELS},
-    ...(soort === 'kopeinde' ? [{k: 'breedte', label: 'Breedte kopeinde (meter)', type: 'number', waarde: m.breedte ?? ((+perceel(actief)?.breedte || 6) * 2)}] : []),
+    ...(soort === 'kopeinde' && metLijn ? [{k: 'breedte', label: 'Breedte kopeinde (meter)', type: 'number', waarde: m.breedte ?? ((+perceel(actief)?.breedte || 6) * 2)}] : []),
     {k: 'notitie', label: 'Aantekening', type: 'textarea', waarde: m.notitie ?? '', placeholder: 'bijv. aaltjes gevonden bij grondmonster, niet poten'},
     {k: 'kleur', label: 'Kleur', type: 'kleur', waarde: m.kleur ?? (soort === 'kopeinde' ? '#fdd835' : '#e53935')}];
   return formulier(m.id ? 'Markering bewerken' : `${MARK[soort].icoon} Nieuwe ${MARK[soort].naam.toLowerCase()}`, velden);
 }
 async function nieuweMarkering(soort, geo) {
   const pid = actief;
-  const w = await markFormulier(soort); if (!w) return;
+  const vlak = soort === 'kopeinde' && isVlak(geo);
+  const w = await markFormulier(soort, {}, !vlak); if (!w) return;
   const rij = {perceel_id: pid, soort, geo, titel: w.titel || MARK[soort].titel, notitie: w.notitie || null, kleur: w.kleur,
-    breedte: soort === 'kopeinde' ? (parseFloat(String(w.breedte).replace(',', '.')) || 12) : null, aangemaakt_door: naamMe()};
+    breedte: soort === 'kopeinde' && !vlak ? (parseFloat(String(w.breedte).replace(',', '.')) || 12) : null, aangemaakt_door: naamMe()};
   const {data, error} = await sb.from('markeringen').insert(rij).select().single();
   if (error) { toast('Opslaan mislukt: ' + foutTekst(error), 1); return; }
   if (!S.markeringen.find(x => x.id === data.id)) S.markeringen.push(data);
@@ -1820,9 +1839,9 @@ async function nieuweMarkering(soort, geo) {
 async function bewerkMarkering(id) {
   const m = S.markeringen.find(x => x.id === id); if (!m) return;
   map.closePopup();
-  const w = await markFormulier(m.soort, m); if (!w) return;
+  const w = await markFormulier(m.soort, m, m.soort !== 'kopeinde' || kopHeeftLijn(m)); if (!w) return;
   const patch = {titel: w.titel || m.titel, notitie: w.notitie || null, kleur: w.kleur,
-    ...(m.soort === 'kopeinde' ? {breedte: parseFloat(String(w.breedte).replace(',', '.')) || m.breedte} : {})};
+    ...(m.soort === 'kopeinde' && kopHeeftLijn(m) ? {breedte: parseFloat(String(w.breedte).replace(',', '.')) || m.breedte} : {})};
   Object.assign(m, patch); render(true);
   const {error} = await sb.from('markeringen').update(patch).eq('id', id);
   if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1);
@@ -1864,15 +1883,16 @@ function vormMarkering(id) {
   vormLaag.addTo(map); vormLaag.pm.enable({allowSelfIntersection: false});
   map.fitBounds(vormLaag.getBounds(), {padding: [60, 60], maxZoom: 19});
   banner(`<b>✏️ Vorm aanpassen: ${esc(m.titel)}</b><br>Sleep de punten. Tik op een tussenpunt om er een punt bij te maken, houd een punt ingedrukt (of rechtermuisknop) om het weg te halen.`,
-    [['Annuleren', stopVorm], ['Opslaan', () => { const geo = vormLaag.toGeoJSON(); stopVorm(); slaMarkGeoOp(m, geo, 'Vorm opgeslagen'); }]]);
+    [['Annuleren', stopVorm], ['Opslaan', () => { const geo = vormLaag.toGeoJSON(); stopVorm(); geo.properties = {...(m.geo.properties || {})}; slaMarkGeoOp(m, geo, 'Vorm opgeslagen'); }]]);
 }
-function erbijMarkering(id) {
+function erbijMarkering(id, alsLijn) {
   const m = S.markeringen.find(x => x.id === id); if (!m || !mag('markeringen_maken')) return;
   map.closePopup(); stopVorm(); map.pm.disableDraw(); paneelKlein();
-  map.pm.enableDraw(m.soort === 'gebied' ? 'Polygon' : 'Line', {pathOptions: {color: '#00e5ff'}});
-  banner(`<b>＋ Erbij tekenen: ${esc(m.titel)}</b><br>${m.soort === 'gebied' ? 'Teken het stuk dat erbij moet. Tik op het eerste punt om af te ronden.'
-    : 'Teken het extra stuk. Begin op het eind van de bestaande lijn om hem te verlengen. Tik op het laatste punt nog een keer om af te ronden.'}`,
-    [['Annuleren', () => tekenModus(false)]]);
+  const kop = m.soort === 'kopeinde', vlak = m.soort === 'gebied' || (kop && !alsLijn);
+  map.pm.enableDraw(vlak ? 'Polygon' : 'Line', {pathOptions: {color: '#00e5ff'}});
+  banner(`<b>＋ Erbij tekenen: ${esc(m.titel)}</b><br>${kop && vlak ? KOP_VLAK_UITLEG : vlak ? 'Teken het stuk dat erbij moet. Tik op het eerste punt om af te ronden.'
+    : `Teken het extra stuk. Begin op het eind van de bestaande lijn om hem te verlengen${kop ? ` (dan krijgt het ${(+m.breedte || 12).toLocaleString('nl-NL')} m breedte)` : ''}. Tik op het laatste punt nog een keer om af te ronden.`}`,
+    [['Annuleren', () => tekenModus(false)], ...(kop ? [[vlak ? '↔️ Als lijn met breedte' : '▭ Als vlak tekenen', () => erbijMarkering(id, vlak)]] : [])]);
   tekenDoel = {erbij: id};
 }
 function erafMarkering(id) {
@@ -1890,6 +1910,15 @@ function voegAanMarkeringToe(id, nieuw) {
     if (!u) { toast('Samenvoegen lukte niet', 1); return; }
     slaMarkGeoOp(m, u, 'Stuk toegevoegd'); return;
   }
+  if (m.soort === 'kopeinde' && isVlak(nieuw)) {   // vlak erbij: precies het getekende stuk wordt kopeinde
+    const props = {...(m.geo.properties || {})};
+    props.vlakken = [...(props.vlakken || []), ...(nieuw.geometry.type === 'Polygon' ? [nieuw.geometry.coordinates] : nieuw.geometry.coordinates)];
+    slaMarkGeoOp(m, {...m.geo, properties: props}, 'Stuk kopeinde toegevoegd'); return;
+  }
+  if (m.soort === 'kopeinde' && !kopHeeftLijn(m)) {   // eerste lijn bij een kopeinde dat alleen uit vlakken bestond
+    if (!(+m.breedte)) { m.breedte = (+perceel(m.perceel_id)?.breedte || 6) * 2; sb.from('markeringen').update({breedte: m.breedte}).eq('id', m.id).then(() => {}); }
+    slaMarkGeoOp(m, {type: 'Feature', properties: {vlakken: kopVlakken(m)}, geometry: nieuw.geometry}, 'Stuk kopeinde toegevoegd'); return;
+  }
   const delen = lijnDelen(m.geo), extra = nieuw.geometry.coordinates, d = (a, b) => turf.distance(a, b) * 1000;
   // sluit het nieuwe stuk aan op een uiteinde als het daar begint of eindigt (binnen 3 m): dan wordt de lijn verlengd
   let gekoppeld = false;
@@ -1901,14 +1930,23 @@ function voegAanMarkeringToe(id, nieuw) {
     if (d(begin, extra[0]) < 3) { deel.unshift(...extra.slice(1).reverse()); gekoppeld = true; break; }
   }
   if (!gekoppeld) delen.push(extra);
-  slaMarkGeoOp(m, alsLijn(delen), gekoppeld ? 'Lijn verlengd' : 'Stuk toegevoegd');
+  slaMarkGeoOp(m, {...alsLijn(delen), properties: {...(m.geo.properties || {})}}, gekoppeld ? 'Lijn verlengd' : 'Stuk toegevoegd');
 }
 function knipVanMarkering(id, vlak) {
-  const m = S.markeringen.find(x => x.id === id); if (!m) return;
+  let m = S.markeringen.find(x => x.id === id); if (!m) return;
   if (m.soort === 'gebied') {
     let r = null; try { r = turf.difference(m.geo, vlak); } catch {}
     if (!r) { toast('Dan blijft er niets over. Verwijder het gebied liever helemaal.', 1); return; }
     slaMarkGeoOp(m, r, 'Stuk eraf geknipt'); return;
+  }
+  if (m.soort === 'kopeinde') {
+    const knip = c => { let r = null; try { r = turf.difference(turf.polygon(c), vlak); } catch {} return !r ? [] : r.geometry.type === 'Polygon' ? [r.geometry.coordinates] : r.geometry.coordinates; };
+    const vlakken = kopVlakken(m).flatMap(knip);
+    if (!kopHeeftLijn(m)) {
+      if (!vlakken.length) { toast('Dan blijft er niets over. Verwijder het kopeinde liever helemaal.', 1); return; }
+      slaMarkGeoOp(m, {type: 'Feature', properties: {}, geometry: vlakken.length === 1 ? {type: 'Polygon', coordinates: vlakken[0]} : {type: 'MultiPolygon', coordinates: vlakken}}, 'Stuk eraf geknipt'); return;
+    }
+    m = {...m, geo: {...m.geo, properties: {...(m.geo.properties || {}), vlakken}}, _origineel: m};
   }
   const over = [];
   lijnDelen(m.geo).forEach(deel => {
@@ -1921,13 +1959,17 @@ function knipVanMarkering(id, vlak) {
       if (!turf.booleanPointInPolygon(midden, vlak)) over.push(s.geometry.coordinates);
     });
   });
+  const props = m.geo.properties || {};
+  if (m._origineel) m = m._origineel;
+  if (!over.length && (props.vlakken || []).length)   // lijn helemaal weg, vlakken blijven over
+    return slaMarkGeoOp(m, {type: 'Feature', properties: {}, geometry: props.vlakken.length === 1 ? {type: 'Polygon', coordinates: props.vlakken[0]} : {type: 'MultiPolygon', coordinates: props.vlakken}}, 'Stuk eraf geknipt');
   if (!over.length) { toast('Dan blijft er niets over. Verwijder de markering liever helemaal.', 1); return; }
-  slaMarkGeoOp(m, alsLijn(over), 'Stuk eraf geknipt');
+  slaMarkGeoOp(m, {...alsLijn(over), properties: props}, 'Stuk eraf geknipt');
 }
 function markPopup(m) {
   let extra = '';
   if (m.soort === 'gebied') extra = `${ha(turf.area(m.geo))} ha · `;
-  if (m.soort === 'kopeinde') { const g = kopeindeGeo(m); extra = `${(+m.breedte).toLocaleString('nl-NL')} m breed${g ? ` · ${ha(turf.area(g))} ha` : ''} · `; }
+  if (m.soort === 'kopeinde') { const g = kopeindeGeo(m); extra = `${kopHeeftLijn(m) ? (+m.breedte).toLocaleString('nl-NL') + ' m breed' + (kopVlakken(m).length ? ' + vlak' : '') : 'vlak'}${g ? ` · ${ha(turf.area(g))} ha` : ''} · `; }
   if (m.soort === 'lijn') extra = `${Math.round(turf.length(m.geo) * 1000)} m · `;
   return `<div class="mpop"><b>${MARK[m.soort].icoon} ${esc(m.titel)}</b>
     ${m.notitie ? `<p>${esc(m.notitie).replace(/\n/g, '<br>')}</p>` : ''}
@@ -2361,7 +2403,7 @@ function htmlInfo(p) {
   const mk = S.markeringen.filter(m => m.perceel_id === p.id);
   h += blok('🟫 Grond en vlaggen', mk.map(m => {
     let extra = '';
-    if (m.soort === 'kopeinde') { const g = kopeindeGeo(m); extra = `${(+m.breedte).toLocaleString('nl-NL')} m breed${g ? ' · ' + ha(turf.area(g)) + ' ha' : ''}`; }
+    if (m.soort === 'kopeinde') { const g = kopeindeGeo(m); extra = `${kopHeeftLijn(m) ? (+m.breedte).toLocaleString('nl-NL') + ' m breed' + (kopVlakken(m).length ? ' + vlak' : '') : 'vlak'}${g ? ' · ' + ha(turf.area(g)) + ' ha' : ''}`; }
     else if (m.soort === 'gebied') extra = ha(turf.area(m.geo)) + ' ha';
     return `<div class="inforij" onclick="toonMarkering('${m.id}')" style="cursor:pointer"><span>${MARK[m.soort].icoon} ${esc(m.titel)}${m.notitie ? `<small class="infonotitie">${esc(m.notitie)}</small>` : ''}</span><b>${extra}</b></div>`;
   }).join(''));
