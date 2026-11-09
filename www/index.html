@@ -33,10 +33,13 @@ button{font:inherit;cursor:pointer}
 .kop .logo{font-weight:800;font-size:18px;flex:1;letter-spacing:-.2px;white-space:nowrap;min-width:0}
 .kop .wie{font-size:12px;opacity:.85;text-align:right;line-height:1.3}
 .kop .uit{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:8px;padding:6px 9px;font-size:12px}
-.tabs{display:flex;background:var(--groen);padding:0 10px}
-.tabs button{flex:1;background:none;border:0;color:#bcd6bf;padding:10px 1px 11px;font-size:13px;font-weight:600;border-bottom:3px solid transparent}
+.tabs{display:flex;background:var(--groen);padding:0 4px}
+.tabs button{flex:1;min-width:0;background:none;border:0;color:#bcd6bf;padding:6px 0 7px;font-size:10.5px;font-weight:700;border-bottom:3px solid transparent;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs button .ti{font-size:18px;line-height:1.15;position:relative;filter:saturate(.85)}
 .tabs button.aan{color:#fff;border-color:var(--geel)}
-.tabs .tel{display:inline-block;background:var(--geel);color:var(--groen);border-radius:9px;font-size:11px;padding:0 6px;margin-left:4px}
+.tabs button.aan .ti{filter:none}
+.tabs .tel{position:absolute;top:-3px;right:-13px;background:var(--geel);color:var(--groen);border-radius:9px;font-size:9.5px;line-height:15px;min-width:15px;padding:0 4px;font-weight:800}
+.tabs .tel.live{background:#ff7043;color:#fff}
 .inhoud{flex:1;overflow-y:auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;background:#f7f9f6}
 
 /* algemene onderdelen */
@@ -418,6 +421,11 @@ details.szblok summary h4{margin:6px 0}
 .szscroll{overflow-x:auto;margin:0 -4px}
 .szvergelijk td{font-size:12.5px;white-space:nowrap;vertical-align:top}
 .szvergelijk td.bekeken{background:#eef7ec}
+.verslagknoppen{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.verslagknoppen button{background:var(--licht);border:1.5px solid #d3e3cf;border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer}
+.verslagknoppen button:hover{border-color:var(--groen2)}
+.verslagknoppen b{display:block;color:var(--groen);font-size:14px}
+.verslagknoppen small{display:block;color:var(--grijs);font-size:12px;margin-top:2px;line-height:1.35}
 /* foto's */
 .fotoveld{background:#f6f8f4;border:1px dashed #c9d4c4;border-radius:12px;padding:8px}
 .fotolijst{display:flex;flex-wrap:wrap;gap:6px}
@@ -1309,8 +1317,10 @@ function htmlSeizoenen() {
           ${st ? ` · ✓ ${st.klaar} gedaan${st.open ? ` · ${st.open} open` : ''}` : ''}</small></div>
         ${s.id !== bekeken && (hist || s.actief) ? `<button class="knop klein licht" onclick="bekijkSeizoen('${s.id}')">${s.actief ? 'Terug' : 'Bekijken'}</button>` : ''}
         ${mag('seizoen_starten') || (isBeheerder() && !archief) ? `<button class="icoon" title="Naam wijzigen" onclick="hernoemSeizoen('${s.id}')">✏️</button>` : ''}
+        ${!s.actief && mag('seizoen_starten') ? `<button class="weg" title="Seizoen verwijderen" onclick="verwijderSeizoen('${s.id}')">🗑️</button>` : ''}
       </div>`; }).join('')}
   </section>
+  ${verslagenHtml()}
   ${htmlSeizoenOverzicht()}
   ${mag('seizoen_starten') ? `<section class="kaartje">${nieuwSeizoenHtml()}</section>` : ''}`;
 }
@@ -2505,11 +2515,12 @@ function renderPaneel() {
   $('#wie').innerHTML = `${esc(naamMe())}<br><small>${isBeheerder() ? 'Beheerder' : 'Medewerker'}</small>`;
   if (tab === 'team' && !isBeheerder()) tab = 'percelen';
   if (tab === 'tractoren' && !(ziet('tractoren_volgen') || ziet('tractor_rijden'))) tab = 'percelen';
-  $('#tabs').innerHTML = [['percelen', 'Percelen'], ['taken', 'Taken' + (open ? `<span class="tel">${open}</span>` : '')], ['soorten', 'Planten'], ['seizoenen', '📅'], ...(ziet('tractoren_volgen') || ziet('tractor_rijden') ? [['tractoren', '🚜' + (S.tractoren.some(isLive) ? '<span class="tel live">' + S.tractoren.filter(isLive).length + '</span>' : '')]] : []),
-    ['uren', '⏱️' + (S.taken.some(t => t.bezig_door && !t.klaar) ? `<span class="tel live">${S.taken.filter(t => t.bezig_door && !t.klaar).length}</span>` : '')],
-    ['bedrijf', '📦' + ((S.middelen || []).some(voorraadLaag) || (S.machines || []).some(m => machineStatus(m).some(x => x.niveau === 'rood')) ? '<span class="tel">!</span>' : '')],
-    ...(isBeheerder() ? [['team', 'Team']] : [])]
-    .map(([k, l]) => `<button class="${tab === k ? 'aan' : ''}" onclick="zetTab('${k}')">${l}</button>`).join('');
+  const live = S.tractoren.filter(isLive).length, bezigN = S.taken.filter(t => t.bezig_door && !t.klaar).length;
+  const bedrijfLet = (S.middelen || []).some(voorraadLaag) || (S.machines || []).some(m => machineStatus(m).some(x => x.niveau === 'rood'));
+  $('#tabs').innerHTML = [['percelen', '🗺️', 'Percelen'], ['taken', '📋', 'Taken', open], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'],
+    ...(ziet('tractoren_volgen') || ziet('tractor_rijden') ? [['tractoren', '🚜', 'Trekkers', live, 'live']] : []),
+    ['uren', '⏱️', 'Uren', bezigN, 'live'], ['bedrijf', '📦', 'Bedrijf', bedrijfLet ? '!' : 0], ...(isBeheerder() ? [['team', '👥', 'Team']] : [])]
+    .map(([k, i, l, n, kl]) => `<button class="${tab === k ? 'aan' : ''}" onclick="zetTab('${k}')"><span class="ti">${i}${n ? `<span class="tel ${kl || ''}">${n}</span>` : ''}</span>${l}</button>`).join('');
   let h = '';
   if (tab === 'percelen') h = actief && perceel(actief) ? htmlDetail(perceel(actief)) : htmlLijst();
   else if (tab === 'taken') h = htmlAlleTaken();
@@ -2630,6 +2641,9 @@ function opstaandHtml(p) {
 }
 /* ---- alles over het perceel op één plek ---- */
 function htmlInfo(p) {
+  return verslagenHtml(p.id) + htmlInfoInhoud(p);
+}
+function htmlInfoInhoud(p) {
   const rij = (k, v) => v === '' || v == null ? '' : `<div class="inforij"><span>${k}</span><b>${v}</b></div>`;
   const blok = (titel, inhoud) => inhoud.trim() ? `<section class="kaartje infoblok"><h4>${titel}</h4>${inhoud}</section>` : '';
   const opp = turf.area(p.geo), omtrek = turf.length(turf.polygonToLine ? turf.polygonToLine(p.geo) : p.geo) * 1000;
@@ -4075,7 +4089,8 @@ function spuitlogExcel() {
       t.klaar_door || '', t.uitvoering || '']; });
   bewaarBestand(`Spuitlogboek ${seizoenNaam(bekeken)}.xlsx`, maakXlsx([{naam: 'Spuitlogboek', breedtes: [12, 18, 10, 24, 18, 22, 13, 18, 9, 8, 12, 10, 16, 30], rijen: [kop, ...data], filter: true}]));
 }
-function bewaarBestand(naam, bytes, type = XLSX_TYPE) {
+function bewaarBestand(naam, bytes, type = XLSX_TYPE, direct) {
+  if (!direct && window.Capacitor?.isNativePlatform?.()) { geefBestand(naam, bytes, type); return; }
   const url = URL.createObjectURL(new Blob([bytes], {type}));
   const a = document.createElement('a'); a.href = url; a.download = naam; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000); toast('📥 ' + naam);
@@ -4854,6 +4869,483 @@ function seizoenExcel() {
   bewaarBestand(`Seizoensoverzicht ${naam}.xlsx`, maakXlsx(bladen));
 }
 
+
+/* ============================================================
+   PDF-VERSLAGEN – eigen PDF-maker (geen extra bibliotheek nodig)
+   ============================================================ */
+const PDF_BREED = (() => {   // Helvetica-tekenbreedtes (1/1000 em) voor het afbreken van tekst
+  const n = {}, b = {};
+  const zet = (o, s, w) => [...s].forEach((c, i) => o[c] = Array.isArray(w) ? w[i] : w);
+  zet(n, ' !"#$%&\'()*+,-./', [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278]); zet(n, '0123456789', 556); zet(n, ':;<=>?@', [278, 278, 584, 584, 584, 556, 1015]);
+  zet(n, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', [667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611]);
+  zet(n, '[\\]^_`', [278, 278, 278, 469, 556, 333]); zet(n, 'abcdefghijklmnopqrstuvwxyz', [556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500]);
+  zet(n, '{|}~', [334, 260, 334, 584]);
+  Object.assign(b, n); zet(b, ' !"#$%&\'()*+,-./', [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278]); zet(b, ':;?@', [333, 333, 611, 975]);
+  zet(b, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', [722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611]);
+  zet(b, 'abcdefghijklmnopqrstuvwxyz', [556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500]);
+  return {n, b};
+})();
+const PDF_WIN = {'€': 0x80, '‚': 0x82, '„': 0x84, '…': 0x85, '‘': 0x91, '’': 0x92, '“': 0x93, '”': 0x94, '•': 0x95, '–': 0x96, '—': 0x97, '™': 0x99};
+function pdfSchoon(s) {   // alleen tekens die in het standaardlettertype passen (geen emoji)
+  return String(s ?? '').normalize('NFC').replace(/[   ]/g, ' ').replace(/[✓✔]/g, 'v').replace(/≈/g, '~').replace(/[⛔⚠️]/g, '!').replace(/[→]/g, '>')
+    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{20E3}]/gu, '').replace(/\s+/g, ' ').trim();
+}
+const pdfHex = s => [...s].map(c => { const k = c.charCodeAt(0), v = PDF_WIN[c] ?? (k < 256 ? k : 63); return v.toString(16).padStart(2, '0'); }).join('');
+const pdfKleur = hex => { const h = String(hex || '#000').replace('#', ''), n = parseInt(h.length === 3 ? h.replace(/./g, x => x + x) : h, 16) || 0; return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255].map(x => x.toFixed(3)).join(' '); };
+const PDF_GROEN = '#1f4d2b', PDF_GROEN2 = '#2f7a3d', PDF_LICHT = '#eef4ec', PDF_GRIJS = '#6b7568', PDF_RAND = '#d9e2d5';
+class PdfDoc {
+  constructor(titel) { this.W = 595.28; this.H = 841.89; this.m = 40; this.titel = titel; this.paginas = []; this.afbeeldingen = []; this.hoofdstukken = []; this.nieuwePagina(); }
+  nieuwePagina() { this.p = {ops: [], afb: new Set()}; this.paginas.push(this.p); this.y = this.m; return this.p; }
+  get onder() { return this.H - this.m - 24; }
+  ruimte(h) { if (this.y + h > this.onder) { this.nieuwePagina(); return true; } return false; }
+  breedte(s, size = 10, vet) { const t = vet ? PDF_BREED.b : PDF_BREED.n; let w = 0; for (const c of s) w += t[c] ?? t[c.normalize('NFD')[0]] ?? (c === '—' || c === '…' ? 1000 : 556); return w * size / 1000; }
+  tekst(x, y, s, {size = 10, vet, kleur = '#1b241d', uitlijn = 'links', p = this.p} = {}) {
+    s = pdfSchoon(s); if (!s) return;
+    const w = this.breedte(s, size, vet), xx = uitlijn === 'rechts' ? x - w : uitlijn === 'midden' ? x - w / 2 : x;
+    p.ops.push(`BT /${vet ? 'F2' : 'F1'} ${size} Tf ${pdfKleur(kleur)} rg ${xx.toFixed(2)} ${(this.H - y).toFixed(2)} Td <${pdfHex(s)}> Tj ET`);
+  }
+  regels(s, maxW, size = 10, vet) {
+    const uit = [];
+    String(s ?? '').split('\n').forEach(alinea => {
+      const woorden = pdfSchoon(alinea).split(' '); let r = '';
+      woorden.forEach(w => {
+        const t = r ? r + ' ' + w : w;
+        if (this.breedte(t, size, vet) <= maxW || !r) { r = t; while (this.breedte(r, size, vet) > maxW && r.length > 1) { let k = r.length - 1; while (k > 1 && this.breedte(r.slice(0, k), size, vet) > maxW) k--; uit.push(r.slice(0, k)); r = r.slice(k); } }
+        else { uit.push(r); r = w; }
+      });
+      uit.push(r);
+    });
+    return uit;
+  }
+  rect(x, y, w, h, {vul, lijn, dikte = .6, p = this.p, doorzicht} = {}) {
+    const o = [];
+    if (doorzicht) o.push('q /Ga gs');
+    if (vul) o.push(`${pdfKleur(vul)} rg`); if (lijn) o.push(`${pdfKleur(lijn)} RG ${dikte} w`);
+    o.push(`${x.toFixed(2)} ${(this.H - y - h).toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re ${vul && lijn ? 'B' : vul ? 'f' : 'S'}`);
+    if (doorzicht) o.push('Q');
+    p.ops.push(o.join(' '));
+  }
+  lijn(x1, y1, x2, y2, {kleur = PDF_RAND, dikte = .6, p = this.p, streep} = {}) {
+    p.ops.push(`${pdfKleur(kleur)} RG ${dikte} w ${streep ? '[3 2] 0 d' : '[] 0 d'} ${x1.toFixed(2)} ${(this.H - y1).toFixed(2)} m ${x2.toFixed(2)} ${(this.H - y2).toFixed(2)} l S [] 0 d`);
+  }
+  pad(ringen, {vul, lijn, dikte = .8, doorzicht, p = this.p} = {}) {   // ringen: [[[x,y],...],...] in paginapunten
+    if (!ringen.length) return;
+    const d = ringen.filter(r => r.length > 1).map(r => r.map(([x, y], i) => `${x.toFixed(2)} ${(this.H - y).toFixed(2)} ${i ? 'l' : 'm'}`).join(' ') + (vul ? ' h' : '')).join(' ');
+    p.ops.push(`${doorzicht ? 'q /Ga gs ' : ''}${vul ? pdfKleur(vul) + ' rg ' : ''}${lijn ? pdfKleur(lijn) + ' RG ' + dikte + ' w ' : ''}${d} ${vul && lijn ? 'B*' : vul ? 'f*' : 'S'}${doorzicht ? ' Q' : ''}`);
+  }
+  afbeelding(a, x, y, w, h, p = this.p) {
+    let i = this.afbeeldingen.indexOf(a); if (i < 0) { this.afbeeldingen.push(a); i = this.afbeeldingen.length - 1; }
+    p.afb.add(i); p.ops.push(`q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x.toFixed(2)} ${(this.H - y - h).toFixed(2)} cm /Im${i} Do Q`);
+  }
+  // ---- opmaak ----
+  voorblad(titel, sub, regels = []) {
+    this.rect(0, 0, this.W, 150, {vul: PDF_GROEN});
+    this.tekst(this.m, 52, 'Perceel App', {size: 11, kleur: '#cfe3d2', vet: true});
+    this.regels(titel, this.W - 2 * this.m, 24, true).slice(0, 2).forEach((r, i) => this.tekst(this.m, 88 + i * 28, r, {size: 24, vet: true, kleur: '#ffffff'}));
+    this.tekst(this.m, 136, sub, {size: 10.5, kleur: '#dfeee0'});
+    this.y = 172;
+    regels.forEach(r => { this.tekst(this.m, this.y, r, {size: 9.5, kleur: PDF_GRIJS}); this.y += 14; });
+    this.y += 4;
+  }
+  kop1(t, nieuw) {
+    if (nieuw) this.nieuwePagina(); else this.ruimte(140);   // geen kop los onderaan een pagina
+    this.hoofdstukken.push({t: pdfSchoon(t), pagina: this.paginas.length});
+    this.rect(this.m, this.y, this.W - 2 * this.m, 26, {vul: PDF_GROEN});
+    this.tekst(this.m + 10, this.y + 17.5, t, {size: 13, vet: true, kleur: '#ffffff'}); this.y += 38;
+  }
+  kop2(t, min = 95) { this.ruimte(min); this.tekst(this.m, this.y + 11, t, {size: 11.5, vet: true, kleur: PDF_GROEN2}); this.lijn(this.m, this.y + 16, this.W - this.m, this.y + 16, {kleur: PDF_GROEN2, dikte: 1}); this.y += 26; }
+  alinea(t, {size = 9.5, kleur = '#1b241d', vet} = {}) {
+    this.regels(t, this.W - 2 * this.m, size, vet).forEach(r => { this.ruimte(size * 1.45); this.tekst(this.m, this.y + size, r, {size, kleur, vet}); this.y += size * 1.45; }); this.y += 4;
+  }
+  melding(t, kleur = '#fdecea', tekstkleur = '#8e1b10') {
+    const r = this.regels(t, this.W - 2 * this.m - 20, 9.5, true), h = r.length * 13 + 12; this.ruimte(h + 6);
+    this.rect(this.m, this.y, this.W - 2 * this.m, h, {vul: kleur}); r.forEach((x, i) => this.tekst(this.m + 10, this.y + 16 + i * 13, x, {size: 9.5, vet: true, kleur: tekstkleur})); this.y += h + 8;
+  }
+  tegels(lijst) {   // [[waarde, label], ...]
+    const per = Math.min(4, lijst.length), gap = 8, w = (this.W - 2 * this.m - gap * (per - 1)) / per, h = 50;
+    for (let i = 0; i < lijst.length; i += per) {
+      this.ruimte(h + gap);
+      lijst.slice(i, i + per).forEach(([v, l], j) => { const x = this.m + j * (w + gap);
+        this.rect(x, this.y, w, h, {vul: PDF_LICHT}); this.tekst(x + w / 2, this.y + 24, String(v), {size: 15, vet: true, kleur: PDF_GROEN, uitlijn: 'midden'}); this.tekst(x + w / 2, this.y + 39, l, {size: 8, kleur: PDF_GRIJS, uitlijn: 'midden'}); });
+      this.y += h + gap;
+    }
+    this.y += 4;
+  }
+  sleutelwaarde(paren) {   // twee kolommen met naam/waarde
+    const kol = 2, gap = 16, w = (this.W - 2 * this.m - gap) / kol, rijen = Math.ceil(paren.length / kol);
+    for (let r = 0; r < rijen; r++) {
+      const cel = [0, 1].map(k => paren[r + k * rijen]).filter(Boolean);
+      const hoog = Math.max(...cel.map(([, v]) => this.regels(v, w * .58, 9, true).length)) * 12 + 6; this.ruimte(hoog);
+      cel.forEach(([k, v], i) => { const x = this.m + (paren.indexOf(cel[i]) >= rijen ? w + gap : 0);
+        this.tekst(x, this.y + 11, k, {size: 9, kleur: PDF_GRIJS}); this.regels(v, w * .58, 9, true).forEach((t, j) => this.tekst(x + w, this.y + 11 + j * 12, t, {size: 9, vet: true, uitlijn: 'rechts'}));
+        this.lijn(x, this.y + hoog, x + w, this.y + hoog); });
+      this.y += hoog;
+    }
+    this.y += 8;
+  }
+  tabel(kolommen, rijen, {size = 8.5, totaal} = {}) {   // kolommen: [{t, w (deel), rechts}]
+    if (!rijen.length) { this.alinea('Geen gegevens.', {kleur: PDF_GRIJS, size: 9}); return; }
+    const breed = this.W - 2 * this.m, som = kolommen.reduce((s, k) => s + (k.w || 1), 0), ws = kolommen.map(k => (k.w || 1) / som * breed), pad = 4, lh = size * 1.3;
+    const kop = () => { const h = lh + 8; this.rect(this.m, this.y, breed, h, {vul: PDF_GROEN});
+      let x = this.m; kolommen.forEach((k, i) => { this.tekst(k.rechts ? x + ws[i] - pad : x + pad, this.y + lh + 1.5, k.t, {size: size - .3, vet: true, kleur: '#ffffff', uitlijn: k.rechts ? 'rechts' : 'links'}); x += ws[i]; }); this.y += h; };
+    this.ruimte(lh * 3 + 10); kop();
+    rijen.forEach((rij, ri) => {
+      const isTot = totaal && ri === rijen.length - 1;
+      const cellen = rij.map((c, i) => this.regels(c == null ? '' : String(c), ws[i] - 2 * pad, size, isTot || kolommen[i].vet));
+      const h = Math.max(...cellen.map(c => c.length)) * lh + 6;
+      if (this.ruimte(h)) kop();
+      if (ri % 2 || isTot) this.rect(this.m, this.y, breed, h, {vul: isTot ? '#dfeadb' : '#f6f8f4'});
+      let x = this.m;
+      cellen.forEach((c, i) => { c.forEach((t, j) => this.tekst(kolommen[i].rechts ? x + ws[i] - pad : x + pad, this.y + 3 + lh * (j + 1) - 2, t, {size, vet: isTot || kolommen[i].vet, uitlijn: kolommen[i].rechts ? 'rechts' : 'links'})); x += ws[i]; });
+      this.y += h; this.lijn(this.m, this.y, this.m + breed, this.y);
+    });
+    this.y += 12;
+  }
+  staafgrafiek(labels, waarden, {hoogte = 120, kleur = PDF_GROEN2, eenheid = ''} = {}) {
+    if (!waarden.length) return;
+    this.ruimte(hoogte + 30);
+    const breed = this.W - 2 * this.m, max = Math.max(...waarden, 1), n = waarden.length, gap = 4, w = (breed - gap * (n - 1)) / n, y0 = this.y + hoogte;
+    this.lijn(this.m, y0, this.m + breed, y0, {kleur: PDF_GRIJS});
+    waarden.forEach((v, i) => { const h = v / max * (hoogte - 14), x = this.m + i * (w + gap);
+      this.rect(x, y0 - h, w, h, {vul: kleur});
+      if (w > 18) this.tekst(x + w / 2, y0 - h - 3, getal(v), {size: 7, kleur: PDF_GRIJS, uitlijn: 'midden'});
+      this.tekst(x + w / 2, y0 + 10, labels[i], {size: 7, kleur: PDF_GRIJS, uitlijn: 'midden'}); });
+    if (eenheid) this.tekst(this.m, this.y + 6, eenheid, {size: 7.5, kleur: PDF_GRIJS});
+    this.y = y0 + 22;
+  }
+  inhoudsopgave(pagina) {
+    const p = this.paginas[pagina - 1]; let y = this.m;
+    this.rect(this.m, y, this.W - 2 * this.m, 26, {vul: PDF_GROEN, p}); this.tekst(this.m + 10, y + 17.5, 'Inhoud', {size: 13, vet: true, kleur: '#ffffff', p}); y += 40;
+    this.hoofdstukken.filter(h => h.pagina !== pagina).forEach(h => {
+      this.tekst(this.m, y, h.t, {size: 10, p}); this.tekst(this.W - this.m, y, String(h.pagina), {size: 10, vet: true, uitlijn: 'rechts', p});
+      this.lijn(this.m + this.breedte(h.t, 10) + 6, y, this.W - this.m - 20, y, {kleur: '#c9d3c5', streep: true, p}); y += 17;
+    });
+  }
+  bytes() {
+    const n = this.paginas.length, nu = new Date().toLocaleString('nl-NL', {day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'});
+    this.paginas.forEach((p, i) => { this.lijn(this.m, this.H - 30, this.W - this.m, this.H - 30, {p}); this.tekst(this.m, this.H - 18, `${this.titel} · ${nu}`, {size: 7.5, kleur: PDF_GRIJS, p}); this.tekst(this.W - this.m, this.H - 18, `pagina ${i + 1} van ${n}`, {size: 7.5, kleur: PDF_GRIJS, uitlijn: 'rechts', p}); });
+    const enc = new TextEncoder(), delen = [], offsets = []; let pos = 0;
+    const voeg = x => { const b = typeof x === 'string' ? enc.encode(x) : x; delen.push(b); pos += b.length; };
+    const obj = (nr, inhoud, stroom) => { offsets[nr] = pos; voeg(`${nr} 0 obj\n${inhoud}\n`); if (stroom) { voeg('stream\n'); voeg(stroom); voeg('\nendstream\n'); } voeg('endobj\n'); };
+    voeg('%PDF-1.4\n'); voeg(new Uint8Array([0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A]));
+    const afbStart = 6, pagStart = afbStart + this.afbeeldingen.length;
+    obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    obj(2, `<< /Type /Pages /Count ${n} /Kids [${this.paginas.map((_, i) => `${pagStart + i * 2} 0 R`).join(' ')}] >>`);
+    obj(3, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+    obj(4, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+    obj(5, '<< /Type /ExtGState /ca 0.45 /CA 0.9 >>');
+    this.afbeeldingen.forEach((a, i) => obj(afbStart + i, `<< /Type /XObject /Subtype /Image /Width ${a.w} /Height ${a.h} /ColorSpace /${a.kleuren === 1 ? 'DeviceGray' : a.kleuren === 4 ? 'DeviceCMYK' : 'DeviceRGB'} /BitsPerComponent 8 /Filter /DCTDecode${a.kleuren === 4 ? ' /Decode [1 0 1 0 1 0 1 0]' : ''} /Length ${a.bytes.length} >>`, a.bytes));
+    this.paginas.forEach((p, i) => {
+      const inhoud = enc.encode(p.ops.join('\n'));
+      obj(pagStart + i * 2, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${this.W} ${this.H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /ExtGState << /Ga 5 0 R >>${p.afb.size ? ` /XObject << ${[...p.afb].map(k => `/Im${k} ${afbStart + k} 0 R`).join(' ')} >>` : ''} >> /Contents ${pagStart + i * 2 + 1} 0 R >>`);
+      obj(pagStart + i * 2 + 1, `<< /Length ${inhoud.length} >>`, inhoud);
+    });
+    const info = pagStart + n * 2, utf16 = s => 'FEFF' + [...s].map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join('');
+    obj(info, `<< /Title <${utf16(this.titel)}> /Producer (Perceel App) >>`);
+    const xref = pos; voeg(`xref\n0 ${info + 1}\n0000000000 65535 f \n` + Array.from({length: info}, (_, i) => String(offsets[i + 1]).padStart(10, '0') + ' 00000 n \n').join(''));
+    voeg(`trailer\n<< /Size ${info + 1} /Root 1 0 R /Info ${info} 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+    const uit = new Uint8Array(pos); let o = 0; delen.forEach(d => { uit.set(d, o); o += d.length; }); return uit;
+  }
+}
+// JPEG inlezen (voor foto's in het verslag)
+function jpegInfo(bytes) {
+  if (bytes[0] !== 0xFF || bytes[1] !== 0xD8) return null;
+  let i = 2;
+  while (i < bytes.length) {
+    if (bytes[i] !== 0xFF) { i++; continue; }
+    const m = bytes[i + 1], len = (bytes[i + 2] << 8) | bytes[i + 3];
+    if ((m >= 0xC0 && m <= 0xC3) || (m >= 0xC5 && m <= 0xC7) || (m >= 0xC9 && m <= 0xCB) || (m >= 0xCD && m <= 0xCF))
+      return {bytes, h: (bytes[i + 5] << 8) | bytes[i + 6], w: (bytes[i + 7] << 8) | bytes[i + 8], kleuren: bytes[i + 9]};
+    i += 2 + len;
+  }
+  return null;
+}
+async function laadFotoVoorPdf(pad) {
+  try {
+    let url = fotoCache.get(pad)?.url;
+    if (!url) { const {data} = await sb.storage.from('fotos').createSignedUrls([pad], 600); url = data?.[0]?.signedUrl; }
+    if (!url) return null;
+    return jpegInfo(new Uint8Array(await (await fetch(url)).arrayBuffer()));
+  } catch { return null; }
+}
+// Een perceel als kaartje tekenen (vectoren): sporen in de kleur van de plant, kopeinden, gebieden, vlaggen
+function pdfKaart(pdf, p, {hoogte = 260, metLegenda = true, percelen} = {}) {
+  const lijst = percelen || [p], breed = pdf.W - 2 * pdf.m;
+  const alleCo = lijst.flatMap(q => turf.coordAll(q.geo)); if (!alleCo.length) return;
+  const minX = Math.min(...alleCo.map(c => c[0])), maxX = Math.max(...alleCo.map(c => c[0])), minY = Math.min(...alleCo.map(c => c[1])), maxY = Math.max(...alleCo.map(c => c[1]));
+  const cl = Math.cos((minY + maxY) / 2 * Math.PI / 180), bw = Math.max((maxX - minX) * cl, 1e-9), bh = Math.max(maxY - minY, 1e-9);
+  const s = Math.min((breed - 20) / bw, (hoogte - 20) / bh), ox = pdf.m + (breed - bw * s) / 2, oy = pdf.y + (hoogte - bh * s) / 2;
+  const pt = c => [ox + (c[0] - minX) * cl * s, oy + (maxY - c[1]) * s];
+  const ringen = g => { const geo = g.geometry || g; return geo.type === 'Polygon' ? geo.coordinates.map(r => r.map(pt)) : geo.type === 'MultiPolygon' ? geo.coordinates.flatMap(pp => pp.map(r => r.map(pt))) : []; };
+  pdf.ruimte(hoogte + 10);
+  pdf.rect(pdf.m, pdf.y, breed, hoogte, {vul: '#f3f6f1', lijn: PDF_RAND});
+  const legenda = new Map();
+  lijst.forEach(q => {
+    pdf.pad(ringen(q.geo), {vul: q.uitgeschakeld ? '#eeeeee' : '#ffffff'});
+    if (q.type !== 'pand') alleZones(q).forEach(z => {
+      if (zoneGewas(z)) { const g = zoneVlak(z), t = teelt(z.gewas); if (g && t) { pdf.pad(ringen(g), {vul: t.kleur}); legenda.set(t.id, t); } return; }
+      banenVan(z).forEach(bn => stukkenVan(z, bn).forEach(st => { const t = teelt(st.id); if (t) { pdf.pad(ringen(st.geo), {vul: t.kleur}); legenda.set(t.id, t); } }));
+    });
+    if (!percelen) {
+      S.markeringen.filter(m => m.perceel_id === q.id).forEach(m => {
+        if (m.soort === 'kopeinde') { const g = kopeindeGeo(m); if (g) { pdf.pad(ringen(g), {vul: m.kleur || '#fdd835', doorzicht: true}); legenda.set('kop', {naam: 'Kopeinde', kleur: m.kleur || '#fdd835'}); } }
+        if (m.soort === 'gebied') { pdf.pad(ringen(m.geo), {vul: m.kleur || '#e53935', lijn: m.kleur, doorzicht: true}); legenda.set('geb:' + m.titel, {naam: m.titel, kleur: m.kleur || '#e53935'}); }
+      });
+      const sp = spuitSet(q); if (sp.size) banenVan(q).filter(bn => sp.has(bn.nr)).forEach(bn => pdf.pad(ringen(bn.geo), {lijn: '#e65100', dikte: 1.2}));
+    }
+    pdf.pad(ringen(q.geo), {lijn: '#1b241d', dikte: 1.2});
+    if (percelen) { const c = pt(turf.centroid(q.geo).geometry.coordinates); pdf.tekst(c[0], c[1] + 3, q.naam, {size: 7, vet: true, uitlijn: 'midden'}); }
+  });
+  if (!percelen) S.markeringen.filter(m => m.perceel_id === p.id && m.soort === 'vlag').forEach(m => { const [x, y] = pt(m.geo.geometry.coordinates);
+    pdf.lijn(x, y, x, y - 12, {kleur: '#222222', dikte: 1}); pdf.pad([[[x, y - 12], [x + 8, y - 9], [x, y - 6]]], {vul: m.kleur || '#e53935'}); legenda.set('vlag', {naam: 'Vlag', kleur: '#e53935'}); });
+  // schaalbalk
+  const lengte = [10, 20, 50, 100, 200, 500, 1000].find(l => l * s / 111320 > 40) || 1000, px = lengte * s / 111320;
+  pdf.lijn(pdf.m + 10, pdf.y + hoogte - 10, pdf.m + 10 + px, pdf.y + hoogte - 10, {kleur: '#1b241d', dikte: 1.5}); pdf.tekst(pdf.m + 14 + px, pdf.y + hoogte - 7, `${lengte} m`, {size: 7});
+  pdf.tekst(pdf.W - pdf.m - 10, pdf.y + 14, 'N ^', {size: 8, vet: true, uitlijn: 'rechts'});
+  pdf.y += hoogte + 6;
+  if (metLegenda && legenda.size) {
+    let x = pdf.m; pdf.ruimte(16);
+    [...legenda.values()].forEach(t => { const w = pdf.breedte(pdfSchoon(t.naam), 8) + 22; if (x + w > pdf.W - pdf.m) { x = pdf.m; pdf.y += 13; pdf.ruimte(14); }
+      pdf.rect(x, pdf.y, 9, 9, {vul: t.kleur, lijn: '#999999', dikte: .3}); pdf.tekst(x + 12, pdf.y + 7.5, t.naam, {size: 8}); x += w; });
+    pdf.y += 20;
+  }
+}
+async function pdfFotos(pdf, lijst) {   // lijst: [{pad, onderschrift}]
+  if (!lijst.length) return;
+  const per = 3, gap = 8, w = (pdf.W - 2 * pdf.m - gap * (per - 1)) / per, h = w * .75;
+  const fotos = (await Promise.all(lijst.map(async f => ({...f, a: await laadFotoVoorPdf(f.pad)})))).filter(f => f.a);
+  for (let i = 0; i < fotos.length; i += per) {
+    pdf.ruimte(h + 28);
+    fotos.slice(i, i + per).forEach((f, j) => { const x = pdf.m + j * (w + gap), r = Math.min(w / f.a.w, h / f.a.h), fw = f.a.w * r, fh = f.a.h * r;
+      pdf.rect(x, pdf.y, w, h, {vul: '#f0f0f0'}); pdf.afbeelding(f.a, x + (w - fw) / 2, pdf.y + (h - fh) / 2, fw, fh);
+      pdf.regels(f.onderschrift, w, 7.5).slice(0, 2).forEach((t, k) => pdf.tekst(x, pdf.y + h + 10 + k * 9, t, {size: 7.5, kleur: PDF_GRIJS})); });
+    pdf.y += h + 30;
+  }
+}
+/* ---------- de verslagen ---------- */
+const pdfGetal = (x, d = 0) => (+x || 0).toLocaleString('nl-NL', {maximumFractionDigits: d, minimumFractionDigits: d});
+const pdfHa = m2 => pdfGetal(m2 / 10000, 2);
+const pdfDatum = d => d ? new Date(String(d).length === 10 ? d + 'T12:00' : d).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short', year: 'numeric'}) : '';
+const pdfGeld = x => '€ ' + pdfGetal(x, 2);
+async function geefBestand(naam, bytes, type) {
+  // In de geïnstalleerde Android-app kan de browser niet zelf downloaden: dan via de opslag openen in de gewone browser
+  if (window.Capacitor?.isNativePlatform?.()) {
+    try {
+      const pad = `${me.id}/${Date.now()}-${naam.replace(/[^\w.\- ]+/g, '_')}`;
+      const {error} = await sb.storage.from('downloads').upload(pad, new Blob([bytes], {type}), {contentType: type, upsert: true});
+      if (error) throw error;
+      const {data} = await sb.storage.from('downloads').createSignedUrl(pad, 3600, {download: naam});
+      if (data?.signedUrl) { toast('📥 ' + naam + ' wordt geopend…'); location.href = data.signedUrl; return; }
+    } catch (e) { console.warn(e); }
+  }
+  bewaarBestand(naam, bytes, type, true);
+}
+function teeltRijen(p) {
+  const oo = oogstVan(p.id);
+  return [...teeltOppervlak(p).entries()].filter(([id]) => teelt(id)).sort((a, b) => b[1].m2 - a[1].m2).map(([id, x]) => {
+    const t = teelt(id), a = plantAantal(p, id, x), n = oo.filter(o => o.teelt_id === id).reduce((s, o) => s + oogstPlanten(o), 0);
+    return [t.naam, pdfHa(x.m2), x.n ? String(x.n) : x.vlak ? 'heel vlak' : '', a ? pdfGetal(Math.round(a.totaal)) : '', n ? pdfGetal(n) : '', a && n ? Math.round(n / a.totaal * 100) + '%' : ''];
+  });
+}
+const TEELT_KOL = [{t: 'Plant / soort', w: 3}, {t: 'ha', w: 1, rechts: true}, {t: 'Rijen', w: 1, rechts: true}, {t: 'Planten (geschat)', w: 1.6, rechts: true}, {t: 'Geoogst', w: 1.3, rechts: true}, {t: '%', w: .7, rechts: true}];
+const WERK_KOL = [{t: 'Datum', w: 1.3}, {t: 'Werk', w: 2.2, vet: true}, {t: 'Middel / product', w: 2}, {t: 'Dosering', w: 1.3, rechts: true}, {t: 'Totaal', w: 1.2, rechts: true}, {t: 'Door', w: 1.2}, {t: 'Opmerking', w: 2.4}];
+function werkRijen(taken) {
+  return taken.filter(t => t.klaar).sort((a, b) => (a.klaar_op || '').localeCompare(b.klaar_op || '')).map(t => {
+    const m = middel(t.middel_id);
+    return [pdfDatum(t.klaar_op), t.tekst + (isVerplaats(t) ? ` (${locNaam(t, 'van')} > ${locNaam(t, 'naar')})` : ''), t.product || '', t.dosering != null ? `${pdfGetal(t.dosering, 2)} ${t.eenheid || ''}` : '',
+      t.verbruik != null && m ? `${pdfGetal(t.verbruik, 1)} ${m.voorraad_eenheid || ''}` : '', t.klaar_door || '', t.uitvoering || ''];
+  });
+}
+function kerngegevens(p) {
+  const opp = turf.area(p.geo), [lng, lat] = turf.centroid(p.geo).geometry.coordinates, zones = alleZones(p), sporen = zones.reduce((n, z) => n + banenVan(z).length, 0);
+  let omtrek = 0; try { omtrek = turf.length(turf.polygonToLine(p.geo)) * 1000; } catch {}
+  return [['Soort', typeVan(p).naam], ['Oppervlakte', `${pdfHa(opp)} ha (${pdfGetal(opp)} m²)`], ...(omtrek ? [['Omtrek', pdfGetal(omtrek) + ' m']] : []),
+    ['GPS midden', `${lat.toFixed(6)}, ${lng.toFixed(6)}`], ['Status', p.uitgeschakeld ? 'uitgeschakeld' : 'in gebruik'],
+    ...(sporen ? [['Richting AB-lijn', pdfGetal(p.richting, 2) + '°'], ['Spoorbreedte', pdfGetal(p.breedte, 2) + ' m'], ['Aantal sporen', String(sporen)],
+      ['A-punt', Array.isArray(p.ab_punt) ? `${(+p.ab_punt[1]).toFixed(6)}, ${(+p.ab_punt[0]).toFixed(6)}` : 'niet ingesteld'], ['Spuitsporen', String(spuitSet(p).size || '–')]] : []),
+    ...((p.vakken || []).length ? [['Deelvelden', (p.vakken || []).map(v => v.naam).join(', ')]] : []), ['Aangemaakt door', p.aangemaakt_door || '–']];
+}
+async function perceelHoofdstuk(pdf, p, {kort, urenRijen = [], titel} = {}) {
+  const taken = S.taken.filter(t => betreft(t, p.id)), klaar = taken.filter(t => t.klaar), open = taken.filter(t => !t.klaar);
+  const oo = oogstVan(p.id), oogstTot = oo.reduce((s, o) => s + oogstPlanten(o), 0), uren = urenRijen.filter(r => r.perceel_id === p.id).reduce((s, r) => s + urenDuur(r), 0) / UUR;
+  pdf.kop1(titel || `${p.naam}`, kort);
+  pdf.tegels([[pdfHa(turf.area(p.geo)), 'hectare'], [klaar.length, 'werk gedaan'], [open.length, 'open taken'], ...(oo.length ? [[pdfGetal(oogstTot), 'planten geoogst']] : []), ...(uren ? [[pdfGetal(uren, 1), 'uren']] : [])]);
+  const vgt = vgtVan(p.id); if (vgt) pdf.melding(pdfSchoon(vgtTekst(vgt)));
+  vruchtwisselWaarschuwing(p).forEach(w => pdf.melding(w.replace(/<[^>]+>/g, ''), '#fff4e5', '#7a4b00'));
+  pdf.kop2('Kaart', (kort ? 200 : 280) + 50); pdfKaart(pdf, p, {hoogte: kort ? 200 : 280});
+  pdf.kop2('Gegevens'); pdf.sleutelwaarde(kerngegevens(p));
+  if (p.type !== 'pand') { pdf.kop2('Wat staat er'); pdf.tabel(TEELT_KOL, teeltRijen(p)); }
+  pdf.kop2(`Uitgevoerd werk (${klaar.length})`); pdf.tabel(WERK_KOL, werkRijen(taken));
+  if (open.length && !kort) { pdf.kop2(`Open taken (${open.length})`);
+    pdf.tabel([{t: 'Taak', w: 3, vet: true}, {t: 'Wie', w: 1.5}, {t: 'Gepland', w: 1.3}, {t: 'Uiterlijk', w: 1.3}, {t: 'Omschrijving', w: 4}],
+      open.map(t => [t.tekst + (t.herhaal ? ' (herhaalt)' : ''), S.profielen.find(u => u.id === t.toegewezen_aan)?.naam || '–', pdfDatum(t.gepland), pdfDatum(t.deadline), t.omschrijving || ''])); }
+  if (oo.length) { pdf.kop2(`Oogst · ${pdfGetal(oogstTot)} planten`);
+    pdf.tabel([{t: 'Datum', w: 1.3}, {t: 'Plant / soort', w: 2.5}, {t: 'Waar', w: 1.4}, {t: 'Aantal', w: 1.6, rechts: true}, {t: 'Planten', w: 1.3, rechts: true}, {t: 'Door', w: 1.2}, {t: 'Opmerking', w: 2.4}],
+      [...oo.sort((a, b) => a.datum.localeCompare(b.datum)).map(o => [pdfDatum(o.datum), teelt(o.teelt_id)?.naam || '', o.vak || '', `${pdfGetal(o.aantal)} ${o.eenheid}${o.eenheid === 'trays' && o.per_tray ? ' x ' + o.per_tray : ''}`, pdfGetal(oogstPlanten(o)), o.door || '', o.opmerking || '']),
+        ['Totaal', '', '', '', pdfGetal(oogstTot), '', '']], {totaal: true}); }
+  if (ziet('kosten_bekijken') && !kort) {
+    const k = kostenVan(p.id);
+    if (k.totaal) { pdf.kop2('Kosten'); pdf.sleutelwaarde([['Arbeid', `${pdfGeld(k.arbeid)} (${pdfGetal(k.uren, 1)} u)`], ['Middelen', pdfGeld(k.middelen)], ['Overig', pdfGeld(k.overig)], ['Totaal', pdfGeld(k.totaal)], ['Per hectare', pdfGeld(k.perHa)], ...(k.per1000 ? [['Per 1000 planten', pdfGeld(k.per1000)]] : [])]); }
+  }
+  const mk = S.markeringen.filter(m => m.perceel_id === p.id);
+  if (mk.length) { pdf.kop2(`Grond en vlaggen (${mk.length})`);
+    pdf.tabel([{t: 'Soort', w: 1.2}, {t: 'Wat', w: 2.2, vet: true}, {t: 'Aantekening', w: 4.5}, {t: 'Omvang', w: 1.5, rechts: true}, {t: 'Door / datum', w: 2}],
+      mk.map(m => [MARK[m.soort]?.naam || m.soort, m.titel, m.notitie || '', m.soort === 'gebied' ? pdfHa(turf.area(m.geo)) + ' ha' : m.soort === 'kopeinde' ? (kopeindeGeo(m) ? pdfHa(turf.area(kopeindeGeo(m))) + ' ha' : '') : m.soort === 'lijn' ? pdfGetal(turf.length(m.geo) * 1000) + ' m' : '', `${m.aangemaakt_door || ''} ${pdfDatum(m.created_at)}`])); }
+  const vw = vwCache[p.id]?.lijst?.filter(x => x.seizoen.id !== bekeken);
+  if (vw?.length && !kort) { pdf.kop2('Vruchtwisseling (vorige seizoenen)'); pdf.tabel([{t: 'Seizoen', w: 1}, {t: 'Planten', w: 4}], vw.map(x => [x.seizoen.naam, [...x.planten].map(id => soort(id)?.naam).filter(Boolean).join(', ') || '–'])); }
+  const fotos = [...mk.flatMap(m => (m.fotos || []).map(f => ({pad: f, onderschrift: `${MARK[m.soort]?.naam}: ${m.titel}`}))), ...taken.flatMap(t => (t.fotos || []).map(f => ({pad: f, onderschrift: `${t.tekst}${t.klaar_op ? ' · ' + pdfDatum(t.klaar_op) : ''}`}))),
+    ...oo.flatMap(o => (o.fotos || []).map(f => ({pad: f, onderschrift: `Oogst ${pdfDatum(o.datum)}`})))].slice(0, kort ? 6 : 15);
+  if (fotos.length) { pdf.kop2(`Foto's (${fotos.length})`, 200); await pdfFotos(pdf, fotos); }
+}
+async function verslagUren(van, tot, pid) {
+  let q = sb.from('uren').select('naam,perceel_id,start,eind').gte('start', van.toISOString()).lt('start', new Date(Math.min(tot.getTime(), 8.6e15)).toISOString());
+  if (pid) q = q.eq('perceel_id', pid);
+  const {data} = await q; return data || [];
+}
+async function perceelVerslag(pid) {
+  const p = perceel(pid); if (!p) return;
+  toast('📄 Verslag maken…');
+  try {
+    if (ziet('historie_bekijken')) await laadVruchtwisseling(pid);
+    const uren = await verslagUren(seizoenStart(), seizoenEind(), pid);
+    const pdf = new PdfDoc(`Perceelverslag ${pdfSchoon(p.naam)} · ${seizoenNaam(bekeken)}`);
+    pdf.voorblad(`Perceelverslag ${p.naam}`, `Seizoen ${seizoenNaam(bekeken)} · ${typeVan(p).naam} · ${pdfHa(turf.area(p.geo))} ha`, [`Gemaakt door ${naamMe()} op ${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}`]);
+    await perceelHoofdstuk(pdf, p, {urenRijen: uren, titel: 'Overzicht'});
+    if (uren.length) { const per = new Map(); uren.forEach(r => per.set(r.naam, (per.get(r.naam) || 0) + urenDuur(r) / UUR));
+      pdf.kop2('Uren per persoon'); pdf.tabel([{t: 'Persoon', w: 3}, {t: 'Uren', w: 1, rechts: true}], [...per.entries()].sort((a, b) => b[1] - a[1]).map(([n, u]) => [n, pdfGetal(u, 1)])); }
+    geefBestand(`Perceelverslag ${p.naam} ${seizoenNaam(bekeken)}.pdf`.replace(/[\\/:*?"<>|]/g, '-'), pdf.bytes(), 'application/pdf');
+  } catch (e) { console.error(e); toast('Verslag maken mislukt: ' + (e.message || e), 1); }
+}
+// Jaarverslag van één perceel: alle seizoenen naast elkaar
+async function perceelJaarverslag(pid) {
+  const p = perceel(pid); if (!p) return;
+  toast('📄 Jaarverslag maken…');
+  try {
+    const q = async (t, f) => { const r = await f(sb.from(t).select('*')); return r.error ? [] : r.data || []; };
+    const [taken, oogst, kosten, uren, snaps] = await Promise.all([q('taken', x => x.eq('perceel_id', pid)), q('oogst', x => x.eq('perceel_id', pid)), ziet('kosten_bekijken') ? q('kosten', x => x.eq('perceel_id', pid)) : [],
+      q('uren', x => x.eq('perceel_id', pid)), ziet('historie_bekijken') ? q('seizoen_percelen', x => x.eq('perceel_id', pid)) : []]);
+    const lijst = [...S.seizoenen].sort((a, b) => new Date(a.gestart) - new Date(b.gestart));
+    const tarief = parseFloat(S.inst.uurtarief) || 0;
+    const jaren = lijst.map((sz, i) => {
+      const van = new Date(sz.gestart), tot = lijst[i + 1] ? new Date(lijst[i + 1].gestart) : new Date(8.6e15);
+      const g = sz.actief ? (archief ? (livePercelen || []).find(x => x.id === pid) : p) : snaps.find(r => r.seizoen_id === sz.id)?.gegevens;
+      const geg = g ? {...g, id: 'jv:' + sz.id + ':' + pid} : null;
+      const teelten = geg ? [...teeltOppervlak(geg).entries()].filter(([id]) => teelt(id)).map(([id, x]) => ({t: teelt(id), m2: x.m2})) : [];
+      const tk = taken.filter(t => t.seizoen_id === sz.id), oo = oogst.filter(o => o.seizoen_id === sz.id);
+      const u = uren.filter(r => { const d = new Date(r.start); return d >= van && d < tot; }).reduce((s, r) => s + urenDuur(r), 0) / UUR;
+      const mk = tk.filter(t => t.klaar && t.middel_id && t.verbruik).reduce((s, t) => s + +t.verbruik * (+middel(t.middel_id)?.prijs || 0), 0);
+      return {sz, geg, teelten, tk, oo, oogst: oo.reduce((s, o) => s + oogstPlanten(o), 0), uren: u, kosten: u * tarief + mk + kosten.filter(k => k.seizoen_id === sz.id).reduce((s, k) => s + +k.bedrag, 0)};
+    }).filter(j => j.geg || j.tk.length || j.oo.length);
+    [banenCache, stukCache, vulCache].forEach(m => [...m.keys()].filter(k => String(k).includes('jv:')).forEach(k => m.delete(k)));
+    const pdf = new PdfDoc(`Jaarverslag ${pdfSchoon(p.naam)}`);
+    pdf.voorblad(`Jaarverslag ${p.naam}`, `${jaren.length} seizoen${jaren.length === 1 ? '' : 'en'} · ${typeVan(p).naam} · ${pdfHa(turf.area(p.geo))} ha`, [`Gemaakt door ${naamMe()} op ${new Date().toLocaleDateString('nl-NL', {day: 'numeric', month: 'long', year: 'numeric'})}`]);
+    pdf.kop2('Kaart (huidige indeling)'); pdfKaart(pdf, p, {hoogte: 240});
+    pdf.kop1('Seizoenen naast elkaar');
+    pdf.tabel([{t: 'Seizoen', w: 1.1, vet: true}, {t: 'Gewassen', w: 3.6}, {t: 'Werk', w: .9, rechts: true}, {t: 'Spuiten/mest', w: 1.3, rechts: true}, {t: 'Geoogst', w: 1.2, rechts: true}, {t: 'Uren', w: .8, rechts: true}, ...(ziet('kosten_bekijken') ? [{t: 'Kosten', w: 1.2, rechts: true}] : [])],
+      jaren.slice().reverse().map(j => [j.sz.naam, j.teelten.sort((a, b) => b.m2 - a.m2).map(x => `${x.t.naam} ${pdfHa(x.m2)} ha`).join(', ') || '–', String(j.tk.filter(t => t.klaar).length), String(j.tk.filter(t => t.klaar && (t.product || t.middel_id)).length),
+        j.oogst ? pdfGetal(j.oogst) : '–', pdfGetal(j.uren, 1), ...(ziet('kosten_bekijken') ? [pdfGeld(j.kosten)] : [])]));
+    if (jaren.some(j => j.oogst)) { pdf.kop2('Planten geoogst per seizoen', 175); pdf.staafgrafiek(jaren.map(j => j.sz.naam), jaren.map(j => j.oogst)); }
+    for (const j of jaren.slice().reverse()) {
+      pdf.kop1(`Seizoen ${j.sz.naam}${j.sz.actief ? ' (huidig)' : ''}`);
+      pdf.tegels([[j.tk.filter(t => t.klaar).length, 'werk gedaan'], [pdfGetal(j.oogst), 'planten geoogst'], [pdfGetal(j.uren, 1), 'uren'], ...(ziet('kosten_bekijken') ? [[pdfGeld(j.kosten).replace(',00', ''), 'kosten']] : [])]);
+      if (j.teelten.length) { pdf.kop2('Gewassen'); pdf.tabel([{t: 'Plant / soort', w: 3}, {t: 'ha', w: 1, rechts: true}], j.teelten.map(x => [x.t.naam, pdfHa(x.m2)])); }
+      pdf.kop2('Uitgevoerd werk'); pdf.tabel(WERK_KOL, werkRijen(j.tk));
+      if (j.oo.length) { pdf.kop2('Oogst'); pdf.tabel([{t: 'Datum', w: 1.3}, {t: 'Plant / soort', w: 2.5}, {t: 'Aantal', w: 1.6, rechts: true}, {t: 'Planten', w: 1.3, rechts: true}, {t: 'Door', w: 1.2}],
+        j.oo.sort((a, b) => a.datum.localeCompare(b.datum)).map(o => [pdfDatum(o.datum), teelt(o.teelt_id)?.naam || '', `${pdfGetal(o.aantal)} ${o.eenheid}`, pdfGetal(oogstPlanten(o)), o.door || ''])); }
+    }
+    geefBestand(`Jaarverslag ${p.naam}.pdf`.replace(/[\\/:*?"<>|]/g, '-'), pdf.bytes(), 'application/pdf');
+  } catch (e) { console.error(e); toast('Jaarverslag maken mislukt: ' + (e.message || e), 1); }
+}
+// Totaalverslag: het hele bedrijf in het seizoen dat je bekijkt
+async function totaalVerslag() {
+  toast('📄 Totaalverslag maken… (even geduld)');
+  try {
+    const uren = await verslagUren(seizoenStart(), seizoenEind());
+    kostenUren = {rijen: uren, seizoen: bekeken};
+    if (!szVergelijk?.rijen) await laadSeizoenVergelijk();
+    if (ziet('historie_bekijken')) await Promise.all(S.percelen.filter(p => p.type !== 'pand').map(p => laadVruchtwisseling(p.id)));
+    const d = seizoenData(), naam = seizoenNaam(bekeken), kanK = ziet('kosten_bekijken');
+    const pdf = new PdfDoc(`Totaalverslag seizoen ${naam}`);
+    pdf.voorblad(`Totaalverslag seizoen ${naam}`, `${d.velden.length} percelen · ${pdfHa(d.ha_)} ha`, [`Gemaakt door ${naamMe()} op ${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}`]);
+    pdf.tegels([[pdfHa(d.ha_), 'hectare in gebruik'], [d.velden.length, 'percelen'], [d.klaar.length, 'taken gedaan'], [d.open.length, 'open taken'], [pdfGetal(d.oogstTot), 'planten geoogst'], [pdfGetal(d.urenTot, 0), 'uren geklokt'], ...(kanK ? [[pdfGeld(d.totaalKosten).replace(',00', ''), 'kosten']] : [])]);
+    pdf.kop2('Alle percelen'); pdfKaart(pdf, null, {percelen: S.percelen, hoogte: 330});
+    const inhoud = pdf.paginas.length + 1; pdf.nieuwePagina();   // plek voor de inhoudsopgave
+    pdf.kop1('1. Gewassen', true);
+    pdf.tabel([{t: 'Plant', w: 3}, {t: 'Hectare', w: 1, rechts: true}, {t: 'Aandeel', w: 1, rechts: true}, {t: 'Planten (geschat)', w: 1.6, rechts: true}],
+      [...d.perPlant.entries()].sort((a, b) => b[1] - a[1]).map(([id, m2]) => [soort(id)?.naam || '', pdfHa(m2), Math.round(m2 / (d.ha_ || 1) * 100) + '%', d.planten.get(id) ? pdfGetal(Math.round(d.planten.get(id))) : '']));
+    pdf.kop1('2. Percelen');
+    pdf.tabel([{t: 'Perceel', w: 2.2, vet: true}, {t: 'Soort', w: 1.1}, {t: 'ha', w: .8, rechts: true}, {t: 'Gewassen', w: 3}, {t: 'Werk', w: .8, rechts: true}, {t: 'Open', w: .7, rechts: true}, {t: 'Geoogst', w: 1.2, rechts: true}, {t: 'Uren', w: .8, rechts: true}],
+      S.percelen.slice().sort((a, b) => a.naam.localeCompare(b.naam, 'nl')).map(p => { const tk = S.taken.filter(t => betreft(t, p.id));
+        return [p.naam + (p.uitgeschakeld ? ' (uit)' : ''), typeVan(p).naam, pdfHa(turf.area(p.geo)), p.type === 'pand' ? '' : teeltNamen(p) || '–', String(tk.filter(t => t.klaar).length), String(tk.filter(t => !t.klaar).length),
+          d.oogstPerPerceel.get(p.id) ? pdfGetal(d.oogstPerPerceel.get(p.id)) : '', d.urenPerPerceel.get(p.id) ? pdfGetal(d.urenPerPerceel.get(p.id), 1) : '']; }));
+    pdf.kop1('3. Uitgevoerd werk');
+    pdf.tabel([{t: 'Werk', w: 3, vet: true}, {t: 'Aantal keer', w: 1, rechts: true}, {t: 'Op percelen', w: 3}],
+      [...d.werk.entries()].sort((a, b) => b[1].n - a[1].n).map(([k, x]) => [k, String(x.n), [...x.percelen].map(id => perceel(id)?.naam).filter(Boolean).join(', ')]));
+    if (d.open.length) { pdf.kop2(`Nog open (${d.open.length})`); pdf.tabel([{t: 'Taak', w: 3, vet: true}, {t: 'Perceel', w: 2}, {t: 'Wie', w: 1.5}, {t: 'Gepland', w: 1.3}],
+      d.open.map(t => [t.tekst, perceel(t.perceel_id)?.naam || '', S.profielen.find(u => u.id === t.toegewezen_aan)?.naam || '–', pdfDatum(t.gepland || t.deadline)])); }
+    pdf.kop1('4. Spuitlogboek en bemesting');
+    pdf.tabel([{t: 'Middel / product', w: 3, vet: true}, {t: 'Keer', w: .8, rechts: true}, {t: 'Verbruik', w: 1.5, rechts: true}, ...(kanK ? [{t: 'Kosten', w: 1.3, rechts: true}] : [])],
+      [...d.mid.entries()].sort((a, b) => b[1].n - a[1].n).map(([k, x]) => [k, String(x.n), x.verbruik ? `${pdfGetal(x.verbruik, 1)} ${x.eenheid}` : '', ...(kanK ? [x.kosten ? pdfGeld(x.kosten) : ''] : [])]));
+    const spuit = S.taken.filter(t => t.klaar && (t.product || t.middel_id)).sort((a, b) => (a.klaar_op || '').localeCompare(b.klaar_op || ''));
+    if (spuit.length) { pdf.kop2('Alle toepassingen'); pdf.tabel([{t: 'Datum', w: 1.2}, {t: 'Perceel', w: 1.8}, {t: 'ha', w: .7, rechts: true}, {t: 'Middel', w: 2, vet: true}, {t: 'Toel.nr', w: 1.1}, {t: 'Dosering', w: 1.3, rechts: true}, {t: 'Door', w: 1.2}],
+      spuit.map(t => { const m = middel(t.middel_id) || middelOpNaam(t.product); return [pdfDatum(t.klaar_op), perceel(t.perceel_id)?.naam || '', pdfHa(taakM2(t)), t.product || m?.naam || '', m?.toelatingsnummer || '', t.dosering != null ? `${pdfGetal(t.dosering, 2)} ${t.eenheid || ''}` : '', t.klaar_door || '']; }), {size: 8}); }
+    pdf.kop1('5. Oogst');
+    pdf.tegels([[pdfGetal(d.oogstTot), 'planten totaal'], [d.oogstPerPerceel.size, 'percelen'], [d.ha_ ? pdfGetal(d.oogstTot / (d.ha_ / 10000)) : '–', 'planten per ha (gemiddeld)']]);
+    const week = new Map(); d.oogst.forEach(o => { const w = weekNr(new Date(o.datum + 'T12:00')); week.set(w, (week.get(w) || 0) + oogstPlanten(o)); });
+    if (week.size > 1) { pdf.kop2('Per week', 175); const ws = [...week.keys()].sort((a, b) => a - b); pdf.staafgrafiek(ws.map(w => 'wk ' + w), ws.map(w => week.get(w))); }
+    pdf.kop2('Per soort'); pdf.tabel([{t: 'Plant / soort', w: 3}, {t: 'Planten', w: 1, rechts: true}], [...d.oogstPerTeelt.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => [k, pdfGetal(n)]));
+    pdf.kop2('Per perceel'); pdf.tabel([{t: 'Perceel', w: 3}, {t: 'Planten', w: 1, rechts: true}, {t: 'Per ha', w: 1, rechts: true}],
+      [...d.oogstPerPerceel.entries()].sort((a, b) => b[1] - a[1]).map(([pid, n]) => { const p = perceel(pid); return [p?.naam || '?', pdfGetal(n), p ? pdfGetal(n / (turf.area(p.geo) / 10000)) : '']; }));
+    pdf.kop1('6. Uren');
+    pdf.tabel([{t: 'Persoon', w: 3, vet: true}, {t: 'Uren', w: 1, rechts: true}], [...d.perPersoon.entries()].sort((a, b) => b[1] - a[1]).map(([k, u]) => [k, pdfGetal(u, 1)]));
+    pdf.tabel([{t: 'Perceel', w: 3, vet: true}, {t: 'Uren', w: 1, rechts: true}], [...d.urenPerPerceel.entries()].sort((a, b) => b[1] - a[1]).map(([pid, u]) => [pid ? perceel(pid)?.naam || '?' : 'Zonder perceel', pdfGetal(u, 1)]));
+    if (kanK) {
+      pdf.kop1('7. Kosten');
+      pdf.sleutelwaarde([['Arbeid', `${pdfGeld(d.arbeid)} (${pdfGetal(d.urenTot, 1)} u x ${pdfGeld(d.tarief)})`], ['Middelen', pdfGeld(d.middelKosten)], ['Machines', pdfGeld(d.machineKosten)], ['Losse kosten', pdfGeld(d.losse)], ['Totaal', pdfGeld(d.totaalKosten)],
+        ['Per hectare', d.ha_ ? pdfGeld(d.totaalKosten / (d.ha_ / 10000)) : '–'], ...(d.oogstTot ? [['Per 1000 planten', pdfGeld(d.totaalKosten / d.oogstTot * 1000)]] : [])]);
+      pdf.tabel([{t: 'Perceel', w: 2.4, vet: true}, {t: 'Arbeid', w: 1.2, rechts: true}, {t: 'Middelen', w: 1.2, rechts: true}, {t: 'Overig', w: 1.2, rechts: true}, {t: 'Totaal', w: 1.2, rechts: true}, {t: 'Per ha', w: 1.2, rechts: true}],
+        d.velden.map(p => ({p, k: kostenVan(p.id)})).sort((a, b) => b.k.totaal - a.k.totaal).map(({p, k}) => [p.naam, pdfGeld(k.arbeid), pdfGeld(k.middelen), pdfGeld(k.overig), pdfGeld(k.totaal), pdfGeld(k.perHa)]));
+    }
+    pdf.kop1(`${kanK ? 8 : 7}. Machines en voorraad`);
+    if ((S.machines || []).length) pdf.tabel([{t: 'Machine', w: 2.2, vet: true}, {t: 'Draaiuren', w: 1, rechts: true}, {t: 'Status', w: 4}],
+      S.machines.map(m => [m.naam, m.draaiuren != null ? pdfGetal(m.draaiuren) : '', machineStatus(m).map(s => pdfSchoon(s.tekst)).join(' · ')]));
+    if (d.mlog.length) { pdf.kop2('Onderhoud en reparaties'); pdf.tabel([{t: 'Datum', w: 1.2}, {t: 'Machine', w: 1.8}, {t: 'Wat', w: 4}, {t: 'Kosten', w: 1.2, rechts: true}], d.mlog.map(l => [pdfDatum(l.datum), machine(l.machine_id)?.naam || '', l.omschrijving || l.soort, l.kosten ? pdfGeld(l.kosten) : ''])); }
+    if ((S.middelen || []).some(m => m.voorraad != null)) { pdf.kop2('Voorraad nu'); pdf.tabel([{t: 'Middel / product', w: 3, vet: true}, {t: 'Voorraad', w: 1.4, rechts: true}, {t: 'Let op', w: 2}],
+      S.middelen.filter(m => m.voorraad != null).map(m => [m.naam, `${pdfGetal(m.voorraad, 1)} ${m.voorraad_eenheid || ''}`, voorraadLaag(m) ? 'bijna op' : ''])); }
+    if (szVergelijk?.rijen?.length > 1) {
+      pdf.kop1(`${kanK ? 9 : 8}. Seizoenen vergelijken`);
+      pdf.tabel([{t: 'Seizoen', w: 1, vet: true}, {t: 'ha', w: .8, rechts: true}, {t: 'Percelen', w: .9, rechts: true}, {t: 'Werk', w: .8, rechts: true}, {t: 'Bespuit.', w: .9, rechts: true}, {t: 'Geoogst', w: 1.2, rechts: true}, {t: 'Uren', w: .8, rechts: true}, ...(kanK ? [{t: 'Kosten', w: 1.2, rechts: true}] : [])],
+        szVergelijk.rijen.map(x => [x.sz.naam, pdfHa(x.ha), String(x.percelen), String(x.klaar), String(x.spuit), pdfGetal(x.oogst), pdfGetal(x.uren, 0), ...(kanK ? [pdfGeld(x.kosten)] : [])]));
+    }
+    const lijst = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+    for (const p of lijst) await perceelHoofdstuk(pdf, p, {kort: true, urenRijen: uren, titel: `Perceel: ${p.naam}`});
+    pdf.inhoudsopgave(inhoud);
+    geefBestand(`Totaalverslag seizoen ${naam}.pdf`.replace(/[\\/:*?"<>|]/g, '-'), pdf.bytes(), 'application/pdf');
+  } catch (e) { console.error(e); toast('Totaalverslag maken mislukt: ' + (e.message || e), 1); }
+}
+function verslagenHtml(pid) {
+  const p = pid ? perceel(pid) : null;
+  if (p) return `<section class="kaartje verslagen"><h4>📄 Verslagen</h4><div class="verslagknoppen">
+    <button onclick="perceelVerslag('${p.id}')"><b>📄 Perceelverslag</b><small>alles van ${esc(p.naam)} in seizoen ${esc(seizoenNaam(bekeken))}</small></button>
+    <button onclick="perceelJaarverslag('${p.id}')"><b>📚 Jaarverslag</b><small>alle seizoenen van dit perceel naast elkaar</small></button></div></section>`;
+  const lijst = S.percelen.filter(x => x.type !== 'pand').sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  return `<section class="kaartje verslagen"><h4>📄 Verslagen (PDF)</h4><div class="verslagknoppen">
+    <button onclick="totaalVerslag()"><b>📘 Totaalverslag</b><small>het hele bedrijf in seizoen ${esc(seizoenNaam(bekeken))}, met per perceel een hoofdstuk</small></button></div>
+    <label>Of van één perceel</label><div class="rij"><select class="veld" id="verslagPerceel">${lijst.map(x => `<option value="${x.id}">${esc(x.naam)}</option>`).join('')}</select></div>
+    <div class="rij" style="margin-top:6px"><button class="knop licht klein" onclick="perceelVerslag($('#verslagPerceel').value)">📄 Perceelverslag</button><button class="knop licht klein" onclick="perceelJaarverslag($('#verslagPerceel').value)">📚 Jaarverslag</button></div></section>`;
+}
+
+async function verwijderSeizoen(id) {
+  const sz = S.seizoenen.find(x => x.id === id); if (!sz || sz.actief) return;
+  const tekst = await vraag(`Seizoen ${sz.naam} verwijderen?`, {knop: 'Definitief verwijderen', uitleg: `Alle taken, uitgevoerd werk, oogst, kosten en de indeling van seizoen ${sz.naam} worden verwijderd. Dit kan niet ongedaan worden gemaakt. Geklokte uren en voorraad blijven bewaard. Maak eventueel eerst een verslag. Typ de naam van het seizoen (${sz.naam}) om te bevestigen.`});
+  if (tekst == null) return;
+  if (tekst.trim() !== sz.naam) { toast('De naam klopt niet, er is niets verwijderd', 1); return; }
+  const {error} = await sb.rpc('verwijder_seizoen', {p_id: id});
+  if (error) { toast(foutTekst(error), 1); return; }
+  if (bekeken === id) await bekijkSeizoen(actiefSeizoen()?.id);
+  S.seizoenen = S.seizoenen.filter(x => x.id !== id); seizoenStats = null; szVergelijk = null; render(true);
+  toast(`Seizoen ${sz.naam} is verwijderd`);
+}
 
 initPaneel();
 // service worker: nodig om de app te kunnen installeren
