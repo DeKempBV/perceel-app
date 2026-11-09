@@ -34,7 +34,7 @@ button{font:inherit;cursor:pointer}
 .kop .wie{font-size:12px;opacity:.85;text-align:right;line-height:1.3}
 .kop .uit{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:8px;padding:6px 9px;font-size:12px}
 .tabs{display:flex;background:var(--groen);padding:0 10px}
-.tabs button{flex:1;background:none;border:0;color:#bcd6bf;padding:10px 2px 11px;font-size:13.5px;font-weight:600;border-bottom:3px solid transparent}
+.tabs button{flex:1;background:none;border:0;color:#bcd6bf;padding:10px 1px 11px;font-size:13px;font-weight:600;border-bottom:3px solid transparent}
 .tabs button.aan{color:#fff;border-color:var(--geel)}
 .tabs .tel{display:inline-block;background:var(--geel);color:var(--groen);border-radius:9px;font-size:11px;padding:0 6px;margin-left:4px}
 .inhoud{flex:1;overflow-y:auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;background:#f7f9f6}
@@ -182,7 +182,7 @@ textarea.veld{resize:vertical;font-family:inherit}
 .logregel .t{flex:1;min-width:0;font-size:14px}
 .logregel small{display:block;color:var(--grijs);font-size:12px;margin-top:2px}
 .logregel .opm{color:#4a544a}
-.ptabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.ptabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:5px;margin-bottom:10px}
 .ptabs button{background:#fff;border:1.5px solid var(--rand);border-radius:12px;padding:8px 2px;font-size:12px;font-weight:700;color:var(--grijs)}
 .ptabs button span{display:block;font-size:19px;margin-bottom:2px}
 .ptabs button.aan{border-color:var(--groen2);background:var(--licht);color:var(--groen)}
@@ -255,6 +255,21 @@ textarea.veld{resize:vertical;font-family:inherit}
 .beplanttot{font-size:13px;color:var(--groen);margin-top:6px}
 .beplanttot.groot{border-top:2px solid var(--rand);padding-top:8px;font-size:14px}
 .opplanten{color:var(--grijs);font-weight:400;font-size:11.5px}
+.infoblok h4{margin-bottom:6px}
+.inforij{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--rand);font-size:13.5px}
+.inforij:first-of-type{border-top:0}
+.inforij span{color:var(--grijs);min-width:0}
+.inforij b{text-align:right;font-weight:600}
+.inforij a{color:var(--groen2)}
+.inforij .kl{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+.infonotitie{display:block;font-size:11.5px;color:var(--grijs)}
+.infosub{font-size:12px;font-weight:700;color:var(--groen2);margin:10px 0 2px}
+.seizoenrij{display:flex;align-items:center;gap:8px;padding:10px 4px;border-top:1px solid var(--rand)}
+.seizoenrij:first-of-type{border-top:0}
+.seizoenrij .t{flex:1;min-width:0}
+.seizoenrij small{color:var(--grijs);font-size:12px}
+.seizoenrij.bekeken{background:var(--licht);border-radius:10px;padding-left:8px}
+.archiefbadge{background:#ede7f6;color:#4527a0}
 .gewasjes{font-weight:400;font-size:14px;margin-left:2px}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
@@ -417,7 +432,7 @@ const vandaag = () => new Date().toISOString().slice(0, 10);
 let sb = null, me = null, gestart = false, wachtRender = false;
 const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], profielen: [], seizoenen: []};
 let bekeken = null, archief = false, livePercelen = null;   // seizoen dat je bekijkt
-let perceelTab = 'weer', actief = null, tab = 'percelen', kwast, gereedschap, taakFocus, tekenDoel = 'perceel', markLagen = {}, gekozenPlant, openPlant, openRechten, takenFilter = 'open', vormLaag = null;
+let perceelTab = 'info', actief = null, tab = 'percelen', kwast, gereedschap, taakFocus, tekenDoel = 'perceel', markLagen = {}, gekozenPlant, openPlant, openRechten, takenFilter = 'open', vormLaag = null;
 let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, locatieLaag, basis = {}, laagModus = 'sat';
 
 const mijnProfiel = () => S.profielen.find(x => x.id === me?.id);
@@ -841,9 +856,61 @@ function toonArchiefBalk() {
     <button onclick="bekijkSeizoen('${actiefSeizoen()?.id}')">Terug naar ${esc(actiefSeizoen()?.naam || 'nu')}</button>`;
 }
 function seizoenKnop() {
-  return `<button class="seizoenknop ${archief ? 'archief' : ''}" onclick="seizoenMenu()">📅 Seizoen ${esc(seizoenNaam(bekeken) || '–')} ${archief ? '(archief)' : ''} ▾</button>`;
+  return `<button class="seizoenknop ${archief ? 'archief' : ''}" onclick="zetTab('seizoenen')">📅 Seizoen ${esc(seizoenNaam(bekeken) || '–')} ${archief ? '(archief)' : ''} ▾</button>`;
 }
-function seizoenMenu() {
+let seizoenStats = null;
+async function laadSeizoenStats() {
+  const {data} = await sb.from('taken').select('seizoen_id,klaar');
+  const m = {}; (data || []).forEach(t => { const x = m[t.seizoen_id] ||= {open: 0, klaar: 0}; t.klaar ? x.klaar++ : x.open++; });
+  seizoenStats = m; if (tab === 'seizoenen') render(true);
+}
+async function startSeizoen() {
+  const naam = $('#szNaam').value.trim(); if (!naam) { toast('Geef het seizoen een naam', 1); return; }
+  if (!await bevestig(`Seizoen "${naam}" starten?`, 'Dit geldt voor iedereen. Het huidige seizoen wordt bewaard en kun je altijd terugkijken.').then(x => x)) return;
+  const {error} = await sb.rpc('start_seizoen', {p_naam: naam, p_leegmaken: $('#szLeeg').checked, p_open_meenemen: $('#szMee').checked, p_inschakelen: $('#szAan').checked});
+  if (error) { toast(foutTekst(error), 1); return; }
+  $('#modal').classList.remove('open'); archief = false; seizoenStats = null; await laadAlles(); toast(`Seizoen ${naam} is gestart`);
+}
+async function hernoemSeizoen(id) {
+  const s = S.seizoenen.find(x => x.id === id);
+  const naam = await vraag('Naam van het seizoen', {waarde: s.naam}); if (!naam) return;
+  const {error} = await sb.rpc('hernoem_seizoen', {p_id: id, p_naam: naam});
+  if (error) { toast(foutTekst(error), 1); return; }
+  s.naam = naam; toonArchiefBalk(); render(true);
+}
+function nieuwSeizoenHtml() {
+  const nu = actiefSeizoen(), volgende = nu && /^\d{4}$/.test(nu.naam) ? String(+nu.naam + 1) : '';
+  return `<div class="nieuwseizoen"><b>Nieuw seizoen starten</b>
+      <p class="hint">De indeling van alle percelen (wat er staat, sporen, vakken, aantal planten) en het logboek van ${esc(nu?.naam || 'nu')} blijven bewaard en kun je altijd terugkijken.</p>
+      <label>Naam</label><input class="veld" id="szNaam" value="${esc(volgende)}" placeholder="bijv. 2027 of Najaar 2026">
+      <label class="vinkje"><input type="checkbox" id="szLeeg" checked> Planten-indeling leegmaken voor het nieuwe seizoen</label>
+      <label class="vinkje"><input type="checkbox" id="szMee" checked> Open taken meenemen naar het nieuwe seizoen</label>
+      <label class="vinkje"><input type="checkbox" id="szAan" checked> Uitgeschakelde percelen weer inschakelen</label>
+      <button class="knop" onclick="startSeizoen()">Nieuw seizoen starten</button></div>`;
+}
+function htmlSeizoenen() {
+  if (!seizoenStats) laadSeizoenStats();
+  const hist = ziet('historie_bekijken'), beheer = mag('seizoen_starten') || (isBeheerder() && !archief);
+  // hectare per gewas van het seizoen dat je nu bekijkt
+  const perPlant = new Map();
+  S.percelen.filter(p => !p.uitgeschakeld).forEach(p => teeltOppervlak(p).forEach((x, id) => { const t = teelt(id); if (t) perPlant.set(t.plantId, (perPlant.get(t.plantId) || 0) + x.m2); }));
+  const gewassen = [...perPlant.entries()].sort((a, b) => b[1] - a[1]).map(([id, m2]) => { const s = soort(id);
+    return `<div class="inforij"><span><i class="kl" style="background:${esc(s.kleur)}"></i>${icoonHtml(plantIcoon(s))} ${esc(s.naam)}</span><b>${ha(m2)} ha</b></div>`; }).join('');
+  return `<section class="kaartje"><h4>📅 Seizoenen</h4>
+    ${[...S.seizoenen].reverse().map(s => { const st = seizoenStats?.[s.id];
+      return `<div class="seizoenrij ${s.id === bekeken ? 'bekeken' : ''}">
+        <div class="t"><b>${esc(s.naam)}</b> ${s.actief ? '<span class="badge">huidig</span>' : ''}${s.id === bekeken && !s.actief ? '<span class="badge archiefbadge">je bekijkt dit</span>' : ''}<br>
+          <small>gestart ${new Date(s.gestart).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short', year: 'numeric'})}${s.gestart_door ? ' door ' + esc(s.gestart_door) : ''}
+          ${st ? ` · ✓ ${st.klaar} gedaan${st.open ? ` · ${st.open} open` : ''}` : ''}</small></div>
+        ${s.id !== bekeken && (hist || s.actief) ? `<button class="knop klein licht" onclick="bekijkSeizoen('${s.id}')">${s.actief ? 'Terug' : 'Bekijken'}</button>` : ''}
+        ${mag('seizoen_starten') || (isBeheerder() && !archief) ? `<button class="icoon" title="Naam wijzigen" onclick="hernoemSeizoen('${s.id}')">✏️</button>` : ''}
+      </div>`; }).join('')}
+  </section>
+  <section class="kaartje"><h4>🌱 Gewassen in ${esc(seizoenNaam(bekeken))}</h4>${gewassen || '<p class="hint" style="margin:0">Nog niets ingedeeld.</p>'}</section>
+  ${mag('seizoen_starten') ? `<section class="kaartje">${nieuwSeizoenHtml()}</section>` : ''}`;
+}
+function seizoenMenu() { zetTab('seizoenen'); }
+function oudSeizoenMenu() {
   const beh = mag('seizoen_starten'), nu = actiefSeizoen(), hist = ziet('historie_bekijken');
   const volgende = nu && /^\d{4}$/.test(nu.naam) ? String(+nu.naam + 1) : '';
   $('#modal').innerHTML = `<div class="dialoog groot"><h3>📅 Seizoenen</h3>
@@ -861,13 +928,7 @@ function seizoenMenu() {
   const m = $('#modal'); m.classList.add('open');
   m.querySelectorAll('[data-s]').forEach(b => b.onclick = () => bekijkSeizoen(b.dataset.s));
   $('#mNee').onclick = () => m.classList.remove('open');
-  if (beh) $('#szStart').onclick = async () => {
-    const naam = $('#szNaam').value.trim(); if (!naam) { toast('Geef het seizoen een naam', 1); return; }
-    if (!confirm(`Seizoen "${naam}" starten? Dit geldt voor iedereen.`)) return;
-    const {error} = await sb.rpc('start_seizoen', {p_naam: naam, p_leegmaken: $('#szLeeg').checked, p_open_meenemen: $('#szMee').checked, p_inschakelen: $('#szAan').checked});
-    if (error) { toast(foutTekst(error), 1); return; }
-    m.classList.remove('open'); archief = false; await laadAlles(); toast(`Seizoen ${naam} is gestart`);
-  };
+  if (beh) $('#szStart').onclick = startSeizoen;
 }
 
 /* ============ uitgevoerd werk ============ */
@@ -1939,7 +2000,7 @@ function renderPaneel() {
   $('#wie').innerHTML = `${esc(naamMe())}<br><small>${isBeheerder() ? 'Beheerder' : 'Medewerker'}</small>`;
   if (tab === 'team' && !isBeheerder()) tab = 'percelen';
   if (tab === 'tractoren' && !(ziet('tractoren_volgen') || ziet('tractor_rijden'))) tab = 'percelen';
-  $('#tabs').innerHTML = [['percelen', 'Percelen'], ['taken', 'Taken' + (open ? `<span class="tel">${open}</span>` : '')], ['soorten', 'Planten'], ...(ziet('tractoren_volgen') || ziet('tractor_rijden') ? [['tractoren', '🚜' + (S.tractoren.some(isLive) ? '<span class="tel live">' + S.tractoren.filter(isLive).length + '</span>' : '')]] : []),
+  $('#tabs').innerHTML = [['percelen', 'Percelen'], ['taken', 'Taken' + (open ? `<span class="tel">${open}</span>` : '')], ['soorten', 'Planten'], ['seizoenen', '📅'], ...(ziet('tractoren_volgen') || ziet('tractor_rijden') ? [['tractoren', '🚜' + (S.tractoren.some(isLive) ? '<span class="tel live">' + S.tractoren.filter(isLive).length + '</span>' : '')]] : []),
     ...(isBeheerder() ? [['team', 'Team']] : [])]
     .map(([k, l]) => `<button class="${tab === k ? 'aan' : ''}" onclick="zetTab('${k}')">${l}</button>`).join('');
   let h = '';
@@ -1947,6 +2008,7 @@ function renderPaneel() {
   else if (tab === 'taken') h = htmlAlleTaken();
   else if (tab === 'team') h = htmlTeam();
   else if (tab === 'tractoren') h = htmlTractoren();
+  else if (tab === 'seizoenen') h = htmlSeizoenen();
   else h = htmlSoorten();
   $('#inhoud').innerHTML = h;
   document.querySelector('.fab').style.display = mag('percelen_tekenen') ? '' : 'none';
@@ -2055,6 +2117,69 @@ function opstaandHtml(p) {
         : `<div class="opplant"><span><i style="background:${esc(t0.kleur)}"></i>${icoonHtml(t0.icoon)} <b>${esc(t0.naam)}</b></span><b>${pl(t0, lijst[0][1])}${ha(lijst[0][1].m2)} ha</b></div>`;
     }).join('')}${leeg > 1 ? `<div class="opsoort leeg"><span><i style="background:#e0e0e0"></i>Niet ingedeeld</span><span>${ha(leeg)} ha</span></div>` : ''}</div>`;
 }
+/* ---- alles over het perceel op één plek ---- */
+function htmlInfo(p) {
+  const rij = (k, v) => v === '' || v == null ? '' : `<div class="inforij"><span>${k}</span><b>${v}</b></div>`;
+  const blok = (titel, inhoud) => inhoud.trim() ? `<section class="kaartje infoblok"><h4>${titel}</h4>${inhoud}</section>` : '';
+  const opp = turf.area(p.geo), omtrek = turf.length(turf.polygonToLine ? turf.polygonToLine(p.geo) : p.geo) * 1000;
+  const [lng, lat] = turf.centroid(p.geo).geometry.coordinates;
+  const zones = alleZones(p), banen = banenVan(p), totaalSporen = zones.reduce((n, z) => n + banenVan(z).length, 0);
+  // algemeen
+  let h = blok('📋 Algemeen',
+    rij('Naam', esc(p.naam)) + rij('Soort', `${typeVan(p).icoon} ${typeVan(p).naam}`) +
+    rij('Oppervlakte', p.type === 'pand' ? Math.round(opp).toLocaleString('nl-NL') + ' m²' : `${ha(opp)} ha <small>(${Math.round(opp).toLocaleString('nl-NL')} m²)</small>`) +
+    rij('Omtrek', isFinite(omtrek) && omtrek > 0 ? Math.round(omtrek).toLocaleString('nl-NL') + ' m' : '') +
+    rij('Status', p.uitgeschakeld ? '⏸️ uitgeschakeld dit seizoen' : '✅ in gebruik') +
+    rij('Seizoen', esc(seizoenNaam(bekeken)) + (archief ? ' (archief)' : '')) +
+    rij('Midden (GPS)', `<a href="https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}" target="_blank">${lat.toFixed(5)}, ${lng.toFixed(5)}</a>`) +
+    rij('Aangemaakt door', esc(p.aangemaakt_door || '')));
+  // wat staat er
+  if (p.type !== 'pand') {
+    const tel = teeltOppervlak(p), regels = [...tel.entries()].filter(([id]) => teelt(id)).sort((a, b) => b[1].m2 - a[1].m2);
+    let planten = 0;
+    const lijst = regels.map(([id, x]) => { const t = teelt(id), a = plantAantal(p, id, x); if (a) planten += a.totaal;
+      return `<div class="inforij"><span><i class="kl" style="background:${esc(t.kleur)}"></i>${icoonHtml(t.icoon)} ${esc(t.naam)}</span>
+        <b>${ha(x.m2)} ha${x.n ? ` · ${x.n} ${x.n === 1 ? 'rij' : 'rijen'}` : x.vlak ? ' · heel vlak' : ''}${a ? ` · ≈ ${getal(Math.round(a.totaal))} pl` : ''}</b></div>`; }).join('');
+    const leeg = tel.get(null)?.m2 || 0;
+    h += blok('🌱 Wat staat er', (lijst || '<p class="hint">Nog niets ingedeeld.</p>') +
+      (leeg > 1 ? rij('Niet ingedeeld', ha(leeg) + ' ha') : '') + (planten ? rij('Totaal planten', '≈ ' + getal(Math.round(planten))) : ''));
+    // sporen
+    const s = spuitVan(p), vk = spuitvakkenVan(p);
+    h += blok('🟩 Sporen', banen.length ? rij('Richting (GPS)', `${(+p.richting || 0).toLocaleString('nl-NL', {maximumFractionDigits: 3})}°`) +
+      rij('Breedte per spoor', `${(+p.breedte).toLocaleString('nl-NL')} m`) + rij('Aantal sporen', totaalSporen) +
+      rij('Spuitsporen', spuitSet(p).size ? `${spuitSet(p).size}${s.elke ? ` (elke ${s.elke}, eerste spoor ${s.start || s.elke})` : ''}` : '') +
+      (vk.length ? `<table class="verdeling vakkentabel"><tr><td><b>Vak</b></td><td><b>Rijen</b></td><td><b>m²</b></td><td><b>Lengte</b></td></tr>${vk.map((v, i) =>
+        `<tr onclick="zoomVak('${p.id}',${i})" style="cursor:pointer"><td><b>${v.letter}</b></td><td>${v.rijen}</td><td>${Math.round(v.m2).toLocaleString('nl-NL')}</td><td>${Math.round(v.lengte)} m</td></tr>`).join('')}</table>` : '')
+      : `<p class="hint" style="margin:0">${zoneGewas(p) ? 'Geen sporen: het hele perceel heeft één gewas.' : 'Geen sporen ingesteld.'}</p>`);
+    // deelvelden
+    h += blok('▦ Deelvelden', (p.vakken || []).map(v => { const z = vakZone(p, v), n = banenVan(z).length;
+      return rij(esc(v.naam), `${z.binnen ? ha(turf.area(z.binnen)) + ' ha · ' : ''}${v.zonderSporen ? (teelt(v.gewas)?.naam ? esc(teelt(v.gewas).naam) : 'geen sporen') : `${n} sporen · ${(+v.richting).toLocaleString('nl-NL')}°`}`); }).join(''));
+  }
+  // grond & vlaggen
+  const mk = S.markeringen.filter(m => m.perceel_id === p.id);
+  h += blok('🟫 Grond en vlaggen', mk.map(m => {
+    let extra = '';
+    if (m.soort === 'kopeinde') { const g = kopeindeGeo(m); extra = `${(+m.breedte).toLocaleString('nl-NL')} m breed${g ? ' · ' + ha(turf.area(g)) + ' ha' : ''}`; }
+    else if (m.soort === 'gebied') extra = ha(turf.area(m.geo)) + ' ha';
+    return `<div class="inforij" onclick="toonMarkering('${m.id}')" style="cursor:pointer"><span>${MARK[m.soort].icoon} ${esc(m.titel)}${m.notitie ? `<small class="infonotitie">${esc(m.notitie)}</small>` : ''}</span><b>${extra}</b></div>`;
+  }).join(''));
+  // taken
+  const taken = S.taken.filter(t => betreft(t, p.id)), open = taken.filter(t => !t.klaar), bezig = open.filter(t => t.bezig_door);
+  const volgende = open.filter(t => t.gepland || t.deadline).sort((a, b) => (a.gepland || a.deadline).localeCompare(b.gepland || b.deadline))[0];
+  const laatste = taken.filter(t => t.klaar).sort((a, b) => (b.klaar_op || '').localeCompare(a.klaar_op || '')).slice(0, 5);
+  h += blok('📋 Taken', rij('Open taken', open.length) + (bezig.length ? rij('Nu bezig', bezig.map(t => `${esc(t.tekst)} (${esc(t.bezig_door)})`).join('<br>')) : '') +
+    (volgende ? rij('Eerstvolgende', `${esc(volgende.tekst)} · ${datumKort(volgende.gepland || volgende.deadline)}`) : '') +
+    rij('Afgerond dit seizoen', taken.length - open.length) +
+    (laatste.length ? `<div class="infosub">Laatst gedaan</div>` + laatste.map(t => `<div class="inforij" onclick="focusTaak('${t.id}')" style="cursor:pointer"><span>${datumKort(t.klaar_op)} · ${esc(t.tekst)}</span>
+      <b>${t.product ? esc(t.product) : ''}${t.dosering != null ? ' ' + (+t.dosering).toLocaleString('nl-NL') + ' ' + esc(t.eenheid || '') : ''}</b></div>`).join('') : ''));
+  // weer (als het al geladen is)
+  if (ziet('weer_bekijken') && weerCache[p.id]?.html) {
+    const tmp = document.createElement('div'); tmp.innerHTML = weerCache[p.id].html;
+    const nu = tmp.querySelector('.weerkop')?.innerText.replace(/\s+/g, ' ').trim(), regen = tmp.querySelector('.regentekst')?.innerHTML;
+    h += blok('🌦️ Weer', (nu ? `<div class="inforij"><span>Nu</span><b>${esc(nu)}</b></div>` : '') + (regen ? `<div class="regentekst" style="margin:4px 0 0">${regen}</div>` : ''));
+  } else if (ziet('weer_bekijken')) setTimeout(() => laadWeer(p.id).then(() => { if (actief === p.id && perceelTab === 'info') render(true); }), 0);
+  return h;
+}
 function htmlDetail(p) {
   const banen = banenVan(p), opp = turf.area(p.geo);
   const zones = alleZones(p).filter(z => banenVan(z).length), gewasZones = alleZones(p).filter(z => zoneGewas(z));
@@ -2123,7 +2248,7 @@ function htmlDetail(p) {
   }
   const bew = mag('percelen_bewerken'), uit = bew ? '' : 'disabled';
 
-  const tabs = [['weer', '🌦️', 'Weer', ziet('weer_bekijken')], ['taken', '📋', 'Taken', true],
+  const tabs = [['info', 'ℹ️', 'Info', true], ['weer', '🌦️', 'Weer', ziet('weer_bekijken')], ['taken', '📋', 'Taken', true],
     ['historie', '📒', 'Historie', ziet('historie_bekijken')], ['aanpassen', '✏️', 'Aanpassen', true]].filter(t => t[3]);
   if (!tabs.some(t => t[0] === perceelTab)) perceelTab = tabs[0][0];
   const lagen = `<div class="lagen"><span>Lagen</span>
@@ -2134,7 +2259,8 @@ function htmlDetail(p) {
     <button class="chip ${lagenVan(p.id).vlag ? 'aan' : ''}" onclick="zetLaag('${p.id}','vlag')">🚩 Vlaggen</button>
     <button class="chip ${lagenVan(p.id).taken ? 'aan' : ''}" onclick="zetLaag('${p.id}','taken')">📋 Taken</button></div>`;
   let inhoud = '';
-  if (perceelTab === 'weer') inhoud = htmlWeer(p);
+  if (perceelTab === 'info') inhoud = htmlInfo(p);
+  else if (perceelTab === 'weer') inhoud = htmlWeer(p);
   else if (perceelTab === 'taken' && takenWeergave === 'planning') inhoud = weergaveSchakel() + nieuweTaakKnoppen(`{gepland:'${dKey(planDatum)}'}`, p.id) + `<section class="kaartje">${htmlPlanning(p.id)}</section>`;
   else if (perceelTab === 'taken') inhoud = weergaveSchakel() + `<section class="kaartje"><h4>📋 Open taken</h4>
     ${nieuweTaakKnoppen('{}', p.id)}
