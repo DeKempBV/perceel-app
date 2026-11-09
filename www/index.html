@@ -237,6 +237,24 @@ textarea.veld{resize:vertical;font-family:inherit}
 .icoonraster button.aan{border-color:var(--groen2);background:var(--licht)}
 .gewasicoon{background:rgba(255,255,255,.85);border-radius:50%;display:flex!important;align-items:center;justify-content:center;font-size:18px;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .gewasicoon .ic{width:20px;height:20px}
+.labelgewas{text-align:center;font-size:15px;line-height:1.2;margin-top:1px;letter-spacing:1px}
+.labelgewas .ic{width:16px;height:16px}
+.perceel-label.alleen-iconen{background:rgba(255,255,255,.85);padding:2px 6px}
+.markvorm{display:flex;gap:3px;flex:none}
+.markvorm .mini{border:0;background:var(--licht);border-radius:8px;width:30px;height:30px;font-size:14px}
+.opstaand{background:#fff;border:1px solid var(--rand);border-radius:12px;padding:6px 10px;margin-bottom:10px;font-size:13px}
+.opplant,.opsoort{display:flex;justify-content:space-between;align-items:center;padding:3px 0}
+.opsoort{padding-left:22px;color:var(--grijs);font-size:12.5px}
+.opplant + .opplant{border-top:1px solid var(--rand)}
+.opstaand i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+.opsoort.leeg{padding-left:0;border-top:1px solid var(--rand)}
+.beplant{border-top:1px solid var(--rand);padding:8px 0}
+.beplant:first-of-type{border-top:0}
+.beplantkop{font-size:14px}.beplantkop small{color:var(--grijs)}
+.beplant label{margin-top:4px}
+.beplanttot{font-size:13px;color:var(--groen);margin-top:6px}
+.beplanttot.groot{border-top:2px solid var(--rand);padding-top:8px;font-size:14px}
+.opplanten{color:var(--grijs);font-weight:400;font-size:11.5px}
 .gewasjes{font-weight:400;font-size:14px;margin-left:2px}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
@@ -407,6 +425,7 @@ const naamMe = () => mijnProfiel()?.naam || me?.user_metadata?.naam || me?.email
 const isBeheerder = () => mijnProfiel()?.rol === 'beheerder';
 const perceel = id => S.percelen.find(p => p.id === id);
 let wijsAan = false;   // bezig met een punt aanwijzen op de kaart
+const geenSnap = l => { if (l?.eachLayer) l.eachLayer(geenSnap); if (l?.options) l.options.snapIgnore = true; return l; };   // niet op deze laag snappen
 const tekent = () => !!(map && (map.pm.globalDrawModeEnabled() || vormLaag || wijsAan));
 const TYPES = {
   veld: {naam: 'Veld', emoji: '🌾', kleur: '#f4c430'},
@@ -1118,7 +1137,7 @@ async function taakFormulier(id, direct, voor = {}) {
     tab = 'percelen'; actief = pid; render(true);
     map.fitBounds(L.geoJSON(p.geo).getBounds(), {padding: [40, 40], maxZoom: 18});
     paneelKlein();
-    map.pm.enableDraw('Polygon', {snappable: false, pathOptions: {color: '#ff00d4'}});
+    map.pm.enableDraw('Polygon', {pathOptions: {color: '#ff00d4'}});
     banner('<b>Stuk van het veld tekenen</b><br>Tik de hoeken aan van het stuk waar de taak om gaat, ook midden in het veld. Tik op het eerste punt om af te ronden.',
       [['Annuleren', () => tekenModus(false)]]);
     tekenDoel = {taak: w, id};
@@ -1383,6 +1402,7 @@ function alleLagen() {
     ${rij('kw_vlag', '🚩 Vlaggen', overal('vlag'))}
     ${rij('kw_taken', '📋 Taken (open taken op de kaart)', overal('taken'))}
     ${rij('kwNamen', '🏷️ Namen van velden', aan('_namen'))}
+    ${rij('kwGewas', '🍓 Gewas-icoontjes onder de naam', aan('_gewasIcoon'))}
     ${rij('kwOmtrek', '⬜ Omtrekken van velden', aan('_omtrek'))}
     ${rij('kwTrekkers', '🚜 Tractoren', aan('_tractoren'))}
     <div class="rij" style="margin-top:12px"><button class="knop licht" id="kwAlles">Alles aan</button><button class="knop licht" id="kwNiets">Alles uit</button></div>
@@ -1391,7 +1411,7 @@ function alleLagen() {
   const m = $('#modal'); m.classList.add('open');
   const toepassen = () => {
     weergave._g = Object.fromEntries(LAAG.map(k => [k, $('#kw_' + k).checked]));
-    weergave._namen = $('#kwNamen').checked; weergave._omtrek = $('#kwOmtrek').checked; weergave._tractoren = $('#kwTrekkers').checked;
+    weergave._namen = $('#kwNamen').checked; weergave._gewasIcoon = $('#kwGewas').checked; weergave._omtrek = $('#kwOmtrek').checked; weergave._tractoren = $('#kwTrekkers').checked;
     bewaarWeergave(); render(true);
   };
   m.querySelectorAll('input').forEach(i => i.onchange = toepassen);
@@ -1476,8 +1496,8 @@ function tekenSpuit(z) {
     const o = bn.a + bn.b / 2, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
     let lijn;
     try { const c = turf.intersect(bn.geo, rechthoek(meta, o - .15, o + .15, bn.t0 - 1, bn.t1 + 1)); lijn = c ? L.geoJSON(c) : null; } catch {}
-    L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#000', weight: 6, opacity: .35, interactive: false}).addTo(laag);
-    L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#ff6d00', weight: 3, dashArray: '10,6', interactive: false}).addTo(laag);
+    geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#000', weight: 6, opacity: .35, interactive: false})).addTo(laag);
+    geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#ff6d00', weight: 3, dashArray: '10,6', interactive: false})).addTo(laag);
   });
 }
 function spuitInvoer(z, bew) {
@@ -1516,7 +1536,7 @@ function tekenMarkering(soort) {
   weergave[actief] = {...lagenVan(actief), [soort === 'vlag' ? 'vlag' : 'grond']: true}; bewaarWeergave();
   paneelKlein();
   const M = MARK[soort];
-  map.pm.enableDraw(M.vorm, M.vorm === 'Marker' ? {markerStyle: {icon: vlagIcoon('#e53935')}} : {snappable: false});
+  map.pm.enableDraw(M.vorm, M.vorm === 'Marker' ? {markerStyle: {icon: vlagIcoon('#e53935')}} : {});
   banner(`<b>${M.icoon} ${M.naam} tekenen</b><br>${M.uitleg}`, [['Annuleren', () => tekenModus(false)]]);
   tekenDoel = soort;
 }
@@ -1556,6 +1576,95 @@ async function verwijderMarkering(id) {
   if (error) { toast(foutTekst(error), 1); return; }
   S.markeringen = S.markeringen.filter(x => x.id !== id); render(true);
 }
+/* ---- vorm van markeringen achteraf aanpassen ---- */
+function vormKnoppen(m, klein) {
+  const k = (t, f, titel) => `<button class="${klein ? 'mini' : 'knop klein licht'}" title="${titel}" onclick="event.stopPropagation();${f}('${m.id}')">${t}</button>`;
+  if (m.soort === 'vlag') return k(klein ? '✋' : '✋ Verplaatsen', 'vormMarkering', 'Verplaatsen');
+  return k(klein ? '✏️' : '✏️ Vorm', 'vormMarkering', 'Punten verslepen, toevoegen of weghalen') +
+    k(klein ? '＋' : '＋ Erbij', 'erbijMarkering', 'Een stuk erbij tekenen') + k(klein ? '✂️' : '✂️ Eraf', 'erafMarkering', 'Een stuk eraf knippen');
+}
+const lijnDelen = g => g.geometry.type === 'MultiLineString' ? g.geometry.coordinates : [g.geometry.coordinates];
+const alsLijn = delen => ({type: 'Feature', properties: {}, geometry: delen.length === 1 ? {type: 'LineString', coordinates: delen[0]} : {type: 'MultiLineString', coordinates: delen}});
+async function slaMarkGeoOp(m, geo, melding) {
+  m.geo = geo; kopCache.delete(m.id); vulCache.clear(); banenCache.clear(); stukCache.clear(); render(true);
+  const {error} = await sb.from('markeringen').update({geo}).eq('id', m.id);
+  if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1); else toast(melding);
+}
+function vormMarkering(id) {
+  const m = S.markeringen.find(x => x.id === id); if (!m || !mag('markeringen_maken')) return;
+  map.closePopup(); stopVorm(); map.pm.disableDraw(); paneelKlein();
+  if (m.soort === 'vlag') {
+    const [x, y] = m.geo.geometry.coordinates;
+    vormLaag = L.marker([y, x], {icon: vlagIcoon(m.kleur), draggable: true}).addTo(map);
+    banner('<b>✋ Vlag verplaatsen</b><br>Sleep de vlag naar de nieuwe plek.', [['Annuleren', stopVorm], ['Opslaan', () => {
+      const ll = vormLaag.getLatLng(); stopVorm();
+      slaMarkGeoOp(m, {type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: [ll.lng, ll.lat]}}, 'Vlag verplaatst'); }]]);
+    return;
+  }
+  vormLaag = L.geoJSON(m.geo, {style: {color: '#00e5ff', weight: m.soort === 'gebied' ? 3 : 5}}).getLayers()[0];
+  vormLaag.addTo(map); vormLaag.pm.enable({allowSelfIntersection: false});
+  map.fitBounds(vormLaag.getBounds(), {padding: [60, 60], maxZoom: 19});
+  banner(`<b>✏️ Vorm aanpassen: ${esc(m.titel)}</b><br>Sleep de punten. Tik op een tussenpunt om er een punt bij te maken, houd een punt ingedrukt (of rechtermuisknop) om het weg te halen.`,
+    [['Annuleren', stopVorm], ['Opslaan', () => { const geo = vormLaag.toGeoJSON(); stopVorm(); slaMarkGeoOp(m, geo, 'Vorm opgeslagen'); }]]);
+}
+function erbijMarkering(id) {
+  const m = S.markeringen.find(x => x.id === id); if (!m || !mag('markeringen_maken')) return;
+  map.closePopup(); stopVorm(); map.pm.disableDraw(); paneelKlein();
+  map.pm.enableDraw(m.soort === 'gebied' ? 'Polygon' : 'Line', {pathOptions: {color: '#00e5ff'}});
+  banner(`<b>＋ Erbij tekenen: ${esc(m.titel)}</b><br>${m.soort === 'gebied' ? 'Teken het stuk dat erbij moet. Tik op het eerste punt om af te ronden.'
+    : 'Teken het extra stuk. Begin op het eind van de bestaande lijn om hem te verlengen. Tik op het laatste punt nog een keer om af te ronden.'}`,
+    [['Annuleren', () => tekenModus(false)]]);
+  tekenDoel = {erbij: id};
+}
+function erafMarkering(id) {
+  const m = S.markeringen.find(x => x.id === id); if (!m || !mag('markeringen_maken')) return;
+  map.closePopup(); stopVorm(); map.pm.disableDraw(); paneelKlein();
+  map.pm.enableDraw('Polygon', {pathOptions: {color: '#ff1744'}});
+  banner(`<b>✂️ Eraf knippen: ${esc(m.titel)}</b><br>Teken een vlak over het stuk dat weg moet. Tik op het eerste punt om af te ronden.`,
+    [['Annuleren', () => tekenModus(false)]]);
+  tekenDoel = {eraf: id};
+}
+function voegAanMarkeringToe(id, nieuw) {
+  const m = S.markeringen.find(x => x.id === id); if (!m) return;
+  if (m.soort === 'gebied') {
+    let u = null; try { u = turf.union(m.geo, nieuw); } catch {}
+    if (!u) { toast('Samenvoegen lukte niet', 1); return; }
+    slaMarkGeoOp(m, u, 'Stuk toegevoegd'); return;
+  }
+  const delen = lijnDelen(m.geo), extra = nieuw.geometry.coordinates, d = (a, b) => turf.distance(a, b) * 1000;
+  // sluit het nieuwe stuk aan op een uiteinde als het daar begint of eindigt (binnen 3 m): dan wordt de lijn verlengd
+  let gekoppeld = false;
+  for (const deel of delen) {
+    const begin = deel[0], eind = deel[deel.length - 1];
+    if (d(eind, extra[0]) < 3) { deel.push(...extra.slice(1)); gekoppeld = true; break; }
+    if (d(eind, extra[extra.length - 1]) < 3) { deel.push(...extra.slice(0, -1).reverse()); gekoppeld = true; break; }
+    if (d(begin, extra[extra.length - 1]) < 3) { deel.unshift(...extra.slice(0, -1)); gekoppeld = true; break; }
+    if (d(begin, extra[0]) < 3) { deel.unshift(...extra.slice(1).reverse()); gekoppeld = true; break; }
+  }
+  if (!gekoppeld) delen.push(extra);
+  slaMarkGeoOp(m, alsLijn(delen), gekoppeld ? 'Lijn verlengd' : 'Stuk toegevoegd');
+}
+function knipVanMarkering(id, vlak) {
+  const m = S.markeringen.find(x => x.id === id); if (!m) return;
+  if (m.soort === 'gebied') {
+    let r = null; try { r = turf.difference(m.geo, vlak); } catch {}
+    if (!r) { toast('Dan blijft er niets over. Verwijder het gebied liever helemaal.', 1); return; }
+    slaMarkGeoOp(m, r, 'Stuk eraf geknipt'); return;
+  }
+  const over = [];
+  lijnDelen(m.geo).forEach(deel => {
+    const lijn = turf.lineString(deel);
+    let stukken = [];
+    try { stukken = turf.lineSplit(lijn, vlak).features; } catch {}
+    if (!stukken.length) stukken = [lijn];
+    stukken.forEach(s => {
+      const midden = turf.along(s, turf.length(s) / 2);
+      if (!turf.booleanPointInPolygon(midden, vlak)) over.push(s.geometry.coordinates);
+    });
+  });
+  if (!over.length) { toast('Dan blijft er niets over. Verwijder de markering liever helemaal.', 1); return; }
+  slaMarkGeoOp(m, alsLijn(over), 'Stuk eraf geknipt');
+}
 function markPopup(m) {
   let extra = '';
   if (m.soort === 'gebied') extra = `${ha(turf.area(m.geo))} ha · `;
@@ -1564,8 +1673,9 @@ function markPopup(m) {
   return `<div class="mpop"><b>${MARK[m.soort].icoon} ${esc(m.titel)}</b>
     ${m.notitie ? `<p>${esc(m.notitie).replace(/\n/g, '<br>')}</p>` : ''}
     <small>${extra}${esc(m.aangemaakt_door || '?')} · ${datumKort(m.created_at)}</small>
-    ${mag('markeringen_maken') ? `<div class="rij" style="margin-top:8px"><button class="knop klein licht" onclick="bewerkMarkering('${m.id}')">Bewerken</button>
-      <button class="knop klein rood" onclick="verwijderMarkering('${m.id}')">Verwijderen</button></div>` : ''}</div>`;
+    ${mag('markeringen_maken') ? `<div class="rij" style="margin-top:8px"><button class="knop klein licht" onclick="bewerkMarkering('${m.id}')">Gegevens</button>
+      <button class="knop klein rood" onclick="verwijderMarkering('${m.id}')">Verwijderen</button></div>
+      <div class="rij" style="margin-top:6px">${vormKnoppen(m)}</div>` : ''}</div>`;
 }
 function tekenMarkeringen() {
   markLaag.clearLayers(); markLagen = {};
@@ -1641,7 +1751,7 @@ function initKaart() {
   tractorLaag = L.layerGroup().addTo(map); locatieLaag = L.layerGroup().addTo(map);
 
   map.pm.setLang('nl');
-  map.pm.setGlobalOptions({snappable: false, allowSelfIntersection: false,
+  map.pm.setGlobalOptions({snappable: true, snapDistance: 15, allowSelfIntersection: false,
     templineStyle: {color: '#f4c430'}, hintlineStyle: {color: '#f4c430', dashArray: '5,5'}, pathOptions: {color: '#f4c430'}});
   map.on('pm:create', e => {
     const geo = e.layer.toGeoJSON(); map.removeLayer(e.layer);
@@ -1649,6 +1759,8 @@ function initKaart() {
     if (doel === 'perceel') nieuwPerceel(geo);
     else if (doel?.taak) slaTaakOp(doel.taak, geo, doel.id);
     else if (doel === 'vak') nieuwVak(geo);
+    else if (doel?.erbij) voegAanMarkeringToe(doel.erbij, geo);
+    else if (doel?.eraf) knipVanMarkering(doel.eraf, geo);
     else nieuweMarkering(doel, geo);
   });
   map.on('locationfound', e => {
@@ -1701,7 +1813,7 @@ function tekenModus(aan) {
     if (!mag('percelen_tekenen')) { toast('Je mag geen percelen tekenen', 1); return; }
     stopVorm();
     paneelKlein();
-    map.pm.enableDraw('Polygon', {snappable: true, snapDistance: 12});
+    map.pm.enableDraw('Polygon');
     banner(`<b>${typeVan({type: nieuwType}).icoon} ${typeVan({type: nieuwType}).naam} tekenen</b><br>Tik de hoeken aan. Tik op het eerste punt om af te ronden.`,
       [['Annuleren', () => tekenModus(false)]]);
   } else { map.pm.disableDraw(); banner(null); tekenDoel = 'perceel'; return; }
@@ -1717,7 +1829,7 @@ function vormAanpassen() {
   banner('<b>Vorm aanpassen</b><br>Sleep de hoekpunten. Tik op een tussenpunt om een hoek toe te voegen, houd een hoek ingedrukt om hem te verwijderen.',
     [['Annuleren', stopVorm], ['Opslaan', () => { const geo = vormLaag.toGeoJSON(); stopVorm(); wijzig(p.id, {geo}); toast('Vorm opgeslagen'); }]]);
 }
-function stopVorm() { if (vormLaag) { vormLaag.pm.disable(); map.removeLayer(vormLaag); vormLaag = null; } banner(null); }
+function stopVorm() { if (vormLaag) { try { vormLaag.pm.disable(); } catch {} try { vormLaag.dragging?.disable(); } catch {} map.removeLayer(vormLaag); vormLaag = null; } banner(null); }
 
 function kies(id) {
   actief = id; kwast = undefined; gekozenPlant = undefined; tab = 'percelen'; render(true);
@@ -1729,7 +1841,7 @@ function kies(id) {
 function renderKaart() {
   if (!map) return;
   laag.clearLayers(); pijlLaag.clearLayers(); tractorLaag.clearLayers();
-  const toonNamen = weergave._namen !== false, toonOmtrek = weergave._omtrek !== false;
+  const toonNamen = weergave._namen !== false, toonOmtrek = weergave._omtrek !== false, toonGewas = weergave._gewasIcoon !== false;
   S.percelen.forEach(p => {
     const isA = p.id === actief;
     const T = typeVan(p);
@@ -1744,10 +1856,12 @@ function renderKaart() {
       L.geoJSON(p.geo, {interactive: false, style: p.uitgeschakeld ? {color: '#9e9e9e', weight: isA ? 3 : 2, dashArray: '6,6', fill: false}
         : {color: isA ? '#ffffff' : T.kleur, weight: isA ? 3.5 : 2.5, fill: false}}).addTo(laag);
     }
-    if (toonNamen) {
+    const ic = toonGewas && !p.uitgeschakeld ? gewasIcoontjes(p, 6) : '';
+    if (toonNamen || ic) {
       const pt = turf.pointOnFeature(p.geo).geometry.coordinates;
-      L.tooltip({permanent: true, direction: 'center', className: 'perceel-label', interactive: false})
-        .setLatLng([pt[1], pt[0]]).setContent((p.type && p.type !== 'veld' ? T.icoon + ' ' : '') + esc(p.naam) + (p.uitgeschakeld ? ' ⏸️' : '')).addTo(laag);
+      const naam = toonNamen ? (p.type && p.type !== 'veld' ? T.icoon + ' ' : '') + esc(p.naam) + (p.uitgeschakeld ? ' ⏸️' : '') : '';
+      L.tooltip({permanent: true, direction: 'center', className: 'perceel-label' + (toonNamen ? '' : ' alleen-iconen'), interactive: false})
+        .setLatLng([pt[1], pt[0]]).setContent(naam + (ic ? `<div class="labelgewas">${ic}</div>` : '')).addTo(laag);
     }
   });
   tekenMarkeringen();
@@ -1766,6 +1880,7 @@ function renderKaart() {
   if (ft && perceel(ft.perceel_id) && zichtbaar(ft.perceel_id).taken) taakGebied(ft).forEach(g => L.geoJSON(g, {interactive: false,
     style: {color: '#ff00d4', weight: 3, dashArray: '8,5', fillColor: '#ff00d4', fillOpacity: .45}}).addTo(focusLaag));
   tekenTractoren();
+  [focusLaag, tractorLaag, locatieLaag, pijlLaag].forEach(g => g.eachLayer(geenSnap));
 }
 function tekenVakLetters(z) {
   if (map.getZoom() < 15) return;
@@ -1780,7 +1895,7 @@ function tekenVakLetters(z) {
 function tekenGewasVlak(z, p) {
   const id = zoneGewas(z), g = id && zoneVlak(z); if (!g) return;
   const s = teelt(id);
-  L.geoJSON(g, {style: {stroke: false, fillColor: s.kleur, fillOpacity: .6}})
+  geenSnap(L.geoJSON(g, {style: {stroke: false, fillColor: s.kleur, fillOpacity: .6}}))
     .bindTooltip(`${icoonHtml(s.icoon) || '🌱'} ${esc(s.naam)}${z._vak ? ' · ' + esc(z.naam) : ''}`, {sticky: true})
     .on('click', () => { if (!tekent()) kies(p.id); }).addTo(laag);
   if (s.icoon && map.getZoom() >= 15) {
@@ -1793,8 +1908,8 @@ function tekenZone(p, isA) {
     const stukken = stukkenVan(p, bn);
     stukken.forEach(st => {
       const s = teelt(st.id);
-      L.geoJSON(st.geo, {style: {color: isA ? '#ffffff' : '#111', weight: isA ? .9 : .4, opacity: .75,
-        fillColor: s ? s.kleur : '#ffffff', fillOpacity: s ? .62 : .06}})
+      geenSnap(L.geoJSON(st.geo, {style: {color: isA ? '#ffffff' : '#111', weight: isA ? .9 : .4, opacity: .75,
+        fillColor: s ? s.kleur : '#ffffff', fillOpacity: s ? .62 : .06}}))
         .on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); klikBaan(p, bn, ev.latlng); }).addTo(laag);
     });
     if (stukken.length > 1 && isA) {   // wissellijnen
@@ -1802,7 +1917,7 @@ function tekenZone(p, isA) {
       v.k.forEach(k => {
         const t = bn.t0 + k, a = meta.naarG([meta.n[0] * bn.a + meta.d[0] * t, meta.n[1] * bn.a + meta.d[1] * t]);
         const b = meta.naarG([meta.n[0] * (bn.a + bn.b) + meta.d[0] * t, meta.n[1] * (bn.a + bn.b) + meta.d[1] * t]);
-        L.polyline([[a[1], a[0]], [b[1], b[0]]], {color: '#ff1744', weight: 3, interactive: false}).addTo(laag);
+        geenSnap(L.polyline([[a[1], a[0]], [b[1], b[0]]], {color: '#ff1744', weight: 3, interactive: false})).addTo(laag);
       });
     }
   });
@@ -1838,10 +1953,10 @@ function renderPaneel() {
   document.getElementById('radarKnop').style.display = ziet('weer_bekijken') ? '' : 'none';
 }
 
-function gewasIcoontjes(p) {
+function gewasIcoontjes(p, max = 4) {
   const ids = new Set();
   alleZones(p).forEach(z => { if (zoneGewas(z)) ids.add(z.gewas); (z.banen || []).slice(0, banenVan(z).length).forEach(v => waarden(v).forEach(x => x && ids.add(x))); });
-  return [...new Set([...ids].map(x => teelt(x)?.icoon).filter(Boolean))].slice(0, 4).map(icoonHtml).join('');
+  return [...new Set([...ids].map(x => teelt(x)?.icoon).filter(Boolean))].slice(0, max).map(icoonHtml).join('');
 }
 function htmlLijst() {
   actief = null;
@@ -1874,6 +1989,72 @@ function kompasSVG(r) {
   </svg>`;
 }
 
+function teeltOppervlak(p) {   // per teelt (plant of soort): m², aantal sporen, hele vlakken
+  const tel = new Map();
+  alleZones(p).forEach(z => {
+    if (zoneGewas(z)) { const g = zoneVlak(z); if (g) { const x = tel.get(z.gewas) || {n: 0, m2: 0, vlak: 0}; x.m2 += turf.area(g); x.vlak++; tel.set(z.gewas, x); } return; }
+    banenVan(z).forEach(bn => {
+      const gezien = new Set();
+      stukkenVan(z, bn).forEach(st => {
+        const tl = teelt(st.id), k = tl ? tl.id : null;
+        const x = tel.get(k) || {n: 0, m2: 0, vlak: 0}; x.m2 += st.m2;
+        if (!gezien.has(k)) { x.n++; gezien.add(k); }
+        tel.set(k, x);
+      });
+    });
+  });
+  return tel;
+}
+function plantAantal(p, id, x) {   // geschat aantal planten van een teelt op dit perceel
+  const b = (p.beplanting || {})[id] || {};
+  if (+b.per_rij > 0 && x.n) return {totaal: b.per_rij * x.n, per_rij: +b.per_rij, per_m2: b.per_rij * x.n / x.m2, bron: 'rij'};
+  if (+b.per_m2 > 0) return {totaal: b.per_m2 * x.m2, per_m2: +b.per_m2, per_rij: x.n ? b.per_m2 * x.m2 / x.n : null, bron: 'm2'};
+  return null;
+}
+const getal = (x, d = 0) => (+x).toLocaleString('nl-NL', {maximumFractionDigits: d});
+function zetBeplanting(id, veld, waarde) {
+  const p = perceel(actief); if (!p) return;
+  const n = parseFloat(String(waarde).replace(',', '.'));
+  const b = {...(p.beplanting || {})};
+  b[id] = isNaN(n) || n <= 0 ? {} : veld === 'per_rij' ? {per_rij: n} : {per_m2: n};   // je vult er één in, de andere rekent de app uit
+  wijzig(p.id, {beplanting: b});
+}
+function beplantingHtml(p) {
+  const regels = [...teeltOppervlak(p).entries()].filter(([id]) => teelt(id)).sort((a, b) => b[1].m2 - a[1].m2);
+  if (!regels.length) return '';
+  const bew = mag('soorten_indelen');
+  let totaal = 0;
+  const rijen = regels.map(([id, x]) => {
+    const t = teelt(id), a = plantAantal(p, id, x), b = (p.beplanting || {})[id] || {};
+    if (a) totaal += a.totaal;
+    return `<div class="beplant"><div class="beplantkop">${icoonHtml(t.icoon)} <b>${esc(t.naam)}</b> <small>${ha(x.m2)} ha${x.n ? ' · ' + x.n + (x.n === 1 ? ' rij' : ' rijen') : ''}</small></div>
+      <div class="raster2">
+        ${x.n ? `<div><label>Planten per rij</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" min="0" step="any"
+          value="${b.per_rij || ''}" placeholder="${a && a.bron !== 'rij' && a.per_rij ? '≈ ' + getal(a.per_rij) : 'bijv. 800'}" onchange="zetBeplanting('${id}','per_rij',this.value)"></div>` : ''}
+        <div><label>Planten per m²</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" min="0" step="any"
+          value="${b.per_m2 || ''}" placeholder="${a && a.bron !== 'm2' ? '≈ ' + getal(a.per_m2, 1) : 'bijv. 4'}" onchange="zetBeplanting('${id}','per_m2',this.value)"></div>
+      </div>
+      ${a ? `<div class="beplanttot">≈ <b>${getal(Math.round(a.totaal))}</b> planten</div>` : ''}</div>`;
+  }).join('');
+  return `<section class="kaartje"><h4>🌱 Aantal planten</h4>
+    <p class="hint" style="margin-top:0">Vul per soort in hoeveel planten er ongeveer <b>per rij</b> of <b>per m²</b> staan. De app rekent de andere maat en het totaal uit.</p>
+    ${rijen}${totaal ? `<div class="beplanttot groot">Totaal op dit perceel: ≈ <b>${getal(Math.round(totaal))}</b> planten</div>` : ''}</section>`;
+}
+function opstaandHtml(p) {
+  const tel = teeltOppervlak(p), regels = [...tel.entries()].filter(([id]) => teelt(id)).sort((a, b) => b[1].m2 - a[1].m2);
+  if (!regels.length) return '';
+  const perPlant = new Map();
+  regels.forEach(([id, x]) => { const t = teelt(id); perPlant.set(t.plantId, (perPlant.get(t.plantId) || []).concat([[t, x]])); });
+  const leeg = tel.get(null)?.m2 || 0;
+  const pl = (t, x) => { const a = plantAantal(p, t.id, x); return a ? `<small class="opplanten">${getal(Math.round(a.totaal))} pl · </small>` : ''; };
+  return `<div class="opstaand">${[...perPlant.values()].map(lijst => {
+      const t0 = lijst[0][0], plant = soort(t0.plantId), tot = lijst.reduce((s, [, x]) => s + x.m2, 0);
+      return lijst.length > 1 || lijst[0][0].id !== t0.plantId
+        ? `<div class="opplant"><span><i style="background:${esc(plant.kleur)}"></i>${icoonHtml(plantIcoon(plant))} <b>${esc(plant.naam)}</b></span><b>${ha(tot)} ha</b></div>` +
+          lijst.map(([t, x]) => `<div class="opsoort"><span><i style="background:${esc(t.kleur)}"></i>${esc(t.naam.split(' – ')[1] || 'algemeen')}</span><span>${pl(t, x)}${ha(x.m2)} ha</span></div>`).join('')
+        : `<div class="opplant"><span><i style="background:${esc(t0.kleur)}"></i>${icoonHtml(t0.icoon)} <b>${esc(t0.naam)}</b></span><b>${pl(t0, lijst[0][1])}${ha(lijst[0][1].m2)} ha</b></div>`;
+    }).join('')}${leeg > 1 ? `<div class="opsoort leeg"><span><i style="background:#e0e0e0"></i>Niet ingedeeld</span><span>${ha(leeg)} ha</span></div>` : ''}</div>`;
+}
 function htmlDetail(p) {
   const banen = banenVan(p), opp = turf.area(p.geo);
   const zones = alleZones(p).filter(z => banenVan(z).length), gewasZones = alleZones(p).filter(z => zoneGewas(z));
@@ -1993,6 +2174,7 @@ function htmlDetail(p) {
   </section>
   ${htmlVakken(p, mag('deelvelden_bewerken'))}`}
   ${soortenBlok}
+  ${p.type !== 'pand' ? beplantingHtml(p) : ''}
   ${htmlMarkeringen(p, 'grond')}
   ${htmlMarkeringen(p, 'vlag')}
   ${mag('percelen_uitschakelen') || mag('percelen_verwijderen') ? `<section class="kaartje"><h4>Beheer</h4>
@@ -2007,6 +2189,7 @@ function htmlDetail(p) {
   <div class="stats"><div><b>${p.type === 'pand' ? Math.round(opp).toLocaleString('nl-NL') : ha(opp)}</b><small>${p.type === 'pand' ? 'm²' : 'hectare'}</small></div>
     <div><b>${totaalSporen || '–'}</b><small>sporen</small></div>
     <div><b>${open.length}</b><small>open taken</small></div></div>
+  ${p.type !== 'pand' && !p.uitgeschakeld ? opstaandHtml(p) : ''}
   <div class="ptabs">${tabs.map(([k, i, l]) => `<button class="${perceelTab === k ? 'aan' : ''}" onclick="perceelTab='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
   ${lagen}
   ${inhoud}`;
@@ -2034,7 +2217,7 @@ function tekenVak() {
   if (!mag('deelvelden_bewerken')) return;
   stopVorm(); map.pm.disableDraw();
   paneelKlein();
-  map.pm.enableDraw('Polygon', {snappable: false, pathOptions: {color: '#ffffff'}});
+  map.pm.enableDraw('Polygon', {pathOptions: {color: '#ffffff'}});
   banner('<b>▦ Deelveld tekenen</b><br>Tik de hoeken van het deelveld aan, ook midden in het veld. Tik op het eerste punt om af te ronden.',
     [['Annuleren', () => tekenModus(false)]]);
   tekenDoel = 'vak';
@@ -2078,7 +2261,7 @@ function htmlMarkeringen(p, welke) {
     ${lijst.map(m => `<div class="taak"><span class="markstip" style="background:${esc(m.kleur)}">${MARK[m.soort].icoon}</span>
       <div class="t" onclick="toonMarkering('${m.id}')" style="cursor:pointer"><span>${esc(m.titel)}</span>
       <small>${m.notitie ? esc(m.notitie.slice(0, 80)) + (m.notitie.length > 80 ? '…' : '') + ' · ' : ''}${esc(m.aangemaakt_door || '?')} · ${datumKort(m.created_at)}</small></div>
-      ${mag('markeringen_maken') ? `<button class="weg" onclick="verwijderMarkering('${m.id}')">×</button>` : ''}</div>`).join('')
+      ${mag('markeringen_maken') ? `<div class="markvorm">${vormKnoppen(m, true)}</div><button class="weg" onclick="verwijderMarkering('${m.id}')">×</button>` : ''}</div>`).join('')
       || `<p class="hint">${leeg}</p>`}
   </section>`;
 }
@@ -2130,6 +2313,8 @@ function htmlSoorten() {
   const beh = mag('soorten_beheren');
   const gebruik = plantId => S.percelen.reduce((n, p) => n + alleZones(p).reduce((m, z) =>
     m + (z.banen || []).slice(0, banenVan(z).length).filter(v => waarden(v).some(x => teelt(x)?.plantId === plantId)).length, 0), 0);
+  const totHa = (() => { const m = new Map(); S.percelen.filter(p => !p.uitgeschakeld).forEach(p => teeltOppervlak(p).forEach((x, id) => {
+    const t = teelt(id); if (t) m.set(t.plantId, (m.get(t.plantId) || 0) + x.m2); })); return m; })();
   const vlakken = plantId => S.percelen.reduce((n, p) => n + alleZones(p).filter(z => zoneGewas(z) && teelt(z.gewas)?.plantId === plantId).length, 0);
   return `<section class="kaartje"><h4>Planten</h4>
     ${S.soorten.map(s => {
@@ -2138,7 +2323,7 @@ function htmlSoorten() {
           <input type="color" value="${esc(s.kleur)}" ${beh ? '' : 'disabled'} onchange="soortKleur('${s.id}',this.value)">
           <button class="icoonkeuze" title="Icoontje kiezen" ${beh ? '' : 'disabled'} onclick="kiesIcoon('${s.id}')">${icoonHtml(plantIcoon(s)) || '＋'}</button>
           <div class="t" onclick="openPlant=${open ? 'undefined' : `'${s.id}'`};render(true)" style="cursor:pointer"><b>${esc(s.naam)}</b><br>
-            <small>${rs.length} ${rs.length === 1 ? 'soort' : 'soorten'} · ${gebruik(s.id)} sporen${vlakken(s.id) ? ' · ' + vlakken(s.id) + ' hele vlak(ken)' : ''}</small></div>
+            <small>${totHa.get(s.id) ? '<b>' + ha(totHa.get(s.id)) + ' ha</b> · ' : ''}${rs.length} ${rs.length === 1 ? 'soort' : 'soorten'} · ${gebruik(s.id)} sporen${vlakken(s.id) ? ' · ' + vlakken(s.id) + ' hele vlak(ken)' : ''}</small></div>
           <button class="icoon" onclick="openPlant=${open ? 'undefined' : `'${s.id}'`};render(true)">${open ? '▴' : '▾'}</button>
           ${beh ? `<button class="weg" title="Plant verwijderen" onclick="verwijderSoort('${s.id}')">×</button>` : ''}
         </div>
