@@ -226,6 +226,18 @@ textarea.veld{resize:vertical;font-family:inherit}
 .bezigknop.aan{background:#ff9800;border-color:#ff9800;color:#fff}
 .planregel.bezig{background:#fff8e1;border-radius:8px}
 .bezigbadge{background:#ffe0b2;color:#e65100;margin-right:4px}
+.ic{width:1.15em;height:1.15em;vertical-align:-.2em;display:inline-block}
+.typeicoon .ic{width:22px;height:22px}.typeicoon.groot .ic{width:27px;height:27px}
+.keuzes span .ic{width:34px;height:34px}
+.icoonkeuze{width:38px;height:38px;border-radius:10px;border:1.5px dashed #c8d3c4;background:#fff;font-size:21px;flex:none;display:flex;align-items:center;justify-content:center}
+.icoonkeuze .ic{width:24px;height:24px}
+.icoonraster{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:6px}
+.icoonraster button{aspect-ratio:1;border:1.5px solid var(--rand);background:#fff;border-radius:10px;font-size:24px;display:flex;align-items:center;justify-content:center}
+.icoonraster button .ic{width:28px;height:28px}
+.icoonraster button.aan{border-color:var(--groen2);background:var(--licht)}
+.gewasicoon{background:rgba(255,255,255,.85);border-radius:50%;display:flex!important;align-items:center;justify-content:center;font-size:18px;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.gewasicoon .ic{width:20px;height:20px}
+.gewasjes{font-weight:400;font-size:14px;margin-left:2px}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
 .raster2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -397,10 +409,31 @@ const perceel = id => S.percelen.find(p => p.id === id);
 let wijsAan = false;   // bezig met een punt aanwijzen op de kaart
 const tekent = () => !!(map && (map.pm.globalDrawModeEnabled() || vormLaag || wijsAan));
 const TYPES = {
-  veld: {naam: 'Veld', icoon: '🌾', kleur: '#f4c430'},
-  tray: {naam: 'Trayveld', icoon: '🧺', kleur: '#ba68c8'},
-  kas:  {naam: 'Kas', icoon: '🌿', kleur: '#4dd0e1'},
-  pand: {naam: 'Bedrijfspand', icoon: '🏭', kleur: '#ff8a65'}};
+  veld: {naam: 'Veld', emoji: '🌾', kleur: '#f4c430'},
+  tray: {naam: 'Trayveld', emoji: '▦', kleur: '#ba68c8'},
+  kas:  {naam: 'Kas', emoji: '⌂', kleur: '#4dd0e1'},
+  pand: {naam: 'Bedrijfspand', emoji: '🏭', kleur: '#ff8a65'}};
+/* ---- eigen getekende icoontjes (voor dingen zonder emoji) ---- */
+const SVGICONEN = {
+  kas: '<svg viewBox="0 0 24 24" class="ic"><path d="M2.5 11.5 12 4l9.5 7.5V20h-19z" fill="#d6f1ff" stroke="#0277bd" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 4v16M2.5 14.5h19M7.2 8v12M16.8 8v12" stroke="#0277bd" stroke-width="1.1"/><path d="M9.5 20v-3.5h5V20" fill="#81d4fa" stroke="#0277bd" stroke-width="1"/></svg>',
+  tray: '<svg viewBox="0 0 24 24" class="ic"><rect x="1.5" y="7" width="21" height="12.5" rx="2" fill="#37474f"/><g fill="#6d4c41">' +
+    [5.5, 12, 18.5].map(x => [10.6, 15.9].map(y => `<rect x="${x - 2.6}" y="${y - 2.4}" width="5.2" height="4.8" rx="1.2"/>`).join('')).join('') +
+    '</g><g fill="#7cb342">' + [5.5, 12, 18.5].map(x => [10.6, 15.9].map(y => `<path d="M${x} ${y + .5}c-.3-1.6-1.5-2.4-2.4-2.4 .2 1.3 1.2 2.2 2.4 2.4zm0 0c.3-1.6 1.5-2.4 2.4-2.4-.2 1.3-1.2 2.2-2.4 2.4z"/>`).join('')).join('') + '</g></svg>',
+  asperge: '<svg viewBox="0 0 24 24" class="ic"><g stroke-linecap="round"><path d="M7 22 9.5 6" stroke="#7cb342" stroke-width="2.4"/><path d="M12 22V4" stroke="#8bc34a" stroke-width="2.6"/><path d="M17 22 14.5 6" stroke="#7cb342" stroke-width="2.4"/></g>' +
+    '<g fill="#8e5aa8"><ellipse cx="9.6" cy="5.5" rx="1.5" ry="2.3" transform="rotate(9 9.6 5.5)"/><ellipse cx="12" cy="3.6" rx="1.6" ry="2.4"/><ellipse cx="14.4" cy="5.5" rx="1.5" ry="2.3" transform="rotate(-9 14.4 5.5)"/></g>' +
+    '<g stroke="#558b2f" stroke-width=".9"><path d="M10.3 13l1.2-.8M12 15.5l1.2-.8M13.2 11l1.1-.7"/></g></svg>',
+  rodebes: '<svg viewBox="0 0 24 24" class="ic"><path d="M5 3c4 0 6 2 7 5M12 8v2" stroke="#5d4037" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M4.5 3.5c1.8-1.6 4.5-1.4 5.5.4-2 .9-4 .7-5.5-.4z" fill="#66bb6a"/>' +
+    [[12, 11.5], [9, 14], [15, 14], [12, 16.8], [9.3, 19.4], [14.7, 19.4], [12, 21.8]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.6" fill="#d32f2f" stroke="#8e0000" stroke-width=".5"/><circle cx="${x - .8}" cy="${y - .8}" r=".7" fill="#ffcdd2"/>`).join('') + '</svg>',
+  gras: '<svg viewBox="0 0 24 24" class="ic"><g fill="#43a047"><path d="M3 21c1-5 2.5-9 2-14 2 4 2.6 9 2 14z"/><path d="M8 21c.2-6 1.6-11 4-16 .6 5-.4 11-1.4 16z"/><path d="M12.5 21c.8-4.5 2.6-8 5.4-11-.4 4.4-1.8 8-3.2 11z"/><path d="M17 21c.6-3 1.8-5.4 4-7.4-.2 3-1 5.4-2 7.4z"/></g><path d="M2 21.5h20" stroke="#6d4c41" stroke-width="1.4"/></svg>',
+  braak: '<svg viewBox="0 0 24 24" class="ic"><rect x="2" y="9" width="20" height="11" rx="2" fill="#8d6e63"/><path d="M3 12.5c3-1 6 1 9 0s6-1 9 0M3 16.5c3-1 6 1 9 0s6-1 9 0" stroke="#5d4037" stroke-width="1.2" fill="none"/></svg>'};
+TYPES.kas.icoon = SVGICONEN.kas; TYPES.tray.icoon = SVGICONEN.tray; TYPES.veld.icoon = '🌾'; TYPES.pand.icoon = '🏭';
+const icoonHtml = code => !code ? '' : code.startsWith('svg:') ? (SVGICONEN[code.slice(4)] || '') : esc(code);
+const RAAD = [[/aardappel/i, '🥔'], [/aardbei/i, '🍓'], [/asperge/i, 'svg:asperge'], [/(rode|zwarte|witte)?\s*bes(sen)?$/i, 'svg:rodebes'], [/appel/i, '🍎'], [/peer|peren/i, '🍐'],
+  [/groenbemest/i, '🌱'], [/gras/i, 'svg:gras'], [/braak/i, 'svg:braak'], [/aardappel/i, '🥔'], [/\bui(en)?\b/i, '🧅'], [/ma[iï]s/i, '🌽'],
+  [/tarwe|gerst|rogge|haver|graan/i, '🌾'], [/wortel|peen/i, '🥕'], [/sla|kool/i, '🥬'], [/kers/i, '🍒'], [/blauwe bes/i, '🫐'], [/tomaat/i, '🍅'], [/druif/i, '🍇']];
+const plantIcoon = s => s?.icoon || (RAAD.find(([r]) => r.test(s?.naam || '')) || [])[1] || '';
+const ICOONKEUZE = ['svg:asperge', 'svg:rodebes', 'svg:gras', 'svg:braak', '🍓', '🍎', '🍐', '🍒', '🫐', '🍇', '🌱', '🌿', '🍀', '🌾', '🌽', '🥔', '🧅', '🥕',
+  '🥬', '🥦', '🍅', '🥒', '🎃', '🌻', '🌷', '🌸', '🌳', '🌲', '🍄', '💐'];
 const typeVan = p => TYPES[p?.type] || TYPES.veld;
 const oppTekst = p => p.type === 'pand' ? `${Math.round(turf.area(p.geo)).toLocaleString('nl-NL')} m²` : `${ha(turf.area(p.geo))} ha`;
 let nieuwType = 'veld';
@@ -410,10 +443,10 @@ const rassenVan = pid => S.rassen.filter(r => r.soort_id === pid).sort((a, b) =>
 // Wat er op een baan staat: een hele plant of een soort van een plant
 function teelt(id) {
   if (!id) return null;
-  const pl = soort(id); if (pl) return {id, naam: pl.naam, kleur: pl.kleur, plantId: pl.id};
+  const pl = soort(id); if (pl) return {id, naam: pl.naam, kleur: pl.kleur, plantId: pl.id, icoon: plantIcoon(pl)};
   const r = ras(id); if (!r) return null;
   const p2 = soort(r.soort_id); if (!p2) return null;
-  return {id, naam: `${p2.naam} – ${r.naam}`, kleur: r.kleur || p2.kleur, plantId: p2.id};
+  return {id, naam: `${p2.naam} – ${r.naam}`, kleur: r.kleur || p2.kleur, plantId: p2.id, icoon: plantIcoon(p2)};
 }
 // Rechten
 const RECHTEN = [
@@ -643,7 +676,7 @@ async function nieuwPerceel(geo) {
   const n = S.percelen.filter(x => (x.type || 'veld') === nieuwType).length + 1;
   const w = await formulier('Naam en soort', [
     {k: 'naam', label: 'Naam', waarde: `${typeVan({type: nieuwType}).naam} ${n}`},
-    {k: 'type', label: 'Wat is het?', type: 'select', waarde: nieuwType, opties: Object.entries(TYPES).map(([k, T]) => [k, `${T.icoon} ${T.naam}`])}], 'Aanmaken');
+    {k: 'type', label: 'Wat is het?', type: 'select', waarde: nieuwType, opties: Object.entries(TYPES).map(([k, T]) => [k, `${T.emoji} ${T.naam}`])}], 'Aanmaken');
   if (!w || !w.naam) return;
   const naam = w.naam;
   const {data, error} = await sb.from('percelen').insert({naam, geo, type: w.type, aangemaakt_door: naamMe()}).select().single();
@@ -989,7 +1022,7 @@ function wijsPuntAan(tekst) {
 }
 async function verplaatsFormulier(id, voor = {}) {
   const t = id ? S.taken.find(x => x.id === id) : {...voor};
-  const locOpties = kant => [['', '— kies —'], ...S.percelen.filter(p => !p.uitgeschakeld).map(p => ['p:' + p.id, `${typeVan(p).icoon} ${p.naam}`]),
+  const locOpties = kant => [['', '— kies —'], ...S.percelen.filter(p => !p.uitgeschakeld).map(p => ['p:' + p.id, `${typeVan(p).emoji} ${p.naam}`]),
     ...(t[kant + '_punt'] ? [['bewaar', '📍 Hetzelfde punt op de kaart']] : []), ['punt', '📍 Punt op de kaart aanwijzen']];
   const locWaarde = kant => t[kant + '_punt'] ? 'bewaar' : t[kant + '_perceel'] ? 'p:' + t[kant + '_perceel'] : '';
   const velden = [
@@ -1145,6 +1178,23 @@ async function soortErbij() {
   S.soorten.sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
   openPlant = data.id; render(true);
 }
+function kiesIcoon(id) {
+  const s = soort(id); if (!s) return;
+  $('#modal').innerHTML = `<div class="dialoog groot"><h3>Icoontje voor ${esc(s.naam)}</h3>
+    <div class="icoonraster">${ICOONKEUZE.map(c => `<button data-c="${esc(c)}" class="${plantIcoon(s) === c ? 'aan' : ''}">${icoonHtml(c)}</button>`).join('')}</div>
+    <label>Of typ / plak zelf een emoji</label><div class="rij"><input class="veld" id="eigenIcoon" maxlength="8" placeholder="bijv. 🍑"><button class="knop klein" id="icOk">Gebruik</button></div>
+    <div class="rij" style="margin-top:12px"><button class="knop licht" id="icAuto">Automatisch (op naam)</button><button class="knop licht" id="mNee">Sluiten</button></div></div>`;
+  const m = $('#modal'); m.classList.add('open');
+  const zet = async c => {
+    m.classList.remove('open'); s.icoon = c || null; render(true);
+    const {error} = await sb.from('soorten').update({icoon: c || null}).eq('id', id);
+    if (error) toast(foutTekst(error), 1);
+  };
+  m.querySelectorAll('[data-c]').forEach(b => b.onclick = () => zet(b.dataset.c));
+  $('#icOk').onclick = () => { const v = $('#eigenIcoon').value.trim(); if (v) zet(v); };
+  $('#icAuto').onclick = () => zet(null);
+  $('#mNee').onclick = () => m.classList.remove('open');
+}
 async function soortKleur(id, kleur) {
   soort(id).kleur = kleur; render(true);
   const {error} = await sb.from('soorten').update({kleur}).eq('id', id);
@@ -1202,8 +1252,24 @@ function vakZone(p, v) {
     g = binnen; for (const k of kopeindenVan(p)) if (g) g = verschil(g, k);
     vulCache.set(ck, {sl, g, binnen});
   }
-  return {id: p.id + ':' + v.id, _perceel: p, _vak: v, naam: v.naam, vulgeo: g, binnen, geo: v.geo, type: p.type, banen_aan: true,
+  return {id: p.id + ':' + v.id, _perceel: p, _vak: v, naam: v.naam, vulgeo: g, binnen, geo: v.geo, type: p.type, banen_aan: !v.zonderSporen, gewas: v.gewas || null,
     richting: +v.richting || 0, breedte: +v.breedte || +p.breedte || 3, aantal: +v.aantal || 0, verschuiving: +v.verschuiving || 0, banen: v.banen || []};
+}
+const zoneVlak = z => z._vak ? z.vulgeo : vulGebied(z);            // het stuk dat bij deze zone hoort
+const zoneGewas = z => !banenVan(z).length && teelt(z.gewas) ? z.gewas : null;   // heel vlak één gewas (alleen zonder sporen)
+function zetGewas(zoneId, waarde) {
+  const p = perceel(actief), z = alleZones(p).find(x => x.id === zoneId); if (!z) return;
+  if (!z._vak) { wijzig(p.id, {gewas: waarde || null}); return; }
+  wijzig(p.id, {vakken: (p.vakken || []).map(v => v.id === z._vak.id ? {...v, gewas: waarde || null} : v)});
+}
+function zetZonderSporen(vakId, aan) {
+  const p = perceel(actief);
+  wijzig(p.id, {vakken: (p.vakken || []).map(v => v.id === vakId ? {...v, zonderSporen: aan} : v)});
+}
+function gewasKeuze(z, bew) {
+  const opties = S.soorten.flatMap(s => [[s.id, s.naam], ...rassenVan(s.id).map(r => [r.id, `${s.naam} – ${r.naam}`])]);
+  return `<select class="veld" ${bew ? '' : 'disabled'} onchange="zetGewas('${z.id}',this.value)"><option value="">— geen —</option>${opties.map(([id, n]) =>
+    `<option value="${id}" ${z.gewas === id ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
 }
 const alleZones = p => p.type === 'pand' ? [] : [p, ...(p.vakken || []).map(v => vakZone(p, v))];
 function zetBanen(z, arr) {
@@ -1671,7 +1737,7 @@ function renderKaart() {
       fillOpacity: !toonOmtrek ? 0.001 : p.type === 'pand' ? .4 : p.type === 'kas' ? .25 : isA ? .06 : .12}})
       .on('click', () => { if (!tekent()) kies(p.id); }).addTo(laag);
     const zb = zichtbaar(p.id);
-    if (!p.uitgeschakeld) alleZones(p).forEach(z => { if (zb.sporen) tekenZone(z, isA); if (zb.spuit) { tekenSpuit(z); tekenVakLetters(z); } });
+    if (!p.uitgeschakeld) alleZones(p).forEach(z => { if (zb.sporen) { tekenGewasVlak(z, p); tekenZone(z, isA); } if (zb.spuit) { tekenSpuit(z); tekenVakLetters(z); } });
     if (toonOmtrek) {
       (p.vakken || []).map(v => vakZone(p, v).binnen).filter(Boolean).forEach(g => L.geoJSON(g, {interactive: false,
         style: {color: '#ffffff', weight: isA ? 2.5 : 1.5, dashArray: '6,5', fill: false, opacity: .9}}).addTo(laag));
@@ -1706,8 +1772,21 @@ function tekenVakLetters(z) {
   spuitvakkenVan(z).forEach(v => {
     const midden = banenVan(z).find(bn => bn.nr === v.nrs[Math.floor(v.nrs.length / 2)]); if (!midden) return;
     const pt = turf.pointOnFeature(midden.geo).geometry.coordinates;
-    L.tooltip({permanent: true, direction: 'center', className: 'vak-label', interactive: false}).setLatLng([pt[1], pt[0]]).setContent(v.letter).addTo(laag);
+    const tel = {}; v.nrs.forEach(nr => waarden((z.banen || [])[nr - 1]).forEach(x => { const t = teelt(x); if (t?.icoon) tel[t.icoon] = (tel[t.icoon] || 0) + 1; }));
+    const ic = Object.entries(tel).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([c]) => icoonHtml(c)).join('');
+    L.tooltip({permanent: true, direction: 'center', className: 'vak-label', interactive: false}).setLatLng([pt[1], pt[0]]).setContent(v.letter + (ic ? ' ' + ic : '')).addTo(laag);
   });
+}
+function tekenGewasVlak(z, p) {
+  const id = zoneGewas(z), g = id && zoneVlak(z); if (!g) return;
+  const s = teelt(id);
+  L.geoJSON(g, {style: {stroke: false, fillColor: s.kleur, fillOpacity: .6}})
+    .bindTooltip(`${icoonHtml(s.icoon) || '🌱'} ${esc(s.naam)}${z._vak ? ' · ' + esc(z.naam) : ''}`, {sticky: true})
+    .on('click', () => { if (!tekent()) kies(p.id); }).addTo(laag);
+  if (s.icoon && map.getZoom() >= 15) {
+    const pt = turf.pointOnFeature(g).geometry.coordinates;
+    L.marker([pt[1], pt[0]], {interactive: false, icon: L.divIcon({className: 'gewasicoon', html: icoonHtml(s.icoon), iconSize: [30, 30], iconAnchor: [15, 15]})}).addTo(laag);
+  }
 }
 function tekenZone(p, isA) {
   banenVan(p).forEach(bn => {
@@ -1759,6 +1838,11 @@ function renderPaneel() {
   document.getElementById('radarKnop').style.display = ziet('weer_bekijken') ? '' : 'none';
 }
 
+function gewasIcoontjes(p) {
+  const ids = new Set();
+  alleZones(p).forEach(z => { if (zoneGewas(z)) ids.add(z.gewas); (z.banen || []).slice(0, banenVan(z).length).forEach(v => waarden(v).forEach(x => x && ids.add(x))); });
+  return [...new Set([...ids].map(x => teelt(x)?.icoon).filter(Boolean))].slice(0, 4).map(icoonHtml).join('');
+}
 function htmlLijst() {
   actief = null;
   if (!S.percelen.length) return seizoenKnop() + `<div class="leeg"><div class="groot">🗺️</div><b>Nog geen percelen</b>
@@ -1774,7 +1858,7 @@ function htmlLijst() {
       const n = banenVan(p).length;
       const kop = p.uitgeschakeld && !alle[i - 1]?.uitgeschakeld ? `<div class="groepkop" style="cursor:default">⏸️ Niet in gebruik dit seizoen (${uitLijst.length})</div>` : '';
       return kop + `<button class="item ${p.uitgeschakeld ? 'uit' : ''}" onclick="kies('${p.id}')"><span class="typeicoon" style="background:${typeVan(p).kleur}33">${typeVan(p).icoon}</span>
-        <span class="t"><b>${esc(p.naam)}</b><small>${typeVan(p).naam} · ${oppTekst(p)}${n ? ` · ${n} sporen` : ''}</small></span>
+        <span class="t"><b>${esc(p.naam)} <span class="gewasjes">${gewasIcoontjes(p)}</span></b><small>${typeVan(p).naam} · ${oppTekst(p)}${n ? ` · ${n} sporen` : ''}</small></span>
         ${bezig ? '<span class="badge bezigbadge">🟡 bezig</span>' : ''}${open ? `<span class="badge">${open} open</span>` : ''}<span class="pijl">›</span></button>`;
     }).join('');
 }
@@ -1792,15 +1876,17 @@ function kompasSVG(r) {
 
 function htmlDetail(p) {
   const banen = banenVan(p), opp = turf.area(p.geo);
-  const zones = alleZones(p).filter(z => banenVan(z).length);
+  const zones = alleZones(p).filter(z => banenVan(z).length), gewasZones = alleZones(p).filter(z => zoneGewas(z));
   const totaalSporen = zones.reduce((n, z) => n + banenVan(z).length, 0);
   const taken = S.taken.filter(t => betreft(t, p.id));
   const open = taken.filter(t => !t.klaar).sort((a, b) => (!!b.bezig_door - !!a.bezig_door) || (a.gepland || a.deadline || '9999').localeCompare(b.gepland || b.deadline || '9999'));
   const klaar = taken.filter(t => t.klaar).sort((a, b) => (b.klaar_op || '').localeCompare(a.klaar_op || ''));
 
   let soortenBlok = '', verdeling = '';
-  if (zones.length) {
+  if (zones.length || gewasZones.length) {
     const tel = new Map();
+    gewasZones.forEach(z => { const g = zoneVlak(z); if (!g) return; const k = z.gewas, x = tel.get(k) || {n: 0, m2: 0, vlak: 0};
+      x.m2 += turf.area(g); x.vlak++; tel.set(k, x); });
     zones.forEach(z => banenVan(z).forEach(bn => {
       const gezien = new Set();
       stukkenVan(z, bn).forEach(st => {
@@ -1812,14 +1898,14 @@ function htmlDetail(p) {
     }));
     const rijen = [...tel.entries()].sort((a, b) => b[1].m2 - a[1].m2).map(([id, x]) => {
       const s = teelt(id);
-      return `<tr><td><i style="background:${s ? esc(s.kleur) : '#e0e0e0'}"></i>${s ? esc(s.naam) : 'Niet ingedeeld'}</td>
-        <td>${x.n} sporen</td><td>${ha(x.m2)} ha</td><td>${Math.round(x.m2 / opp * 100)}%</td></tr>`;
+      return `<tr><td><i style="background:${s ? esc(s.kleur) : '#e0e0e0'}"></i>${s ? icoonHtml(s.icoon) + ' ' + esc(s.naam) : 'Niet ingedeeld'}</td>
+        <td>${x.n ? x.n + ' sporen' : ''}${x.n && x.vlak ? ' + ' : ''}${x.vlak ? 'heel vlak' : ''}</td><td>${ha(x.m2)} ha</td><td>${Math.round(x.m2 / opp * 100)}%</td></tr>`;
     }).join('');
     let indelen = '';
-    if (mag('soorten_indelen')) {
+    if (mag('soorten_indelen') && zones.length) {
       const pl = gekozenPlant ? soort(gekozenPlant) : null;
       const rs = pl ? rassenVan(pl.id) : [];
-      indelen = `<div class="chips">${S.soorten.map(s => `<button class="chip ${gekozenPlant === s.id ? 'aan' : ''}" onclick="kiesPlant('${s.id}')"><i style="background:${esc(s.kleur)}"></i>${esc(s.naam)}${rassenVan(s.id).length ? ' ▾' : ''}</button>`).join('')}
+      indelen = `<div class="chips">${S.soorten.map(s => `<button class="chip ${gekozenPlant === s.id ? 'aan' : ''}" onclick="kiesPlant('${s.id}')"><i style="background:${esc(s.kleur)}"></i>${icoonHtml(plantIcoon(s))} ${esc(s.naam)}${rassenVan(s.id).length ? ' ▾' : ''}</button>`).join('')}
           <button class="chip ${kwast === null ? 'aan' : ''}" onclick="zetKwast(null)">🧽 Wissen</button></div>
         <div class="chips" style="margin-top:8px">
           <button class="chip ${gereedschap === 'knip' ? 'aan' : ''}" onclick="zetGereedschap('knip')">✂️ Wissel halverwege</button>
@@ -1851,7 +1937,7 @@ function htmlDetail(p) {
                spuitvakkenVan(z).map((v, i) => `<button class="chip" onclick="vulVak('${z.id}',${i})">${z._vak ? esc(z.naam) + ' · ' : ''}${v.letter}</button>`).join('')).join('')}</div>` : ''}`
           : `<p class="hint">Kies een plant (en eventueel de soort) en tik daarna op de sporen op de kaart. Wisselt de plant halverwege een spoor? Gebruik dan ✂️.</p>`}`;
     }
-    soortenBlok = `<section class="kaartje"><h4>Planten per spoor</h4>${indelen}<table class="verdeling">${rijen}</table></section>`;
+    soortenBlok = `<section class="kaartje"><h4>${zones.length ? 'Planten per spoor' : '🌱 Wat staat er'}</h4>${indelen}<table class="verdeling">${rijen}</table></section>`;
     verdeling = `<section class="kaartje"><h4>🌱 Wat staat er (seizoen ${esc(seizoenNaam(bekeken))})</h4><table class="verdeling">${rijen}</table></section>`;
   }
   const bew = mag('percelen_bewerken'), uit = bew ? '' : 'disabled';
@@ -1900,6 +1986,11 @@ function htmlDetail(p) {
       ${gereedschap === 'spuit' ? '<p class="hint"><b>Tik op een spoor</b> om er een spuitspoor van te maken, of tik op een spuitspoor (oranje streep) om het weg te halen. Werkt ook in deelvelden.</p>' : ''}` : ''}
     <p class="hint">0° = noord, 90° = oost. Gebruik dezelfde hoek als in je GPS. Laat "Aantal" leeg om het hele perceel te vullen. Met "Verschuif" schuif je de sporen opzij zodat ze precies op je AB-lijn liggen.</p>
   </section>
+  <section class="kaartje"><h4>🌱 Gewas zonder sporen</h4>
+    <p class="hint" style="margin-top:0">Gebruik je op dit perceel geen sporen? Geef het dan in één keer één plant, bijvoorbeeld braak of groenbemester.
+      ${p.banen_aan ? '<b>Zet hiervoor de sporen uit</b> (knop "Sporen verbergen" hierboven).' : ''}</p>
+    ${gewasKeuze(p, mag('soorten_indelen'))}
+  </section>
   ${htmlVakken(p, mag('deelvelden_bewerken'))}`}
   ${soortenBlok}
   ${htmlMarkeringen(p, 'grond')}
@@ -1932,7 +2023,9 @@ function htmlVakken(p, bew) {
         <div><label>Richting (°)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="any" value="${+v.richting || 0}" onchange="zetVak('${v.id}','richting',this.value)"></div>
         <div><label>Breedte (m)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="0.01" value="${z.breedte}" onchange="zetVak('${v.id}','breedte',this.value)"></div>
         <div><label>Verschuif (m)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="0.1" value="${+v.verschuiving || 0}" onchange="zetVak('${v.id}','verschuiving',this.value)"></div>
-      </div>${n ? spuitInvoer(z, mag('spuitsporen_bewerken')) : ''}</div>`; }).join('')}
+      </div>${n ? spuitInvoer(z, mag('spuitsporen_bewerken')) : ''}
+      <label class="vinkje"><input type="checkbox" ${v.zonderSporen ? 'checked' : ''} ${bew ? '' : 'disabled'} onchange="zetZonderSporen('${v.id}',this.checked)"> Geen sporen: heel deelveld één gewas</label>
+      ${v.zonderSporen ? `<div style="margin-top:6px">${gewasKeuze(z, mag('soorten_indelen'))}</div>` : ''}</div>`; }).join('')}
     ${bew ? `<button class="knop licht" onclick="tekenVak()">▦ Deelveld tekenen</button>
       <p class="hint">Teken een stuk van het veld waar de sporen een andere kant op lopen (een deelveld). Het hoofdveld stopt daar automatisch.</p>` : ''}
   </section>`;
@@ -2037,13 +2130,15 @@ function htmlSoorten() {
   const beh = mag('soorten_beheren');
   const gebruik = plantId => S.percelen.reduce((n, p) => n + alleZones(p).reduce((m, z) =>
     m + (z.banen || []).slice(0, banenVan(z).length).filter(v => waarden(v).some(x => teelt(x)?.plantId === plantId)).length, 0), 0);
+  const vlakken = plantId => S.percelen.reduce((n, p) => n + alleZones(p).filter(z => zoneGewas(z) && teelt(z.gewas)?.plantId === plantId).length, 0);
   return `<section class="kaartje"><h4>Planten</h4>
     ${S.soorten.map(s => {
       const rs = rassenVan(s.id), open = openPlant === s.id;
       return `<div class="soort plant">
           <input type="color" value="${esc(s.kleur)}" ${beh ? '' : 'disabled'} onchange="soortKleur('${s.id}',this.value)">
+          <button class="icoonkeuze" title="Icoontje kiezen" ${beh ? '' : 'disabled'} onclick="kiesIcoon('${s.id}')">${icoonHtml(plantIcoon(s)) || '＋'}</button>
           <div class="t" onclick="openPlant=${open ? 'undefined' : `'${s.id}'`};render(true)" style="cursor:pointer"><b>${esc(s.naam)}</b><br>
-            <small>${rs.length} ${rs.length === 1 ? 'soort' : 'soorten'} · ${gebruik(s.id)} sporen</small></div>
+            <small>${rs.length} ${rs.length === 1 ? 'soort' : 'soorten'} · ${gebruik(s.id)} sporen${vlakken(s.id) ? ' · ' + vlakken(s.id) + ' hele vlak(ken)' : ''}</small></div>
           <button class="icoon" onclick="openPlant=${open ? 'undefined' : `'${s.id}'`};render(true)">${open ? '▴' : '▾'}</button>
           ${beh ? `<button class="weg" title="Plant verwijderen" onclick="verwijderSoort('${s.id}')">×</button>` : ''}
         </div>
