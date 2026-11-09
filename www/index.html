@@ -355,6 +355,100 @@ textarea.veld{resize:vertical;font-family:inherit}
 #toast.toon{opacity:1;transform:translate(-50%,0)}
 #toast.fout{background:var(--rood)}
 
+/* agenda: groot scherm */
+#agenda{position:fixed;inset:0;z-index:3000;background:#f4f7f2;display:none;flex-direction:column;padding-top:env(safe-area-inset-top)}
+#agenda.open{display:flex}
+.agkop{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;background:var(--groen);color:#fff;padding:10px 16px}
+.agtitel{font-weight:800;font-size:19px}
+.agtitel small{font-weight:500;opacity:.8;font-size:13px}
+.agkop .schakel{margin:0;background:rgba(255,255,255,.14)}
+.agkop .schakel button{color:#dfeee0}
+.agkop .schakel button.aan{color:var(--groen)}
+.agkop .plannav{flex:1;min-width:220px}
+.agkop .plannav b{color:#fff;font-size:15px}
+.agkop .plannav button{background:rgba(255,255,255,.18);color:#fff}
+.agkop .knop{margin:0;width:auto}
+.agsluit{border:0;background:rgba(255,255,255,.18);color:#fff;width:38px;height:38px;border-radius:10px;font-size:17px;font-weight:800}
+.agtabs{display:flex;gap:4px;background:var(--groen);padding:0 16px}
+.agtabs button{border:0;background:rgba(255,255,255,.1);color:#dfeee0;font-weight:700;font-size:14px;padding:9px 16px;border-radius:10px 10px 0 0}
+.agtabs button.aan{background:#fff;color:var(--groen)}
+.agtabs .tel{display:inline-block;background:var(--geel);color:var(--groen);border-radius:9px;font-size:11px;padding:0 6px;margin-left:6px}
+.aguitleg{font-size:13px;color:var(--grijs);flex:1}
+.agfilter{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--rand)}
+.agfilter .veld{width:auto;max-width:260px;padding:7px 9px;font-size:14px}
+.agfilter .vinkje{margin:0;font-size:14px}
+.agfilter .knop{margin:0 0 0 auto;width:auto}
+.agbody{flex:1;display:flex;min-height:0}
+.agmain{flex:1;overflow:auto;padding:14px 16px}
+.agzij{width:290px;flex:none;overflow:auto;padding:12px 14px;border-left:1px solid var(--rand);background:#fff}
+.agzij h5{font-size:13px;color:var(--groen);margin:12px 0 6px}
+.agzij h5:first-child{margin-top:2px}
+.rood{color:var(--rood)!important}
+.agkaart{background:#fff;border:1px solid var(--rand);border-left:5px solid #8d6e63;border-radius:10px;padding:7px 9px;margin-bottom:6px;cursor:pointer;font-size:13px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.agkaart:hover{box-shadow:0 3px 10px rgba(20,40,20,.12)}
+.agkaart b{display:block;line-height:1.25}
+.agkaart small{display:block;color:var(--grijs);font-size:11.5px;margin-top:2px}
+.agkaart.bezig{background:#fff8e1}
+.agkaart.klaar{opacity:.6}
+.agkaart.klaar b{text-decoration:line-through}
+.agkaart.telaat{border-color:#f3b4ad}
+.agkaart[draggable=true]{cursor:grab}
+.agomschr{font-size:12.5px;color:var(--tekst);margin-top:5px;white-space:normal}
+.agweek{display:grid;grid-template-columns:repeat(7,minmax(130px,1fr));gap:8px;min-height:100%}
+.agkolom{background:#fbfcfa;border:1px solid var(--rand);border-radius:12px;padding:6px;min-height:240px}
+.agkolom.weekend{background:#f3f5f1}
+.agkolom.vandaag,.agdag.vandaag,.agcel.vandaag{border-color:var(--groen2);box-shadow:0 0 0 2px rgba(47,122,61,.18)}
+.agkolomkop{display:flex;align-items:center;gap:6px;padding:2px 2px 8px;cursor:pointer;text-transform:capitalize}
+.agkolomkop span{color:var(--grijs);font-size:12.5px}
+.agkolomkop b{font-size:20px;color:var(--groen)}
+.agkolomkop .plannieuw{width:26px;height:26px}
+.agleeg{color:var(--grijs);text-align:center;padding:30px 10px;font-size:14px}
+.agleeg.klein{padding:10px;opacity:.5}
+.agdag{background:#fbfcfa;border:1px solid var(--rand);border-radius:14px;padding:12px;min-height:60%}
+.agdagkop{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--grijs);font-size:14px}
+.agdagkop span{flex:1}
+.agraster{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.agraster .agkaart{margin:0;font-size:14px;padding:10px 12px}
+.agmaand{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.agmkop{text-align:center;font-size:12px;font-weight:700;color:var(--grijs);text-transform:uppercase}
+.agcel{background:#fff;border:1px solid var(--rand);border-radius:10px;padding:5px;min-height:108px;cursor:pointer;overflow:hidden;min-width:0}
+.agcel.anders{opacity:.45}
+.agcel:hover{border-color:var(--groen2)}
+.agcelkop{display:flex;align-items:center;gap:4px;margin-bottom:3px}
+.agcelkop b{flex:1;font-size:14px}
+.agchip{display:block;font-size:11.5px;background:var(--licht);border-left:3px solid #8d6e63;border-radius:5px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agchip.bezig{background:#fff3cd}
+.agchip.klaar{opacity:.55;text-decoration:line-through}
+.agmeer{font-size:11px;color:var(--grijs)}
+.drop{outline:3px dashed var(--groen2);outline-offset:-3px;background:#eaf5ea!important}
+.agtaakvenster{max-width:480px}
+.agtaakvenster .taak{border:0;padding:0}
+@media (max-width:900px){
+  .agzij{display:none}
+}
+@media (max-width:700px){
+  .agkop{padding:8px 10px;gap:8px}
+  .agtitel{font-size:16px}
+  .agtitel{order:1;flex:1 1 calc(100% - 60px)}
+  .agsluit{order:2}
+  .agschakel{order:3;flex:1}
+  .agkop>.knop{order:4}
+  .agkop .plannav{order:5;flex-basis:100%}
+  .aguitleg{display:none}
+  .agtabs{padding:0 10px}
+  .agtabs button{flex:1;padding:9px 6px}
+  .agfilter{padding:8px 10px}
+  .agfilter .veld{flex:1;min-width:0;max-width:none}
+  .agfilter .knop{margin:0;flex-basis:100%}
+  .agmain{padding:10px}
+  .agweek{grid-template-columns:1fr;min-height:0}
+  .agkolom{min-height:0}
+  .agkolomkop{padding-bottom:4px}
+  .agcel{min-height:58px;padding:3px}
+  .agchip{display:none}
+  .agcelkop b{font-size:12.5px}
+  .kop .agknop{padding:6px 7px}
+}
 /* paneel in- en uitschuiven (computer) */
 body.dicht #panel{transform:translateX(-100%)}
 body.dicht #map,body.dicht #kaartUI{left:0}
@@ -400,6 +494,7 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
     <div style="display:flex;align-items:center;gap:10px;padding:6px 0">
       <div class="logo">🌾 Perceel App</div>
       <div class="wie" id="wie"></div>
+      <button class="uit agknop" title="Agenda openen" onclick="openAgenda()">📆 Agenda</button>
       <button class="uit" title="Wachtwoord wijzigen" onclick="eigenWachtwoord()">🔑</button>
       <button class="uit" onclick="uitloggen()">Uitloggen</button>
     </div>
@@ -407,6 +502,8 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
   <div class="tabs" id="tabs"></div>
   <div class="inhoud" id="inhoud"></div>
 </div>
+
+<div id="agenda"></div>
 
 <!-- Eerste keer: koppeling met database -->
 <div class="scherm" id="setup"><div class="doos">
@@ -1151,7 +1248,8 @@ function htmlPlanning(perceelId) {
       <p class="hint">Getal = open taken, ✓ = afgerond. Tik op een dag voor de details.</p>`;
   }
   const zonder = taken.filter(t => !t.klaar && !taakDag(t));
-  return `<div class="planbalk">
+  return `<button class="knop licht" style="margin:0 0 10px" onclick="agPerceel='${perceelId || ''}';agModus=planModus;agDatum=new Date(planDatum);openAgenda()">⛶ Agenda groot openen</button>
+    <div class="planbalk">
       <div class="schakel" style="margin:0">${[['dag', 'Dag'], ['week', 'Week'], ['maand', 'Maand']].map(([k, l]) =>
         `<button class="${planModus === k ? 'aan' : ''}" onclick="planModus='${k}';render(true)">${l}</button>`).join('')}</div>
       <div class="plannav"><button onclick="planBladeren(-1)">‹</button><b>${titel}</b><button onclick="planBladeren(1)">›</button></div>
@@ -2115,6 +2213,7 @@ function renderPaneel() {
   $('#inhoud').innerHTML = h;
   document.querySelector('.fab').style.display = mag('percelen_tekenen') ? '' : 'none';
   document.getElementById('radarKnop').style.display = ziet('weer_bekijken') ? '' : 'none';
+  if (agendaOpen) renderAgenda();
 }
 
 function gewasIcoontjes(p, max = 4) {
@@ -2580,6 +2679,144 @@ function rechtenLijst(aan, attr) {
   return groepen.map(g => `<div class="rechtgroep">${g}</div>` + RECHTEN.filter(r => r[2] === g).map(([k, l]) =>
     `<label class="vinkje"><input type="checkbox" ${aan(k) ? 'checked' : ''} ${attr(k)}> ${l}</label>`).join('')).join('');
 }
+/* ============ agenda (groot scherm) ============ */
+let agTab = (() => { try { return localStorage.getItem('agTab') || 'mij'; } catch { return 'mij'; } })();
+let agendaOpen = false, agModus = 'week', agDatum = new Date(), agWie = '', agPerceel = '', agKlaar = true, agTaakId = null;
+function openAgenda(modus) {
+  agendaOpen = true; if (modus) agModus = modus;
+  document.body.classList.add('agendaopen'); $('#agenda').classList.add('open'); renderAgenda();
+}
+function sluitAgenda() { agendaOpen = false; agTaakId = null; document.body.classList.remove('agendaopen'); $('#agenda').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && agendaOpen && !$('#modal').classList.contains('open')) sluitAgenda(); });
+function agBladeren(n) {
+  if (agModus === 'dag') agDatum = plusDagen(agDatum, n);
+  else if (agModus === 'week') agDatum = plusDagen(agDatum, 7 * n);
+  else { const x = new Date(agDatum); x.setDate(1); x.setMonth(x.getMonth() + n); agDatum = x; }
+  renderAgenda();
+}
+function agZet(k, v) { if (k === 'tab') { agTab = v; try { localStorage.setItem('agTab', v); } catch {} } if (k === 'modus') agModus = v; if (k === 'wie') agWie = v; if (k === 'perceel') agPerceel = v; if (k === 'klaar') agKlaar = v; if (k === 'datum') agDatum = v; renderAgenda(); }
+function agNaarDag(k) { agDatum = vanKey(k); agModus = 'dag'; renderAgenda(); }
+// Welke taken in beeld zijn (filter op persoon, perceel en afgerond)
+function agTaken() {
+  const prof = agWie && agWie !== 'mij' ? S.profielen.find(u => u.id === agWie) : null;
+  return S.taken.filter(t => {
+    if (!agKlaar && t.klaar) return false;
+    if (agPerceel && !betreft(t, agPerceel)) return false;
+    if (agTab === 'mij') return t.toegewezen_aan === me?.id || t.bezig_door === naamMe() || t.klaar_door === naamMe();
+    if (prof) return t.toegewezen_aan === prof.id || t.bezig_door === prof.naam || t.klaar_door === prof.naam;
+    if (agWie === 'niemand') return !t.klaar && !t.toegewezen_aan;
+    return true;
+  });
+}
+function agKaart(t, groot) {
+  const p = perceel(t.perceel_id), wie = S.profielen.find(u => u.id === t.toegewezen_aan);
+  const telaat = !t.klaar && t.deadline && t.deadline < dKey(new Date());
+  const sleep = !t.klaar && mag('taken_toevoegen') && !archief;
+  const waar = isVerplaats(t) ? `${esc(locNaam(t, 'van'))} → ${esc(locNaam(t, 'naar'))}` : p ? esc(p.naam) : '';
+  return `<div class="agkaart ${t.klaar ? 'klaar' : ''} ${t.bezig_door && !t.klaar ? 'bezig' : ''} ${telaat ? 'telaat' : ''}" style="border-left-color:${p ? typeVan(p).kleur : '#8d6e63'}"
+    ${sleep ? `draggable="true" ondragstart="agSleepStart(event,'${t.id}')"` : ''} onclick="agTaak('${t.id}')" title="${esc(t.tekst)}">
+    <b>${t.klaar ? '✓ ' : ''}${isVerplaats(t) ? '🚚 ' : ''}${esc(t.tekst)}</b>
+    ${waar ? `<small>📍 ${waar}</small>` : ''}
+    <small>${t.bezig_door && !t.klaar ? `🟡 ${esc(t.bezig_door)} is bezig` : t.klaar ? '👤 ' + esc(t.klaar_door || '?') : wie ? '👤 ' + esc(wie.naam) : '👤 nog niemand'}${telaat ? ' · <span class="rood">te laat</span>' : ''}${!t.klaar && !t.gepland && t.deadline ? ' · uiterlijk' : ''}</small>
+    ${groot && t.omschrijving ? `<div class="agomschr">${esc(t.omschrijving).replace(/\n/g, '<br>')}</div>` : ''}
+    ${groot && t.product ? `<small>🧪 ${esc(t.product)}${t.dosering != null ? ' · ' + (+t.dosering).toLocaleString('nl-NL') + ' ' + esc(t.eenheid || '') : ''}</small>` : ''}
+  </div>`;
+}
+// Slepen naar een andere dag (computer)
+function agSleepStart(e, id) { e.dataTransfer.setData('text/plain', id); e.dataTransfer.effectAllowed = 'move'; }
+function agSleepOver(e) { e.preventDefault(); e.currentTarget.classList.add('drop'); }
+function agSleepUit(e) { e.currentTarget.classList.remove('drop'); }
+async function agSleepNeer(e, k) {
+  e.preventDefault(); e.currentTarget.classList.remove('drop');
+  const t = S.taken.find(x => x.id === e.dataTransfer.getData('text/plain'));
+  if (!t || t.klaar || t.gepland === k) return;
+  const oud = t.gepland; t.gepland = k; render(true);
+  const {error} = await sb.from('taken').update({gepland: k}).eq('id', t.id);
+  if (error) { t.gepland = oud; render(true); toast('Verplaatsen mislukt: ' + foutTekst(error), 1); }
+  else toast(`"${t.tekst}" gepland op ${vanKey(k).toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})}`);
+}
+const agDrop = k => mag('taken_toevoegen') && !archief ? `ondragover="agSleepOver(event)" ondragleave="agSleepUit(event)" ondrop="agSleepNeer(event,'${k}')"` : '';
+const agNieuw = k => mag('taken_toevoegen') && !archief ? `<button class="plannieuw" title="Nieuwe taak op deze dag" onclick="event.stopPropagation();taakFormulier(null,false,{gepland:'${k}'${agPerceel ? `,perceel_id:'${agPerceel}'` : ''}${agTab === 'mij' ? `,toegewezen_aan:'${me?.id}'` : ''}})">＋</button>` : '';
+// Eén taak in een venster, met dezelfde knoppen als in de takenlijst
+function agTaakHtml(t) {
+  return `${taakHtml(t, true)}<div class="rij" style="margin-top:12px"><button class="knop licht" onclick="agOpKaart('${t.id}')">📍 Op de kaart</button><button class="knop" onclick="agTaakDicht()">Sluiten</button></div>`;
+}
+function agTaak(id) {
+  const t = S.taken.find(x => x.id === id); if (!t) return;
+  agTaakId = id;
+  $('#modal').innerHTML = `<div class="dialoog groot agtaakvenster"><div class="agtaak">${agTaakHtml(t)}</div></div>`;
+  $('#modal').classList.add('open');
+}
+function agTaakDicht() { agTaakId = null; $('#modal').classList.remove('open'); }
+function agOpKaart(id) { agTaakDicht(); sluitAgenda(); if (taakFocus !== id) focusTaak(id); else render(true); }
+function renderAgenda() {
+  if (!agendaOpen) return;
+  const el = $('#agenda'), scroll = el.querySelector('.agmain')?.scrollTop || 0;
+  const taken = agTaken(), nu = dKey(new Date()), perDag = new Map();
+  taken.forEach(t => { const k = taakDag(t); if (!k) return; if (!perDag.has(k)) perDag.set(k, []); perDag.get(k).push(t); });
+  perDag.forEach(l => l.sort((a, b) => (a.klaar - b.klaar) || (!!b.bezig_door - !!a.bezig_door) || a.tekst.localeCompare(b.tekst, 'nl')));
+  let titel, inhoud;
+  if (agModus === 'dag') {
+    const k = dKey(agDatum), l = perDag.get(k) || [];
+    titel = agDatum.toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
+    const open = l.filter(t => !t.klaar), klaar = l.filter(t => t.klaar);
+    inhoud = `<div class="agdag ${k === nu ? 'vandaag' : ''}" ${agDrop(k)}>
+      <div class="agdagkop"><span>${open.length} open${klaar.length ? ` · ${klaar.length} gedaan` : ''}</span>${agNieuw(k)}</div>
+      ${l.length ? `<div class="agraster">${l.map(t => agKaart(t, true)).join('')}</div>` : `<div class="agleeg">${agTab === 'mij' ? 'Je hebt niets op deze dag.' : 'Niets gepland op deze dag.'}</div>`}</div>`;
+  } else if (agModus === 'week') {
+    const start = maandag(agDatum), eind = plusDagen(start, 6);
+    titel = `Week ${weekNr(start)} · ${start.toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})} – ${eind.toLocaleDateString('nl-NL', {day: 'numeric', month: 'short', year: 'numeric'})}`;
+    inhoud = `<div class="agweek">${[...Array(7)].map((_, i) => { const d = plusDagen(start, i), k = dKey(d), l = perDag.get(k) || [];
+      return `<div class="agkolom ${k === nu ? 'vandaag' : ''} ${i > 4 ? 'weekend' : ''}" ${agDrop(k)}>
+        <div class="agkolomkop" onclick="agNaarDag('${k}')"><span>${d.toLocaleDateString('nl-NL', {weekday: 'short'})}</span><b>${d.getDate()}</b>${agNieuw(k)}</div>
+        ${l.map(t => agKaart(t)).join('') || '<div class="agleeg klein">–</div>'}</div>`; }).join('')}</div>`;
+  } else {
+    const eerste = new Date(agDatum.getFullYear(), agDatum.getMonth(), 1), start = maandag(eerste);
+    titel = eerste.toLocaleDateString('nl-NL', {month: 'long', year: 'numeric'});
+    let cellen = [...Array(42)].map((_, i) => { const d = plusDagen(start, i), k = dKey(d), l = perDag.get(k) || [];
+      const open = l.filter(t => !t.klaar).length, laat = l.some(t => !t.klaar && t.deadline && t.deadline < nu);
+      return {anders: d.getMonth() !== eerste.getMonth(), html: `<div class="agcel ${d.getMonth() !== eerste.getMonth() ? 'anders' : ''} ${k === nu ? 'vandaag' : ''}" ${agDrop(k)} onclick="agNaarDag('${k}')">
+        <div class="agcelkop"><b>${d.getDate()}</b>${open ? `<span class="mtel ${laat ? 'laat' : ''}">${open}</span>` : ''}</div>
+        ${l.slice(0, 4).map(t => `<span class="agchip ${t.klaar ? 'klaar' : ''} ${t.bezig_door && !t.klaar ? 'bezig' : ''}" style="border-left-color:${perceel(t.perceel_id) ? typeVan(perceel(t.perceel_id)).kleur : '#8d6e63'}"
+          ${!t.klaar && mag('taken_toevoegen') && !archief ? `draggable="true" ondragstart="event.stopPropagation();agSleepStart(event,'${t.id}')"` : ''} onclick="event.stopPropagation();agTaak('${t.id}')">${t.klaar ? '✓ ' : ''}${esc(t.tekst)}</span>`).join('')}
+        ${l.length > 4 ? `<span class="agmeer">+${l.length - 4} meer</span>` : ''}</div>`}; });
+    if (cellen.slice(35).every(c => c.anders)) cellen = cellen.slice(0, 35);
+    inhoud = `<div class="agmaand">${['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'].map(d => `<span class="agmkop">${d}</span>`).join('')}${cellen.map(c => c.html).join('')}</div>`;
+  }
+  // Zijkant: wat nog niet ingepland is en wat te laat is
+  const zonder = taken.filter(t => !t.klaar && !taakDag(t));
+  const telaat = taken.filter(t => !t.klaar && t.deadline && t.deadline < nu);
+  const bezig = taken.filter(t => !t.klaar && t.bezig_door);
+  const zij = `${bezig.length ? `<h5>🟡 Nu bezig (${bezig.length})</h5>${bezig.map(t => agKaart(t)).join('')}` : ''}
+    ${telaat.length ? `<h5 class="rood">⚠️ Te laat (${telaat.length})</h5>${telaat.map(t => agKaart(t)).join('')}` : ''}
+    <h5>📥 Nog niet ingepland (${zonder.length})</h5>${zonder.map(t => agKaart(t)).join('') || '<p class="hint">Alles heeft een datum.</p>'}
+    ${mag('taken_toevoegen') && !archief && zonder.length ? '<p class="hint">Sleep een taak naar een dag om hem in te plannen (op de computer).</p>' : ''}`;
+  const namen = [...S.profielen].sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  const mijnOpen = S.taken.filter(t => !t.klaar && (t.toegewezen_aan === me?.id || t.bezig_door === naamMe())).length;
+  el.innerHTML = `<div class="agkop">
+      <div class="agtitel">📆 ${agTab === 'mij' ? 'Mijn agenda' : 'Agenda'}${archief ? ` <small>(seizoen ${esc(seizoenNaam(bekeken))})</small>` : ''}</div>
+      <div class="schakel agschakel">${[['dag', 'Dag'], ['week', 'Week'], ['maand', 'Maand']].map(([k, l]) => `<button class="${agModus === k ? 'aan' : ''}" onclick="agZet('modus','${k}')">${l}</button>`).join('')}</div>
+      <div class="plannav"><button onclick="agBladeren(-1)">‹</button><b>${titel}</b><button onclick="agBladeren(1)">›</button></div>
+      <button class="knop licht klein" onclick="agZet('datum',new Date())">Vandaag</button>
+      <button class="agsluit" title="Sluiten (Esc)" onclick="sluitAgenda()">✕</button>
+    </div>
+    <div class="agtabs"><button class="${agTab === 'mij' ? 'aan' : ''}" onclick="agZet('tab','mij')">🙋 Mijn agenda${mijnOpen ? `<span class="tel">${mijnOpen}</span>` : ''}</button>
+      <button class="${agTab === 'alles' ? 'aan' : ''}" onclick="agZet('tab','alles')">👥 Algemeen</button></div>
+    <div class="agfilter">
+      ${agTab === 'alles' ? `<select class="veld" onchange="agZet('wie',this.value)"><option value="">👥 Iedereen</option><option value="niemand" ${agWie === 'niemand' ? 'selected' : ''}>❔ Nog niemand toegewezen</option>
+        ${namen.map(u => `<option value="${u.id}" ${agWie === u.id ? 'selected' : ''}>👤 ${esc(u.naam)}</option>`).join('')}</select>` : `<span class="aguitleg">Taken die aan jou zijn gegeven, waar je mee bezig bent of die jij hebt gedaan.</span>`}
+      <select class="veld" onchange="agZet('perceel',this.value)"><option value="">📍 Alle percelen</option>${[...S.percelen].sort((a, b) => a.naam.localeCompare(b.naam, 'nl')).map(p => `<option value="${p.id}" ${agPerceel === p.id ? 'selected' : ''}>${typeVan(p).emoji || ''} ${esc(p.naam)}</option>`).join('')}</select>
+      <label class="vinkje"><input type="checkbox" ${agKlaar ? 'checked' : ''} onchange="agZet('klaar',this.checked)"> Ook afgerond werk</label>
+      ${mag('taken_toevoegen') && !archief ? `<button class="knop klein" onclick="taakFormulier(null,false,{gepland:'${dKey(agDatum)}'${agPerceel ? `,perceel_id:'${agPerceel}'` : ''}${agTab === 'mij' ? `,toegewezen_aan:'${me?.id}'` : ''}})">＋ Nieuwe taak</button>` : ''}
+    </div>
+    <div class="agbody"><div class="agmain">${inhoud}</div><aside class="agzij">${zij}</aside></div>`;
+  el.querySelector('.agmain').scrollTop = scroll;
+  if (agTaakId && $('#modal').classList.contains('open') && $('#modal .agtaak')) {
+    const t = S.taken.find(x => x.id === agTaakId);
+    if (t) $('#modal .agtaak').innerHTML = agTaakHtml(t); else agTaakDicht();
+  }
+}
+
 /* ============ uren ============ */
 let urenPer = 'week', urenVan = '', urenTot = '', urenWie = '', urenOpen = new Set();
 const UUR = 3600000;
