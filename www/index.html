@@ -138,6 +138,50 @@ textarea.veld{resize:vertical;font-family:inherit}
 .keuzes button{background:var(--licht);border:2px solid transparent;border-radius:14px;padding:16px 4px;font-weight:700;font-size:13px;color:var(--groen)}
 .keuzes button:hover{border-color:var(--groen2)}
 .keuzes span{display:block;font-size:30px;margin-bottom:6px}
+.vak-label{background:rgba(255,255,255,.92);color:#1b241d;border:2px solid #1b241d;border-radius:8px;font-weight:900;font-size:15px;padding:1px 8px;box-shadow:none}
+.vak-label:before{display:none}
+.spuitvakken{margin-top:10px}
+.vakkentabel td{text-align:left !important}
+.vakkentabel tr:hover td{background:var(--licht)}
+.weer{background:linear-gradient(160deg,#eef6ff,#f7fbff);border-color:#d7e6f5}
+.weerkop{display:flex;align-items:center;gap:10px}
+.weericoon{font-size:34px}
+.weerkop .temp{font-size:24px;display:block;line-height:1}
+.weerkop small{color:var(--grijs);font-size:12px}
+.weerkop .vandaag{margin-left:auto;text-align:right}
+.weerkop .vandaag b{display:block;font-size:16px;color:#1565c0}
+.windpijl{display:inline-block;font-weight:900;color:#1565c0}
+.regentekst{margin:10px 0 6px;font-size:14px}
+.regengrafiek{display:flex;align-items:flex-end;gap:2px;height:54px;padding-bottom:14px;position:relative}
+.regenbalk{flex:1;height:100%;display:flex;align-items:flex-end;position:relative;background:#e3edf7;border-radius:2px}
+.regenbalk i{display:block;width:100%;background:#1e88e5;border-radius:2px}
+.regenbalk span{position:absolute;top:100%;left:0;font-size:10px;color:var(--grijs);white-space:nowrap}
+.dagen{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+.dag{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11px;background:#fff;border-radius:8px;padding:5px 2px}
+.dag b{font-size:10.5px;white-space:nowrap}
+.dag .icoontje{font-size:18px}
+.dag small{color:var(--grijs);font-size:10px}
+.dag .nat{color:#1565c0;font-weight:700}
+.bron{display:block;color:var(--grijs);font-size:10.5px;margin-top:8px}
+.rond.aan{background:#1e88e5;box-shadow:0 0 0 3px #1e88e555}
+.radarbalk{position:absolute;left:50%;transform:translateX(-50%);bottom:18px;display:none;align-items:center;gap:10px;background:#fff;border-radius:14px;
+  box-shadow:var(--schaduw);padding:8px 12px;font-size:13px;width:min(420px,calc(100% - 90px))}
+.radarbalk.open{display:flex}
+.radarbalk button{border:0;background:#1e88e5;color:#fff;border-radius:50%;width:32px;height:32px;flex:none}
+.radarbalk input{flex:1;accent-color:#1e88e5;min-width:60px}
+@media(max-width:760px){.radarbalk{left:12px;transform:none;bottom:14px;width:calc(100% - 90px)}}
+.seizoenknop{background:var(--licht);border:0;border-radius:20px;padding:6px 12px;font-weight:700;font-size:13px;color:var(--groen);margin-bottom:10px}
+.seizoenknop.archief{background:#ede7f6;color:#4527a0}
+.nieuwseizoen{background:var(--licht);border-radius:12px;padding:12px;margin:12px 0}
+#archiefBalk{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:5600;background:#4527a0;color:#fff;
+  border-radius:14px;padding:8px 8px 8px 14px;display:flex;align-items:center;gap:10px;font-size:13px;box-shadow:var(--schaduw);max-width:94%}
+#archiefBalk button{background:#fff;color:#4527a0;border:0;border-radius:9px;padding:7px 12px;font-weight:700}
+.logregel{display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid var(--rand);cursor:pointer;align-items:flex-start}
+.logregel:last-child{border-bottom:0}
+.logdatum{background:#e8f5e9;color:var(--groen);border-radius:8px;font-size:11px;font-weight:700;padding:4px 6px;white-space:nowrap;flex:none}
+.logregel .t{flex:1;min-width:0;font-size:14px}
+.logregel small{display:block;color:var(--grijs);font-size:12px;margin-top:2px}
+.logregel .opm{color:#4a544a}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
 .raster2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -235,7 +279,9 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 <div id="kaartUI">
   <div class="zoek"><input class="veld" id="zoekIn" placeholder="Zoek plaats of coördinaten…" autocomplete="off"><div class="zoekres" id="zoekRes"></div></div>
   <div class="banner" id="banner"></div>
+  <div class="radarbalk" id="radarBalk"></div>
   <div class="knoppenrechts">
+    <button class="rond" id="radarKnop" title="Buienradar: actuele neerslag" onclick="wisselRadar()">🌧️</button>
     <button class="rond" title="Kaartweergave: namen, omtrekken, lagen" onclick="alleLagen()">🗂️</button>
     <button class="rond" title="Satelliet / kaart" onclick="wisselLaag()">🗺️</button>
     <button class="rond" title="Mijn locatie" onclick="mijnLocatie()">📍</button>
@@ -295,7 +341,8 @@ const datumKort = d => d ? new Date(d).toLocaleDateString('nl-NL', {day: 'numeri
 const vandaag = () => new Date().toISOString().slice(0, 10);
 
 let sb = null, me = null, gestart = false, wachtRender = false;
-const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], profielen: []};
+const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], profielen: [], seizoenen: []};
+let bekeken = null, archief = false, livePercelen = null;   // seizoen dat je bekijkt
 let actief = null, tab = 'percelen', kwast, gereedschap, taakFocus, tekenDoel = 'perceel', markLagen = {}, gekozenPlant, openPlant, openRechten, takenFilter = 'open', vormLaag = null;
 let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, locatieLaag, basis = {}, laagModus = 'sat';
 
@@ -337,7 +384,7 @@ const RECHTEN = [
   ['tractor_rijden', 'Locatie delen als tractor (telefoon in de trekker)']];
 const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, percelen_verwijderen: false, soorten_indelen: true,
   soorten_beheren: false, taken_toevoegen: true, taken_afvinken: true, taken_verwijderen: false, markeringen_maken: true, tractor_rijden: true};
-const mag = r => isBeheerder() || !!({...STANDAARD, ...(mijnProfiel()?.rechten || {})})[r];
+const mag = r => !archief && (isBeheerder() || !!({...STANDAARD, ...(mijnProfiel()?.rechten || {})})[r]);
 // Variatie op een kleur, voor nieuwe soorten binnen een plant
 function tint(hex, i) {
   const n = parseInt(hex.slice(1), 16), f = [0.35, -0.3, 0.6, -0.5, 0.15, -0.15][i % 6];
@@ -475,10 +522,20 @@ async function opstarten() {
   if (bezig && S.tractoren.find(t => t.id === bezig)) { startRijden(bezig, true); }
   setInterval(() => { if (S.tractoren.length) { tekenTractoren(); if (tab === 'tractoren') render(); } }, 30000);   // "laatst gezien" bijwerken
 }
+const actiefSeizoen = () => S.seizoenen.find(s => s.actief);
+const seizoenNaam = id => S.seizoenen.find(s => s.id === id)?.naam || '';
+async function laadTaken() {
+  let q = sb.from('taken').select('*').order('created_at');
+  if (bekeken) q = q.eq('seizoen_id', bekeken);
+  const {data} = await q; S.taken = data || [];
+}
 async function laadAlles() {
+  const sz = await sb.from('seizoenen').select('*').order('gestart');
+  S.seizoenen = sz.data || [];
+  if (!archief) bekeken = actiefSeizoen()?.id || null;
   const [p, t, s, rs, mk, tr, pr] = await Promise.all([
     sb.from('percelen').select('*').order('naam'),
-    sb.from('taken').select('*').order('created_at'),
+    laadTaken(),
     sb.from('soorten').select('*').order('naam'),
     sb.from('rassen').select('*').order('naam'),
     sb.from('markeringen').select('*').order('created_at'),
@@ -486,10 +543,23 @@ async function laadAlles() {
     sb.from('profielen').select('*').order('naam')
   ]);
   if (p.error) toast('Database niet bereikbaar: ' + p.error.message, 1);
-  S.percelen = p.data || []; S.taken = t.data || []; S.soorten = s.data || []; S.rassen = rs.data || []; S.markeringen = mk.data || []; S.tractoren = tr.data || []; S.profielen = pr.data || [];
+  if (archief) livePercelen = p.data || []; else S.percelen = p.data || [];
+  S.soorten = s.data || []; S.rassen = rs.data || []; S.markeringen = mk.data || []; S.tractoren = tr.data || []; S.profielen = pr.data || [];
   render(true);
 }
 function verwerkLive(pl) {
+  if (pl.table === 'seizoenen') {
+    if (pl.eventType !== 'DELETE' && pl.new.actief && pl.new.id !== actiefSeizoen()?.id) toast(`Nieuw seizoen gestart: ${pl.new.naam}`);
+    laadAlles(); return;
+  }
+  if (pl.table === 'taken' && pl.eventType !== 'DELETE' && bekeken && pl.new.seizoen_id !== bekeken) {
+    S.taken = S.taken.filter(x => x.id !== pl.new.id); render(); return;
+  }
+  if (pl.table === 'percelen' && archief) {   // wijzigingen in het huidige seizoen bewaren voor straks
+    if (pl.eventType === 'DELETE') livePercelen = livePercelen.filter(x => x.id !== pl.old.id);
+    else { const i = livePercelen.findIndex(x => x.id === pl.new.id); if (i >= 0) livePercelen[i] = pl.new; else livePercelen.push(pl.new); }
+    return;
+  }
   const lijst = S[pl.table]; if (!lijst) return;
   if (pl.eventType === 'DELETE') {
     S[pl.table] = lijst.filter(x => x.id !== pl.old.id);
@@ -626,13 +696,120 @@ function knipBereik() {
 }
 
 /* taken */
+/* ============ seizoenen ============ */
+async function bekijkSeizoen(id) {
+  $('#modal').classList.remove('open');
+  const sz = S.seizoenen.find(s => s.id === id); if (!sz) return;
+  if (sz.actief) {
+    if (archief) { S.percelen = livePercelen || S.percelen; livePercelen = null; }
+    archief = false; bekeken = id; await laadTaken(); banenCache.clear(); vulCache.clear(); stukCache.clear();
+    toonArchiefBalk(); render(true); toast(`Terug in het huidige seizoen (${sz.naam})`); return;
+  }
+  const {data, error} = await sb.from('seizoen_percelen').select('perceel_id,gegevens').eq('seizoen_id', id);
+  if (error) { toast(foutTekst(error), 1); return; }
+  if (!archief) livePercelen = S.percelen;
+  archief = true; bekeken = id;
+  S.percelen = (data || []).map(r => ({...r.gegevens, id: r.perceel_id})).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  if (actief && !perceel(actief)) actief = null;
+  banenCache.clear(); vulCache.clear(); stukCache.clear(); kwast = undefined; gereedschap = undefined;
+  await laadTaken(); toonArchiefBalk(); render(true);
+  toast(`Je bekijkt seizoen ${sz.naam}`);
+}
+function toonArchiefBalk() {
+  let b = document.getElementById('archiefBalk');
+  if (!archief) { b?.remove(); return; }
+  if (!b) { b = document.createElement('div'); b.id = 'archiefBalk'; document.body.appendChild(b); }
+  b.innerHTML = `<span>📚 Seizoen <b>${esc(seizoenNaam(bekeken))}</b> · alleen bekijken</span>
+    <button onclick="bekijkSeizoen('${actiefSeizoen()?.id}')">Terug naar ${esc(actiefSeizoen()?.naam || 'nu')}</button>`;
+}
+function seizoenKnop() {
+  return `<button class="seizoenknop ${archief ? 'archief' : ''}" onclick="seizoenMenu()">📅 Seizoen ${esc(seizoenNaam(bekeken) || '–')} ${archief ? '(archief)' : ''} ▾</button>`;
+}
+function seizoenMenu() {
+  const beh = isBeheerder() && !archief, nu = actiefSeizoen();
+  const volgende = nu && /^\d{4}$/.test(nu.naam) ? String(+nu.naam + 1) : '';
+  $('#modal').innerHTML = `<div class="dialoog groot"><h3>📅 Seizoenen</h3>
+    ${[...S.seizoenen].reverse().map(s => `<div class="soort"><div class="t"><b>${esc(s.naam)}</b> ${s.actief ? '<span class="badge">huidig</span>' : ''}<br>
+      <small>gestart ${new Date(s.gestart).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short', year: 'numeric'})}${s.gestart_door ? ' door ' + esc(s.gestart_door) : ''}</small></div>
+      ${s.id === bekeken ? '<small>bekijk je nu</small>' : `<button class="knop klein licht" data-s="${s.id}">Bekijken</button>`}</div>`).join('')}
+    ${beh ? `<div class="nieuwseizoen"><b>Nieuw seizoen starten</b>
+      <p class="hint">De indeling van alle percelen (wat er staat, sporen, vakken) en het logboek van ${esc(nu?.naam || 'nu')} blijven bewaard en kun je altijd terugkijken.</p>
+      <label>Naam</label><input class="veld" id="szNaam" value="${esc(volgende)}" placeholder="bijv. 2027 of Najaar 2026">
+      <label class="vinkje"><input type="checkbox" id="szLeeg" checked> Planten-indeling leegmaken voor het nieuwe seizoen</label>
+      <label class="vinkje"><input type="checkbox" id="szMee" checked> Open taken meenemen naar het nieuwe seizoen</label>
+      <button class="knop" id="szStart">Nieuw seizoen starten</button></div>` : ''}
+    <button class="knop licht" id="mNee">Sluiten</button></div>`;
+  const m = $('#modal'); m.classList.add('open');
+  m.querySelectorAll('[data-s]').forEach(b => b.onclick = () => bekijkSeizoen(b.dataset.s));
+  $('#mNee').onclick = () => m.classList.remove('open');
+  if (beh) $('#szStart').onclick = async () => {
+    const naam = $('#szNaam').value.trim(); if (!naam) { toast('Geef het seizoen een naam', 1); return; }
+    if (!confirm(`Seizoen "${naam}" starten? Dit geldt voor iedereen.`)) return;
+    const {error} = await sb.rpc('start_seizoen', {p_naam: naam, p_leegmaken: $('#szLeeg').checked, p_open_meenemen: $('#szMee').checked});
+    if (error) { toast(foutTekst(error), 1); return; }
+    m.classList.remove('open'); archief = false; await laadAlles(); toast(`Seizoen ${naam} is gestart`);
+  };
+}
+
+/* ============ uitgevoerd werk ============ */
+const EENHEDEN = [['kg/ha', 'kg per hectare'], ['kg/m²', 'kg per m²'], ['l/ha', 'liter per hectare'], ['l/m²', 'liter per m²'],
+  ['m³/ha', 'm³ per hectare'], ['ton/ha', 'ton per hectare'], ['stuks/ha', 'stuks per hectare'], ['kg', 'kg totaal'], ['l', 'liter totaal']];
+const PRODUCTEN = ['KAS 27%', 'Kalkammonsalpeter', 'NPK 12-10-18', 'Patentkali', 'Kieseriet', 'Ureum', 'Tripelsuperfosfaat',
+  'Drijfmest', 'Vaste mest', 'Compost', 'Kalk', 'Glyfosaat', 'Fungicide', 'Insecticide', 'Herbicide'];
+const taakM2 = t => taakGebied(t).reduce((s, g) => s + turf.area(g), 0);
+function totaalTekst(t) {
+  const d = +t.dosering; if (!(d > 0) || !t.eenheid) return '';
+  const m2 = taakM2(t), ha = m2 / 10000, f = x => Math.round(x).toLocaleString('nl-NL');
+  const r = {'kg/ha': [d * ha, 'kg'], 'kg/m²': [d * m2, 'kg'], 'l/ha': [d * ha, 'liter'], 'l/m²': [d * m2, 'liter'],
+    'm³/ha': [d * ha, 'm³'], 'ton/ha': [d * ha, 'ton'], 'stuks/ha': [d * ha, 'stuks']}[t.eenheid];
+  return r ? `≈ ${r[1] === 'ton' || r[1] === 'm³' ? (Math.round(r[0] * 10) / 10).toLocaleString('nl-NL') : f(r[0])} ${r[1]} totaal op ${ha < 1 ? f(m2) + ' m²' : ha.toLocaleString('nl-NL', {maximumFractionDigits: 2}) + ' ha'}` : '';
+}
+function uitvoeringVelden(t = {}) {
+  const eerder = [...new Set(S.taken.map(x => x.product).filter(Boolean))];
+  return [
+    {k: 'product', label: 'Gebruikt product / middel (optioneel)', waarde: t.product || '', lijst: [...eerder, ...PRODUCTEN.filter(x => !eerder.includes(x))], placeholder: 'bijv. KAS 27%'},
+    {k: 'dosering', label: 'Hoeveel?', type: 'number', waarde: t.dosering ?? '', placeholder: 'bijv. 300'},
+    {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: t.eenheid || 'kg/ha', opties: EENHEDEN},
+    {k: 'klaar_datum', label: 'Uitgevoerd op', type: 'date', waarde: (t.klaar_op || new Date().toISOString()).slice(0, 10)},
+    {k: 'uitvoering', label: 'Opmerking (optioneel)', type: 'textarea', waarde: t.uitvoering || '', placeholder: 'bijv. weersomstandigheden, machine, bijzonderheden'}];
+}
+function uitvoeringPatch(w) {
+  const dos = parseFloat(String(w.dosering).replace(',', '.'));
+  return {klaar: true, klaar_door: naamMe(), klaar_op: new Date((w.klaar_datum || new Date().toISOString().slice(0, 10)) + 'T12:00:00').toISOString(),
+    product: w.product || null, dosering: isNaN(dos) ? null : dos, eenheid: isNaN(dos) ? null : w.eenheid, uitvoering: w.uitvoering || null};
+}
+async function rondAf(id) {
+  const t = S.taken.find(x => x.id === id); if (!t) return;
+  const w = await formulier(`✓ Afronden: ${t.tekst}`, uitvoeringVelden(t), 'Afronden');
+  if (!w) return;
+  const patch = uitvoeringPatch(w);
+  Object.assign(t, patch); render(true);
+  const {error} = await sb.from('taken').update(patch).eq('id', id);
+  if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1); else toast('Taak afgerond');
+}
+function logboekHtml(p) {
+  const lijst = S.taken.filter(t => t.perceel_id === p.id && t.klaar).sort((a, b) => (b.klaar_op || '').localeCompare(a.klaar_op || ''));
+  return `<section class="kaartje"><h4>📒 Logboek · seizoen ${esc(seizoenNaam(bekeken))}</h4>
+    ${mag('taken_afvinken') && mag('taken_toevoegen') ? `<button class="knop licht" style="margin:0 0 6px" onclick="taakFormulier(null, true)">✓ Werk registreren</button>` : ''}
+    ${lijst.map(t => `<div class="logregel" onclick="focusTaak('${t.id}')">
+      <div class="logdatum">${new Date(t.klaar_op).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})}</div>
+      <div class="t"><b>${esc(t.tekst)}</b>${t.product ? ` · ${esc(t.product)}` : ''}${t.dosering != null ? ` · <b>${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}</b>` : ''}
+        <small>${totaalTekst(t) ? totaalTekst(t) + ' · ' : ''}📐 ${taakWaar(t)} · 👤 ${esc(t.klaar_door || '?')}</small>
+        ${t.uitvoering ? `<small class="opm">💬 ${esc(t.uitvoering)}</small>` : ''}</div>
+      ${mag('taken_afvinken') ? `<button class="weg" title="Gegevens aanpassen" onclick="event.stopPropagation();rondAf('${t.id}')">✏️</button>` : ''}</div>`).join('')
+      || '<p class="hint">Nog niets uitgevoerd op dit perceel in dit seizoen.</p>'}
+  </section>`;
+}
+
+let w_vakken = [];
 const WERK = ['Ploegen', 'Spitten', 'Zaaien', 'Poten', 'Planten', 'Spuiten', 'Bemesten', 'Kunstmest strooien', 'Mest uitrijden',
   'Schoffelen', 'Eggen', 'Rollen', 'Aanaarden', 'Beregenen', 'Loof doodspuiten', 'Rooien', 'Oogsten', 'Maaien', 'Grondmonster nemen', 'Controleren'];
-async function taakFormulier(id) {
+async function taakFormulier(id, direct) {
   const t = id ? S.taken.find(x => x.id === id) : {};
   const pid = t.perceel_id || actief, p = perceel(pid); if (!p) return;
-  const aantal = banenVan(p).length;
-  const waar = t.gebied ? 'tekenen' : t.spoor_van ? 'sporen' : 'heel';
+  const aantal = banenVan(p).length, vakken = spuitvakkenVan(p);
+  const vakVanTaak = vakken.findIndex(v => v.van === t.spoor_van && v.tot === t.spoor_tot);
+  const waar = t.gebied ? 'tekenen' : vakVanTaak >= 0 ? 'vak' : t.spoor_van ? 'sporen' : 'heel';
   const velden = [
     {k: 'tekst', label: 'Werkzaamheden', waarde: t.tekst || '', lijst: WERK, placeholder: 'bijv. Spuiten'},
     {k: 'omschrijving', label: 'Omschrijving', type: 'textarea', waarde: t.omschrijving || '', placeholder: 'Wat moet er precies gebeuren? Middel, hoeveelheid, machine…'},
@@ -640,14 +817,18 @@ async function taakFormulier(id) {
       opties: [['', 'Nog niemand'], ...S.profielen.map(u => [u.id, u.naam + (u.id === me.id ? ' (ik)' : '')])]},
     {k: 'deadline', label: 'Uiterlijk op', type: 'date', waarde: t.deadline || ''},
     {k: 'waar', label: 'Waar op het veld?', type: 'select', waarde: waar,
-      opties: [['heel', 'Hele perceel'], ...(aantal ? [['sporen', 'Bepaalde sporen']] : []), ['tekenen', t.gebied ? 'Getekend stuk (opnieuw tekenen)' : 'Zelf een stuk tekenen']]},
+      opties: [['heel', 'Hele perceel'], ...(vakken.length ? [['vak', 'Een vak (tussen spuitpaden)']] : []), ...(aantal ? [['sporen', 'Bepaalde sporen']] : []), ['tekenen', t.gebied ? 'Getekend stuk (opnieuw tekenen)' : 'Zelf een stuk tekenen']]},
+    {k: 'vak', label: 'Welk vak?', type: 'select', waarde: vakVanTaak >= 0 ? vakVanTaak : 0,
+      opties: vakken.map((v, i) => [i, `Vak ${v.letter} · ${v.rijen} rijen · ${Math.round(v.m2).toLocaleString('nl-NL')} m²`]), als: ['waar', 'vak']},
     {k: 'spoor_van', label: `Van spoor (1–${aantal})`, type: 'number', waarde: t.spoor_van || 1, als: ['waar', 'sporen']},
     {k: 'spoor_tot', label: 'Tot en met spoor', type: 'number', waarde: t.spoor_tot || aantal, als: ['waar', 'sporen']}];
   if (id && t.gebied) velden[4].opties.splice(1, 0, ['bewaar', 'Het getekende stuk houden']), velden[4].waarde = 'bewaar';
-  const w = await formulier(id ? 'Taak bewerken' : `Nieuwe taak · ${p.naam}`, velden, id ? 'Opslaan' : 'Toevoegen');
+  w_vakken = vakken;
+  if (direct) { velden.splice(2, 2); velden.push(...uitvoeringVelden()); }   // geen 'wie/uiterlijk', wel wat er gebruikt is
+  const w = await formulier(direct ? `✓ Werk registreren · ${p.naam}` : id ? 'Taak bewerken' : `Nieuwe taak · ${p.naam}`, velden, direct ? 'Registreren' : id ? 'Opslaan' : 'Toevoegen');
   if (!w) return;
   if (!w.tekst) { toast('Vul de werkzaamheden in', 1); return; }
-  w.perceel_id = pid;
+  w.perceel_id = pid; if (direct) w.direct = true;
   if (w.waar === 'tekenen') {
     tab = 'percelen'; actief = pid; render(true);
     map.fitBounds(L.geoJSON(p.geo).getBounds(), {padding: [40, 40], maxZoom: 18});
@@ -665,9 +846,11 @@ async function slaTaakOp(w, gebied, id) {
   if (w.waar === 'sporen') {
     van = Math.max(1, parseInt(w.spoor_van) || 1); tot = Math.max(van, parseInt(w.spoor_tot) || van);
   }
+  if (w.waar === 'vak') { const v = spuitvakkenVan(perceel(w.perceel_id))[parseInt(w.vak) || 0]; if (v) { van = v.van; tot = v.tot; } }
   const rij = {perceel_id: w.perceel_id, tekst: w.tekst, omschrijving: w.omschrijving || null,
     toegewezen_aan: w.toegewezen_aan || null, deadline: w.deadline || null,
     gebied: gebied || null, spoor_van: van, spoor_tot: tot};
+  if (w.direct) { Object.assign(rij, uitvoeringPatch(w)); delete rij.toegewezen_aan; delete rij.deadline; }
   let res;
   if (id) res = await sb.from('taken').update(rij).eq('id', id).select().single();
   else res = await sb.from('taken').insert({...rij, aangemaakt_door: naamMe()}).select().single();
@@ -675,12 +858,13 @@ async function slaTaakOp(w, gebied, id) {
   const i = S.taken.findIndex(x => x.id === res.data.id);
   if (i >= 0) S.taken[i] = res.data; else S.taken.push(res.data);
   taakFocus = res.data.id; render(true);
-  toast(id ? 'Taak opgeslagen' : 'Taak toegevoegd');
+  toast(w.direct ? 'Werk geregistreerd' : id ? 'Taak opgeslagen' : 'Taak toegevoegd');
 }
 async function vinkTaak(id) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
-  const patch = t.klaar ? {klaar: false, klaar_door: null, klaar_op: null}
-                        : {klaar: true, klaar_door: naamMe(), klaar_op: new Date().toISOString()};
+  if (!t.klaar) { rondAf(id); return; }
+  if (!await bevestig('Weer openzetten?', `"${t.tekst}" gaat terug naar de open taken.`)) return;
+  const patch = {klaar: false, klaar_door: null, klaar_op: null};
   Object.assign(t, patch); render(true);
   const {error} = await sb.from('taken').update(patch).eq('id', id);
   if (error) toast('Opslaan mislukt: ' + error.message, 1);
@@ -901,6 +1085,44 @@ function spuitSet(z) {
   (s.uit || []).forEach(i => set.delete(i));
   return set;
 }
+/* Vakken: de stukken tussen twee spuitpaden (A, B, C, …) */
+const vakLetter = i => i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(64 + Math.floor(i / 26)) + String.fromCharCode(65 + i % 26);
+function spuitvakkenVan(z) {
+  const banen = banenVan(z), set = spuitSet(z), uit = [];
+  if (!set.size || !banen.length) return uit;
+  let huidig = null;
+  const sluit = () => { if (huidig && huidig.nrs.length) uit.push(huidig); huidig = null; };
+  banen.forEach(bn => {
+    if (set.has(bn.nr)) { sluit(); return; }
+    if (!huidig) huidig = {nrs: [], m2: 0, lengte: 0};
+    huidig.nrs.push(bn.nr); huidig.m2 += bn.m2; huidig.lengte = Math.max(huidig.lengte, bn.t1 - bn.t0);
+  });
+  sluit();
+  return uit.map((v, i) => ({...v, letter: vakLetter(i), van: v.nrs[0], tot: v.nrs[v.nrs.length - 1], rijen: v.nrs.length}));
+}
+function zoomVak(zoneId, i) {
+  const z = alleZones(perceel(actief)).find(x => x.id === zoneId), v = spuitvakkenVan(z)[i]; if (!v) return;
+  const geos = banenVan(z).filter(bn => v.nrs.includes(bn.nr)).map(bn => bn.geo);
+  focusLaag.clearLayers();
+  geos.forEach(g => L.geoJSON(g, {interactive: false, style: {color: '#ffffff', weight: 1, fillColor: '#00e5ff', fillOpacity: .45}}).addTo(focusLaag));
+  map.fitBounds(L.geoJSON({type: 'FeatureCollection', features: geos}).getBounds(), {padding: [50, 50], maxZoom: 19});
+  paneelKlein();
+  toast(`Vak ${v.letter}: ${v.rijen} rijen · ${Math.round(v.m2).toLocaleString('nl-NL')} m² · ${Math.round(v.lengte)} m`);
+}
+function vulVak(zoneId, i) {
+  const z = alleZones(perceel(actief)).find(x => x.id === zoneId), v = spuitvakkenVan(z)[i]; if (!v || kwast === undefined) return;
+  const arr = [...(z.banen || [])]; while (arr.length < v.tot) arr.push(null);
+  v.nrs.forEach(nr => arr[nr - 1] = kwast);
+  zetBanen(z, arr); toast(`Vak ${v.letter} ingesteld`);
+}
+function htmlSpuitvakken(z) {
+  const vk = spuitvakkenVan(z); if (!vk.length) return '';
+  return `<div class="spuitvakken"><div class="spuitkop">Vakken (tussen de spuitpaden)</div>
+    <table class="verdeling vakkentabel"><tr><td><b>Vak</b></td><td><b>Rijen</b></td><td><b>m²</b></td><td><b>Lengte</b></td></tr>
+    ${vk.map((v, i) => `<tr onclick="zoomVak('${z.id}',${i})" style="cursor:pointer"><td><b>${v.letter}</b></td><td>${v.rijen}</td>
+      <td>${Math.round(v.m2).toLocaleString('nl-NL')}</td><td>${Math.round(v.lengte)} m</td></tr>`).join('')}</table>
+    <small>Tik op een vak om het op de kaart te zien.</small></div>`;
+}
 function zetSpuit(z, s) {
   if (!z._vak) { wijzig(z.id, {spuit: s}); return; }
   const p = z._perceel;
@@ -936,11 +1158,12 @@ function tekenSpuit(z) {
 function spuitInvoer(z, bew) {
   const s = spuitVan(z), n = spuitSet(z).size, los = (s.extra || []).length + (s.uit || []).length;
   return `<div class="spuitrij"><div class="spuitkop">🚜 Spuitsporen</div>
-    <div class="raster2"><div><label>Elke hoeveel sporen</label>
+    <div class="raster2"><div><label>Elke hoeveel sporen (bijv. 20+1 = 21)</label>
       <input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="0" placeholder="bijv. 8" value="${s.elke || ''}" onchange="zetSpuitGetal('${z.id}','elke',this.value)"></div>
     <div><label>Eerste spuitspoor is spoor</label>
       <input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="1" placeholder="${s.elke || 'bijv. 4'}" value="${s.start || ''}" onchange="zetSpuitGetal('${z.id}','start',this.value)"></div></div>
-    <small>${n} spuitsporen${los ? ` · ${los} met de hand aangepast ${bew ? `· <a href="#" onclick="spuitHerstel('${z.id}');return false">herstel</a>` : ''}` : ''}</small></div>`;
+    <small>${n} spuitsporen${los ? ` · ${los} met de hand aangepast ${bew ? `· <a href="#" onclick="spuitHerstel('${z.id}');return false">herstel</a>` : ''}` : ''}</small>
+    ${htmlSpuitvakken(z)}</div>`;
 }
 
 /* ============ markeringen ============ */
@@ -1057,7 +1280,9 @@ function taakGebied(t) {
   }
   return [p.geo];
 }
-const taakWaar = t => t.gebied ? 'getekend stuk' : t.spoor_van ? (t.spoor_tot && t.spoor_tot !== t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot}` : `spoor ${t.spoor_van}`) : 'hele perceel';
+const taakWaar = t => t.gebied ? 'getekend stuk' :
+  (t.spoor_van && perceel(t.perceel_id) && spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot))
+    ? 'vak ' + spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot).letter : t.spoor_van ? (t.spoor_tot && t.spoor_tot !== t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot}` : `spoor ${t.spoor_van}`) : 'hele perceel';
 function focusTaak(id) {
   if (taakFocus === id) { taakFocus = undefined; render(true); return; }
   const t = S.taken.find(x => x.id === id); if (!t) return;
@@ -1179,7 +1404,7 @@ function renderKaart() {
       fillOpacity: !toonOmtrek ? 0.001 : p.type === 'pand' ? .4 : p.type === 'kas' ? .25 : isA ? .06 : .12}})
       .on('click', () => { if (!tekent()) kies(p.id); }).addTo(laag);
     const zb = zichtbaar(p.id);
-    alleZones(p).forEach(z => { if (zb.sporen) tekenZone(z, isA); if (zb.spuit) tekenSpuit(z); });
+    alleZones(p).forEach(z => { if (zb.sporen) tekenZone(z, isA); if (zb.spuit) { tekenSpuit(z); tekenVakLetters(z); } });
     if (toonOmtrek) {
       (p.vakken || []).map(v => vakZone(p, v).binnen).filter(Boolean).forEach(g => L.geoJSON(g, {interactive: false,
         style: {color: '#ffffff', weight: isA ? 2.5 : 1.5, dashArray: '6,5', fill: false, opacity: .9}}).addTo(laag));
@@ -1205,6 +1430,14 @@ function renderKaart() {
   if (ft && perceel(ft.perceel_id) && zichtbaar(ft.perceel_id).taken) taakGebied(ft).forEach(g => L.geoJSON(g, {interactive: false,
     style: {color: '#ff00d4', weight: 3, dashArray: '8,5', fillColor: '#ff00d4', fillOpacity: .45}}).addTo(focusLaag));
   tekenTractoren();
+}
+function tekenVakLetters(z) {
+  if (map.getZoom() < 15) return;
+  spuitvakkenVan(z).forEach(v => {
+    const midden = banenVan(z).find(bn => bn.nr === v.nrs[Math.floor(v.nrs.length / 2)]); if (!midden) return;
+    const pt = turf.pointOnFeature(midden.geo).geometry.coordinates;
+    L.tooltip({permanent: true, direction: 'center', className: 'vak-label', interactive: false}).setLatLng([pt[1], pt[0]]).setContent(v.letter).addTo(laag);
+  });
 }
 function tekenZone(p, isA) {
   banenVan(p).forEach(bn => {
@@ -1256,13 +1489,13 @@ function renderPaneel() {
 
 function htmlLijst() {
   actief = null;
-  if (!S.percelen.length) return `<div class="leeg"><div class="groot">🗺️</div><b>Nog geen percelen</b>
+  if (!S.percelen.length) return seizoenKnop() + `<div class="leeg"><div class="groot">🗺️</div><b>Nog geen percelen</b>
     Zoek je bedrijf op of zoom in op de kaart en tik op <b>＋ Toevoegen</b> om een veld, trayveld, kas of bedrijfspand te tekenen.</div>`;
   const velden = S.percelen.filter(p => p.type !== 'pand');
   const totaal = velden.reduce((s, p) => s + turf.area(p.geo), 0);
   const telT = k => S.percelen.filter(p => (p.type || 'veld') === k).length;
   const volgorde = {veld: 0, tray: 1, kas: 2, pand: 3};
-  return `<div class="samenvatting">${Object.entries(TYPES).filter(([k]) => telT(k)).map(([k, T]) => `${T.icoon} ${telT(k)} ${k === 'pand' ? (telT(k) === 1 ? 'pand' : 'panden') : k === 'kas' ? (telT(k) === 1 ? 'kas' : 'kassen') : k === 'tray' ? (telT(k) === 1 ? 'trayveld' : 'trayvelden') : (telT(k) === 1 ? 'veld' : 'velden')}`).join(' · ')} · ${ha(totaal)} ha grond</div>` +
+  return seizoenKnop() + `<div class="samenvatting">${Object.entries(TYPES).filter(([k]) => telT(k)).map(([k, T]) => `${T.icoon} ${telT(k)} ${k === 'pand' ? (telT(k) === 1 ? 'pand' : 'panden') : k === 'kas' ? (telT(k) === 1 ? 'kas' : 'kassen') : k === 'tray' ? (telT(k) === 1 ? 'trayveld' : 'trayvelden') : (telT(k) === 1 ? 'veld' : 'velden')}`).join(' · ')} · ${ha(totaal)} ha grond</div>` +
     [...S.percelen].sort((a, b) => (volgorde[a.type || 'veld'] - volgorde[b.type || 'veld']) || a.naam.localeCompare(b.naam, 'nl')).map(p => {
       const open = S.taken.filter(t => t.perceel_id === p.id && !t.klaar).length;
       const n = banenVan(p).length;
@@ -1339,20 +1572,23 @@ function htmlDetail(p) {
              <span>t/m</span><input id="totB" class="veld klein" type="number" min="1" max="${banen.length}" value="${banen.length}">
              <button class="knop klein" onclick="vulBereik()">Toepassen</button></div>
              ${zoneKeuze(p)}
-             <p class="hint">Let op: een reeks invullen zet het héle spoor op deze plant (wissels verdwijnen).</p>`
+             <p class="hint">Let op: een reeks invullen zet het héle spoor op deze plant (wissels verdwijnen).</p>
+             ${zones.some(z => spuitvakkenVan(z).length) ? `<div class="spuitkop" style="margin-top:8px">Of een heel vak in één keer:</div><div class="chips">${zones.map(z =>
+               spuitvakkenVan(z).map((v, i) => `<button class="chip" onclick="vulVak('${z.id}',${i})">${z._vak ? esc(z.naam) + ' · ' : ''}${v.letter}</button>`).join('')).join('')}</div>` : ''}`
           : `<p class="hint">Kies een plant (en eventueel de soort) en tik daarna op de sporen op de kaart. Wisselt de plant halverwege een spoor? Gebruik dan ✂️.</p>`}`;
     }
     soortenBlok = !lagenVan(p.id).sporen ? '' : `<section class="kaartje"><h4>Planten per spoor</h4>${indelen}<table class="verdeling">${rijen}</table></section>`;
   }
   const bew = mag('percelen_bewerken'), uit = bew ? '' : 'disabled';
 
-  return `<button class="terug" onclick="kies(null)">‹ Alles</button>
+  return `<div class="rij" style="justify-content:space-between;margin-bottom:8px"><button class="terug" style="margin:0" onclick="kies(null)">‹ Alles</button>${seizoenKnop()}</div>
   <div class="titel"><span class="typeicoon groot" style="background:${typeVan(p).kleur}33">${typeVan(p).icoon}</span><h2>${esc(p.naam)}</h2>${bew ? '<button class="icoon" title="Naam wijzigen" onclick="hernoem()">✏️</button>' : ''}</div>
   ${bew ? `<div class="lagen"><span>Soort</span>${Object.entries(TYPES).map(([k, T]) =>
       `<button class="chip ${(p.type || 'veld') === k ? 'aan' : ''}" onclick="wijzig(actief,{type:'${k}'})">${T.icoon} ${T.naam}</button>`).join('')}</div>` : ''}
   <div class="stats"><div><b>${p.type === 'pand' ? Math.round(opp).toLocaleString('nl-NL') : ha(opp)}</b><small>${p.type === 'pand' ? 'm²' : 'hectare'}</small></div>
     <div><b>${totaalSporen || '–'}</b><small>sporen</small></div>
     <div><b>${open.length}</b><small>open taken</small></div></div>
+  ${htmlWeer(p)}
   <div class="lagen"><span>Lagen</span>
     <button class="chip ${!LAAG.some(k => lagenVan(p.id)[k]) ? 'aan' : ''}" onclick="zetLaag('${p.id}','blanco')">⬜ Blanco</button>
     ${p.type === 'pand' ? '' : `<button class="chip ${lagenVan(p.id).sporen ? 'aan' : ''}" onclick="zetLaag('${p.id}','sporen')">🟩 Sporen</button>`}
@@ -1365,7 +1601,7 @@ function htmlDetail(p) {
     <div class="richting">${kompasSVG(+p.richting || 0)}
       <div class="flex1"><label style="margin-top:0">Richting AB-lijn (graden)</label>
         <div class="rij"><input type="range" ${uit} min="0" max="359.5" step="0.5" value="${+p.richting || 0}" oninput="liveRichting(this.value)" onchange="zetGetal('richting',this.value)">
-        <input id="richtingGetal" ${uit} class="veld klein" type="number" inputmode="decimal" step="0.1" min="0" max="360" value="${+p.richting || 0}" onchange="zetGetal('richting',this.value)"></div></div></div>
+        <input id="richtingGetal" ${uit} class="veld klein" type="number" inputmode="decimal" step="any" min="0" max="360" value="${+p.richting || 0}" onchange="zetGetal('richting',this.value)"></div></div></div>
     <div class="raster3">
       <div><label>Breedte (m)</label><input class="veld" ${uit} type="number" inputmode="decimal" step="0.01" min="0.1" value="${+p.breedte}" onchange="zetGetal('breedte',this.value)"></div>
       <div><label>Aantal sporen</label><input class="veld" ${uit} type="number" inputmode="numeric" min="0" placeholder="alles" value="${+p.aantal || ''}" onchange="zetGetal('aantal',this.value||0)"></div>
@@ -1387,9 +1623,9 @@ function htmlDetail(p) {
     ${mag('taken_toevoegen') ? `<button class="knop" style="margin:0 0 6px" onclick="taakFormulier()">＋ Nieuwe taak</button>` : ''}
     ${taken.length ? '<p class="hint" style="margin:0 0 4px">Tik op een taak om het stuk van het veld te laten oplichten.</p>' : ''}
     ${open.map(t => taakHtml(t)).join('')}
-    ${klaar.length ? `<div class="groepkop">✓ Gedaan (${klaar.length})</div>` + klaar.map(t => taakHtml(t)).join('') : ''}
-    ${!taken.length ? '<p class="hint">Nog geen taken voor dit perceel.</p>' : ''}
+    ${!open.length ? '<p class="hint">Geen open taken voor dit perceel.</p>' : ''}
   </section>`}
+  ${logboekHtml(p)}
 
   <div class="rij acties">${bew ? '<button class="knop licht" onclick="vormAanpassen()">Vorm aanpassen</button>' : ''}
     ${mag('percelen_verwijderen') ? '<button class="knop rood" onclick="verwijderPerceel()">Verwijderen</button>' : ''}</div>
@@ -1399,17 +1635,17 @@ function htmlDetail(p) {
 function htmlVakken(p, bew) {
   const vakken = p.vakken || [];
   if (!vakken.length && !bew) return '';
-  return `<section class="kaartje"><h4>Vakken met een andere richting</h4>
+  return `<section class="kaartje"><h4>Deelvelden met een andere richting</h4>
     ${vakken.map(v => { const z = vakZone(p, v), n = banenVan(z).length; return `<div class="vak">
       <div class="rij"><b style="flex:1">▦ ${esc(v.naam)}</b><small style="color:var(--grijs)">${n} sporen</small>
-        ${bew ? `<button class="weg" title="Vak verwijderen" onclick="verwijderVak('${v.id}')">×</button>` : ''}</div>
+        ${bew ? `<button class="weg" title="Deelveld verwijderen" onclick="verwijderVak('${v.id}')">×</button>` : ''}</div>
       <div class="raster3">
-        <div><label>Richting (°)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="0.1" value="${+v.richting || 0}" onchange="zetVak('${v.id}','richting',this.value)"></div>
+        <div><label>Richting (°)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="any" value="${+v.richting || 0}" onchange="zetVak('${v.id}','richting',this.value)"></div>
         <div><label>Breedte (m)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="0.01" value="${z.breedte}" onchange="zetVak('${v.id}','breedte',this.value)"></div>
         <div><label>Verschuif (m)</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="decimal" step="0.1" value="${+v.verschuiving || 0}" onchange="zetVak('${v.id}','verschuiving',this.value)"></div>
       </div>${n ? spuitInvoer(z, bew) : ''}</div>`; }).join('')}
-    ${bew ? `<button class="knop licht" onclick="tekenVak()">▦ Vak tekenen</button>
-      <p class="hint">Teken een stuk van het veld waar de sporen een andere kant op lopen. Het hoofdveld stopt daar automatisch.</p>` : ''}
+    ${bew ? `<button class="knop licht" onclick="tekenVak()">▦ Deelveld tekenen</button>
+      <p class="hint">Teken een stuk van het veld waar de sporen een andere kant op lopen (een deelveld). Het hoofdveld stopt daar automatisch.</p>` : ''}
   </section>`;
 }
 function tekenVak() {
@@ -1417,20 +1653,20 @@ function tekenVak() {
   stopVorm(); map.pm.disableDraw();
   paneelKlein();
   map.pm.enableDraw('Polygon', {snappable: false, pathOptions: {color: '#ffffff'}});
-  banner('<b>▦ Vak tekenen</b><br>Tik de hoeken van het vak aan, ook midden in het veld. Tik op het eerste punt om af te ronden.',
+  banner('<b>▦ Deelveld tekenen</b><br>Tik de hoeken van het deelveld aan, ook midden in het veld. Tik op het eerste punt om af te ronden.',
     [['Annuleren', () => tekenModus(false)]]);
   tekenDoel = 'vak';
 }
 async function nieuwVak(geo) {
   const p = perceel(actief); if (!p) return;
-  const w = await formulier('Nieuw vak', [
-    {k: 'naam', label: 'Naam', waarde: 'Vak ' + String.fromCharCode(65 + (p.vakken || []).length)},
+  const w = await formulier('Nieuw deelveld', [
+    {k: 'naam', label: 'Naam', waarde: 'Deelveld ' + ((p.vakken || []).length + 1)},
     {k: 'richting', label: 'Richting van de sporen (graden, 0° = noord)', type: 'number', waarde: ((+p.richting || 0) + 90) % 360},
     {k: 'breedte', label: 'Breedte spoor (m)', type: 'number', waarde: +p.breedte || 3},
-    {k: 'verschuiving', label: 'Verschuif (m)', type: 'number', waarde: 0}], 'Vak maken');
+    {k: 'verschuiving', label: 'Verschuif (m)', type: 'number', waarde: 0}], 'Deelveld maken');
   if (!w) return;
   const getal = (x, d) => { const n = parseFloat(String(x).replace(',', '.')); return isNaN(n) ? d : n; };
-  const vak = {id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), naam: w.naam || 'Vak', geo,
+  const vak = {id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), naam: w.naam || 'Deelveld', geo,
     richting: ((getal(w.richting, 0) % 360) + 360) % 360, breedte: Math.max(0.1, getal(w.breedte, +p.breedte || 3)), verschuiving: getal(w.verschuiving, 0), banen: []};
   weergave[p.id] = {...lagenVan(p.id), sporen: true}; bewaarWeergave();
   wijzig(p.id, {vakken: [...(p.vakken || []), vak]});
@@ -1444,7 +1680,7 @@ function zetVak(id, veld, waarde) {
 }
 async function verwijderVak(id) {
   const p = perceel(actief), v = (p.vakken || []).find(x => x.id === id);
-  if (!await bevestig('Vak verwijderen?', `"${v.naam}" verdwijnt; daar komen weer sporen van het hoofdveld.`)) return;
+  if (!await bevestig('Deelveld verwijderen?', `"${v.naam}" verdwijnt; daar komen weer sporen van het hoofdveld.`)) return;
   wijzig(p.id, {vakken: p.vakken.filter(x => x.id !== id)});
 }
 
@@ -1470,7 +1706,7 @@ function taakHtml(t, metPerceel) {
   const telaat = !t.klaar && t.deadline && t.deadline < vandaag();
   const wie = S.profielen.find(u => u.id === t.toegewezen_aan);
   const info = t.klaar
-    ? `✓ Gedaan door <b>${esc(t.klaar_door || '?')}</b> · ${datumKort(t.klaar_op)}`
+    ? `✓ Gedaan door <b>${esc(t.klaar_door || '?')}</b> · ${datumKort(t.klaar_op)}${t.product ? ' · ' + esc(t.product) : ''}${t.dosering != null ? ' · ' + (+t.dosering).toLocaleString('nl-NL') + ' ' + esc(t.eenheid || '') : ''}`
     : `${wie ? `👤 <b>${esc(wie.naam)}</b> · ` : '👤 nog niemand · '}${t.deadline ? `<span class="${telaat ? 'telaat' : ''}">📅 ${datumKort(t.deadline)}${telaat ? ' (te laat)' : ''}</span> · ` : ''}📐 ${taakWaar(t)}`;
   return `<div class="taak ${t.klaar ? 'klaar' : ''} ${taakFocus === t.id ? 'focus' : ''}"><button class="vink" ${mag('taken_afvinken') ? '' : 'disabled'} onclick="vinkTaak('${t.id}')">${t.klaar ? '✓' : ''}</button>
     <div class="t" onclick="focusTaak('${t.id}')" style="cursor:pointer"><span>${esc(t.tekst)}</span>
@@ -1843,6 +2079,110 @@ function htmlTractoren() {
       <button class="knop klein" onclick="tractorErbij()">Toevoegen</button></div>` : ''}
     <p class="hint">🎯 volgen op de kaart (met de route van vandaag) · 📱 deze telefoon gebruiken als GPS in de tractor${beh ? ' · 🔐 sleutel voor een GPS-kastje later' : ''}</p>
     </section>`;
+}
+
+/* ============ weer ============
+   Verwachting per perceel: Open-Meteo (o.a. KNMI-model), elk kwartier voor de komende 6 uur + 7 dagen.
+   Radar: RainViewer, neerslag van de afgelopen 2 uur (elke 10 minuten). */
+const weerCache = {};
+const WEERICOON = c => c === 0 ? '☀️' : c <= 2 ? '🌤️' : c === 3 ? '☁️' : c <= 48 ? '🌫️' : c <= 57 ? '🌦️' : c <= 67 ? '🌧️'
+  : c <= 77 ? '🌨️' : c <= 82 ? '🌦️' : c <= 86 ? '🌨️' : '⛈️';
+const windPijl = g => `<span class="windpijl" style="transform:rotate(${(+g || 0) + 180}deg)">↑</span>`;
+const tijdNL = s => s.slice(11, 16);
+const dagNL = s => new Date(s + 'T12:00').toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric'});
+const mm = x => (Math.round(x * 10) / 10).toLocaleString('nl-NL');
+function htmlWeer(p) {
+  const c = weerCache[p.id];
+  if (!c || Date.now() - c.t > 10 * 60 * 1000) setTimeout(() => laadWeer(p.id), 0);
+  return `<section class="kaartje weer" id="weerKaart">${c?.html || '<p class="hint" style="margin:0">🌦️ Weer laden…</p>'}</section>`;
+}
+async function laadWeer(id) {
+  const p = perceel(id); if (!p) return;
+  const [lng, lat] = turf.centroid(p.geo).geometry.coordinates;
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat.toFixed(4) + '&longitude=' + lng.toFixed(4) +
+    '&current=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m' +
+    '&minutely_15=precipitation&forecast_minutely_15=24' +
+    '&hourly=precipitation,precipitation_probability' +
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max' +
+    '&timezone=Europe%2FAmsterdam&forecast_days=7&wind_speed_unit=kmh';
+  let html;
+  try {
+    const r = await fetch(url); const d = await r.json();
+    if (d.error) throw new Error(d.reason || 'fout');
+    html = weerHtml(d);
+  } catch (e) {
+    html = '<p class="hint" style="margin:0">🌦️ Weer is nu niet beschikbaar. Probeer het later opnieuw.</p>';
+  }
+  weerCache[id] = {t: Date.now(), html};
+  const el = document.getElementById('weerKaart');
+  if (el && actief === id) el.innerHTML = html;
+}
+function weerHtml(d) {
+  const nu = d.current || {}, m = d.minutely_15 || {}, dg = d.daily || {};
+  const tijden = m.time || [], neer = (m.precipitation || []).map(x => x || 0);
+  // eerstvolgende regen in de komende 6 uur
+  const nuIso = new Date().toISOString();
+  let start = tijden.findIndex((t, i) => neer[i] >= 0.1 && new Date(t + ':00').getTime() >= Date.now() - 15 * 60 * 1000);
+  let tekst;
+  if ((nu.precipitation || 0) >= 0.1 && (start <= 1)) {
+    let eind = neer.findIndex((x, i) => i > Math.max(start, 0) && x < 0.1);
+    const totaal = neer.slice(Math.max(start, 0), eind < 0 ? undefined : eind).reduce((a, b) => a + b, 0);
+    tekst = `🌧️ <b>Het regent nu</b>${eind > 0 ? ` · droog vanaf ongeveer <b>${tijdNL(tijden[eind])}</b>` : ' · de komende 6 uur blijft het nat'} · ± ${mm(totaal)} mm`;
+  } else if (start >= 0) {
+    let eind = neer.findIndex((x, i) => i > start && x < 0.1); if (eind < 0) eind = neer.length;
+    const totaal = neer.slice(start, eind).reduce((a, b) => a + b, 0);
+    tekst = `🌦️ Regen verwacht om <b>${tijdNL(tijden[start])}</b>${eind < neer.length ? ` tot ± ${tijdNL(tijden[eind])}` : ''} · ± <b>${mm(totaal)} mm</b>`;
+  } else {
+    tekst = `☀️ <b>Droog</b> tot minstens ${tijden.length ? tijdNL(tijden[tijden.length - 1]) : 'de komende uren'}`;
+  }
+  const max = Math.max(1, ...neer);
+  const balkjes = tijden.map((t, i) => `<div class="regenbalk" title="${tijdNL(t)} · ${mm(neer[i])} mm">
+      <i style="height:${neer[i] > 0 ? Math.max(8, neer[i] / max * 100) : 0}%"></i>${i % 4 === 0 ? `<span>${tijdNL(t)}</span>` : ''}</div>`).join('');
+  const vandaagMm = (dg.precipitation_sum || [])[0];
+  const dagen = (dg.time || []).map((t, i) => `<div class="dag"><b>${i === 0 ? 'Vandaag' : dagNL(t)}</b><span class="icoontje">${WEERICOON(dg.weather_code[i])}</span>
+      <span>${Math.round(dg.temperature_2m_max[i])}° <small>${Math.round(dg.temperature_2m_min[i])}°</small></span>
+      <span class="${dg.precipitation_sum[i] >= 1 ? 'nat' : ''}">${mm(dg.precipitation_sum[i])} mm</span><small>${dg.precipitation_probability_max[i] ?? '–'}%</small></div>`).join('');
+  return `<div class="weerkop"><span class="weericoon">${WEERICOON(nu.weather_code)}</span>
+      <div><b class="temp">${Math.round(nu.temperature_2m)}°</b><small>Wind ${Math.round(nu.wind_speed_10m)} km/u ${windPijl(nu.wind_direction_10m)} · vlagen ${Math.round(nu.wind_gusts_10m)} km/u</small></div>
+      <div class="vandaag"><small>Vandaag</small><b>${vandaagMm != null ? mm(vandaagMm) : '–'} mm</b></div></div>
+    <div class="regentekst">${tekst}</div>
+    <div class="regengrafiek">${balkjes}</div>
+    <div class="dagen">${dagen}</div>
+    <small class="bron">Verwachting: Open-Meteo (o.a. KNMI) · ververst elke 10 min</small>`;
+}
+
+/* ---- buienradar op de kaart ---- */
+let radarAan = false, radarLaag = null, radarFrames = [], radarHost = '', radarIdx = 0, radarSpeel = null, radarTimer = null;
+async function laadRadar() {
+  try {
+    const d = await (await fetch('https://api.rainviewer.com/public/weather-maps.json', {cache: 'no-store'})).json();
+    radarHost = d.host; radarFrames = d.radar?.past || [];
+    if (!radarFrames.length) throw 0;
+    toonRadarFrame(radarFrames.length - 1);
+  } catch { toast('Buienradar is nu niet beschikbaar', 1); }
+}
+function toonRadarFrame(i) {
+  radarIdx = i; const f = radarFrames[i]; if (!f || !map) return;
+  const url = `${radarHost}${f.path}/256/{z}/{x}/{y}/2/1_1.png`;
+  if (!radarLaag) radarLaag = L.tileLayer(url, {opacity: .65, maxNativeZoom: 7, maxZoom: 21, zIndex: 350, attribution: 'Radar: RainViewer'}).addTo(map);
+  else radarLaag.setUrl(url);
+  const tijd = new Date(f.time * 1000).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'});
+  $('#radarBalk').innerHTML = `<button onclick="speelRadar()">${radarSpeel ? '⏸' : '▶'}</button>
+    <span>🌧️ Neerslag ${i === radarFrames.length - 1 ? '<b>nu</b> (' + tijd + ')' : 'om ' + tijd}</span>
+    <input type="range" min="0" max="${radarFrames.length - 1}" value="${i}" oninput="stopRadarSpelen();toonRadarFrame(+this.value)">`;
+}
+function speelRadar() {
+  if (radarSpeel) { stopRadarSpelen(); toonRadarFrame(radarIdx); return; }
+  radarSpeel = setInterval(() => toonRadarFrame((radarIdx + 1) % radarFrames.length), 700);
+  toonRadarFrame(radarIdx);
+}
+function stopRadarSpelen() { clearInterval(radarSpeel); radarSpeel = null; }
+function wisselRadar() {
+  radarAan = !radarAan;
+  $('#radarKnop').classList.toggle('aan', radarAan);
+  $('#radarBalk').classList.toggle('open', radarAan);
+  if (radarAan) { laadRadar(); radarTimer = setInterval(laadRadar, 5 * 60 * 1000); }
+  else { stopRadarSpelen(); clearInterval(radarTimer); if (radarLaag) { map.removeLayer(radarLaag); radarLaag = null; } }
 }
 
 initPaneel();
