@@ -219,6 +219,13 @@ textarea.veld{resize:vertical;font-family:inherit}
 .mtaak{font-size:9.5px;color:var(--grijs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .zonder{margin-top:6px;font-size:13px}
 .zonder summary{cursor:pointer;color:var(--groen2);font-weight:700;padding:6px 0}
+.verplaatsicoon{background:#fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.35);display:flex!important;align-items:center;justify-content:center;font-size:17px}
+.taak.bezig{background:#fff8e1;border-radius:10px;margin:0 -6px;padding-left:8px;padding-right:8px}
+.bezigregel{color:#e65100;font-weight:700;font-size:12px;margin-top:2px}
+.bezigknop{margin-top:6px;border:1.5px solid #ffb74d;background:#fff;color:#e65100;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700}
+.bezigknop.aan{background:#ff9800;border-color:#ff9800;color:#fff}
+.planregel.bezig{background:#fff8e1;border-radius:8px}
+.bezigbadge{background:#ffe0b2;color:#e65100;margin-right:4px}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
 .raster2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -387,7 +394,8 @@ const mijnProfiel = () => S.profielen.find(x => x.id === me?.id);
 const naamMe = () => mijnProfiel()?.naam || me?.user_metadata?.naam || me?.email?.split('@')[0] || 'Onbekend';
 const isBeheerder = () => mijnProfiel()?.rol === 'beheerder';
 const perceel = id => S.percelen.find(p => p.id === id);
-const tekent = () => !!(map && (map.pm.globalDrawModeEnabled() || vormLaag));
+let wijsAan = false;   // bezig met een punt aanwijzen op de kaart
+const tekent = () => !!(map && (map.pm.globalDrawModeEnabled() || vormLaag || wijsAan));
 const TYPES = {
   veld: {naam: 'Veld', icoon: '🌾', kleur: '#f4c430'},
   tray: {naam: 'Trayveld', icoon: '🧺', kleur: '#ba68c8'},
@@ -835,8 +843,20 @@ function uitvoeringVelden(t = {}) {
 function uitvoeringPatch(w) {
   const dos = parseFloat(String(w.dosering).replace(',', '.'));
   return {klaar: true, klaar_door: naamMe(), klaar_op: new Date((w.klaar_datum || new Date().toISOString().slice(0, 10)) + 'T12:00:00').toISOString(),
-    product: w.product || null, dosering: isNaN(dos) ? null : dos, eenheid: isNaN(dos) ? null : w.eenheid, uitvoering: w.uitvoering || null};
+    product: w.product || null, dosering: isNaN(dos) ? null : dos, eenheid: isNaN(dos) ? null : w.eenheid, uitvoering: w.uitvoering || null,
+    bezig_door: null, bezig_sinds: null};
 }
+async function zetBezig(id) {
+  const t = S.taken.find(x => x.id === id); if (!t || t.klaar) return;
+  if (!mag('taken_afvinken')) { toast('Je mag deze taak niet bijwerken', 1); return; }
+  const patch = t.bezig_door ? {bezig_door: null, bezig_sinds: null} : {bezig_door: naamMe(), bezig_sinds: new Date().toISOString()};
+  Object.assign(t, patch); render(true);
+  const {error} = await sb.from('taken').update(patch).eq('id', id);
+  if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1);
+  else toast(patch.bezig_door ? `Je bent bezig met "${t.tekst}"` : 'Niet meer bezig');
+}
+const bezigTekst = t => t.bezig_door ? `🟡 Bezig: ${esc(t.bezig_door)}${t.bezig_sinds ? ' sinds ' + new Date(t.bezig_sinds).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) +
+  (new Date(t.bezig_sinds).toDateString() !== new Date().toDateString() ? ' (' + datumKort(t.bezig_sinds) + ')' : '') : ''}` : '';
 async function rondAf(id) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
   const w = await formulier(`✓ Afronden: ${t.tekst}`, uitvoeringVelden(t), 'Afronden');
@@ -847,12 +867,12 @@ async function rondAf(id) {
   if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1); else toast('Taak afgerond');
 }
 function logboekHtml(p) {
-  const lijst = S.taken.filter(t => t.perceel_id === p.id && t.klaar).sort((a, b) => (b.klaar_op || '').localeCompare(a.klaar_op || ''));
+  const lijst = S.taken.filter(t => betreft(t, p.id) && t.klaar).sort((a, b) => (b.klaar_op || '').localeCompare(a.klaar_op || ''));
   return `<section class="kaartje"><h4>📒 Logboek · seizoen ${esc(seizoenNaam(bekeken))}</h4>
     ${mag('werk_registreren') ? `<button class="knop licht" style="margin:0 0 6px" onclick="taakFormulier(null, true)">✓ Werk registreren</button>` : ''}
     ${lijst.map(t => `<div class="logregel" onclick="focusTaak('${t.id}')">
       <div class="logdatum">${new Date(t.klaar_op).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})}</div>
-      <div class="t"><b>${esc(t.tekst)}</b>${t.product ? ` · ${esc(t.product)}` : ''}${t.dosering != null ? ` · <b>${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}</b>` : ''}
+      <div class="t"><b>${esc(t.tekst)}</b>${isVerplaats(t) ? ` · ${verplaatsTekst(t)}` : ''}${t.product ? ` · ${esc(t.product)}` : ''}${t.dosering != null ? ` · <b>${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}</b>` : ''}
         <small>${totaalTekst(t) ? totaalTekst(t) + ' · ' : ''}📐 ${taakWaar(t)} · 👤 ${esc(t.klaar_door || '?')}</small>
         ${t.uitvoering ? `<small class="opm">💬 ${esc(t.uitvoering)}</small>` : ''}</div>
       ${mag('taken_afvinken') ? `<button class="weg" title="Gegevens aanpassen" onclick="event.stopPropagation();rondAf('${t.id}')">✏️</button>` : ''}</div>`).join('')
@@ -880,15 +900,17 @@ function planNaarDag(k) { planDatum = vanKey(k); planModus = 'dag'; render(true)
 function planRegel(t, metPerceel) {
   const p = perceel(t.perceel_id), wie = S.profielen.find(u => u.id === t.toegewezen_aan);
   const telaat = !t.klaar && t.deadline && t.deadline < vandaag();
-  return `<div class="planregel ${t.klaar ? 'klaar' : ''} ${telaat ? 'telaat' : ''} ${taakFocus === t.id ? 'focus' : ''}" onclick="focusTaak('${t.id}')">
+  return `<div class="planregel ${t.klaar ? 'klaar' : ''} ${t.bezig_door && !t.klaar ? 'bezig' : ''} ${telaat ? 'telaat' : ''} ${taakFocus === t.id ? 'focus' : ''}" onclick="focusTaak('${t.id}')">
     <span class="planstip" style="background:${typeVan(p).kleur}">${t.klaar ? '✓' : ''}</span>
-    <div class="t"><b>${esc(t.tekst)}</b>${t.product ? ' · ' + esc(t.product) : ''}
-      <small>${metPerceel && p ? esc(p.naam) + ' · ' : ''}${t.klaar ? 'gedaan door ' + esc(t.klaar_door || '?') : wie ? '👤 ' + esc(wie.naam) : 'nog niemand'}${!t.klaar && !t.gepland && t.deadline ? ' · uiterlijk' : ''}${telaat ? ' · te laat' : ''}</small></div>
+    <div class="t"><b>${isVerplaats(t) ? '🚚 ' : ''}${esc(t.tekst)}</b>${t.product ? ' · ' + esc(t.product) : ''}
+      ${t.bezig_door && !t.klaar ? `<small class="bezigregel">${bezigTekst(t)}</small>` : ''}
+      <small>${isVerplaats(t) ? esc(locNaam(t, 'van')) + ' → ' + esc(locNaam(t, 'naar')) + ' · ' : metPerceel && p ? esc(p.naam) + ' · ' : ''}${t.klaar ? 'gedaan door ' + esc(t.klaar_door || '?') : wie ? '👤 ' + esc(wie.naam) : 'nog niemand'}${!t.klaar && !t.gepland && t.deadline ? ' · uiterlijk' : ''}${telaat ? ' · te laat' : ''}</small></div>
     ${!t.klaar && mag('taken_toevoegen') ? `<button class="weg" title="Inplannen / bewerken" onclick="event.stopPropagation();taakFormulier('${t.id}')">✏️</button>` : ''}
   </div>`;
 }
+const betreft = (t, pid) => t.perceel_id === pid || t.van_perceel === pid || t.naar_perceel === pid;
 function htmlPlanning(perceelId) {
-  const taken = S.taken.filter(t => !perceelId || t.perceel_id === perceelId);
+  const taken = S.taken.filter(t => !perceelId || betreft(t, perceelId));
   const perDag = new Map();
   taken.forEach(t => { const k = taakDag(t); if (!k) return; if (!perDag.has(k)) perDag.set(k, []); perDag.get(k).push(t); });
   perDag.forEach(l => l.sort((a, b) => (a.klaar - b.klaar) || a.tekst.localeCompare(b.tekst, 'nl')));
@@ -946,10 +968,92 @@ function kiesPerceelVoorTaak(direct, voor) {
   $('#mNee').onclick = () => m.classList.remove('open');
 }
 
+/* ============ verplaatsen ============ */
+const VERPLAATS = ['Dixi', 'Planten', 'Trays', 'Kisten', 'Pallets', 'Watertank', 'Aggregaat', 'Container', 'Machine', 'Materiaal'];
+const isVerplaats = t => t?.soort === 'verplaatsen';
+function locLatLng(t, kant) {
+  const punt = t[kant + '_punt']; if (punt) { const [x, y] = punt.geometry.coordinates; return [y, x]; }
+  const p = perceel(t[kant + '_perceel']); if (!p) return null;
+  const [x, y] = turf.pointOnFeature(p.geo).geometry.coordinates; return [y, x];
+}
+const locNaam = (t, kant) => t[kant + '_punt'] ? '📍 punt op de kaart' : perceel(t[kant + '_perceel'])?.naam || '?';
+const verplaatsTekst = t => `${t.aantal ? (+t.aantal).toLocaleString('nl-NL') + ' ' + esc(t.aantal_eenheid || '') + ' ' : ''}${esc(t.wat || '')}: ${esc(locNaam(t, 'van'))} → ${esc(locNaam(t, 'naar'))}`;
+function wijsPuntAan(tekst) {
+  return new Promise(klaar => {
+    wijsAan = true; paneelKlein();
+    const af = v => { wijsAan = false; map.off('click', klik); banner(null); map.getContainer().style.cursor = ''; klaar(v); };
+    const klik = e => af({type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: [e.latlng.lng, e.latlng.lat]}});
+    map.on('click', klik); map.getContainer().style.cursor = 'crosshair';
+    banner(`<b>📍 ${tekst}</b><br>Tik op de kaart op de juiste plek.`, [['Annuleren', () => af(null)]]);
+  });
+}
+async function verplaatsFormulier(id, voor = {}) {
+  const t = id ? S.taken.find(x => x.id === id) : {...voor};
+  const locOpties = kant => [['', '— kies —'], ...S.percelen.filter(p => !p.uitgeschakeld).map(p => ['p:' + p.id, `${typeVan(p).icoon} ${p.naam}`]),
+    ...(t[kant + '_punt'] ? [['bewaar', '📍 Hetzelfde punt op de kaart']] : []), ['punt', '📍 Punt op de kaart aanwijzen']];
+  const locWaarde = kant => t[kant + '_punt'] ? 'bewaar' : t[kant + '_perceel'] ? 'p:' + t[kant + '_perceel'] : '';
+  const velden = [
+    {k: 'wat', label: 'Wat moet er verplaatst worden?', waarde: t.wat || '', lijst: VERPLAATS, placeholder: 'bijv. Dixi'},
+    {k: 'aantal', label: 'Hoeveel?', type: 'number', waarde: t.aantal ?? '', placeholder: 'bijv. 1'},
+    {k: 'aantal_eenheid', label: 'Eenheid', type: 'select', waarde: t.aantal_eenheid || 'stuks',
+      opties: [['stuks', 'stuks'], ['trays', 'trays'], ['pallets', 'pallets'], ['kisten', 'kisten'], ['karren', 'karren'], ['m³', 'm³']]},
+    {k: 'van', label: 'Van', type: 'select', waarde: locWaarde('van'), opties: locOpties('van')},
+    {k: 'naar', label: 'Naar', type: 'select', waarde: locWaarde('naar') || (voor.naar_perceel ? 'p:' + voor.naar_perceel : ''), opties: locOpties('naar')},
+    {k: 'omschrijving', label: 'Omschrijving', type: 'textarea', waarde: t.omschrijving || '', placeholder: 'bijv. bij de ingang van het veld zetten'},
+    {k: 'toegewezen_aan', label: 'Wie doet het?', type: 'select', waarde: t.toegewezen_aan || '',
+      opties: [['', 'Nog niemand'], ...S.profielen.map(u => [u.id, u.naam + (u.id === me.id ? ' (ik)' : '')])]},
+    {k: 'gepland', label: '📅 Gepland op', type: 'date', waarde: t.gepland || ''},
+    {k: 'deadline', label: 'Uiterlijk op', type: 'date', waarde: t.deadline || ''}];
+  const w = await formulier(id ? '🚚 Verplaatsing bewerken' : '🚚 Iets verplaatsen', velden, id ? 'Opslaan' : 'Toevoegen');
+  if (!w) return;
+  if (!w.wat) { toast('Vul in wat er verplaatst moet worden', 1); return; }
+  if (!w.van || !w.naar) { toast('Kies waar het vandaan komt en waar het naartoe gaat', 1); return; }
+  const loc = async (keuze, kant, tekst) => {
+    if (keuze.startsWith('p:')) return {perceel: keuze.slice(2), punt: null};
+    if (keuze === 'bewaar') return {perceel: null, punt: t[kant + '_punt']};
+    const punt = await wijsPuntAan(tekst); return punt ? {perceel: null, punt} : null;
+  };
+  const van = await loc(w.van, 'van', `Waar staat "${w.wat}" nu?`); if (!van) return;
+  const naar = await loc(w.naar, 'naar', `Waar moet "${w.wat}" naartoe?`); if (!naar) return;
+  const aantal = parseFloat(String(w.aantal).replace(',', '.'));
+  const rij = {soort: 'verplaatsen', tekst: `Verplaatsen: ${w.wat}`, wat: w.wat, aantal: isNaN(aantal) ? null : aantal, aantal_eenheid: w.aantal_eenheid,
+    van_perceel: van.perceel, van_punt: van.punt, naar_perceel: naar.perceel, naar_punt: naar.punt,
+    perceel_id: naar.perceel || van.perceel || null, omschrijving: w.omschrijving || null,
+    toegewezen_aan: w.toegewezen_aan || null, gepland: w.gepland || null, deadline: w.deadline || null};
+  let res;
+  if (id) res = await sb.from('taken').update(rij).eq('id', id).select().single();
+  else res = await sb.from('taken').insert({...rij, aangemaakt_door: naamMe()}).select().single();
+  if (res.error) { toast('Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
+  const i = S.taken.findIndex(x => x.id === res.data.id);
+  if (i >= 0) S.taken[i] = res.data; else S.taken.push(res.data);
+  taakFocus = undefined; focusTaak(res.data.id);
+  toast(id ? 'Verplaatsing opgeslagen' : 'Verplaatsing toegevoegd');
+}
+function tekenVerplaatsingen() {
+  if (!overal('taken')) return;
+  S.taken.forEach(t => {
+    if (!isVerplaats(t) || (t.klaar && t.id !== taakFocus)) return;
+    if (t.perceel_id && perceel(t.perceel_id) && !lagenVan(t.perceel_id).taken && t.id !== taakFocus) return;
+    const a = locLatLng(t, 'van'), b = locLatLng(t, 'naar'); if (!a || !b) return;
+    const focus = t.id === taakFocus, kleur = t.klaar ? '#9e9e9e' : '#7b1fa2';
+    const lijn = L.polyline([a, b], {color: kleur, weight: focus ? 5 : 3, dashArray: '10,7', opacity: .95}).addTo(focusLaag);
+    // pijlpunt
+    const lengte = turf.distance([a[1], a[0]], [b[1], b[0]]) * 1000, kop = turf.bearing([a[1], a[0]], [b[1], b[0]]);
+    const pk = h => { const q = turf.destination([b[1], b[0]], Math.max(4, Math.min(40, lengte * .12)) / 1000, h).geometry.coordinates; return [q[1], q[0]]; };
+    L.polyline([pk(kop + 150), b, pk(kop - 150)], {color: kleur, weight: focus ? 5 : 3, interactive: false}).addTo(focusLaag);
+    L.circleMarker(a, {radius: 6, color: '#fff', weight: 2, fillColor: kleur, fillOpacity: 1, interactive: false}).addTo(focusLaag);
+    const midden = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const m = L.marker(midden, {icon: L.divIcon({className: 'verplaatsicoon', html: '🚚', iconSize: [30, 30], iconAnchor: [15, 15]})}).addTo(focusLaag);
+    [lijn, m].forEach(l => l.bindTooltip(`🚚 ${verplaatsTekst(t)}`, {sticky: true})
+      .on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); focusTaak(t.id); }));
+  });
+}
+
 let w_vakken = [];
 const WERK = ['Ploegen', 'Spitten', 'Zaaien', 'Poten', 'Planten', 'Spuiten', 'Bemesten', 'Kunstmest strooien', 'Mest uitrijden',
   'Schoffelen', 'Eggen', 'Rollen', 'Aanaarden', 'Beregenen', 'Loof doodspuiten', 'Rooien', 'Oogsten', 'Maaien', 'Grondmonster nemen', 'Controleren'];
 async function taakFormulier(id, direct, voor = {}) {
+  if (id && isVerplaats(S.taken.find(x => x.id === id))) return verplaatsFormulier(id);
   const t = id ? S.taken.find(x => x.id === id) : {...voor};
   const pid = t.perceel_id || actief, p = perceel(pid);
   if (!p) { kiesPerceelVoorTaak(direct, voor); return; }
@@ -1010,6 +1114,13 @@ async function slaTaakOp(w, gebied, id) {
 }
 async function vinkTaak(id) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
+  if (!t.klaar && isVerplaats(t)) {
+    const patch = {klaar: true, klaar_door: naamMe(), klaar_op: new Date().toISOString(), bezig_door: null, bezig_sinds: null};
+    Object.assign(t, patch); render(true);
+    const {error} = await sb.from('taken').update(patch).eq('id', id);
+    if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1); else toast(`${t.wat || 'Verplaatsing'} is verplaatst ✓`);
+    return;
+  }
   if (!t.klaar) { rondAf(id); return; }
   if (!await bevestig('Weer openzetten?', `"${t.tekst}" gaat terug naar de open taken.`)) return;
   const patch = {klaar: false, klaar_door: null, klaar_op: null};
@@ -1419,6 +1530,7 @@ function toonMarkering(id) {
 
 /* ============ taken: welk stuk van het veld ============ */
 function taakGebied(t) {
+  if (isVerplaats(t)) return [];
   const p = perceel(t.perceel_id); if (!p) return [];
   if (t.gebied) return [t.gebied];
   if (t.spoor_van) {
@@ -1428,13 +1540,20 @@ function taakGebied(t) {
   }
   return [p.geo];
 }
-const taakWaar = t => t.gebied ? 'getekend stuk' :
+const taakWaar = t => isVerplaats(t) ? `${locNaam(t, 'van')} → ${locNaam(t, 'naar')}` : t.gebied ? 'getekend stuk' :
   (t.spoor_van && perceel(t.perceel_id) && spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot))
     ? 'vak ' + spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot).letter : t.spoor_van ? (t.spoor_tot && t.spoor_tot !== t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot}` : `spoor ${t.spoor_van}`) : 'hele perceel';
 function focusTaak(id) {
   if (taakFocus === id) { taakFocus = undefined; render(true); return; }
   const t = S.taken.find(x => x.id === id); if (!t) return;
   taakFocus = id;
+  if (isVerplaats(t)) {
+    if (tab === 'percelen' && t.perceel_id) actief = t.perceel_id;
+    render(true);
+    const pts = [locLatLng(t, 'van'), locLatLng(t, 'naar')].filter(Boolean);
+    if (pts.length) map.fitBounds(L.latLngBounds(pts), {padding: [70, 70], maxZoom: 18});
+    return;
+  }
   if (tab === 'percelen') actief = t.perceel_id;
   if (!lagenVan(t.perceel_id).taken) { weergave[t.perceel_id] = {...lagenVan(t.perceel_id), taken: true}; bewaarWeergave(); }
   if (!overal('taken')) toast('Let op: de laag Taken staat via 🗂️ voor alle velden uit');
@@ -1570,11 +1689,13 @@ function renderKaart() {
   S.taken.forEach(t => {
     if (t.klaar || t.id === taakFocus || !perceel(t.perceel_id) || !zichtbaar(t.perceel_id).taken) return;
     const wie = S.profielen.find(u => u.id === t.toegewezen_aan);
-    taakGebied(t).forEach(g => L.geoJSON(g, {style: {color: '#ff00d4', weight: 2, dashArray: '4,6', fillColor: '#ff00d4', fillOpacity: .12}})
-      .bindTooltip(`📋 ${esc(t.tekst)}${wie ? ' · ' + esc(wie.naam) : ''}`, {sticky: true})
+    const kl = t.bezig_door ? '#ff9800' : '#ff00d4';
+    taakGebied(t).forEach(g => L.geoJSON(g, {style: {color: kl, weight: t.bezig_door ? 3 : 2, dashArray: t.bezig_door ? null : '4,6', fillColor: kl, fillOpacity: t.bezig_door ? .3 : .12}})
+      .bindTooltip(`📋 ${esc(t.tekst)}${t.bezig_door ? '<br>' + bezigTekst(t) : wie ? ' · ' + esc(wie.naam) : ''}`, {sticky: true})
       .on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); if (tab === 'percelen') actief = t.perceel_id; focusTaak(t.id); })
       .addTo(focusLaag));
   });
+  tekenVerplaatsingen();
   const ft = taakFocus && S.taken.find(x => x.id === taakFocus);
   if (ft && perceel(ft.perceel_id) && zichtbaar(ft.perceel_id).taken) taakGebied(ft).forEach(g => L.geoJSON(g, {interactive: false,
     style: {color: '#ff00d4', weight: 3, dashArray: '8,5', fillColor: '#ff00d4', fillOpacity: .45}}).addTo(focusLaag));
@@ -1649,12 +1770,12 @@ function htmlLijst() {
   const volgorde = {veld: 0, tray: 1, kas: 2, pand: 3};
   return seizoenKnop() + `<div class="samenvatting">${Object.entries(TYPES).filter(([k]) => telT(k)).map(([k, T]) => `${T.icoon} ${telT(k)} ${k === 'pand' ? (telT(k) === 1 ? 'pand' : 'panden') : k === 'kas' ? (telT(k) === 1 ? 'kas' : 'kassen') : k === 'tray' ? (telT(k) === 1 ? 'trayveld' : 'trayvelden') : (telT(k) === 1 ? 'veld' : 'velden')}`).join(' · ')} · ${ha(totaal)} ha grond</div>` +
     [...S.percelen].sort((a, b) => ((a.uitgeschakeld ? 1 : 0) - (b.uitgeschakeld ? 1 : 0)) || (volgorde[a.type || 'veld'] - volgorde[b.type || 'veld']) || a.naam.localeCompare(b.naam, 'nl')).map((p, i, alle) => {
-      const open = S.taken.filter(t => t.perceel_id === p.id && !t.klaar).length;
+      const open = S.taken.filter(t => t.perceel_id === p.id && !t.klaar).length, bezig = S.taken.some(t => t.perceel_id === p.id && !t.klaar && t.bezig_door);
       const n = banenVan(p).length;
       const kop = p.uitgeschakeld && !alle[i - 1]?.uitgeschakeld ? `<div class="groepkop" style="cursor:default">⏸️ Niet in gebruik dit seizoen (${uitLijst.length})</div>` : '';
       return kop + `<button class="item ${p.uitgeschakeld ? 'uit' : ''}" onclick="kies('${p.id}')"><span class="typeicoon" style="background:${typeVan(p).kleur}33">${typeVan(p).icoon}</span>
         <span class="t"><b>${esc(p.naam)}</b><small>${typeVan(p).naam} · ${oppTekst(p)}${n ? ` · ${n} sporen` : ''}</small></span>
-        ${open ? `<span class="badge">${open} open</span>` : ''}<span class="pijl">›</span></button>`;
+        ${bezig ? '<span class="badge bezigbadge">🟡 bezig</span>' : ''}${open ? `<span class="badge">${open} open</span>` : ''}<span class="pijl">›</span></button>`;
     }).join('');
 }
 
@@ -1673,8 +1794,8 @@ function htmlDetail(p) {
   const banen = banenVan(p), opp = turf.area(p.geo);
   const zones = alleZones(p).filter(z => banenVan(z).length);
   const totaalSporen = zones.reduce((n, z) => n + banenVan(z).length, 0);
-  const taken = S.taken.filter(t => t.perceel_id === p.id);
-  const open = taken.filter(t => !t.klaar).sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999'));
+  const taken = S.taken.filter(t => betreft(t, p.id));
+  const open = taken.filter(t => !t.klaar).sort((a, b) => (!!b.bezig_door - !!a.bezig_door) || (a.gepland || a.deadline || '9999').localeCompare(b.gepland || b.deadline || '9999'));
   const klaar = taken.filter(t => t.klaar).sort((a, b) => (b.klaar_op || '').localeCompare(a.klaar_op || ''));
 
   let soortenBlok = '', verdeling = '';
@@ -1747,9 +1868,9 @@ function htmlDetail(p) {
     <button class="chip ${lagenVan(p.id).taken ? 'aan' : ''}" onclick="zetLaag('${p.id}','taken')">📋 Taken</button></div>`;
   let inhoud = '';
   if (perceelTab === 'weer') inhoud = htmlWeer(p);
-  else if (perceelTab === 'taken' && takenWeergave === 'planning') inhoud = weergaveSchakel() + `<section class="kaartje">${htmlPlanning(p.id)}</section>`;
+  else if (perceelTab === 'taken' && takenWeergave === 'planning') inhoud = weergaveSchakel() + nieuweTaakKnoppen(`{gepland:'${dKey(planDatum)}'}`, p.id) + `<section class="kaartje">${htmlPlanning(p.id)}</section>`;
   else if (perceelTab === 'taken') inhoud = weergaveSchakel() + `<section class="kaartje"><h4>📋 Open taken</h4>
-    ${mag('taken_toevoegen') ? `<button class="knop" style="margin:0 0 6px" onclick="taakFormulier()">＋ Nieuwe taak</button>` : ''}
+    ${nieuweTaakKnoppen('{}', p.id)}
     ${mag('werk_registreren') ? `<button class="knop licht" style="margin:0 0 6px" onclick="taakFormulier(null, true)">✓ Werk registreren (al gedaan)</button>` : ''}
     ${open.length ? '<p class="hint" style="margin:0 0 4px">Tik op een taak om het stuk van het veld te laten oplichten.</p>' : ''}
     ${open.map(t => taakHtml(t)).join('')}
@@ -1874,31 +1995,40 @@ function taakHtml(t, metPerceel) {
   const telaat = !t.klaar && t.deadline && t.deadline < vandaag();
   const wie = S.profielen.find(u => u.id === t.toegewezen_aan);
   const info = t.klaar
-    ? `✓ Gedaan door <b>${esc(t.klaar_door || '?')}</b> · ${datumKort(t.klaar_op)}${t.product ? ' · ' + esc(t.product) : ''}${t.dosering != null ? ' · ' + (+t.dosering).toLocaleString('nl-NL') + ' ' + esc(t.eenheid || '') : ''}`
-    : `${wie ? `👤 <b>${esc(wie.naam)}</b> · ` : '👤 nog niemand · '}${t.gepland ? `🗓️ ${datumKort(t.gepland)} · ` : ''}${t.deadline ? `<span class="${telaat ? 'telaat' : ''}">📅 ${datumKort(t.deadline)}${telaat ? ' (te laat)' : ''}</span> · ` : ''}📐 ${taakWaar(t)}`;
-  return `<div class="taak ${t.klaar ? 'klaar' : ''} ${taakFocus === t.id ? 'focus' : ''}"><button class="vink" ${mag('taken_afvinken') ? '' : 'disabled'} onclick="vinkTaak('${t.id}')">${t.klaar ? '✓' : ''}</button>
+    ? `✓ Gedaan door <b>${esc(t.klaar_door || '?')}</b> · ${datumKort(t.klaar_op)}${isVerplaats(t) ? ' · 🚚 ' + verplaatsTekst(t) : ''}${t.product ? ' · ' + esc(t.product) : ''}${t.dosering != null ? ' · ' + (+t.dosering).toLocaleString('nl-NL') + ' ' + esc(t.eenheid || '') : ''}`
+    : `${wie ? `👤 <b>${esc(wie.naam)}</b> · ` : '👤 nog niemand · '}${t.gepland ? `🗓️ ${datumKort(t.gepland)} · ` : ''}${t.deadline ? `<span class="${telaat ? 'telaat' : ''}">📅 ${datumKort(t.deadline)}${telaat ? ' (te laat)' : ''}</span> · ` : ''}${isVerplaats(t) ? '🚚 ' + verplaatsTekst(t) : '📐 ' + taakWaar(t)}`;
+  return `<div class="taak ${t.klaar ? 'klaar' : ''} ${t.bezig_door && !t.klaar ? 'bezig' : ''} ${taakFocus === t.id ? 'focus' : ''}"><button class="vink" ${mag('taken_afvinken') ? '' : 'disabled'} onclick="vinkTaak('${t.id}')">${t.klaar ? '✓' : ''}</button>
     <div class="t" onclick="focusTaak('${t.id}')" style="cursor:pointer"><span>${esc(t.tekst)}</span>
       ${t.omschrijving ? `<div class="omschr">${esc(t.omschrijving).replace(/\n/g, '<br>')}</div>` : ''}
-      <small>${metPerceel && p ? `📍 ${esc(p.naam)} · ` : ''}${info}</small></div>
+      ${t.bezig_door && !t.klaar ? `<div class="bezigregel">${bezigTekst(t)}</div>` : ''}
+      <small>${metPerceel && p && !isVerplaats(t) ? `📍 ${esc(p.naam)} · ` : ''}${info}</small>
+      ${!t.klaar && mag('taken_afvinken') ? `<button class="bezigknop ${t.bezig_door ? 'aan' : ''}" onclick="event.stopPropagation();zetBezig('${t.id}')">${t.bezig_door ? '⏸ Niet meer bezig' : '▶ Ik ben bezig'}</button>` : ''}</div>
     ${mag('taken_toevoegen') && !t.klaar ? `<button class="weg" title="Bewerken" onclick="taakFormulier('${t.id}')">✏️</button>` : ''}
     ${mag('taken_verwijderen') ? `<button class="weg" title="Verwijderen" onclick="verwijderTaak('${t.id}')">×</button>` : ''}</div>`;
 }
 
+function nieuweTaakKnoppen(voor = '{}', perceelId) {
+  if (!mag('taken_toevoegen')) return '';
+  const v = perceelId ? `{...${voor},perceel_id:'${perceelId}'}` : voor, vv = perceelId ? `{...${voor},naar_perceel:'${perceelId}'}` : voor;
+  return `<div class="rij" style="margin:0 0 10px"><button class="knop" style="margin:0" onclick="taakFormulier(null,false,${v})">＋ Nieuwe taak</button>
+    <button class="knop licht" style="margin:0" onclick="verplaatsFormulier(null,${vv})">🚚 Verplaatsen</button></div>`;
+}
 function htmlAlleTaken() {
   if (takenWeergave === 'planning') return weergaveSchakel() +
-    (mag('taken_toevoegen') ? `<button class="knop" style="margin:0 0 10px" onclick="taakFormulier(null,false,{gepland:'${dKey(planDatum)}'})">＋ Nieuwe taak</button>` : '') + htmlPlanning(null);
+    nieuweTaakKnoppen(`{gepland:'${dKey(planDatum)}'}`) + htmlPlanning(null);
   const lijst = S.taken.filter(t => takenFilter === 'mij' ? !t.klaar && t.toegewezen_aan === me.id : takenFilter === 'open' ? !t.klaar : t.klaar)
     .sort((a, b) => takenFilter !== 'klaar'
-      ? (a.gepland || a.deadline || '9999').localeCompare(b.gepland || b.deadline || '9999')
+      ? (!!b.bezig_door - !!a.bezig_door) || (a.gepland || a.deadline || '9999').localeCompare(b.gepland || b.deadline || '9999')
       : (b.klaar_op || '').localeCompare(a.klaar_op || ''));
   const schakel = weergaveSchakel() + `<div class="schakel"><button class="${takenFilter === 'mij' ? 'aan' : ''}" onclick="takenFilter='mij';render(true)">Voor mij</button>
     <button class="${takenFilter === 'open' ? 'aan' : ''}" onclick="takenFilter='open';render(true)">Alle open</button>
     <button class="${takenFilter === 'klaar' ? 'aan' : ''}" onclick="takenFilter='klaar';render(true)">Gedaan</button></div>`;
-  if (!lijst.length) return schakel + `<div class="leeg"><div class="groot">${takenFilter !== 'klaar' ? '✅' : '📋'}</div>
+  if (!lijst.length) return schakel + nieuweTaakKnoppen() + `<div class="leeg"><div class="groot">${takenFilter !== 'klaar' ? '✅' : '📋'}</div>
     <b>${takenFilter === 'mij' ? 'Geen taken voor jou' : takenFilter === 'open' ? 'Alles is gedaan!' : 'Nog niets afgerond'}</b>Taken voeg je toe bij een perceel.</div>`;
   const groepen = new Map();
-  lijst.forEach(t => { if (!groepen.has(t.perceel_id)) groepen.set(t.perceel_id, []); groepen.get(t.perceel_id).push(t); });
-  return schakel + [...groepen.entries()].map(([pid, ts]) =>
+  lijst.forEach(t => { const k = t.perceel_id || '_'; if (!groepen.has(k)) groepen.set(k, []); groepen.get(k).push(t); });
+  return schakel + nieuweTaakKnoppen() + [...groepen.entries()].map(([pid, ts]) => pid === '_'
+    ? `<div class="groepkop" style="cursor:default">🚚 Verplaatsingen tussen punten</div><div class="kaartje" style="padding:4px 12px">${ts.map(t => taakHtml(t)).join('')}</div>` :
     `<div class="groepkop" onclick="kies('${pid}')">📍 ${esc(perceel(pid)?.naam || 'Onbekend perceel')} ›</div>
      <div class="kaartje" style="padding:4px 12px">${ts.map(t => taakHtml(t)).join('')}</div>`).join('');
 }
