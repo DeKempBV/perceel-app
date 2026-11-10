@@ -299,6 +299,8 @@ textarea.veld{resize:vertical;font-family:inherit}
 .gewasjes{font-weight:400;font-size:14px;margin-left:2px}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
+.patroonbalk{display:flex;flex-wrap:wrap;gap:2px;margin-top:8px;align-items:center}.patroonbalk .pv{width:9px;height:22px;border-radius:2px;background:#43a047}
+.patroonbalk .pv.w05{background:linear-gradient(90deg,#43a047 50%,#dcedc8 50%)}.patroonbalk .pv.w2{background:#ff6d00}.patroonbalk .pv.w0{background:#cfd8dc}.patroonbalk span{color:var(--grijs);font-size:12px;margin-left:4px}
 .raster2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .spuitrij small{display:block;color:var(--grijs);font-size:12px;margin-top:6px}
 .spuitrij a{color:var(--groen2)}
@@ -2101,9 +2103,27 @@ function alleLagen() {
 
 /* ============ spuitsporen ============ */
 const spuitVan = z => (z._vak ? z._vak.spuit : z.spuit) || {};
+/* Spoorpatroon: per spoor 1 = vol met planten, 0,5 = half gevuld, 2 = spuitspoor, 0 = leeg.
+   Bijv. "1111 0,5 2 0,5" herhaalt zich over het hele veld. */
+function patroonLees(tekst) {
+  const groepen = String(tekst || '').trim().split(/\s+/).filter(Boolean);
+  // "1111 0,5 2 0,5 1111": de laatste groep is dan alleen het begin van de volgende herhaling
+  if (groepen.length > 2 && groepen[0] === groepen[groepen.length - 1]) groepen.pop();
+  return (groepen.join(' ').match(/0[.,]5|½|[0-2]/g) || []).map(t => t === '2' ? 2 : t === '1' ? 1 : t === '0' ? 0 : .5);
+}
+const patroonVan = z => { const t = spuitVan(z).patroon; if (!t) return null; const pp = patroonLees(t); return pp.length ? pp : null; };
+function rijWaarde(z, nr) {   // 1, 0,5, 0 of 2 (spuitspoor)
+  const pp = patroonVan(z);
+  if (pp) { const st = Math.max(1, parseInt(spuitVan(z).patroonStart) || 1), i = (((nr - st) % pp.length) + pp.length) % pp.length; const s = spuitVan(z);
+    if ((s.uit || []).includes(nr) && pp[i] === 2) return 1; if ((s.extra || []).includes(nr)) return 2; return pp[i]; }
+  return spuitSet(z).has(nr) ? 2 : 1;
+}
+const rijFactor = (z, nr) => { if (!patroonVan(z)) return 1; const w = rijWaarde(z, nr); return w === 2 ? 1 : w; };   // deel van het spoor dat beplant is
 function spuitSet(z) {
   const s = spuitVan(z), n = banenVan(z).length, set = new Set();
-  const elke = parseInt(s.elke) || 0, start = parseInt(s.start) || elke;
+  const pp = patroonVan(z);
+  if (pp) { const st = Math.max(1, parseInt(s.patroonStart) || 1); for (let nr = 1; nr <= n; nr++) if (pp[(((nr - st) % pp.length) + pp.length) % pp.length] === 2) set.add(nr); }
+  const elke = pp ? 0 : parseInt(s.elke) || 0, start = parseInt(s.start) || elke;
   if (elke > 0 && start > 0) for (let i = start; i <= n; i += elke) set.add(i);
   (s.extra || []).forEach(i => i <= n && set.add(i));
   (s.uit || []).forEach(i => set.delete(i));
@@ -2118,8 +2138,8 @@ function spuitvakkenVan(z) {
   const sluit = () => { if (huidig && huidig.nrs.length) uit.push(huidig); huidig = null; };
   banen.forEach(bn => {
     if (set.has(bn.nr)) { sluit(); return; }
-    if (!huidig) huidig = {nrs: [], m2: 0, lengte: 0};
-    huidig.nrs.push(bn.nr); huidig.m2 += bn.m2; huidig.lengte = Math.max(huidig.lengte, bn.t1 - bn.t0);
+    if (!huidig) huidig = {nrs: [], m2: 0, lengte: 0, beplant: 0};
+    huidig.nrs.push(bn.nr); huidig.m2 += bn.m2; huidig.lengte = Math.max(huidig.lengte, bn.t1 - bn.t0); huidig.beplant += rijFactor(z, bn.nr);
   });
   sluit();
   return uit.map((v, i) => ({...v, letter: vakLetter(i), van: v.nrs[0], tot: v.nrs[v.nrs.length - 1], rijen: v.nrs.length}));
@@ -2143,7 +2163,7 @@ function htmlSpuitvakken(z) {
   const vk = spuitvakkenVan(z); if (!vk.length) return '';
   return `<div class="spuitvakken"><div class="spuitkop">Vakken (tussen de spuitpaden)</div>
     <table class="verdeling vakkentabel"><tr><td><b>Vak</b></td><td><b>Rijen</b></td><td><b>m²</b></td><td><b>Lengte</b></td></tr>
-    ${vk.map((v, i) => `<tr onclick="zoomVak('${z.id}',${i})" style="cursor:pointer"><td><b>${v.letter}</b></td><td>${v.rijen}</td>
+    ${vk.map((v, i) => `<tr onclick="zoomVak('${z.id}',${i})" style="cursor:pointer"><td><b>${v.letter}</b></td><td>${v.rijen}${v.beplant !== v.rijen ? ` <small style="display:inline">(${getal(v.beplant, 1)} beplant)</small>` : ''}</td>
       <td>${Math.round(v.m2).toLocaleString('nl-NL')}</td><td>${Math.round(v.lengte)} m</td></tr>`).join('')}</table>
     <small>Tik op een vak om het op de kaart te zien.</small></div>`;
 }
@@ -2179,13 +2199,30 @@ function tekenSpuit(z) {
     geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#ff6d00', weight: 3, dashArray: '10,6', interactive: false})).addTo(laag);
   });
 }
+function patroonVoorbeeld(z) {
+  const n = Math.min(banenVan(z).length || 40, 48); let h = '';
+  for (let nr = 1; nr <= n; nr++) { const w = rijWaarde(z, nr); h += `<i class="pv w${String(w).replace('.', '')}" title="Spoor ${nr}: ${w === 2 ? 'spuitspoor' : w === .5 ? 'half gevuld' : w === 0 ? 'leeg' : 'vol'}"></i>`; }
+  return `<div class="patroonbalk">${h}${banenVan(z).length > n ? '<span>…</span>' : ''}</div>`;
+}
+function zetPatroon(zoneId, veld, waarde) {
+  const z = alleZones(perceel(actief)).find(x => x.id === zoneId); if (!z) return;
+  const s = {...spuitVan(z)};
+  if (veld === 'patroon') { const t = String(waarde || '').trim(); if (t && !patroonLees(t).length) { toast('Gebruik 1, 0,5, 2 en 0, bijv. "1111 0,5 2 0,5"', 1); return; } s.patroon = t || null; if (t) { s.extra = []; s.uit = []; } }
+  else s.patroonStart = Math.max(1, parseInt(waarde) || 1);
+  zetSpuit(z, s);
+}
 function spuitInvoer(z, bew) {
-  const s = spuitVan(z), n = spuitSet(z).size, los = (s.extra || []).length + (s.uit || []).length;
+  const s = spuitVan(z), n = spuitSet(z).size, los = (s.extra || []).length + (s.uit || []).length, pp = patroonVan(z);
   return `<div class="spuitrij"><div class="spuitkop">🚜 Spuitsporen</div>
+    <label>Spoorpatroon <small style="display:inline">(optioneel)</small></label>
+    <input class="veld" ${bew ? '' : 'disabled'} placeholder="bijv. 1111 0,5 2 0,5" value="${esc(s.patroon || '')}" onchange="zetPatroon('${z.id}','patroon',this.value)">
+    <small>1 = spoor vol met planten · 0,5 = half gevuld · 2 = spuitspoor · 0 = leeg. Het patroon herhaalt zich over het hele veld.</small>
+    ${pp ? `<div class="raster2"><div><label>Patroon begint bij spoor</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="1" value="${s.patroonStart || 1}" onchange="zetPatroon('${z.id}','start',this.value)"></div><div></div></div>
+      ${patroonVoorbeeld(z)}<small>Groen = vol · half groen = half gevuld · oranje = spuitspoor · grijs = leeg</small>` : `
     <div class="raster2"><div><label>Elke hoeveel sporen (bijv. 20+1 = 21)</label>
       <input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="0" placeholder="bijv. 8" value="${s.elke || ''}" onchange="zetSpuitGetal('${z.id}','elke',this.value)"></div>
     <div><label>Eerste spuitspoor is spoor</label>
-      <input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="1" placeholder="${s.elke || 'bijv. 4'}" value="${s.start || ''}" onchange="zetSpuitGetal('${z.id}','start',this.value)"></div></div>
+      <input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="1" placeholder="${s.elke || 'bijv. 4'}" value="${s.start || ''}" onchange="zetSpuitGetal('${z.id}','start',this.value)"></div></div>`}
     <small>${n} spuitsporen${los ? ` · ${los} met de hand aangepast ${bew ? `· <a href="#" onclick="spuitHerstel('${z.id}');return false">herstel</a>` : ''}` : ''}</small>
     ${htmlSpuitvakken(z)}</div>`;
 }
@@ -2671,14 +2708,22 @@ function tekenGewasVlak(z, p) {
     L.marker([pt[1], pt[0]], {interactive: false, icon: L.divIcon({className: 'gewasicoon', html: `<div class="gi">${icoonHtml(s.icoon)}</div>`, iconSize: [30, 30], iconAnchor: [15, 15]})}).addTo(laag);
   }
 }
+// het beplante deel van een half gevuld spoor: de helft die van het spuitspoor af ligt
+function halfStuk(p, bn, geo) {
+  const meta = banenVan(p).meta, hoog = rijWaarde(p, bn.nr - 1) === 2 && rijWaarde(p, bn.nr + 1) !== 2;
+  const o0 = hoog ? bn.a + bn.b / 2 : bn.a - .05, o1 = hoog ? bn.a + bn.b + .05 : bn.a + bn.b / 2;
+  try { return turf.intersect(geo, rechthoek(meta, o0, o1, bn.t0 - 1, bn.t1 + 1)); } catch { return null; }
+}
 function tekenZone(p, isA) {
+  const metPatroon = !!patroonVan(p);
   banenVan(p).forEach(bn => {
-    const stukken = stukkenVan(p, bn);
+    const stukken = stukkenVan(p, bn), f = metPatroon ? rijFactor(p, bn.nr) : 1;
     stukken.forEach(st => {
       const s = teelt(st.id);
       geenSnap(L.geoJSON(st.geo, {style: {color: isA ? '#ffffff' : '#111', weight: isA ? .9 : .4, opacity: .75,
-        fillColor: s ? s.kleur : '#ffffff', fillOpacity: s ? .62 : .06}}))
+        fillColor: s ? s.kleur : '#ffffff', fillOpacity: s ? (f === 1 ? .62 : f === 0 ? .04 : .12) : .06}}))
         .on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); klikBaan(p, bn, ev.latlng); }).addTo(laag);
+      if (s && f === .5) { const h = halfStuk(p, bn, st.geo); if (h) geenSnap(L.geoJSON(h, {interactive: false, style: {stroke: false, fillColor: s.kleur, fillOpacity: .62}})).addTo(laag); }
     });
     if (stukken.length > 1 && isA) {   // wissellijnen
       const meta = banenVan(p).meta, v = p.banen[bn.nr - 1];
@@ -2775,10 +2820,11 @@ function teeltOppervlak(p) {   // per teelt (plant of soort): m², aantal sporen
     if (zoneGewas(z)) { const g = zoneVlak(z); if (g) { const x = tel.get(z.gewas) || {n: 0, m2: 0, vlak: 0}; x.m2 += turf.area(g); x.vlak++; tel.set(z.gewas, x); } return; }
     banenVan(z).forEach(bn => {
       const gezien = new Set();
+      const f = rijFactor(z, bn.nr);
       stukkenVan(z, bn).forEach(st => {
         const tl = teelt(st.id), k = tl ? tl.id : null;
-        const x = tel.get(k) || {n: 0, m2: 0, vlak: 0}; x.m2 += st.m2;
-        if (!gezien.has(k)) { x.n++; gezien.add(k); }
+        const x = tel.get(k) || {n: 0, m2: 0, vlak: 0}; x.m2 += st.m2 * f;
+        if (!gezien.has(k)) { x.n += f; gezien.add(k); }
         tel.set(k, x);
       });
     });
@@ -3025,7 +3071,7 @@ function htmlDetail(p) {
     ${bew ? `<div class="richting">${kompasSVG(+p.richting || 0)}
       <div class="flex1"><label style="margin-top:0">Richting AB-lijn (graden)</label>
         <div class="rij"><input type="range" ${uit} min="0" max="359.5" step="0.5" value="${+p.richting || 0}" oninput="liveRichting(this.value)" onchange="zetGetal('richting',this.value)">
-        <input id="richtingGetal" ${uit} class="veld klein" type="number" inputmode="decimal" step="any" min="0" max="360" value="${+p.richting || 0}" onchange="zetGetal('richting',this.value)"></div></div></div>
+        <input id="richtingGetal" ${uit} class="veld klein" type="number" inputmode="decimal" step="any" min="0" max="360" value="${Math.round((+p.richting || 0) * 100) / 100}" onchange="zetGetal('richting',this.value)"></div></div></div>
     <div class="raster3">
       <div><label>Breedte (m)</label><input class="veld" ${uit} type="number" inputmode="decimal" step="0.01" min="0.1" value="${+p.breedte}" onchange="zetGetal('breedte',this.value)"></div>
       <div><label>Aantal sporen</label><input class="veld" ${uit} type="number" inputmode="numeric" min="0" placeholder="alles" value="${+p.aantal || ''}" onchange="zetGetal('aantal',this.value||0)"></div>
@@ -3084,7 +3130,7 @@ function htmlVakken(p, bew) {
       ${sporenAan ? `<div class="richting">${kompasSVG(+v.richting || 0, 'naald_' + vid)}
         <div class="flex1"><label style="margin-top:0">Richting sporen (graden)</label>
           <div class="rij"><input type="range" min="0" max="359.5" step="0.5" value="${+v.richting || 0}" oninput="liveVakRichting('${v.id}',this.value)" onchange="zetVak('${v.id}','richting',this.value)">
-          <input id="vakRichting_${vid}" class="veld klein" type="number" inputmode="decimal" step="any" min="0" max="360" value="${+v.richting || 0}" onchange="zetVak('${v.id}','richting',this.value)"></div></div></div>
+          <input id="vakRichting_${vid}" class="veld klein" type="number" inputmode="decimal" step="any" min="0" max="360" value="${Math.round((+v.richting || 0) * 100) / 100}" onchange="zetVak('${v.id}','richting',this.value)"></div></div></div>
       <div class="raster3">
         <div><label>Breedte (m)</label><input class="veld" type="number" inputmode="decimal" step="0.01" value="${z.breedte}" onchange="zetVak('${v.id}','breedte',this.value)"></div>
         <div><label>Aantal sporen</label><input class="veld" type="number" inputmode="numeric" min="0" placeholder="alles" value="${+v.aantal || ''}" onchange="zetVak('${v.id}','aantal',this.value||0)"></div>
