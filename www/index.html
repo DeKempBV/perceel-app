@@ -478,6 +478,31 @@ details.szblok summary h4{margin:6px 0}
 #drieDDoek,#drieDGL{position:absolute;inset:0;pointer-events:none;z-index:2}
 .vloot2d{position:absolute;left:0;top:0;pointer-events:none;transition:opacity .15s}
 .drieDtaak{position:absolute;top:12px;left:12px;z-index:5;background:rgba(255,255,255,.94);border-radius:12px;padding:8px 12px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:70%}
+.drieDtaak.vol{width:min(380px,calc(100% - 24px));max-width:none;max-height:calc(100% - 90px);overflow:auto;padding:10px 14px;backdrop-filter:blur(6px)}
+.drieDtaak .dtKop{display:flex;align-items:center;gap:8px;cursor:pointer}.drieDtaak .dtKop b{flex:1;font-size:16px}
+.drieDtaak .dtPijl{transition:transform .2s;color:var(--grijs)}.drieDtaak.ingeklapt .dtPijl{transform:rotate(-90deg)}.drieDtaak.ingeklapt .dtInhoud{display:none}
+.dtInhoud{font-size:13px;margin-top:6px}.dtOmschr{background:var(--licht);border-radius:8px;padding:6px 8px;margin-bottom:6px}
+.dtRij{display:flex;gap:8px;padding:4px 0;border-top:1px solid var(--rand)}.dtRij>span{width:20px;flex:none;text-align:center}
+.dtKlaar{color:var(--groen);font-weight:600;margin:4px 0}.dtWeer{margin-top:6px;font-size:12.5px}
+.dtKnoppen{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.dtKnoppen button{flex:1 1 auto;border:0;border-radius:10px;padding:8px 10px;font-weight:700;background:var(--licht);color:var(--groen);cursor:pointer}
+.dtKnoppen button.aan{background:#fff4d6;color:#8a6200}
+#hoofdmenu{position:fixed;inset:0;z-index:3000;display:none;overflow:auto;background:linear-gradient(160deg,#1f4d2b 0%,#2e7d32 55%,#558b2f 100%);color:#fff}
+#hoofdmenu.open{display:block}
+.mBinnen{max-width:760px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top)) 18px 30px}
+.mKop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.mLogo{font-weight:800;opacity:.8}
+.mKop h1{font-size:clamp(26px,5vw,36px);margin:8px 0 4px;letter-spacing:-.5px}.mKop p{margin:0;opacity:.85;text-transform:capitalize}
+.mUit{border:0;background:rgba(255,255,255,.15);color:#fff;border-radius:12px;padding:8px 12px;font-size:18px;cursor:pointer}
+.mTegels{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:24px}
+.mTegel{display:flex;align-items:center;gap:14px;text-align:left;border:0;border-radius:18px;padding:18px;background:#fff;color:var(--tekst);box-shadow:0 8px 24px rgba(0,0,0,.18);cursor:pointer;transition:transform .15s}
+.mTegel:hover{transform:translateY(-2px)}.mTegel:active{transform:scale(.98)}
+.mTegel.werken{grid-column:1/-1;background:#fffbe9}
+.mIcoon{font-size:34px;width:56px;height:56px;border-radius:16px;background:var(--licht);display:flex;align-items:center;justify-content:center;flex:none}
+.mTekst{display:flex;flex-direction:column;gap:3px}.mTekst b{font-size:18px;color:var(--groen)}.mTekst small{color:var(--grijs);font-size:13px;line-height:1.35}
+.mInfo{font-size:12.5px;color:var(--tekst);margin-top:2px}
+.mSnel{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.mSnel button{flex:1;border:0;border-radius:14px;padding:12px;background:rgba(255,255,255,.15);color:#fff;font-weight:700;cursor:pointer}
+.tabs .menuknop{opacity:.9;border-right:1px solid rgba(255,255,255,.2)}
+.kop .menukop{font-size:16px;padding:4px 8px}
+.rechtlijst{margin:0;padding-left:18px;font-size:13px;line-height:1.6;columns:2}
 .drieDtaak b{display:block;font-size:14px;color:var(--groen)}
 .drieDtaak small{display:block;font-size:12px;color:var(--grijs)}
 
@@ -1077,7 +1102,8 @@ async function opstarten() {
   if (bezig && S.tractoren.find(t => t.id === bezig)) { startRijden(bezig, true); }
   setInterval(() => { if (S.tractoren.length) { tekenTractoren(); if (tab === 'tractoren') render(); } }, 30000);   // "laatst gezien" bijwerken
   setInterval(() => voertuigenTik(), 20000);
-  pgSleepInit();   // plattegrond op de kaart slepen   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
+  pgSleepInit();   // plattegrond op de kaart slepen
+  toonMenu();      // beginnen bij het hoofdmenu   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
   setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
 }
 const actiefSeizoen = () => S.seizoenen.find(s => s.actief);
@@ -1134,12 +1160,26 @@ function verwerkLive(pl) {
     S[pl.table] = lijst.filter(x => x.id !== pl.old.id);
     if (pl.table === 'percelen' && actief === pl.old.id) actief = null;
   } else {
-    const i = lijst.findIndex(x => x.id === pl.new.id);
-    if (i >= 0) lijst[i] = pl.new; else lijst.push(pl.new);
+    // Bij een wijziging stuurt de database grote velden die niet veranderd zijn (zoals de vorm van een perceel) soms niet mee.
+    // Daarom samenvoegen met wat we al hadden, en het object zelf bijwerken zodat open schermen blijven werken.
+    const oud = lijst.find(x => x.id === pl.new.id);
+    if (oud) { for (const [k, v] of Object.entries(pl.new)) if (v !== undefined && v !== 'unchanged_toast') oud[k] = v; }
+    else lijst.push(pl.new);
+    const rij = oud || pl.new;
+    if (['percelen', 'markeringen'].includes(pl.table) && !rij.geo?.type && !rij.geo?.geometry) herlaadRij(pl.table, rij.id);
+    if (pl.table === 'taken' && rij.gebied === 'unchanged_toast') herlaadRij('taken', rij.id);
     if (pl.table === 'percelen') S.percelen.sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
     if (pl.table === 'tractoren') { tractorBewogen(pl.new); if (tab !== 'tractoren') { tekenTractoren(); return; } }
   }
   render();
+}
+
+// één regel opnieuw ophalen als de live-melding onvolledig was
+const herlaadBezig = new Set();
+async function herlaadRij(tabel, id) {
+  if (!id || herlaadBezig.has(tabel + id)) return; herlaadBezig.add(tabel + id);
+  try { const {data} = await sb.from(tabel).select('*').eq('id', id).maybeSingle(); const x = (S[tabel] || []).find(r => r.id === id); if (data && x) { Object.assign(x, data); render(true); } }
+  catch {} finally { herlaadBezig.delete(tabel + id); }
 }
 
 /* ============ database-acties ============ */
@@ -2569,7 +2609,7 @@ function renderKaart() {
   if (trekker3d) { const tk = S.taken.find(x => x.id === trekker3d.id); if (!tk || tk.klaar || !zichtbaar(tk.perceel_id || tk.van_perceel)?.taken || taakFocus !== tk.id) verbergTrekker3d(); }
   laag.clearLayers(); pijlLaag.clearLayers(); tractorLaag.clearLayers();
   const toonNamen = weergave._namen !== false, toonOmtrek = weergave._omtrek !== false, toonGewas = weergave._gewasIcoon !== false;
-  S.percelen.forEach(p => {
+  S.percelen.forEach(p => { if (!p?.geo) return; try {
     const isA = p.id === actief;
     const T = typeVan(p);
     L.geoJSON(p.geo, {style: {stroke: false, fillColor: T.kleur,
@@ -2590,7 +2630,7 @@ function renderKaart() {
       L.tooltip({permanent: true, direction: 'center', className: 'perceel-label' + (toonNamen ? '' : ' alleen-iconen'), interactive: false})
         .setLatLng([pt[1], pt[0]]).setContent(naam + (ic ? `<div class="labelgewas">${ic}</div>` : '')).addTo(laag);
     }
-  });
+  } catch (e) { console.warn('Perceel tekenen mislukt:', p.naam, e); } });
   tekenMarkeringen();
   focusLaag.clearLayers();
   S.taken.forEach(t => {
@@ -2653,7 +2693,7 @@ function tekenZone(p, isA) {
 
 /* ============ paneel ============ */
 function render(forceer) {
-  renderKaart();
+  renderKaart(); if (drieDTaakId) ververs3dTaak();
   const a = document.activeElement;
   if (!forceer && a && $('#panel').contains(a) && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) { wachtRender = true; return; }
   renderPaneel();
@@ -2669,9 +2709,11 @@ function renderPaneel() {
   if (tab === 'tractoren' && !(ziet('tractoren_volgen') || ziet('tractor_rijden'))) tab = 'percelen';
   const live = S.tractoren.filter(isLive).length, bezigN = S.taken.filter(t => t.bezig_door && !t.klaar).length;
   const bedrijfLet = (S.middelen || []).some(voorraadLaag) || (S.machines || []).some(m => machineStatus(m).some(x => x.niveau === 'rood'));
-  $('#tabs').innerHTML = [['percelen', '🗺️', 'Percelen'], ['taken', '📋', 'Taken', open], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'],
-    ...(ziet('tractoren_volgen') || ziet('tractor_rijden') ? [['tractoren', '🚜', 'Trekkers', live, 'live']] : []),
-    ['uren', '⏱️', 'Uren', bezigN, 'live'], ['bedrijf', '📦', 'Bedrijf', bedrijfLet ? '!' : 0], ...(isBeheerder() ? [['team', '👥', 'Team']] : [])]
+  if (!sectie) sectie = 'werken';
+  if (!sectieTabs(sectie).some(t => t[0] === tab)) sectie = ['werken', 'percelen', 'taken', 'persoonlijk', 'beheer'].find(x => sectieTabs(x).some(t => t[0] === tab)) || sectie;
+  if (!sectieTabs(sectie).some(t => t[0] === tab)) tab = sectieTabs(sectie)[0]?.[0] || 'percelen';
+  const tellers = {taken: [open], tractoren: [live, 'live'], uren: [bezigN, 'live'], bedrijf: [bedrijfLet ? '!' : 0]};
+  $('#tabs').innerHTML = `<button class="menuknop" onclick="toonMenu()" title="Hoofdmenu"><span class="ti">🏠</span>Menu</button>` + sectieTabs(sectie).map(([k, i, l]) => [k, i, l, ...(tellers[k] || [])])
     .map(([k, i, l, n, kl]) => `<button class="${tab === k ? 'aan' : ''}" onclick="zetTab('${k}')"><span class="ti">${i}${n ? `<span class="tel ${kl || ''}">${n}</span>` : ''}</span>${l}</button>`).join('');
   let h = '';
   if (tab === 'percelen') h = actief && perceel(actief) ? htmlDetail(perceel(actief)) : htmlLijst();
@@ -2681,6 +2723,8 @@ function renderPaneel() {
   else if (tab === 'seizoenen') h = htmlSeizoenen();
   else if (tab === 'uren') h = htmlUren();
   else if (tab === 'bedrijf') h = htmlBedrijf();
+  else if (tab === 'mij') h = htmlMij();
+  else if (tab === 'partijen') h = seizoenKnop() + htmlPartijen();
   else h = htmlSoorten();
   $('#inhoud').innerHTML = h;
   document.querySelector('.fab').style.display = mag('percelen_tekenen') ? '' : 'none';
@@ -4004,6 +4048,127 @@ function htmlTractoren() {
     </section>${htmlVoertuigen()}`;
 }
 
+/* ============ HOOFDMENU ============
+   Na het inloggen kies je eerst waar je mee bezig wilt: werken (kaart), taken, percelen,
+   je eigen gegevens of (voor beheerders) gegevens aanpassen. Elk onderdeel heeft zijn eigen tabbladen. */
+let sectie = null;
+const SECTIES = {
+  werken:      {i: '🚜', naam: 'Werken'},
+  taken:       {i: '📋', naam: 'Taken'},
+  percelen:    {i: '🗺️', naam: 'Percelen'},
+  persoonlijk: {i: '👤', naam: 'Persoonlijk'},
+  beheer:      {i: '⚙️', naam: 'Gegevens aanpassen'}
+};
+const magBeheer = () => isBeheerder() || ['soorten_beheren', 'seizoen_starten', 'middelen_beheren', 'machines_beheren', 'tractoren_beheren', 'voertuigen_beheren', 'partijen_beheren'].some(r => mag(r));
+function sectieTabs(s) {
+  const trek = ziet('tractoren_volgen') || ziet('tractor_rijden') || ziet('voertuigen_zien');
+  return ({
+    werken: [['percelen', '🗺️', 'Kaart'], ['taken', '📋', 'Taken'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
+    taken: [['taken', '📋', 'Taken'], ['uren', '⏱️', 'Uren']],
+    percelen: [['percelen', '🗺️', 'Percelen'], ['soorten', '🌱', 'Planten'], ['partijen', '🏷️', 'Partijen'], ['seizoenen', '📅', 'Seizoen'], ...(magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf']])],
+    persoonlijk: [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Mijn uren']],
+    beheer: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(isBeheerder() ? [['team', '👥', 'Team']] : [])]
+  })[s] || [];
+}
+function toonMenu() {
+  let el = $('#hoofdmenu');
+  if (!el) { el = document.createElement('div'); el.id = 'hoofdmenu'; document.body.appendChild(el); }
+  const open = S.taken.filter(t => !t.klaar), mijn = open.filter(t => t.toegewezen_aan === me?.id), bezig = open.filter(t => t.bezig_door);
+  const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld), haTot = velden.reduce((s, p) => s + turf.area(p.geo), 0);
+  const uur = new Date().getHours(), groet = uur < 6 ? 'Goedenacht' : uur < 12 ? 'Goedemorgen' : uur < 18 ? 'Goedemiddag' : 'Goedenavond';
+  const live = S.tractoren.filter(isLive).length;
+  const tegel = (k, titel, uitleg, info, extra = '') => `<button class="mTegel ${k}" onclick="kiesSectie('${k}')"><span class="mIcoon">${SECTIES[k].i}</span>
+    <span class="mTekst"><b>${titel}</b><small>${uitleg}</small>${info ? `<span class="mInfo">${info}</span>` : ''}</span>${extra}</button>`;
+  el.innerHTML = `<div class="mBinnen">
+    <div class="mKop"><div><div class="mLogo">🌾 Perceel App</div><h1>${groet}, ${esc((naamMe() || '').split(' ')[0])}</h1>
+      <p>${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})} · seizoen ${esc(seizoenNaam(bekeken))}</p></div>
+      <button class="mUit" title="Uitloggen" onclick="uitloggen()">🚪</button></div>
+    <div class="mTegels">
+      ${tegel('werken', 'Werken', 'De kaart: vlaggetjes zetten, gerooid aangeven, taken en trekkers op het veld', [bezig.length ? `🟡 ${bezig.length} bezig` : '', live ? `🚜 ${live} rijden` : ''].filter(Boolean).join(' · '))}
+      ${tegel('taken', 'Taken', 'Alle taken, planning en wie wat doet', `${open.length} open${mijn.length ? ` · <b>${mijn.length} voor jou</b>` : ''}`)}
+      ${tegel('percelen', 'Percelen', 'Alle velden met wat er staat, partijen, rassen en seizoenen', `${velden.length} velden · ${ha(haTot)} ha`)}
+      ${tegel('persoonlijk', 'Persoonlijke gegevens', 'Je gegevens, je uren, je agenda en je wachtwoord', '')}
+      ${magBeheer() ? tegel('beheer', 'Gegevens aanpassen', 'Bedrijf, middelen, machines, planten, seizoenen en het team', 'voor beheerders') : ''}
+    </div>
+    <div class="mSnel"><button onclick="verbergMenu();openAgenda()">📆 Agenda</button><button onclick="verbergMenu();openMeldingen()">🔔 Meldingen</button><button onclick="verbergMenu();startFilm()">🎬 Film</button></div>
+  </div>`;
+  el.classList.add('open'); document.body.classList.add('menuOpen');
+}
+function verbergMenu() { $('#hoofdmenu')?.classList.remove('open'); document.body.classList.remove('menuOpen'); if (!sectie) { sectie = 'werken'; render(true); } }
+function kiesSectie(s) {
+  sectie = s; try { localStorage.setItem('sectie', s); } catch {}
+  const tabs = sectieTabs(s);
+  if (s === 'werken') { tab = 'percelen'; } else if (s === 'persoonlijk') tab = 'mij';
+  else if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
+  if (tab === 'uren') laadUren();
+  verbergMenu();
+  if (s === 'werken') { paneelKlein(); weergave._taken = weergave._taken ?? true; }
+  else if (isMobiel()) zetPh(standen()[2]);
+  else if (document.body.classList.contains('dicht')) $('#paneelKnop')?.click();
+  render(true); $('#inhoud').scrollTop = 0; setTimeout(kaartPast, 300);
+}
+// persoonlijke gegevens
+function htmlMij() {
+  const open = S.taken.filter(t => !t.klaar && t.toegewezen_aan === me?.id), bezig = S.taken.filter(t => !t.klaar && t.bezig_door === naamMe());
+  const ik = S.profielen.find(u => u.id === me?.id), rechten = RECHTEN.filter(([k]) => mag(k) || ziet(k)).map(r => r[1]);
+  const week = (S.uren || []).filter(u => (u.user_id === me?.id || u.naam === naamMe()) && Date.now() - new Date(u.start || u.van || u.created_at) < 7 * 864e5);
+  const minuten = week.reduce((s, u) => s + (+u.minuten || (u.eind && u.start ? (new Date(u.eind) - new Date(u.start)) / 60000 : 0)), 0);
+  return `<section class="kaartje"><h4>👤 Mijn gegevens</h4>
+      <div class="inforij"><span>Naam</span><b>${esc(naamMe())}</b></div>
+      <div class="inforij"><span>E-mail</span><b>${esc(me?.email || ik?.email || '–')}</b></div>
+      <div class="inforij"><span>Rol</span><b>${isBeheerder() ? 'Beheerder' : 'Medewerker'}</b></div>
+      <div class="rij" style="margin-top:10px"><button class="knop licht" onclick="eigenWachtwoord()">🔑 Wachtwoord wijzigen</button><button class="knop licht" onclick="uitloggen()">🚪 Uitloggen</button></div></section>
+    <section class="kaartje"><h4>📋 Mijn werk</h4>
+      ${bezig.length ? bezig.map(t => taakHtml(t, true)).join('') : ''}
+      <div class="inforij"><span>Open taken voor mij</span><b>${open.length}</b></div>
+      ${minuten ? `<div class="inforij"><span>Gewerkt de afgelopen 7 dagen</span><b>${Math.floor(minuten / 60)} u ${String(Math.round(minuten % 60)).padStart(2, '0')}</b></div>` : ''}
+      ${open.slice(0, 5).map(t => taakHtml(t, true)).join('')}
+      <div class="rij" style="margin-top:8px"><button class="knop licht" onclick="takenFilter='mij';kiesSectie('taken')">Al mijn taken ›</button><button class="knop licht" onclick="agTab='mij';openAgenda()">📆 Mijn agenda</button></div></section>
+    ${ziet('tractor_rijden') ? `<section class="kaartje"><h4>📱 Telefoon als GPS in de trekker</h4><p class="hint" style="margin-top:0">Rijd je vandaag? Zet dan je telefoon aan als GPS, dan ziet iedereen waar je bent.</p>
+      <button class="knop licht" onclick="kiesSectie('werken');zetTab('tractoren')">🚜 Naar trekkers</button></section>` : ''}
+    <section class="kaartje"><h4>🔐 Wat ik mag</h4>${rechten.length ? `<ul class="rechtlijst">${rechten.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '<p class="hint">Alleen bekijken.</p>'}</section>`;
+}
+
+/* ---------- alle info van een taak in de 3D-weergave ---------- */
+let drieDTaakId = null;
+function taakInfo3d(t) {
+  const p = perceel(t.perceel_id || t.van_perceel), wie = S.profielen.find(u => u.id === t.toegewezen_aan), m = middel(t.middel_id) || middelOpNaam(t.product);
+  let verbruik = null; try { verbruik = m ? verbruikVan(t, m) : null; } catch {}
+  const rij = (i, tekst) => tekst ? `<div class="dtRij"><span>${i}</span><div>${tekst}</div></div>` : '';
+  const teelten = p ? [...teeltOppervlak(p).entries()].map(([id, v]) => ({tl: teelt(id), m2: v.m2})).filter(x => x.tl).sort((a, b) => b.m2 - a.m2) : [];
+  const partijen = p ? partijenVan(p.id) : [];
+  const rassen = [...new Set(partijen.map(partijRas).filter(Boolean))];
+  let weer = ''; try { if (p && werktuigSoort(t) === 'spuit' && weerCache[p.id]?.d) weer = spuitHtml(weerCache[p.id].d); } catch {}
+  const telaat = !t.klaar && t.deadline && t.deadline < vandaag();
+  return `${t.omschrijving ? `<div class="dtOmschr">${esc(t.omschrijving).replace(/\n/g, '<br>')}</div>` : ''}
+    ${t.bezig_door && !t.klaar ? `<div class="bezigregel">${bezigTekst(t)}</div>` : ''}
+    ${t.klaar ? `<div class="dtKlaar">✓ Gedaan door <b>${esc(t.klaar_door || '?')}</b> · ${datumKort(t.klaar_op)}</div>` : ''}
+    ${rij('📍', p ? `<b>${esc(p.naam)}</b> · ${isVerplaats(t) ? verplaatsTekst(t) : taakWaar(t)}${(() => { try { const m2 = taakM2(t); return m2 ? ` · ${ha(m2)} ha` : ''; } catch { return ''; } })()}` : '')}
+    ${rij('👤', wie ? esc(wie.naam) : 'nog niemand toegewezen')}
+    ${rij('🗓️', [t.gepland ? 'gepland ' + datumKort(t.gepland) : '', t.deadline ? `<span class="${telaat ? 'telaat' : ''}">klaar vóór ${datumKort(t.deadline)}${telaat ? ' (te laat)' : ''}</span>` : '', t.herhaal ? herhaalTekst(t) : ''].filter(Boolean).join(' · '))}
+    ${rij('🚜', [t.trekker, t.werktuig].filter(Boolean).map(esc).join(' + '))}
+    ${rij('🧪', t.product || m ? `<b>${esc(t.product || m.naam)}</b>${t.dosering != null ? ` · ${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}` : ''}${verbruik ? ` · totaal ± <b>${getal(verbruik, 1)} ${esc(m?.voorraad_eenheid || '')}</b>` : ''}` : '')}
+    ${rij('🌱', teelten.length ? teelten.slice(0, 4).map(x => `${esc(x.tl.naam)} <small>(${ha(x.m2)} ha)</small>`).join(', ') : '')}
+    ${rij('🏷️', partijen.length ? `${partijen.length} partijen${rassen.length ? ': ' + rassen.slice(0, 8).map(esc).join(', ') + (rassen.length > 8 ? '…' : '') : ''}${partijen.some(x => x.bio) ? ' <span class="badge bio">BIO</span>' : ''}` : '')}
+    ${p && vgtVan(p.id) ? `<div class="vgtbalk">${vgtTekst(vgtVan(p.id))}</div>` : ''}
+    ${weer ? `<div class="dtWeer">${weer}</div>` : ''}
+    ${fotoRij(t.fotos)}
+    <div class="dtKnoppen">
+      ${!t.klaar && mag('taken_afvinken') ? `<button class="${t.bezig_door ? 'aan' : ''}" onclick="zetBezig('${t.id}')">${t.bezig_door ? '⏸ Niet meer bezig' : '▶ Ik ben bezig'}</button>
+        <button onclick="vinkTaak('${t.id}')">✓ Klaar</button>` : ''}
+      ${mag('taken_toevoegen') && !t.klaar ? `<button onclick="taakFormulier('${t.id}')">✏️ Bewerken</button>` : ''}
+      ${p ? `<button onclick="sluit3D();kies('${p.id}')">📍 Naar perceel</button>` : ''}
+    </div>`;
+}
+function taakKaart3d(t) {
+  return `<div class="drieDtaak vol" id="drieDtaakKaart"><div class="dtKop" onclick="this.parentNode.classList.toggle('ingeklapt')"><b>${esc(t.tekst)}</b><span class="dtPijl">▾</span></div>
+    <div class="dtInhoud">${taakInfo3d(t)}</div></div>`;
+}
+function ververs3dTaak() {
+  const k = $('#drieDtaakKaart'), t = drieDTaakId && S.taken.find(x => x.id === drieDTaakId); if (!k || !t) return;
+  k.querySelector('.dtKop b').textContent = t.tekst; k.querySelector('.dtInhoud').innerHTML = taakInfo3d(t);
+}
+
 /* ============ TEELTGEGEVENS INLADEN (Excel / CSV) ============
    Een lijst met per perceel de partijen (batch, NAK-nummer, ras, klasse, doel) wordt ingelezen.
    Elk tabblad is een gewas ("Aardbei vermeerdering"), de kolommen worden herkend aan hun kop,
@@ -4232,8 +4397,10 @@ function htmlPerceelPartijenTab(p) {
     || `<section class="kaartje"><h4>🏷️ Partijen</h4><p class="hint">Er staan nog geen partijen aan dit perceel gekoppeld.</p></section>`}
   ${beh && losse.length ? `<section class="kaartje"><h4>🔗 Partijen aan dit perceel koppelen</h4>
       <p class="hint" style="margin-top:0">Deze namen uit je Excel-bestand zijn nog niet aan een perceel gekoppeld. Tik op de naam die bij <b>${esc(p.naam)}</b> hoort; dat wordt onthouden.</p>
-      ${losse.slice(0, 12).map(({t}) => `<button class="chip" style="margin:3px" onclick="partijKoppelAan(${esc(JSON.stringify(t))}, '${p.id}')">${esc(t)} <small>(${(S.partijen || []).filter(x => x.perceel_tekst === t && !perceel(x.perceel_id)).length})</small></button>`).join('')}
-      ${losse.length > 12 ? `<p class="hint">…en nog ${losse.length - 12} andere namen (staan in Bedrijf → Partijen).</p>` : ''}</section>` : ''}
+      ${losse.length > 8 ? `<input class="veld" placeholder="🔎 Zoek een naam…" oninput="const z=this.value.toLowerCase();this.parentNode.querySelectorAll('.losnaam').forEach(b=>b.style.display=b.dataset.n.includes(z)?'':'none')">` : ''}
+      <div>${losse.map(({t}) => `<button class="chip losnaam" data-n="${esc(t.toLowerCase())}" style="margin:3px" onclick="partijKoppelAan(${esc(JSON.stringify(t))}, '${p.id}')">${esc(t)} <small>(${(S.partijen || []).filter(x => x.perceel_tekst === t && !perceel(x.perceel_id)).length})</small></button>`).join('')}</div>
+      <p class="hint">Staat de partij er niet tussen? Voeg hem dan zelf toe.</p>
+      <button class="knop licht" onclick="partijBewerk(null, '${p.id}')">➕ Partij toevoegen</button></section>` : ''}
   ${beh ? `<div class="rij"><button class="knop licht" onclick="partijBewerk(null, '${p.id}')">➕ Partij toevoegen</button><button class="knop licht" onclick="teeltKiesBestand()">📥 Excel inladen</button></div>` : ''}`;
 }
 // één partij aanpassen of met de hand toevoegen
@@ -6548,8 +6715,9 @@ async function open3D(opt = {}) {
   let el = $('#drieD');
   if (!el) { el = document.createElement('div'); el.id = 'drieD'; document.body.appendChild(el); }
   const t = opt.taak, p = t ? perceel(t.perceel_id || t.van_perceel) : perceel(opt.perceel || actief);
+  drieDTaakId = t?.id || null;
   el.innerHTML = `<div id="drieDKaart"></div><canvas id="drieDDoek"></canvas>
-    ${t ? `<div class="drieDtaak"><b>${esc(t.tekst)}</b>${p ? `<small>📍 ${esc(p.naam)}</small>` : ''}${t.trekker || t.werktuig ? `<small>🚜 ${esc([t.trekker, t.werktuig].filter(Boolean).join(' + '))}</small>` : ''}</div>` : ''}
+    ${t ? taakKaart3d(t) : ''}
     <div class="drieDbalk"><b>🧊 3D</b><span>${p ? 'De camera draait om ' + esc(p.naam) : 'Sleep met twee vingers om te kantelen en draaien'}</span>
       <button onclick="drieDHoek(0)">Bovenaf</button><button onclick="drieDHoek(62)">Schuin</button><button onclick="drieDDraai()">↻ Draaien</button><button onclick="startFilm()">🎬 Film</button><button class="sluit" onclick="sluit3D()">✕ Sluiten</button></div>`;
   el.classList.add('open'); drieDVak();
@@ -6708,7 +6876,7 @@ async function feitenVan(p) {
 }
 
 function sluit3D() {
-  stopFilm(true); stopOrbit(); stopVloot3d();
+  drieDTaakId = null; stopFilm(true); stopOrbit(); stopVloot3d();
   window.removeEventListener('resize', drieDVak);
   if (drieD) { const c = drieD.getCenter(); map.setView([c.lat, c.lng]); drieD.remove(); drieD = null; }
   $('#drieD')?.classList.remove('open');
