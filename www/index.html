@@ -390,6 +390,9 @@ textarea.veld{resize:vertical;font-family:inherit}
 .partijtabel td:last-child{padding-right:0}
 .partijbalk{margin:10px 0;padding:10px 12px;border-radius:12px;background:#f3f8ef;border:1px solid #d7e7cd;font-size:13px;cursor:pointer;line-height:1.45}
 .partijbalk .meer{color:var(--groen);font-weight:700;white-space:nowrap}
+.plantinfo{margin:-2px 0 6px 22px;padding:4px 8px;border-left:3px solid #d7e7cd;font-size:12px;color:#455a4a}.plantinfo .pi{padding:1px 0}
+.spoortip{font-size:12.5px;line-height:1.4;max-width:280px;white-space:normal;border-radius:10px;padding:6px 9px}
+.spoortip .tipPartijen{margin-top:4px;padding-top:4px;border-top:1px solid #e3e8e1;font-size:11.5px}.spoortip .pi{padding:1px 0}
 .raspartijen{margin:4px 0 10px 26px;border-left:3px solid var(--rand);padding-left:8px}.badge.bio{background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 6px}
 .plattegrondBeeld{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none!important;max-height:none!important;width:auto;height:auto;pointer-events:none;user-select:none;-webkit-user-drag:none}
 .plattegrondBeeld.sleep{pointer-events:auto;cursor:move;outline:2px dashed #ff9100;touch-action:none}
@@ -2722,6 +2725,7 @@ function tekenZone(p, isA) {
       const s = teelt(st.id);
       geenSnap(L.geoJSON(st.geo, {style: {color: isA ? '#ffffff' : '#111', weight: isA ? .9 : .4, opacity: .75,
         fillColor: s ? s.kleur : '#ffffff', fillOpacity: s ? (f === 1 ? .62 : f === 0 ? .04 : .12) : .06}}))
+        .bindTooltip(() => spoorTip(p, bn, st), {sticky: true, direction: 'top', offset: [0, -8], className: 'spoortip', opacity: .97})
         .on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); klikBaan(p, bn, ev.latlng); }).addTo(laag);
       if (s && f === .5) { const h = halfStuk(p, bn, st.geo); if (h) geenSnap(L.geoJSON(h, {interactive: false, style: {stroke: false, fillColor: s.kleur, fillOpacity: .62}})).addTo(laag); }
     });
@@ -2905,11 +2909,16 @@ function htmlInfoInhoud(p) {
   if (p.type !== 'pand') {
     const tel = teeltOppervlak(p), regels = [...tel.entries()].filter(([id]) => teelt(id)).sort((a, b) => b[1].m2 - a[1].m2);
     let planten = 0;
+    const getoond = new Set();
     const lijst = regels.map(([id, x]) => { const t = teelt(id), a = plantAantal(p, id, x); if (a) planten += a.totaal;
-      return `<div class="inforij"><span><i class="kl" style="background:${esc(t.kleur)}"></i>${icoonHtml(t.icoon)} ${esc(t.naam)}</span>
-        <b>${ha(x.m2)} ha${x.n ? ` · ${x.n} ${x.n === 1 ? 'rij' : 'rijen'}` : x.vlak ? ' · heel vlak' : ''}${a ? ` · ≈ ${getal(Math.round(a.totaal))} pl` : ''}</b></div>`; }).join('');
+      const pr = partijenVanTeelt(p.id, id); pr.forEach(y => getoond.add(y.id)); const r = ras(id);
+      return `<div class="inforij"><span><i class="kl" style="background:${esc(t.kleur)}"></i>${icoonHtml(t.icoon)} ${esc(t.naam)}${pr.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}</span>
+        <b>${ha(x.m2)} ha${x.n ? ` · ${getal(x.n, 1)} ${x.n === 1 ? 'rij' : 'rijen'}` : x.vlak ? ' · heel vlak' : ''}${a ? ` · ≈ ${getal(Math.round(a.totaal))} pl` : ''}</b></div>
+        ${pr.length || r?.notitie ? `<div class="plantinfo">${pr.map(partijRegel).join('')}${r?.notitie ? `<div class="pi">📝 ${esc(r.notitie)}</div>` : ''}</div>` : ''}`; }).join('');
+    const overig = partijenVan(p.id).filter(y => !getoond.has(y.id));
+    const overigHtml = overig.length ? `<div class="plantinfo"><div class="pi"><b>Ook op dit perceel, nog niet op een spoor ingedeeld:</b></div>${overig.map(y => partijRegel(y, true)).join('')}</div>` : '';
     const leeg = tel.get(null)?.m2 || 0;
-    h += blok('🌱 Wat staat er', (lijst || '<p class="hint">Nog niets ingedeeld.</p>') +
+    h += blok('🌱 Wat staat er', (lijst || '<p class="hint">Nog niets ingedeeld.</p>') + overigHtml +
       (leeg > 1 ? rij('Niet ingedeeld', ha(leeg) + ' ha') : '') + (planten ? rij('Totaal planten', '≈ ' + getal(Math.round(planten))) : ''));
     // sporen
     const s = spuitVan(p), vk = spuitvakkenVan(p);
@@ -4430,6 +4439,24 @@ function partijSamenvatting(p) {
   const gewassen = [...new Set(l.map(x => soort(x.soort_id)?.naam).filter(Boolean))].join(', ');
   return `<div class="partijbalk" onclick="perceelTab='partijen';render(true)"><b>🏷️ ${l.length} ${l.length === 1 ? 'partij' : 'partijen'}</b>${gewassen ? ` · ${esc(gewassen)}` : ''}${l.some(x => x.bio) ? ' <span class="badge bio">BIO</span>' : ''}<br>
     <span>${rassen.slice(0, 8).join(', ')}${rassen.length > 8 ? ` en nog ${rassen.length - 8}` : ''}</span> <span class="meer">bekijk ›</span></div>`;
+}
+// partijen die bij een teelt (ras of hele plant) op een perceel horen
+function partijenVanTeelt(pid, teeltId) {
+  const r = ras(teeltId);
+  return partijenVan(pid).filter(y => r ? y.ras_id === r.id || (!y.ras_id && y.soort_id === r.soort_id && normTekst(y.ras_tekst || '').includes(normTekst(r.naam)))
+    : y.soort_id === teeltId && !y.ras_id);
+}
+const partijRegel = (y, metRas) => `<div class="pi">🏷️ ${metRas ? `<b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> · ` : ''}${[y.batch ? 'batch ' + esc(y.batch) : '', y.nak && y.nak !== y.batch ? 'NAK ' + esc(y.nak) : '', y.klasse ? esc(y.klasse) : '', y.doel ? esc(y.doel) : '', y.teeltdoel ? esc(y.teeltdoel) : ''].filter(Boolean).join(' · ')}${y.bio && metRas ? ' <span class="badge bio">BIO</span>' : ''}</div>`;
+// wat je ziet als je met de muis over een spoor gaat (of erop tikt)
+function spoorTip(p, bn, st) {
+  const t = teelt(st.id), f = patroonVan(p) ? rijWaarde(p, bn.nr) : (spuitSet(p).has(bn.nr) ? 2 : 1);
+  const vak = spuitvakkenVan(p).find(v => v.nrs.includes(bn.nr));
+  const kop = `<b>Spoor ${bn.nr}</b>${vak ? ` · vak ${vak.letter}` : ''}${f === 2 ? ' · 🚜 spuitspoor' : f === .5 ? ' · half gevuld' : f === 0 ? ' · leeg' : ''}`;
+  if (!t) return `${kop}<br><small>Niet ingedeeld · ${Math.round(st.tot - st.van)} m</small>`;
+  const pr = partijenVanTeelt(p.id, st.id), r = ras(st.id);
+  return `${kop}<br>${icoonHtml(t.icoon)} <b>${esc(t.naam)}</b>${pr.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}<br><small>${Math.round(st.tot - st.van)} m · ${Math.round(st.m2 * (f === .5 ? .5 : 1)).toLocaleString('nl-NL')} m²</small>
+    ${pr.length ? `<div class="tipPartijen">${pr.slice(0, 4).map(y => partijRegel(y)).join('')}${pr.length > 4 ? `<div class="pi">…en nog ${pr.length - 4}</div>` : ''}</div>` : ''}
+    ${r?.notitie ? `<div class="pi">📝 ${esc(r.notitie.slice(0, 120))}</div>` : ''}`;
 }
 function htmlPerceelPartijenTab(p) {
   const l = partijenVan(p.id), beh = mag('partijen_beheren');
