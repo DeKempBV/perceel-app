@@ -372,6 +372,16 @@ textarea.veld{resize:vertical;font-family:inherit}
 .voertuig-label:before{display:none}
 .fgStatus{background:var(--licht);border-radius:10px;padding:8px 10px;font-size:13px;margin:8px 0;word-break:break-word}
 .fgStatus.fout{background:#fdecea;color:#b71c1c}
+.dialoog.breed{width:min(760px,calc(100vw - 24px));max-width:none;max-height:calc(100vh - 24px);overflow:auto}
+.tiBlad{border:1px solid var(--rand);border-radius:12px;padding:8px 10px;margin:6px 0}
+.tiRij{display:flex;gap:8px;align-items:center;margin-top:6px}.tiRij>span{font-size:12px;color:var(--grijs);white-space:nowrap}.tiRij .veld{margin:0;flex:1;min-width:0}
+.tiKols{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.tiKol{font-size:12px;background:var(--licht);border-radius:8px;padding:3px 6px}.tiKol select{font-size:12px;border:0;background:none;font-weight:700;color:var(--groen)}
+.tiPerc{max-height:280px;overflow:auto;border:1px solid var(--rand);border-radius:12px;padding:4px 8px}
+.tiPerc .tiRij>span{flex:1;color:var(--tekst);font-size:13px;overflow:hidden;text-overflow:ellipsis}.tiPerc .tiRij .veld{flex:1}
+.tiPerc .tiRij.leeg>span{color:#b71c1c;font-weight:700}
+.tabelscroll{overflow-x:auto}
+.partijtabel{font-size:12.5px;width:100%}.partijtabel th{text-align:left;font-size:11.5px;color:var(--grijs);padding:4px 6px;position:sticky;top:0;background:#fff}.partijtabel td{padding:4px 6px;border-top:1px solid var(--rand);vertical-align:top}
+.partijtabel .grijs{color:var(--grijs);font-style:italic}.badge.bio{background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 6px}
 .plattegrondBeeld{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none!important;max-height:none!important;width:auto;height:auto;pointer-events:none;user-select:none;-webkit-user-drag:none}
 .plattegrondBeeld.sleep{pointer-events:auto;cursor:move;outline:2px dashed #ff9100;touch-action:none}
 #pgBalk{position:fixed;right:16px;bottom:16px;z-index:1300;width:min(380px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:12px 14px}
@@ -381,7 +391,7 @@ textarea.veld{resize:vertical;font-family:inherit}
 .pgRij{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}.pgRij span{font-size:12px;color:var(--grijs)}.pgRij input[type=range]{flex:1;accent-color:var(--groen)}
 .pgRij.knoppen button{border:1px solid var(--rand);background:var(--licht);border-radius:10px;padding:6px 10px;font-weight:700;cursor:pointer}
 .pgRij .knop{flex:1}
-body.pgSleept::after{content:'🗺️ Laat los om de plattegrond in te laden';position:fixed;inset:12px;border:4px dashed var(--groen);border-radius:20px;background:rgba(46,125,50,.12);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--groen);z-index:5000;pointer-events:none}
+body.pgSleept::after{content:'📥 Laat los om in te laden (plattegrond of Excel met teeltgegevens)';position:fixed;inset:12px;border:4px dashed var(--groen);border-radius:20px;background:rgba(46,125,50,.12);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--groen);z-index:5000;pointer-events:none}
 .tel.live{background:#ff6d00;color:#fff}
 .rijkaart{border-color:#ffb380;background:#fff7f0}
 .rijkaart p{font-size:14px;line-height:1.45}
@@ -704,7 +714,7 @@ const datumKort = d => d ? new Date(d).toLocaleDateString('nl-NL', {day: 'numeri
 const vandaag = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };   // lokale datum
 
 let sb = null, me = null, gestart = false, wachtRender = false;
-const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], voertuigen: [], profielen: [], seizoenen: [], uren: [], inst: {}, middelen: [], oogst: [], machines: [], machine_log: [], kosten: [], meldingen: []};
+const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], voertuigen: [], partijen: [], perceel_aliassen: [], profielen: [], seizoenen: [], uren: [], inst: {}, middelen: [], oogst: [], machines: [], machine_log: [], kosten: [], meldingen: []};
 let bekeken = null, archief = false, livePercelen = null;   // seizoen dat je bekijkt
 let perceelTab = 'info', actief = null, tab = 'percelen', kwast, gereedschap, taakFocus, tekenDoel = 'perceel', markLagen = {}, gekozenPlant, openPlant, openRechten, takenFilter = 'open', vormLaag = null;
 let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, voertuigLaag, locatieLaag, basis = {}, laagModus = 'sat';
@@ -788,13 +798,14 @@ const RECHTEN = [
   ['uren_mailen', 'Urenoverzicht mailen', 'Uren'],
   ['middelen_beheren', 'Middelen en voorraad beheren', 'Bedrijf'],
   ['oogst_registreren', 'Oogst (aantal planten) registreren', 'Bedrijf'],
+  ['partijen_beheren', 'Teeltgegevens (partijen, rassen, NAK-nummers) inladen uit Excel', 'Bedrijf'],
   ['oogst_bekijken', 'Oogst bekijken', 'Bedrijf'],
   ['machines_beheren', 'Machines en onderhoud beheren', 'Bedrijf'],
   ['kosten_bekijken', 'Kosten bekijken en invoeren', 'Bedrijf']];
 const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, spuitsporen_bewerken: true, deelvelden_bewerken: true,
   percelen_uitschakelen: false, percelen_verwijderen: false, soorten_indelen: true, soorten_beheren: false,
   taken_toevoegen: true, taken_afvinken: true, werk_registreren: true, taken_verwijderen: false, markeringen_maken: true,
-  weer_bekijken: true, historie_bekijken: true, seizoen_starten: false, tractoren_volgen: true, tractor_rijden: true, tractoren_beheren: false, voertuigen_zien: false, voertuigen_beheren: false,
+  weer_bekijken: true, historie_bekijken: true, seizoen_starten: false, tractoren_volgen: true, tractor_rijden: true, tractoren_beheren: false, voertuigen_zien: false, voertuigen_beheren: false, partijen_beheren: false,
   uren_bekijken: false, uren_beheren: false, uren_mailen: false,
   middelen_beheren: false, oogst_registreren: true, oogst_bekijken: true, machines_beheren: false, kosten_bekijken: false,
   percelen_aanpassen: false, kopeinden_bewerken: true, gerooid_aangeven: true};
@@ -2774,7 +2785,7 @@ function opstaandHtml(p) {
 }
 /* ---- alles over het perceel op één plek ---- */
 function htmlInfo(p) {
-  return verslagenHtml(p.id) + htmlPlattegrond(p) + htmlInfoInhoud(p);
+  return verslagenHtml(p.id) + htmlPerceelPartijen(p) + htmlPlattegrond(p) + htmlInfoInhoud(p);
 }
 function htmlInfoInhoud(p) {
   const rij = (k, v) => v === '' || v == null ? '' : `<div class="inforij"><span>${k}</span><b>${v}</b></div>`;
@@ -2986,6 +2997,7 @@ function htmlDetail(p) {
   ${htmlMarkeringen(p, 'vlag')}
   ${mag('percelen_uitschakelen') || mag('percelen_verwijderen') ? `<section class="kaartje"><h4>Beheer</h4>
     ${mag('percelen_uitschakelen') ? `<button class="knop licht" onclick="schakelPerceel()">${p.uitgeschakeld ? '▶️ Weer in gebruik nemen' : '⏸️ Uitschakelen (niet in gebruik dit seizoen)'}</button>` : ''}
+    ${mag('percelen_bewerken') && mag('percelen_verwijderen') && p.type !== 'pand' ? '<button class="knop licht" onclick="samenvoegenStart()">🔗 Samenvoegen met een perceel ernaast</button>' : ''}
     ${mag('percelen_verwijderen') ? '<button class="knop rood" onclick="verwijderPerceel()">🗑️ Perceel verwijderen</button>' : ''}</section>` : ''}
   <p class="hint">Aangemaakt door ${esc(p.aangemaakt_door || 'onbekend')}</p>`;
 
@@ -3977,6 +3989,318 @@ function htmlTractoren() {
     </section>${htmlVoertuigen()}`;
 }
 
+/* ============ TEELTGEGEVENS INLADEN (Excel / CSV) ============
+   Een lijst met per perceel de partijen (batch, NAK-nummer, ras, klasse, doel) wordt ingelezen.
+   Elk tabblad is een gewas ("Aardbei vermeerdering"), de kolommen worden herkend aan hun kop,
+   percelen worden op naam gekoppeld (en dat wordt onthouden), ontbrekende rassen worden aangemaakt. */
+const kolomNr = ref => { const m = /^([A-Z]+)/.exec(ref || ''); let n = 0; for (const ch of m ? m[1] : 'A') n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
+async function leesXlsx(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf), td = new TextDecoder();
+  let e = u8.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('Dit is geen Excel-bestand (.xlsx). Sla het in Excel op als .xlsx en probeer opnieuw.');
+  const bestanden = {}; let o = dv.getUint32(e + 16, true);
+  for (let i = 0, n = dv.getUint16(e + 10, true); i < n; i++) {
+    const nl = dv.getUint16(o + 28, true), xl = dv.getUint16(o + 30, true), cl = dv.getUint16(o + 32, true);
+    bestanden[td.decode(u8.subarray(o + 46, o + 46 + nl))] = {meth: dv.getUint16(o + 10, true), csize: dv.getUint32(o + 20, true), lo: dv.getUint32(o + 42, true)};
+    o += 46 + nl + xl + cl;
+  }
+  const lees = async naam => {
+    const f = bestanden[naam]; if (!f) return null;
+    const start = f.lo + 30 + dv.getUint16(f.lo + 26, true) + dv.getUint16(f.lo + 28, true), data = u8.subarray(start, start + f.csize);
+    if (f.meth === 0) return td.decode(data);
+    return td.decode(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  };
+  const xml = s => new DOMParser().parseFromString(s, 'application/xml');
+  const wb = xml(await lees('xl/workbook.xml') || '<x/>'), rels = xml(await lees('xl/_rels/workbook.xml.rels') || '<x/>'), gedeeld = [];
+  const ss = await lees('xl/sharedStrings.xml');
+  if (ss) for (const si of xml(ss).getElementsByTagName('si')) gedeeld.push([...si.getElementsByTagName('t')].map(t => t.textContent).join(''));
+  const rel = {}; for (const r of rels.getElementsByTagName('Relationship')) rel[r.getAttribute('Id')] = r.getAttribute('Target');
+  const bladen = [];
+  for (const sh of wb.getElementsByTagName('sheet')) {
+    if (sh.getAttribute('state') === 'hidden') continue;
+    let doel = rel[sh.getAttribute('r:id')] || ''; doel = doel.startsWith('/') ? doel.slice(1) : 'xl/' + doel.replace(/^\.\//, '');
+    const s = await lees(doel); if (!s) continue;
+    const rijen = [];
+    for (const row of xml(s).getElementsByTagName('row')) {
+      const r = [];
+      for (const c of row.getElementsByTagName('c')) {
+        const t = c.getAttribute('t'); let v = c.getElementsByTagName('v')[0]?.textContent ?? null;
+        if (t === 's') v = gedeeld[+v] ?? null; else if (t === 'inlineStr') v = [...c.getElementsByTagName('t')].map(x => x.textContent).join('');
+        else if (t === 'b') v = v === '1'; else if (v !== null && t !== 'str' && t !== 'e' && v !== '' && !isNaN(v)) v = +v;
+        r[kolomNr(c.getAttribute('r'))] = v;
+      }
+      rijen[(+row.getAttribute('r') || rijen.length + 1) - 1] = Array.from(r, x => x ?? null);
+    }
+    bladen.push({naam: sh.getAttribute('name') || 'Blad', rijen: Array.from(rijen, r => r || [])});
+  }
+  return bladen;
+}
+function leesCsv(tekst) {
+  const eerste = tekst.split(/\r?\n/)[0] || '', sch = (eerste.match(/;/g) || []).length > (eerste.match(/,/g) || []).length ? ';' : eerste.includes('\t') ? '\t' : ',';
+  const rijen = []; let rij = [], veld = '', q = false;
+  for (let i = 0; i < tekst.length; i++) { const ch = tekst[i];
+    if (q) { if (ch === '"' && tekst[i + 1] === '"') { veld += '"'; i++; } else if (ch === '"') q = false; else veld += ch; }
+    else if (ch === '"') q = true; else if (ch === sch) { rij.push(veld); veld = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && tekst[i + 1] === '\n') i++; rij.push(veld); rijen.push(rij); rij = []; veld = ''; } else veld += ch; }
+  if (veld || rij.length) { rij.push(veld); rijen.push(rij); }
+  return [{naam: 'Blad1', rijen: rijen.map(r => r.map(v => v.trim() === '' ? null : v.trim()))}];
+}
+// welke kolom is wat (op de kopnaam)
+const TEELT_VELDEN = [
+  ['perceel', 'Perceel', /perce|parce|^veld|locatie|kavel/i], ['ras', 'Ras', /^ras\b|ras$|variet|cultivar/i], ['batch', 'Batchnummer', /batch|partij/i],
+  ['nak', 'NAK-nummer', /\bnak\b|nak.?n/i], ['klasse', 'Klasse', /klasse|class/i], ['doel', 'Doel / planttype', /doel|planttype|plant.?type/i],
+  ['gewas', 'Gewas', /^gewas|^teelt$|^soort$/i], ['aantal', 'Aantal planten', /aantal|stuks/i]];
+function teeltKolommen(kop) {
+  const toe = {}, vrij = new Set(TEELT_VELDEN.map(v => v[0]));
+  kop.forEach((h, i) => { const t = String(h ?? '').trim(); if (!t) return; const v = TEELT_VELDEN.find(([k, , re]) => vrij.has(k) && re.test(t)); if (v) { toe[i] = v[0]; vrij.delete(v[0]); } });
+  return toe;
+}
+const normTekst = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+// gewas en teeltdoel uit de bladnaam: "Aardbei vermeerdering" → Aardbei + vermeerdering
+function bladGewas(naam) {
+  const n = String(naam).trim(), m = n.match(/^(.*?)\s+(vermeerdering|opkweek|productie|teelt|plantgoed|vers|bio)\b(.*)$/i);
+  const gewas = (m ? m[1] : n).trim(), doel = m ? (m[2] + m[3]).trim().toLowerCase() : '';
+  const stam = s => normTekst(s).replace(/(en|s)$/, '');
+  const best = S.soorten.find(s => stam(s.naam) === stam(gewas)) || S.soorten.find(s => normTekst(gewas).includes(normTekst(s.naam)) || normTekst(s.naam).includes(normTekst(gewas)));
+  return {gewas, doel, soort_id: best?.id || null};
+}
+// perceelnaam uit het bestand koppelen aan een perceel in de app
+function perceelZoeken(tekst) {
+  const t = normTekst(tekst); if (!t) return {p: null, score: 0};
+  const alias = (S.perceel_aliassen || []).find(a => a.tekst === String(tekst).trim().toLowerCase());
+  if (alias && perceel(alias.perceel_id)) return {p: perceel(alias.perceel_id), score: 100};
+  const delen = String(tekst).split(/\s+-\s+|\s*\|\s*|\s*\/\s*/).map(normTekst).filter(Boolean), tok = new Set(t.split(' '));
+  let beste = {p: null, score: 0};
+  S.percelen.forEach(p => {
+    const n = normTekst(p.naam); if (!n) return; let sc = 0;
+    if (n === t) sc = 98; else if (delen.includes(n)) sc = 90; else if (delen[0] && (n.startsWith(delen[0] + ' ') || delen[0].startsWith(n + ' '))) sc = 72;
+    else if ((' ' + t + ' ').includes(' ' + n + ' ') && n.length > 3) sc = 70; else if ((' ' + n + ' ').includes(' ' + t + ' ') && t.length > 3) sc = 66;
+    else { const pt = n.split(' '), samen = pt.filter(x => tok.has(x)).length; sc = samen / Math.max(pt.length, tok.size) * 60 + (pt.some(x => /^\d{2,}$/.test(x) && tok.has(x)) ? 25 : 0); }
+    if (sc > beste.score) beste = {p, score: sc};
+  });
+  return beste;
+}
+async function teeltBestandInladen(bestand) {
+  if (!mag('partijen_beheren')) { toast('Je mag geen teeltgegevens inladen', 1); return; }
+  if (!bestand) return;
+  let bladen;
+  try {
+    if (/\.csv$|\.txt$/i.test(bestand.name)) bladen = leesCsv(await bestand.text());
+    else if (/\.xls$/i.test(bestand.name)) throw new Error('Oude .xls-bestanden kan ik niet lezen. Open het in Excel en kies Opslaan als → Excel-werkmap (.xlsx).');
+    else bladen = await leesXlsx(await bestand.arrayBuffer());
+  } catch (e) { toast(e.message || String(e), 1); return; }
+  // per blad: kopregel zoeken (eerste regel met een perceel- of raskolom) en de regels eronder
+  const T = bladen.map(b => {
+    let kopI = b.rijen.slice(0, 12).findIndex(r => { const k = teeltKolommen(r); return Object.values(k).includes('perceel') || Object.values(k).includes('ras'); });
+    if (kopI < 0) return null;
+    const kop = b.rijen[kopI].map(x => String(x ?? '').trim()), kol = teeltKolommen(kop), g = bladGewas(b.naam);
+    const rijen = b.rijen.slice(kopI + 1).filter(r => r.some(v => v !== null && v !== ''));
+    return {naam: b.naam, kop, kol, rijen, aan: rijen.length > 0, gewas: g.gewas, soort_id: g.soort_id, teeltdoel: g.doel};
+  }).filter(Boolean);
+  if (!T.length) { toast('Ik vind in dit bestand geen kolom "Perceel" of "Ras"', 1); return; }
+  const {data: al} = await sb.from('perceel_aliassen').select('*'); S.perceel_aliassen = al || [];
+  TI = {bestand: bestand.name, bladen: T, koppel: {}};
+  // alle perceelnamen uit het bestand, met de beste gok
+  T.forEach(b => { const pk = +Object.keys(b.kol).find(k => b.kol[k] === 'perceel'); if (isNaN(pk)) return;
+    b.rijen.forEach(r => { const tx = String(r[pk] ?? '').trim(); if (tx && !(tx in TI.koppel)) { const z = perceelZoeken(tx); TI.koppel[tx] = {id: z.score >= 55 ? z.p.id : '', gok: z.score >= 55, auto: z.score >= 55}; } }); });
+  teeltVoorbeeld();
+}
+let TI = null;
+function teeltVoorbeeld() {
+  const kiesSoort = (b, i) => `<select class="veld" onchange="TI.bladen[${i}].soort_id=this.value||null;teeltTel()">${S.soorten.map(s => `<option value="${s.id}" ${s.id === b.soort_id ? 'selected' : ''}>${esc(s.naam)}</option>`).join('')}<option value="" ${!b.soort_id ? 'selected' : ''}>➕ Nieuw: ${esc(b.gewas)}</option></select>`;
+  const kolSel = (b, i, k) => `<select onchange="TI.bladen[${i}].kol[${k}]=this.value||undefined;if(!this.value)delete TI.bladen[${i}].kol[${k}];teeltTel()"><option value="">(extra)</option>${TEELT_VELDEN.map(([v, l]) => `<option value="${v}" ${b.kol[k] === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+  const pOpties = sel => `<option value="">— niet koppelen —</option>` + [...S.percelen].filter(p => p.type !== 'pand').sort((a, b) => a.naam.localeCompare(b.naam, 'nl')).map(p => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.naam)}</option>`).join('');
+  const namen = Object.keys(TI.koppel).sort((a, b) => (!!TI.koppel[a].id - !!TI.koppel[b].id) || a.localeCompare(b, 'nl'));
+  $('#modal').innerHTML = `<div class="dialoog breed"><h3>📥 Teeltgegevens inladen</h3>
+    <p class="hint">${esc(TI.bestand)} · ${TI.bladen.length} tabblad${TI.bladen.length > 1 ? 'en' : ''}. Controleer hieronder of alles goed herkend is.</p>
+    <h4 style="margin:12px 0 4px">1. Tabbladen</h4>
+    ${TI.bladen.map((b, i) => `<div class="tiBlad"><label class="vinkje" style="margin:0"><input type="checkbox" ${b.aan ? 'checked' : ''} onchange="TI.bladen[${i}].aan=this.checked;teeltTel()"> <b>${esc(b.naam)}</b> <small>(${b.rijen.length} regels)</small></label>
+      <div class="tiRij"><span>Gewas</span>${kiesSoort(b, i)}<span>Teeltdoel</span><input class="veld" value="${esc(b.teeltdoel)}" onchange="TI.bladen[${i}].teeltdoel=this.value"></div>
+      <div class="tiKols">${b.kop.map((h, k) => h ? `<span class="tiKol">${esc(h)} → ${kolSel(b, i, k)}</span>` : '').join('')}</div></div>`).join('')}
+    <h4 style="margin:14px 0 4px">2. Percelen koppelen <small style="font-weight:400;color:var(--grijs)">(wordt onthouden voor de volgende keer)</small></h4>
+    <div class="tiPerc">${namen.map(n => `<div class="tiRij ${TI.koppel[n].id ? '' : 'leeg'}"><span title="${esc(n)}">${esc(n)}</span><select class="veld" onchange="TI.koppel[this.dataset.n].id=this.value;TI.koppel[this.dataset.n].auto=false;this.parentNode.classList.toggle('leeg',!this.value);teeltTel()" data-n="${esc(n)}">${pOpties(TI.koppel[n].id)}</select></div>`).join('') || '<p class="hint">Geen perceelkolom gevonden.</p>'}</div>
+    <div id="tiTel" class="fgStatus" style="margin-top:12px"></div>
+    <label class="vinkje"><input type="checkbox" id="tiVervang" checked> Regels die bij een eerdere versie van dit bestand hoorden maar er nu niet meer in staan weghalen</label>
+    <button class="knop" id="mJa">📥 Inladen</button><button class="knop licht" id="mNee">Annuleren</button></div>`;
+  const m = $('#modal'); m.classList.add('open'); teeltTel();
+  $('#mNee').onclick = () => m.classList.remove('open');
+  $('#mJa').onclick = teeltOpslaan;
+}
+// de regels die we gaan opslaan
+function teeltRegels() {
+  const uit = [];
+  TI.bladen.filter(b => b.aan).forEach(b => {
+    const kolVan = v => { const k = Object.keys(b.kol).find(x => b.kol[x] === v); return k === undefined ? -1 : +k; };
+    const kp = kolVan('perceel'), kr = kolVan('ras'), kb = kolVan('batch'), kn = kolVan('nak'), kk = kolVan('klasse'), kd = kolVan('doel'), kg = kolVan('gewas');
+    const soortNaam = b.soort_id ? soort(b.soort_id)?.naam : b.gewas;
+    b.rijen.forEach((r, i) => {
+      const w = k => k < 0 || r[k] === null || r[k] === undefined ? '' : String(r[k]).trim();
+      const pt = w(kp), rasRuw = w(kr), bio = /\bbio\b/i.test(rasRuw) || /\bbio\b/i.test(w(kd)) || /^bio\b/i.test(pt);
+      const ras = rasRuw.replace(/\s*[-–]?\s*\bbio\b\s*$/i, '').trim();
+      if (!pt && !ras && !w(kb) && !w(kn)) return;
+      const extra = {}; b.kop.forEach((h, k) => { if (h && !b.kol[k] && w(k)) extra[h] = w(k); }); if (kg >= 0 && w(kg)) extra['Gewas'] = w(kg);
+      const id = w(kb) || w(kn);
+      uit.push({sleutel: [normTekst(b.naam), id ? 'id:' + normTekst(id) : 'r' + i, normTekst(pt), normTekst(ras)].join('|'),
+        soort_id: kg >= 0 && w(kg) ? '' : (b.soort_id || ''), soort_naam: kg >= 0 && w(kg) ? w(kg) : soortNaam, ras_naam: ras, ras_tekst: rasRuw,
+        perceel_tekst: pt, perceel_id: TI.koppel[pt]?.id || '', teeltdoel: b.teeltdoel || '', batch: w(kb), nak: w(kn), klasse: w(kk), doel: w(kd), bio, extra});
+    });
+  });
+  // dubbele sleutels (zelfde batch twee keer) uniek maken
+  const tel = {}; uit.forEach(r => { tel[r.sleutel] = (tel[r.sleutel] || 0) + 1; if (tel[r.sleutel] > 1) r.sleutel += '#' + tel[r.sleutel]; });
+  return uit;
+}
+function teeltTel() {
+  const r = teeltRegels(), zonder = r.filter(x => !x.perceel_id).length;
+  const bekend = new Set(S.rassen.map(x => x.soort_id + '|' + normTekst(x.naam))), nieuw = new Set();
+  r.forEach(x => { if (x.ras_naam && (!x.soort_id || !bekend.has(x.soort_id + '|' + normTekst(x.ras_naam)))) nieuw.add((x.soort_naam || '') + ' ' + x.ras_naam); });
+  const el = $('#tiTel'); if (!el) return;
+  el.classList.toggle('fout', zonder > 0);
+  el.innerHTML = `<b>${r.length}</b> partijen · ${new Set(r.map(x => x.perceel_id).filter(Boolean)).size} percelen${nieuw.size ? ` · <b>${nieuw.size}</b> nieuwe rassen worden aangemaakt` : ''}${zonder ? `<br>⚠️ ${zonder} regels hebben nog geen perceel (worden wel bewaard, met de naam uit het bestand)` : ''}`;
+}
+async function teeltOpslaan() {
+  const rijen = teeltRegels(); if (!rijen.length) { toast('Er is niets om in te laden', 1); return; }
+  const aliassen = Object.entries(TI.koppel).filter(([, k]) => k.id && !k.auto).map(([tekst, k]) => ({tekst, perceel_id: k.id}));
+  const b = $('#mJa'); b.disabled = true; b.textContent = 'Bezig met inladen…';
+  const {data, error} = await sb.rpc('teelt_import', {p_seizoen: bekeken, p_bron: TI.bestand, p_rijen: rijen, p_aliassen: aliassen, p_vervang: $('#tiVervang').checked});
+  if (error) { b.disabled = false; b.textContent = '📥 Inladen'; toast(/does not exist|Could not find/i.test(error.message) ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : 'Inladen mislukt: ' + error.message, 1); return; }
+  $('#modal').classList.remove('open');
+  await laadAlles(); bedrijfTab = 'partijen'; if (tab !== 'bedrijf') zetTab('bedrijf'); render(true);
+  toast(`📥 ${data?.partijen ?? rijen.length} partijen ingeladen${data?.nieuwe_rassen ? ` · ${data.nieuwe_rassen} nieuwe rassen` : ''}${data?.nieuwe_soorten ? ` · ${data.nieuwe_soorten} nieuwe gewassen` : ''}`);
+}
+function teeltKiesBestand() { const i = document.createElement('input'); i.type = 'file'; i.accept = '.xlsx,.csv,.xls'; i.onchange = () => teeltBestandInladen(i.files[0]); i.click(); }
+
+// ---- tonen ----
+let partijZoek = '', partijSoort = '';
+const partijRas = x => x.ras_id ? ras(x.ras_id)?.naam || x.ras_tekst : x.ras_tekst || '';
+function partijTabel(lijst, metPerceel = true) {
+  return `<div class="tabelscroll"><table class="verdeling partijtabel"><tr>${metPerceel ? '<th>Perceel</th>' : ''}<th>Gewas</th><th>Ras</th><th>Batch</th><th>NAK</th><th>Klasse</th><th>Doel</th></tr>
+    ${lijst.map(x => `<tr>${metPerceel ? `<td>${x.perceel_id && perceel(x.perceel_id) ? `<a href="#" onclick="event.preventDefault();kies('${x.perceel_id}')">${esc(perceel(x.perceel_id).naam)}</a>` : `<span class="grijs" title="niet gekoppeld">${esc(x.perceel_tekst || '–')}</span>`}</td>` : ''}
+      <td>${esc(soort(x.soort_id)?.naam || '')}${x.teeltdoel ? `<br><small>${esc(x.teeltdoel)}</small>` : ''}</td><td>${esc(partijRas(x))}${x.bio ? ' <span class="badge bio">BIO</span>' : ''}</td>
+      <td>${esc(x.batch || '')}</td><td>${esc(x.nak || '')}</td><td>${esc(x.klasse || '')}</td><td>${esc(x.doel || '')}</td></tr>`).join('')}</table></div>`;
+}
+function htmlPartijen() {
+  const alle = S.partijen || [], zoek = normTekst(partijZoek);
+  const lijst = alle.filter(x => (!partijSoort || x.soort_id === partijSoort) && (!zoek || normTekst([perceel(x.perceel_id)?.naam, x.perceel_tekst, partijRas(x), x.batch, x.nak, x.klasse, x.doel, x.teeltdoel].join(' ')).includes(zoek)))
+    .sort((a, b) => (perceel(a.perceel_id)?.naam || a.perceel_tekst || '').localeCompare(perceel(b.perceel_id)?.naam || b.perceel_tekst || '', 'nl') || partijRas(a).localeCompare(partijRas(b), 'nl'));
+  const soorten = [...new Set(alle.map(x => x.soort_id).filter(Boolean))].map(soort).filter(Boolean);
+  const zonder = alle.filter(x => !x.perceel_id || !perceel(x.perceel_id)).length;
+  return `<section class="kaartje"><h4>🏷️ Partijen <small style="font-weight:400;color:var(--grijs)">seizoen ${esc(seizoenNaam(bekeken))}</small></h4>
+    ${mag('partijen_beheren') ? `<div class="rij"><button class="knop" onclick="teeltKiesBestand()">📥 Teeltgegevens inladen (Excel)</button>${alle.length ? `<button class="knop licht" onclick="partijenExcel()">⬇️ Excel</button>` : ''}</div>
+      <p class="hint">Een Excel-lijst met per perceel de partijen (ras, batch, NAK-nummer, klasse, doel). Elk tabblad is een gewas. Je kunt het bestand ook gewoon op de app slepen. Opnieuw inladen werkt de gegevens bij.</p>` : ''}
+    ${alle.length ? `<input class="veld" placeholder="🔎 Zoek perceel, ras, batch of NAK-nummer…" value="${esc(partijZoek)}" oninput="partijZoek=this.value;clearTimeout(window._pz);window._pz=setTimeout(()=>{render();const z=document.querySelector('#partijZoekVeld');if(z){z.focus();z.setSelectionRange(z.value.length,z.value.length)}},300)" id="partijZoekVeld">
+      <div class="lagen" style="margin:8px 0"><button class="chip ${!partijSoort ? 'aan' : ''}" onclick="partijSoort='';render()">Alles (${alle.length})</button>${soorten.map(s => `<button class="chip ${partijSoort === s.id ? 'aan' : ''}" onclick="partijSoort='${s.id}';render()">${icoonHtml(s.icoon)} ${esc(s.naam)} (${alle.filter(x => x.soort_id === s.id).length})</button>`).join('')}</div>
+      ${zonder ? `<p class="hint">⚠️ ${zonder} partijen zijn nog niet aan een perceel gekoppeld (grijs). Laad het bestand opnieuw in om ze te koppelen.</p>` : ''}
+      ${partijTabel(lijst)}` : '<p class="hint">Nog geen partijen ingeladen.</p>'}
+  </section>`;
+}
+function htmlPerceelPartijen(p) {
+  const l = (S.partijen || []).filter(x => x.perceel_id === p.id);
+  if (!l.length) return '';
+  return `<section class="kaartje infoblok"><h4>🏷️ Partijen (${l.length})</h4>${partijTabel(l.sort((a, b) => partijRas(a).localeCompare(partijRas(b), 'nl')), false)}</section>`;
+}
+function partijenExcel() {
+  const kop = ['Perceel', 'Naam in bestand', 'Gewas', 'Teeltdoel', 'Ras', 'Bio', 'Batch', 'NAK-nummer', 'Klasse', 'Doel / planttype', 'Bestand'];
+  const data = (S.partijen || []).map(x => [perceel(x.perceel_id)?.naam || '', x.perceel_tekst || '', soort(x.soort_id)?.naam || '', x.teeltdoel || '', partijRas(x), x.bio ? 'ja' : '', x.batch || '', x.nak || '', x.klasse || '', x.doel || '', x.bron || '']);
+  bewaarBestand(`Partijen ${seizoenNaam(bekeken)}.xlsx`, maakXlsx([{naam: 'Partijen', breedtes: [24, 34, 14, 14, 16, 6, 14, 14, 10, 24, 30], rijen: [kop, ...data], filter: true}]));
+}
+
+/* ============ PERCELEN AAN ELKAAR MAKEN ============
+   Twee (of meer) percelen die tegen elkaar aan liggen worden één perceel. Een smalle kier ertussen
+   (sloot, greppel, slordige BRP-rand) wordt dichtgemaakt. */
+async function brpOpPunt(pt) {
+  const [x, y] = pt.geometry.coordinates, d = 0.004;
+  try {
+    const r = await fetch(`https://api.pdok.nl/rvo/gewaspercelen/ogc/v1/collections/brpgewas/items?f=json&limit=200&bbox=${(x - d).toFixed(6)},${(y - d).toFixed(6)},${(x + d).toFixed(6)},${(y + d).toFixed(6)}`);
+    if (!r.ok) throw new Error('RVO gaf fout ' + r.status);
+    const raak = ((await r.json()).features || []).flatMap(polygonDelen).filter(f => { try { return turf.booleanPointInPolygon(pt, f); } catch { return false; } })
+      .sort((a, b) => (+b.properties?.jaar || 0) - (+a.properties?.jaar || 0));
+    if (!raak.length) { toast('Op die plek staat geen perceel in de BRP', 1); return null; }
+    return {type: 'Feature', properties: {}, geometry: raak[0].geometry};
+  } catch (e) { toast('Ophalen bij RVO lukte niet: ' + (e.message || e), 1); return null; }
+}
+// vormen samenvoegen; kieren tot `kier` meter worden dichtgemaakt. Geeft null als het geen één stuk wordt.
+function plakAanElkaar(geos, kier = 3) {
+  try {
+    const r = kier / 2; let u = null;
+    for (const g of geos) { const b = turf.buffer(g, r, {units: 'meters', steps: 8}); u = u ? turf.union(u, b) : b; }
+    let res = turf.buffer(u, -r, {units: 'meters', steps: 8});
+    if (!res?.geometry) return null;
+    if (res.geometry.type === 'MultiPolygon') {   // snippertjes van het terugkrimpen weglaten, echte losse stukken niet
+      const delen = res.geometry.coordinates.map(c => turf.polygon(c)).sort((a, b) => turf.area(b) - turf.area(a));
+      if (delen.filter(d => turf.area(d) > 25).length > 1) return null;
+      res = delen[0];
+    }
+    res = turf.simplify(res, {tolerance: .000003, highQuality: true});
+    return {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: res.geometry.coordinates}};
+  } catch (e) { console.warn('samenvoegen mislukt', e); return null; }
+}
+function afstandTussen(a, b) {   // kortste afstand in meters tussen twee vlakken (0 als ze elkaar raken)
+  try { if (turf.booleanIntersects(a, b)) return 0; } catch {}
+  const rand = f => { const g = f.geometry || f; return turf.lineString(g.type === 'MultiPolygon' ? g.coordinates[0][0] : g.coordinates[0]); };
+  const la = rand(a), lb = rand(b);
+  const m1 = Math.min(...turf.coordAll(b).map(c => turf.pointToLineDistance(turf.point(c), la, {units: 'meters'})));
+  const m2 = Math.min(...turf.coordAll(a).map(c => turf.pointToLineDistance(turf.point(c), lb, {units: 'meters'})));
+  return Math.min(m1, m2);
+}
+function buurPercelen(p, max = 25) {
+  const b = turf.bbox(turf.buffer(p.geo, max, {units: 'meters'}));
+  return S.percelen.filter(q => q.id !== p.id && q.geo && q.type !== 'pand')
+    .filter(q => { const c = turf.bbox(q.geo); return c[0] < b[2] && c[2] > b[0] && c[1] < b[3] && c[3] > b[1]; })
+    .map(q => ({q, afst: afstandTussen(p.geo, q.geo)})).filter(x => x.afst <= max).sort((x, y) => x.afst - y.afst);
+}
+// keuzevenster met knoppen; geeft de gekozen sleutel terug (of null)
+function keuze(titel, tekst, knoppen) {
+  return new Promise(klaar => {
+    $('#modal').innerHTML = `<div class="dialoog"><h3>${titel}</h3>${tekst ? `<p>${tekst}</p>` : ''}
+      ${knoppen.map(([k, l], i) => `<button class="knop${i === knoppen.length - 1 ? '' : ' licht'}" data-k="${esc(k)}" style="margin-top:8px">${l}</button>`).join('')}
+      <button class="knop licht" data-k="" style="margin-top:8px">Annuleren</button></div>`;
+    const m = $('#modal'); m.classList.add('open');
+    m.querySelectorAll('button[data-k]').forEach(b => b.onclick = () => { m.classList.remove('open'); klaar(b.dataset.k || null); });
+  });
+}
+async function samenvoegenStart() {
+  const p = perceel(actief); if (!p || !(mag('percelen_bewerken') && mag('percelen_verwijderen'))) return;
+  const buren = buurPercelen(p);
+  const k = await keuze(`🔗 ${esc(p.naam)} samenvoegen met…`, buren.length ? 'Deze percelen liggen ertegenaan of vlakbij:' : 'Ik zie geen perceel vlak naast dit perceel. Wijs het aan op de kaart.',
+    [...buren.slice(0, 6).map(({q, afst}) => [q.id, `${esc(q.naam)} · ${ha(turf.area(q.geo))} ha · ${afst < .5 ? 'grenst eraan' : Math.round(afst) + ' m ertussen'}`]), ['_kaart', '👆 Op de kaart aanwijzen']]);
+  if (!k) return;
+  let q = perceel(k);
+  if (k === '_kaart') {
+    const pt = await wijsPuntAan('Tik op het perceel dat erbij moet'); if (!pt) return;
+    q = S.percelen.find(x => x.id !== p.id && x.geo && (() => { try { return turf.booleanPointInPolygon(pt, x.geo); } catch { return false; } })());
+    if (!q) { toast('Daar ligt geen ander perceel', 1); return; }
+  }
+  samenvoegenVoorbeeld(p, q);
+}
+function samenvoegenVoorbeeld(p, q) {
+  const afst = afstandTussen(p.geo, q.geo);
+  if (afst > 12) { toast(`${q.naam} ligt te ver weg (${Math.round(afst)} m) om er één perceel van te maken`, 1); return; }
+  const geo = plakAanElkaar([p.geo, q.geo], Math.max(3, Math.ceil(afst * 2 + 1)));
+  focusLaag.clearLayers();
+  if (!geo) { toast('Samenvoegen lukte niet: het wordt geen aaneengesloten perceel', 1); return; }
+  const lg = L.geoJSON(geo, {interactive: false, style: {color: '#00e5ff', weight: 4, dashArray: '8 6', fillColor: '#00e5ff', fillOpacity: .18}}).addTo(focusLaag);
+  map.fitBounds(lg.getBounds(), {padding: [60, 60], maxZoom: 18}); paneelKlein();
+  const sporenTekst = x => x.banen_aan && +x.breedte > 0 ? `rijrichting ${+x.richting || 0}°, ${String(x.breedte).replace('.', ',')} m` : 'geen sporen';
+  $('#modal').innerHTML = `<div class="dialoog"><h3>🔗 Samenvoegen</h3>
+    <p><b>${esc(p.naam)}</b> (${ha(turf.area(p.geo))} ha) + <b>${esc(q.naam)}</b> (${ha(turf.area(q.geo))} ha) = <b>${ha(turf.area(geo))} ha</b>${afst > .5 ? ` <small>(kier van ${String(Math.round(afst * 10) / 10).replace('.', ',')} m dichtgemaakt)</small>` : ''}</p>
+    <label>Naam</label><input class="veld" id="svNaam" value="${esc(p.naam)}">
+    <label>Instellingen houden van</label>
+    <select class="veld" id="svHoofd"><option value="${p.id}">${esc(p.naam)} (${sporenTekst(p)})</option><option value="${q.id}">${esc(q.naam)} (${sporenTekst(q)})</option></select>
+    <p class="hint">Rijrichting, sporen, spuitpaden en wat er staat komen van het gekozen perceel en lopen door over het hele nieuwe perceel. Taken, aantekeningen, oogst, uren en kosten van beide percelen blijven bewaard. Oude seizoenen blijven zoals ze waren.</p>
+    <button class="knop" id="mJa">🔗 Samenvoegen</button><button class="knop licht" id="mNee">Annuleren</button></div>`;
+  const m = $('#modal'); m.classList.add('open');
+  const sluit = () => { m.classList.remove('open'); focusLaag.clearLayers(); };
+  $('#mNee').onclick = sluit;
+  $('#mJa').onclick = async () => {
+    const hoofd = $('#svHoofd').value, weg = hoofd === p.id ? q.id : p.id, naam = $('#svNaam').value.trim();
+    $('#mJa').disabled = true;
+    const {error} = await sb.rpc('percelen_samenvoegen', {p_hoofd: hoofd, p_weg: weg, p_geo: geo, p_naam: naam || null});
+    sluit();
+    if (error) { toast(/does not exist|Could not find/i.test(error.message) ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : 'Samenvoegen mislukt: ' + error.message, 1); return; }
+    actief = hoofd; await laadAlles(); toast('🔗 Samengevoegd tot ' + (naam || perceel(hoofd)?.naam || 'één perceel'));
+  };
+}
+
 /* ============================================================
    PLATTEGROND INLADEN
    Sleep een plattegrond (bijv. Google Earth-afbeelding met getekende vakken) op de kaart.
@@ -4344,12 +4668,14 @@ function htmlPlattegrond(p) {
 function pgSleepInit() {
   let teller = 0;
   const heeftBestand = e => [...(e.dataTransfer?.types || [])].includes('Files');
-  document.addEventListener('dragenter', e => { if (!heeftBestand(e) || !mag('percelen_bewerken')) return; teller++; document.body.classList.add('pgSleept'); });
+  const magIets = () => mag('percelen_bewerken') || mag('partijen_beheren');
+  document.addEventListener('dragenter', e => { if (!heeftBestand(e) || !magIets()) return; teller++; document.body.classList.add('pgSleept'); });
   document.addEventListener('dragleave', e => { if (!heeftBestand(e)) return; teller = Math.max(0, teller - 1); if (!teller) document.body.classList.remove('pgSleept'); });
-  document.addEventListener('dragover', e => { if (heeftBestand(e) && mag('percelen_bewerken') && !e.target.closest?.('.fotoveld')) e.preventDefault(); });
+  document.addEventListener('dragover', e => { if (heeftBestand(e) && magIets() && !e.target.closest?.('.fotoveld')) e.preventDefault(); });
   document.addEventListener('drop', e => { teller = 0; document.body.classList.remove('pgSleept');
-    if (!heeftBestand(e) || e.target.closest?.('.fotoveld') || !mag('percelen_bewerken')) return; e.preventDefault();
-    const f = [...e.dataTransfer.files].find(x => /^image\//.test(x.type)); if (f) plattegrondInladen(f); });
+    if (!heeftBestand(e) || e.target.closest?.('.fotoveld') || !magIets()) return; e.preventDefault();
+    const fs = [...e.dataTransfer.files], xl = fs.find(x => /\.(xlsx|xls|csv)$/i.test(x.name)), f = fs.find(x => /^image\//.test(x.type));
+    if (xl) teeltBestandInladen(xl); else if (f) plattegrondInladen(f); });
 }
 
 /* ============ BUSSEN EN AUTO'S (FleetGO) ============
@@ -4625,13 +4951,15 @@ const seizoenStart = () => { const s = S.seizoenen.find(x => x.id === bekeken); 
 const seizoenEind = () => { const lijst = [...S.seizoenen].sort((a, b) => new Date(a.gestart) - new Date(b.gestart)), i = lijst.findIndex(x => x.id === bekeken); return lijst[i + 1] ? new Date(lijst[i + 1].gestart) : new Date(8.64e15); };
 async function laadBedrijf() {
   const q = (t, f) => f(sb.from(t).select('*')).then(r => r.error ? null : r.data).catch(() => null);
-  const [md, oo, ma, ml, ko, me2] = await Promise.all([
+  const [md, oo, ma, ml, ko, me2, pa] = await Promise.all([
     q('middelen', x => x.order('naam')),
     q('oogst', x => bekeken ? x.eq('seizoen_id', bekeken).order('datum') : x.order('datum')),
     q('machines', x => x.order('naam')),
     q('machine_log', x => x.order('datum', {ascending: false}).limit(500)),
     q('kosten', x => bekeken ? x.eq('seizoen_id', bekeken).order('datum') : x.order('datum')),   // zonder recht geeft de database niets terug
-    q('meldingen', x => x.order('created_at', {ascending: false}).limit(60))]);
+    q('meldingen', x => x.order('created_at', {ascending: false}).limit(60)),
+    q('partijen', x => bekeken ? x.eq('seizoen_id', bekeken) : x)]);
+  S.partijen = pa || [];
   S.middelen = md || []; S.oogst = oo || []; S.machines = ma || []; S.machine_log = ml || []; S.kosten = ko || []; S.meldingen = me2 || [];
   bedrijfGeladen = !!md;
 }
@@ -5202,10 +5530,10 @@ async function controleerVorst() {
 let bedrijfTab = 'middelen';
 function htmlBedrijf() {
   if (!bedrijfGeladen) return '<p class="hint">Laden… (staat dit er lang? Draai dan het nieuwste beheer.sql in Supabase)</p>';
-  const tabs = [['middelen', '🧪', 'Middelen', true], ['oogst', '🌱', 'Oogst', ziet('oogst_bekijken') || ziet('oogst_registreren')], ['machines', '🔧', 'Machines', true], ['kosten', '💶', 'Kosten', ziet('kosten_bekijken')]].filter(t => t[3]);
+  const tabs = [['middelen', '🧪', 'Middelen', true], ['oogst', '🌱', 'Oogst', ziet('oogst_bekijken') || ziet('oogst_registreren')], ['machines', '🔧', 'Machines', true], ['kosten', '💶', 'Kosten', ziet('kosten_bekijken')], ['partijen', '🏷️', 'Partijen', true]].filter(t => t[3]);
   if (!tabs.some(t => t[0] === bedrijfTab)) bedrijfTab = tabs[0][0];
   return seizoenKnop() + `<div class="ptabs">${tabs.map(([k, i, l]) => `<button class="${bedrijfTab === k ? 'aan' : ''}" onclick="bedrijfTab='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>` +
-    (bedrijfTab === 'middelen' ? htmlMiddelen() : bedrijfTab === 'oogst' ? htmlOogstTotaal() : bedrijfTab === 'machines' ? htmlMachines() : htmlKosten());
+    (bedrijfTab === 'middelen' ? htmlMiddelen() : bedrijfTab === 'oogst' ? htmlOogstTotaal() : bedrijfTab === 'machines' ? htmlMachines() : bedrijfTab === 'partijen' ? htmlPartijen() : htmlKosten());
 }
 /* ---------- percelen ophalen uit de BRP (RVO, via PDOK) ---------- */
 const polygonDelen = f => !f?.geometry ? [] : f.geometry.type === 'Polygon' ? [f] : f.geometry.type === 'MultiPolygon'
@@ -5226,13 +5554,24 @@ async function brpOphalen() {
   if (!raak.length) { toast('Op die plek staat geen perceel in de BRP. Teken hem dan zelf.', 1); return; }
   raak.sort((a, b) => (+b.properties?.jaar || 0) - (+a.properties?.jaar || 0));
   const f = raak[0], pr = f.properties || {};
-  const geo = {type: 'Feature', properties: {}, geometry: f.geometry};
-  const voorbeeld = L.geoJSON(geo, {style: {color: '#00e5ff', weight: 3, fillOpacity: .2}}).addTo(map);
+  let geo = {type: 'Feature', properties: {}, geometry: f.geometry}, aantal = 1;
+  let voorbeeld = L.geoJSON(geo, {style: {color: '#00e5ff', weight: 3, fillOpacity: .2}}).addTo(map);
   map.fitBounds(voorbeeld.getBounds(), {padding: [50, 50], maxZoom: 18});
+  // eventueel nog een BRP-perceel ernaast erbij: ze worden één perceel
+  while (await keuze(`Gevonden: ${esc(pr.gewas || 'perceel')}${aantal > 1 ? ` + ${aantal - 1} ernaast` : ''} · ${ha(turf.area(geo))} ha`,
+      'Ligt er nog een BRP-perceel tegenaan dat bij hetzelfde perceel hoort? Dan maak ik ze aan elkaar.', [['erbij', '➕ Nog een perceel ernaast erbij'], ['klaar', '✔ Zo toevoegen']]) === 'erbij') {
+    const pt2 = await wijsPuntAan('Tik op het BRP-perceel dat erbij moet'); if (!pt2) break;
+    const g2 = await brpOpPunt(pt2); if (!g2) continue;
+    const samen = plakAanElkaar([geo, g2]);
+    if (!samen) { toast('Die percelen liggen niet tegen elkaar aan (meer dan 3 m ertussen)', 1); continue; }
+    geo = samen; aantal++;
+    map.removeLayer(voorbeeld); voorbeeld = L.geoJSON(geo, {style: {color: '#00e5ff', weight: 3, fillOpacity: .2}}).addTo(map);
+    map.fitBounds(voorbeeld.getBounds(), {padding: [50, 50], maxZoom: 18});
+  }
   const dubbel = S.percelen.find(p => { try { return turf.booleanPointInPolygon(pt, p.geo); } catch { return false; } });
   nieuwType = 'veld';
   await nieuwPerceel(geo, `${pr.gewas ? pr.gewas : 'Perceel'}${pr.jaar ? ' (BRP ' + pr.jaar + ')' : ''}`,
-    `Gevonden in de BRP${pr.jaar ? ' van ' + pr.jaar : ''}: ${esc(pr.gewas || 'onbekend gewas')}${pr.category ? ' · ' + esc(pr.category) : ''} · ${ha(turf.area(geo))} ha.${dubbel ? `<br>⚠️ Hier ligt al het perceel <b>${esc(dubbel.naam)}</b>.` : ''}`);
+    `Gevonden in de BRP${pr.jaar ? ' van ' + pr.jaar : ''}: ${esc(pr.gewas || 'onbekend gewas')}${pr.category ? ' · ' + esc(pr.category) : ''}${aantal > 1 ? ` · ${aantal} BRP-percelen aan elkaar gemaakt` : ''} · ${ha(turf.area(geo))} ha.${dubbel ? `<br>⚠️ Hier ligt al het perceel <b>${esc(dubbel.naam)}</b>.` : ''}`);
   map.removeLayer(voorbeeld);
 }
 
