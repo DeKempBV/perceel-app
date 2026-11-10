@@ -381,7 +381,14 @@ textarea.veld{resize:vertical;font-family:inherit}
 .tiPerc .tiRij.leeg>span{color:#b71c1c;font-weight:700}
 .tabelscroll{overflow-x:auto}
 .partijtabel{font-size:12.5px;width:100%}.partijtabel th{text-align:left;font-size:11.5px;color:var(--grijs);padding:4px 6px;position:sticky;top:0;background:#fff}.partijtabel td{padding:4px 6px;border-top:1px solid var(--rand);vertical-align:top}
-.partijtabel .grijs{color:var(--grijs);font-style:italic}.badge.bio{background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 6px}
+.partijtabel .grijs{color:var(--grijs);font-style:italic}
+.partijtabel th,.partijtabel td{text-align:left!important;white-space:normal}
+.partijtabel .link.klein{font-size:11.5px;padding:0;margin-top:2px}
+.partijtabel .icoon.klein{width:26px;height:26px;font-size:12px;padding:0}
+.partijtabel td:last-child{padding-right:0}
+.partijbalk{margin:10px 0;padding:10px 12px;border-radius:12px;background:#f3f8ef;border:1px solid #d7e7cd;font-size:13px;cursor:pointer;line-height:1.45}
+.partijbalk .meer{color:var(--groen);font-weight:700;white-space:nowrap}
+.raspartijen{margin:4px 0 10px 26px;border-left:3px solid var(--rand);padding-left:8px}.badge.bio{background:#e8f5e9;color:#2e7d32;font-size:10px;padding:1px 6px}
 .plattegrondBeeld{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none!important;max-height:none!important;width:auto;height:auto;pointer-events:none;user-select:none;-webkit-user-drag:none}
 .plattegrondBeeld.sleep{pointer-events:auto;cursor:move;outline:2px dashed #ff9100;touch-action:none}
 #pgBalk{position:fixed;right:16px;bottom:16px;z-index:1300;width:min(380px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:12px 14px}
@@ -716,6 +723,7 @@ const vandaag = () => { const d = new Date(); return `${d.getFullYear()}-${Strin
 let sb = null, me = null, gestart = false, wachtRender = false;
 const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], voertuigen: [], partijen: [], perceel_aliassen: [], profielen: [], seizoenen: [], uren: [], inst: {}, middelen: [], oogst: [], machines: [], machine_log: [], kosten: [], meldingen: []};
 let bekeken = null, archief = false, livePercelen = null;   // seizoen dat je bekijkt
+let openRas = null;
 let perceelTab = 'info', actief = null, tab = 'percelen', kwast, gereedschap, taakFocus, tekenDoel = 'perceel', markLagen = {}, gekozenPlant, openPlant, openRechten, takenFilter = 'open', vormLaag = null;
 let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, voertuigLaag, locatieLaag, basis = {}, laagModus = 'sat';
 
@@ -2785,7 +2793,7 @@ function opstaandHtml(p) {
 }
 /* ---- alles over het perceel op één plek ---- */
 function htmlInfo(p) {
-  return verslagenHtml(p.id) + htmlPerceelPartijen(p) + htmlPlattegrond(p) + htmlInfoInhoud(p);
+  return verslagenHtml(p.id) + htmlPlattegrond(p) + htmlInfoInhoud(p);
 }
 function htmlInfoInhoud(p) {
   const rij = (k, v) => v === '' || v == null ? '' : `<div class="inforij"><span>${k}</span><b>${v}</b></div>`;
@@ -2936,6 +2944,7 @@ function htmlDetail(p) {
   const perceelRecht = PERCEEL_RECHTEN.some(r => mag(r)), notitieRecht = mag('markeringen_maken') || mag('gerooid_aangeven') || mag('kopeinden_bewerken');
 
   const tabs = [['info', 'ℹ️', 'Info', true], ['weer', '🌦️', 'Weer', ziet('weer_bekijken')], ['taken', '📋', 'Taken', true],
+    ['partijen', '🏷️', 'Partijen', p.type !== 'pand' && (partijenVan(p.id).length > 0 || mag('partijen_beheren'))],
     ['oogst', '🌱', 'Oogst', p.type !== 'pand' && (ziet('oogst_bekijken') || ziet('oogst_registreren'))],
     ['historie', '📒', 'Historie', ziet('historie_bekijken')],
     ['aanpassen', perceelRecht ? '✏️' : '📝', perceelRecht ? 'Wijzig' : 'Notities', perceelRecht || notitieRecht || mag('percelen_uitschakelen') || mag('percelen_verwijderen')]].filter(t => t[3]);
@@ -2951,6 +2960,7 @@ function htmlDetail(p) {
   if (perceelTab === 'info') inhoud = htmlInfo(p);
   else if (perceelTab === 'weer') inhoud = htmlWeer(p);
   else if (perceelTab === 'oogst') inhoud = htmlOogst(p);
+  else if (perceelTab === 'partijen') inhoud = htmlPerceelPartijenTab(p);
   else if (perceelTab === 'taken' && takenWeergave === 'planning') inhoud = weergaveSchakel() + nieuweTaakKnoppen(`{gepland:'${dKey(planDatum)}'}`, p.id) + `<section class="kaartje">${htmlPlanning(p.id)}</section>`;
   else if (perceelTab === 'taken') inhoud = weergaveSchakel() + `<section class="kaartje"><h4>📋 Open taken</h4>
     ${nieuweTaakKnoppen('{}', p.id)}
@@ -3009,6 +3019,7 @@ function htmlDetail(p) {
     <div><b>${totaalSporen || '–'}</b><small>sporen</small></div>
     <div><b>${open.length}</b><small>open taken</small></div></div>
   ${p.type !== 'pand' && !p.uitgeschakeld ? opstaandHtml(p) : ''}
+  ${partijSamenvatting(p)}
   ${vgtVan(p.id) && perceelTab !== 'oogst' && perceelTab !== 'info' ? `<div class="vgtbalk">${vgtTekst(vgtVan(p.id))}</div>` : ''}
   ${vruchtwisselWaarschuwing(p).map(x => `<div class="waarschuwing">${x}</div>`).join('')}
   <div class="ptabs">${tabs.map(([k, i, l]) => `<button class="${perceelTab === k ? 'aan' : ''}" onclick="perceelTab='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
@@ -3179,18 +3190,22 @@ function htmlSoorten() {
           <button class="icoonkeuze" title="Icoontje kiezen" onclick="kiesIcoon('${s.id}')">${icoonHtml(plantIcoon(s)) || '＋'}</button>`
           : `<i class="kleurstip" style="background:${esc(s.kleur)}"></i><span class="icoonkeuze stil">${icoonHtml(plantIcoon(s))}</span>`}
           <div class="t" onclick="openPlant=${open ? 'undefined' : `'${s.id}'`};render(true)" style="cursor:pointer"><b>${esc(s.naam)}</b><br>
-            <small>${totHa.get(s.id) ? '<b>' + ha(totHa.get(s.id)) + ' ha</b> · ' : ''}${rs.length} ${rs.length === 1 ? 'soort' : 'soorten'} · ${gebruik(s.id)} sporen${vlakken(s.id) ? ' · ' + vlakken(s.id) + ' hele vlak(ken)' : ''}</small>
+            <small>${totHa.get(s.id) ? '<b>' + ha(totHa.get(s.id)) + ' ha</b> · ' : ''}${rs.length} ${rs.length === 1 ? 'soort' : 'soorten'} · ${gebruik(s.id)} sporen${vlakken(s.id) ? ' · ' + vlakken(s.id) + ' hele vlak(ken)' : ''}${(() => { const n = (S.partijen || []).filter(x => x.soort_id === s.id); return n.length ? ` · 🏷️ ${n.length} partijen op ${new Set(n.map(x => x.perceel_id || x.perceel_tekst)).size} percelen` : ''; })()}</small>
             ${s.notitie ? `<div class="notitie">📝 ${esc(s.notitie).replace(/\n/g, '<br>')}</div>` : ''}</div>
           ${beh ? `<button class="icoon" title="Naam en aantekeningen" onclick="bewerkPlant('${s.id}')">✏️</button>` : ''}
           <button class="icoon" onclick="openPlant=${open ? 'undefined' : `'${s.id}'`};render(true)">${open ? '▴' : '▾'}</button>
           ${beh ? `<button class="weg" title="Plant verwijderen" onclick="verwijderSoort('${s.id}')">×</button>` : ''}
         </div>
         ${open ? `<div class="rassen">
-          ${rs.map(r => `<div class="soort">${beh ? `<input type="color" value="${esc(r.kleur || s.kleur)}" onchange="rasKleur('${r.id}',this.value)">` : `<i class="kleurstip klein" style="background:${esc(r.kleur || s.kleur)}"></i>`}
-            <div class="t" ${beh ? `onclick="bewerkRas('${r.id}')" style="cursor:pointer"` : ''}>${esc(r.naam)}
+          ${rs.map(r => { const pr = (S.partijen || []).filter(x => x.ras_id === r.id), rOpen = openRas === r.id;
+            return `<div class="soort">${beh ? `<input type="color" value="${esc(r.kleur || s.kleur)}" onchange="rasKleur('${r.id}',this.value)">` : `<i class="kleurstip klein" style="background:${esc(r.kleur || s.kleur)}"></i>`}
+            <div class="t" style="cursor:pointer" onclick="${pr.length ? `openRas=${rOpen ? 'null' : `'${r.id}'`};render(true)` : beh ? `bewerkRas('${r.id}')` : ''}">${esc(r.naam)}${pr.some(x => x.bio) ? ' <span class="badge bio">BIO</span>' : ''}
+              ${pr.length ? `<br><small>🏷️ ${pr.length} ${pr.length === 1 ? 'partij' : 'partijen'} · ${new Set(pr.map(x => x.perceel_id || x.perceel_tekst)).size} percelen · klasse ${[...new Set(pr.map(x => x.klasse).filter(Boolean))].join(', ') || '–'}</small>` : ''}
               ${r.notitie ? `<div class="notitie">📝 ${esc(r.notitie).replace(/\n/g, '<br>')}</div>` : ''}</div>
+            ${pr.length ? `<button class="icoon" title="Partijen tonen" onclick="openRas=${rOpen ? 'null' : `'${r.id}'`};render(true)">${rOpen ? '▴' : '🏷️'}</button>` : ''}
             ${beh ? `<button class="icoon" title="Naam en aantekeningen" onclick="bewerkRas('${r.id}')">✏️</button>
-              <button class="weg" title="Soort verwijderen" onclick="verwijderRas('${r.id}')">×</button>` : ''}</div>`).join('')
+              <button class="weg" title="Soort verwijderen" onclick="verwijderRas('${r.id}')">×</button>` : ''}</div>
+            ${rOpen ? `<div class="raspartijen">${partijTabel(pr.slice().sort((a, b) => (perceel(a.perceel_id)?.naam || a.perceel_tekst || '').localeCompare(perceel(b.perceel_id)?.naam || b.perceel_tekst || '', 'nl')), true, false)}</div>` : ''}`; }).join('')
             || '<p class="hint" style="margin:6px 0">Nog geen soorten.</p>'}
           ${beh ? `<div class="rij" style="margin:8px 0 4px"><input id="ras_${s.id}" class="veld" placeholder="Nieuwe soort, bijv. ${esc(s.naam === 'Aardappel' ? 'Bintje' : 'naam')}" onkeydown="if(event.key==='Enter')rasErbij('${s.id}','ras_${s.id}')">
             <button class="knop klein" onclick="rasErbij('${s.id}','ras_${s.id}')">＋</button></div>` : ''}
@@ -4172,11 +4187,13 @@ function teeltKiesBestand() { const i = document.createElement('input'); i.type 
 // ---- tonen ----
 let partijZoek = '', partijSoort = '';
 const partijRas = x => x.ras_id ? ras(x.ras_id)?.naam || x.ras_tekst : x.ras_tekst || '';
-function partijTabel(lijst, metPerceel = true) {
-  return `<div class="tabelscroll"><table class="verdeling partijtabel"><tr>${metPerceel ? '<th>Perceel</th>' : ''}<th>Gewas</th><th>Ras</th><th>Batch</th><th>NAK</th><th>Klasse</th><th>Doel</th></tr>
-    ${lijst.map(x => `<tr>${metPerceel ? `<td>${x.perceel_id && perceel(x.perceel_id) ? `<a href="#" onclick="event.preventDefault();kies('${x.perceel_id}')">${esc(perceel(x.perceel_id).naam)}</a>` : `<span class="grijs" title="niet gekoppeld">${esc(x.perceel_tekst || '–')}</span>`}</td>` : ''}
-      <td>${esc(soort(x.soort_id)?.naam || '')}${x.teeltdoel ? `<br><small>${esc(x.teeltdoel)}</small>` : ''}</td><td>${esc(partijRas(x))}${x.bio ? ' <span class="badge bio">BIO</span>' : ''}</td>
-      <td>${esc(x.batch || '')}</td><td>${esc(x.nak || '')}</td><td>${esc(x.klasse || '')}</td><td>${esc(x.doel || '')}</td></tr>`).join('')}</table></div>`;
+function partijTabel(lijst, metPerceel = true, metGewas = true) {
+  const beh = mag('partijen_beheren');
+  return `<div class="tabelscroll"><table class="partijtabel"><tr>${metPerceel ? '<th>Perceel</th>' : ''}${metGewas ? '<th>Gewas</th>' : ''}<th>Ras</th><th>Batch</th><th>NAK</th><th>Klasse</th><th>Doel</th>${beh ? '<th></th>' : ''}</tr>
+    ${lijst.map(x => `<tr>${metPerceel ? `<td>${x.perceel_id && perceel(x.perceel_id) ? `<a href="#" onclick="event.preventDefault();kies('${x.perceel_id}');perceelTab='partijen';render(true)">${esc(perceel(x.perceel_id).naam)}</a>`
+        : `<span class="grijs" title="Nog niet aan een perceel op de kaart gekoppeld">${esc(x.perceel_tekst || '–')}</span>${beh && x.perceel_tekst ? `<br><button class="link klein" onclick="partijKoppelen(${esc(JSON.stringify(x.perceel_tekst))})">🔗 koppelen</button>` : ''}`}</td>` : ''}
+      ${metGewas ? `<td>${esc(soort(x.soort_id)?.naam || '')}${x.teeltdoel ? `<br><small>${esc(x.teeltdoel)}</small>` : ''}</td>` : ''}<td>${esc(partijRas(x))}${x.bio ? ' <span class="badge bio">BIO</span>' : ''}${!metGewas && metPerceel && x.teeltdoel ? `<br><small>${esc(x.teeltdoel)}</small>` : ''}</td>
+      <td>${esc(x.batch || '')}</td><td>${esc(x.nak || '')}</td><td>${esc(x.klasse || '')}</td><td>${esc(x.doel || '')}</td>${beh ? `<td><button class="icoon klein" title="Aanpassen" onclick="partijBewerk('${x.id}')">✏️</button></td>` : ''}</tr>`).join('')}</table></div>`;
 }
 function htmlPartijen() {
   const alle = S.partijen || [], zoek = normTekst(partijZoek);
@@ -4192,6 +4209,109 @@ function htmlPartijen() {
       ${zonder ? `<p class="hint">⚠️ ${zonder} partijen zijn nog niet aan een perceel gekoppeld (grijs). Laad het bestand opnieuw in om ze te koppelen.</p>` : ''}
       ${partijTabel(lijst)}` : '<p class="hint">Nog geen partijen ingeladen.</p>'}
   </section>`;
+}
+const partijenVan = pid => (S.partijen || []).filter(x => x.perceel_id === pid);
+// korte samenvatting bovenaan een perceel: welke rassen / partijen staan er
+function partijSamenvatting(p) {
+  const l = partijenVan(p.id); if (!l.length || p.type === 'pand') return '';
+  const per = new Map(); l.forEach(x => { const k = (soort(x.soort_id)?.naam || '') + '|' + partijRas(x); per.set(k, (per.get(k) || 0) + 1); });
+  const rassen = [...per.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => { const [, r] = k.split('|'); return `${esc(r || '?')}${n > 1 ? ` <small>×${n}</small>` : ''}`; });
+  const gewassen = [...new Set(l.map(x => soort(x.soort_id)?.naam).filter(Boolean))].join(', ');
+  return `<div class="partijbalk" onclick="perceelTab='partijen';render(true)"><b>🏷️ ${l.length} ${l.length === 1 ? 'partij' : 'partijen'}</b>${gewassen ? ` · ${esc(gewassen)}` : ''}${l.some(x => x.bio) ? ' <span class="badge bio">BIO</span>' : ''}<br>
+    <span>${rassen.slice(0, 8).join(', ')}${rassen.length > 8 ? ` en nog ${rassen.length - 8}` : ''}</span> <span class="meer">bekijk ›</span></div>`;
+}
+function htmlPerceelPartijenTab(p) {
+  const l = partijenVan(p.id), beh = mag('partijen_beheren');
+  const perGewas = new Map(); l.forEach(x => { const k = x.soort_id + '|' + (x.teeltdoel || ''); if (!perGewas.has(k)) perGewas.set(k, []); perGewas.get(k).push(x); });
+  const losse = beh ? [...new Set((S.partijen || []).filter(x => !x.perceel_id || !perceel(x.perceel_id)).map(x => x.perceel_tekst).filter(Boolean))]
+    .map(t => ({t, sc: (() => { const z = perceelZoeken(t); return z.p?.id === p.id ? z.score + 20 : z.score * .3; })()})).sort((a, b) => b.sc - a.sc) : [];
+  return `${[...perGewas.entries()].map(([k, lijst]) => { const [sid, doel] = k.split('|');
+      return `<section class="kaartje"><h4>${icoonHtml(plantIcoon(soort(sid) || {}))} ${esc(soort(sid)?.naam || 'Onbekend gewas')}${doel ? ` <small style="font-weight:400;color:var(--grijs)">${esc(doel)}</small>` : ''} <small style="font-weight:400;color:var(--grijs)">· ${lijst.length} ${lijst.length === 1 ? 'partij' : 'partijen'}</small></h4>
+        ${partijTabel(lijst.sort((a, b) => partijRas(a).localeCompare(partijRas(b), 'nl') || String(a.batch || '').localeCompare(String(b.batch || ''))), false, false)}
+        ${[...new Set(lijst.map(x => x.perceel_tekst).filter(Boolean))].length ? `<p class="hint">In het bestand: ${[...new Set(lijst.map(x => x.perceel_tekst).filter(Boolean))].map(esc).join(' · ')}</p>` : ''}</section>`; }).join('')
+    || `<section class="kaartje"><h4>🏷️ Partijen</h4><p class="hint">Er staan nog geen partijen aan dit perceel gekoppeld.</p></section>`}
+  ${beh && losse.length ? `<section class="kaartje"><h4>🔗 Partijen aan dit perceel koppelen</h4>
+      <p class="hint" style="margin-top:0">Deze namen uit je Excel-bestand zijn nog niet aan een perceel gekoppeld. Tik op de naam die bij <b>${esc(p.naam)}</b> hoort; dat wordt onthouden.</p>
+      ${losse.slice(0, 12).map(({t}) => `<button class="chip" style="margin:3px" onclick="partijKoppelAan(${esc(JSON.stringify(t))}, '${p.id}')">${esc(t)} <small>(${(S.partijen || []).filter(x => x.perceel_tekst === t && !perceel(x.perceel_id)).length})</small></button>`).join('')}
+      ${losse.length > 12 ? `<p class="hint">…en nog ${losse.length - 12} andere namen (staan in Bedrijf → Partijen).</p>` : ''}</section>` : ''}
+  ${beh ? `<div class="rij"><button class="knop licht" onclick="partijBewerk(null, '${p.id}')">➕ Partij toevoegen</button><button class="knop licht" onclick="teeltKiesBestand()">📥 Excel inladen</button></div>` : ''}`;
+}
+// één partij aanpassen of met de hand toevoegen
+function partijBewerk(id, pid) {
+  if (!mag('partijen_beheren')) return;
+  const x = id ? (S.partijen || []).find(y => y.id === id) : {perceel_id: pid, soort_id: partijenVan(pid)[0]?.soort_id || S.soorten[0]?.id, bio: false};
+  if (!x) return;
+  const sOpt = S.soorten.map(s => `<option value="${s.id}" ${s.id === x.soort_id ? 'selected' : ''}>${esc(s.naam)}</option>`).join('');
+  const pOpt = [...S.percelen].filter(p => p.type !== 'pand').sort((a, b) => a.naam.localeCompare(b.naam, 'nl')).map(p => `<option value="${p.id}" ${p.id === x.perceel_id ? 'selected' : ''}>${esc(p.naam)}</option>`).join('');
+  const rasLijst = sid => rassenVan(sid).map(r => `<option value="${esc(r.naam)}">`).join('');
+  const kl = [...new Set((S.partijen || []).map(y => y.klasse).filter(Boolean))].sort(), dl = [...new Set((S.partijen || []).map(y => y.doel).filter(Boolean))].sort(), td = [...new Set((S.partijen || []).map(y => y.teeltdoel).filter(Boolean))].sort();
+  $('#modal').innerHTML = `<div class="dialoog"><h3>${id ? '✏️ Partij aanpassen' : '➕ Partij toevoegen'}</h3>
+    <label>Perceel</label><select class="veld" id="pbP"><option value="">— niet gekoppeld${x.perceel_tekst ? ' (' + esc(x.perceel_tekst) + ')' : ''} —</option>${pOpt}</select>
+    <div class="rij"><div style="flex:1"><label>Gewas</label><select class="veld" id="pbS">${sOpt}</select></div>
+      <div style="flex:1"><label>Teeltdoel</label><input class="veld" id="pbT" list="pbTL" value="${esc(x.teeltdoel || '')}" placeholder="bijv. vermeerdering"><datalist id="pbTL">${td.map(v => `<option value="${esc(v)}">`).join('')}</datalist></div></div>
+    <label>Ras</label><input class="veld" id="pbR" list="pbRL" value="${esc(partijRas(x))}" placeholder="Kies of typ een ras"><datalist id="pbRL">${rasLijst(x.soort_id)}</datalist>
+    <div class="rij"><div style="flex:1"><label>Batchnummer</label><input class="veld" id="pbB" value="${esc(x.batch || '')}"></div>
+      <div style="flex:1"><label>NAK-nummer</label><input class="veld" id="pbN" value="${esc(x.nak || '')}"></div></div>
+    <div class="rij"><div style="flex:1"><label>Klasse</label><input class="veld" id="pbK" list="pbKL" value="${esc(x.klasse || '')}"><datalist id="pbKL">${kl.map(v => `<option value="${esc(v)}">`).join('')}</datalist></div>
+      <div style="flex:1"><label>Doel / planttype</label><input class="veld" id="pbD" list="pbDL" value="${esc(x.doel || '')}"><datalist id="pbDL">${dl.map(v => `<option value="${esc(v)}">`).join('')}</datalist></div></div>
+    <label class="vinkje"><input type="checkbox" id="pbBio" ${x.bio ? 'checked' : ''}> BIO</label>
+    ${Object.keys(x.extra || {}).length ? `<p class="hint">${Object.entries(x.extra).map(([k, v]) => `${esc(k)}: <b>${esc(v)}</b>`).join(' · ')}</p>` : ''}
+    ${x.bron ? `<p class="hint">Uit ${esc(x.bron)}. Laad je dat bestand opnieuw in, dan wordt deze regel weer zoals in het bestand.</p>` : ''}
+    <button class="knop" id="mJa">Opslaan</button>
+    <div class="rij">${id ? '<button class="knop licht rood" id="pbWeg">Verwijderen</button>' : ''}<button class="knop licht" id="mNee">Annuleren</button></div></div>`;
+  const m = $('#modal'); m.classList.add('open');
+  $('#pbS').onchange = () => { $('#pbRL').innerHTML = rasLijst($('#pbS').value); };
+  $('#mNee').onclick = () => m.classList.remove('open');
+  $('#mJa').onclick = async () => {
+    const sid = $('#pbS').value, rn = $('#pbR').value.trim(), r = rassenVan(sid).find(y => y.naam.trim().toLowerCase() === rn.toLowerCase());
+    const v = t => $(t).value.trim() || null;
+    const patch = {perceel_id: $('#pbP').value || null, soort_id: sid || null, ras_id: r?.id || null, ras_tekst: rn || null, teeltdoel: v('#pbT'),
+      batch: v('#pbB'), nak: v('#pbN'), klasse: v('#pbK'), doel: v('#pbD'), bio: $('#pbBio').checked, updated_at: new Date().toISOString()};
+    if (!rn && !patch.batch && !patch.nak) { toast('Vul minstens een ras, batch- of NAK-nummer in', 1); return; }
+    m.classList.remove('open');
+    const q = id ? sb.from('partijen').update(patch).eq('id', id).select().single()
+      : sb.from('partijen').insert({...patch, seizoen_id: bekeken, sleutel: 'hand|' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), perceel_tekst: perceel(patch.perceel_id)?.naam || null}).select().single();
+    const {data, error} = await q;
+    if (error) { toast('Opslaan mislukt: ' + error.message, 1); return; }
+    const nieuw = data || {...x, ...patch, id: id || 'nieuw' + Date.now()};
+    const i = (S.partijen || []).findIndex(y => y.id === (id || nieuw.id)); if (i >= 0) S.partijen[i] = nieuw; else S.partijen.push(nieuw);
+    render(true); toast(id ? 'Partij opgeslagen' : 'Partij toegevoegd');
+  };
+  if (id) $('#pbWeg').onclick = async () => {
+    if (!confirm('Deze partij verwijderen?')) return; m.classList.remove('open');
+    const {error} = await sb.from('partijen').delete().eq('id', id);
+    if (error) { toast('Verwijderen mislukt: ' + error.message, 1); return; }
+    S.partijen = S.partijen.filter(y => y.id !== id); render(true); toast('Partij verwijderd');
+  };
+}
+// een naam uit het bestand aan een perceel koppelen (alle partijen met die naam, en onthouden voor de volgende keer)
+async function partijKoppelAan(tekst, pid) {
+  const lijst = (S.partijen || []).filter(x => x.perceel_tekst === tekst);
+  lijst.forEach(x => { x.perceel_id = pid; }); render(true);
+  const [a, b] = await Promise.all([
+    sb.from('partijen').update({perceel_id: pid}).eq('perceel_tekst', tekst).eq('seizoen_id', bekeken),
+    sb.from('perceel_aliassen').upsert({tekst: String(tekst).trim().toLowerCase(), perceel_id: pid})]);
+  const fout = a.error || b.error;
+  if (fout) toast('Koppelen mislukt: ' + fout.message, 1); else toast(`🔗 ${lijst.length} partijen gekoppeld aan ${perceel(pid)?.naam}`);
+}
+async function partijKoppelen(tekst) {
+  const z = perceelZoeken(tekst), opties = [...S.percelen].filter(p => p.type !== 'pand').sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  $('#modal').innerHTML = `<div class="dialoog"><h3>🔗 Koppelen aan een perceel</h3>
+    <p>"<b>${esc(tekst)}</b>" uit je Excel-bestand hoort bij:</p>
+    <select class="veld" id="pkSel"><option value="">— kies een perceel —</option>${opties.map(p => `<option value="${p.id}" ${z.p?.id === p.id && z.score >= 40 ? 'selected' : ''}>${esc(p.naam)}</option>`).join('')}</select>
+    <button class="knop licht" id="pkKaart">👆 Op de kaart aanwijzen</button>
+    <p class="hint">Alle ${(S.partijen || []).filter(x => x.perceel_tekst === tekst).length} partijen met deze naam worden gekoppeld, en de app onthoudt het voor de volgende keer dat je het bestand inlaadt.</p>
+    <button class="knop" id="mJa">Koppelen</button><button class="knop licht" id="mNee">Annuleren</button></div>`;
+  const m = $('#modal'); m.classList.add('open');
+  $('#mNee').onclick = () => m.classList.remove('open');
+  $('#mJa').onclick = () => { const v = $('#pkSel').value; if (!v) { toast('Kies eerst een perceel', 1); return; } m.classList.remove('open'); partijKoppelAan(tekst, v); };
+  $('#pkKaart').onclick = async () => {
+    m.classList.remove('open');
+    const pt = await wijsPuntAan('Tik op het perceel waar "' + tekst + '" bij hoort'); if (!pt) return;
+    const p = S.percelen.find(x => x.geo && x.type !== 'pand' && (() => { try { return turf.booleanPointInPolygon(pt, x.geo); } catch { return false; } })());
+    if (!p) { toast('Daar ligt geen perceel', 1); return; }
+    partijKoppelAan(tekst, p.id);
+  };
 }
 function htmlPerceelPartijen(p) {
   const l = (S.partijen || []).filter(x => x.perceel_id === p.id);
