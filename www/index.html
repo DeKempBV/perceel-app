@@ -398,6 +398,11 @@ details.plItem>summary::after{content:'▸';margin-left:auto;color:var(--grijs);
 .plAantal{font-size:12px;color:var(--groen);background:var(--licht);border-radius:8px;padding:1px 7px}
 .plDet{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:#455a4a;margin-top:3px;align-items:center}.plDet .icoon{margin-left:auto}
 .plSub{border-top:1px dashed var(--rand);margin-top:6px;padding-top:5px}
+.plSporen{color:#8a6200;background:#fff4d6;border-radius:6px;padding:0 6px;font-size:11.5px}
+.plKop .icoon.klein+.icoon.klein,.plDet .icoon.klein+.icoon.klein{margin-left:4px}
+#pkBalk{position:fixed;right:16px;bottom:16px;z-index:1300;width:min(380px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:12px 14px;border:3px solid #ffd600}
+#pkBalk .pgKop{font-weight:800;display:flex;justify-content:space-between;align-items:center;gap:6px}#pkBalk .pgX{border:0;background:none;font-size:18px;cursor:pointer;margin-left:auto}
+#pkBalk .pgTekst{font-size:13px;margin:6px 0}
 .plPerc{display:inline-block;font-size:12px;margin-top:3px}.plPerc.grijs,.plGroepKop .grijs{color:var(--grijs);font-style:italic}
 .plGroep{margin:10px 0}.plGroepKop{font-weight:700;font-size:13px;margin-bottom:5px}.plGroepKop small{color:var(--grijs);font-weight:400}
 .plItem .kl{display:inline-block;width:10px;height:10px;border-radius:3px}
@@ -1332,6 +1337,7 @@ function zetKwast(id) { gereedschap = undefined; kwast = (kwast === id) ? undefi
 function zetGereedschap(g) { gereedschap = gereedschap === g ? undefined : g; kwast = undefined; gekozenPlant = undefined; render(true); }
 
 function klikBaan(p, bn, ll) {
+  if (partijKwast && partijKlikSpoor(p, bn)) return;
   if (ouder(p).id !== actief) { kies(ouder(p).id); return; }
   const meta = banenVan(p).meta, lengte = bn.t1 - bn.t0;
   const t = ll ? Math.round((langs(meta, ll) - bn.t0) * 10) / 10 : 0;
@@ -2752,6 +2758,7 @@ function tekenZone(p, isA) {
         .bindTooltip(() => spoorTip(p, bn, st), {sticky: true, direction: 'top', offset: [0, -8], className: 'spoortip', opacity: .97})
         .on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); klikBaan(p, bn, ev.latlng); }).addTo(laag);
       if (s && f === .5) { const h = halfStuk(p, bn, st.geo); if (h) geenSnap(L.geoJSON(h, {interactive: false, style: {stroke: false, fillColor: s.kleur, fillOpacity: .62}})).addTo(laag); }
+      if (partijKwast && partijOpSpoor(p, bn.nr)?.id === partijKwast.id) geenSnap(L.geoJSON(st.geo, {interactive: false, style: {color: '#ffd600', weight: 3, fill: false}})).addTo(laag);
     });
     if (stukken.length > 1 && isA) {   // wissellijnen
       const meta = banenVan(p).meta, v = p.banen[bn.nr - 1];
@@ -2936,11 +2943,12 @@ function htmlInfoInhoud(p) {
     const getoond = new Set();
     const lijst = regels.map(([id, x]) => { const t = teelt(id), a = plantAantal(p, id, x); if (a) planten += a.totaal;
       const pr = partijenVanTeelt(p.id, id); pr.forEach(y => getoond.add(y.id)); const r = ras(id);
+      const meerdere = pr.length > 1;
       return `<div class="inforij"><span><i class="kl" style="background:${esc(t.kleur)}"></i>${icoonHtml(t.icoon)} ${esc(t.naam)}${pr.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}</span>
         <b>${ha(x.m2)} ha${x.n ? ` · ${getal(x.n, 1)} ${x.n === 1 ? 'rij' : 'rijen'}` : x.vlak ? ' · heel vlak' : ''}${a ? ` · ≈ ${getal(Math.round(a.totaal))} pl` : ''}</b></div>
-        ${pr.length || r?.notitie ? `<div class="plantinfo">${pr.map(partijRegel).join('')}${r?.notitie ? `<div class="pi">📝 ${esc(r.notitie)}</div>` : ''}</div>` : ''}`; }).join('');
+        ${pr.length || r?.notitie ? `<div class="plantinfo">${pr.map(y => partijRegel(y, false, true)).join('')}${meerdere && pr.some(y => !partijSporen(y).length) ? '<div class="pi hint">Deze soort heeft meerdere partijen: wijs met 🖌️ aan welke op welke sporen staat.</div>' : ''}${r?.notitie ? `<div class="pi">📝 ${esc(r.notitie)}</div>` : ''}</div>` : ''}`; }).join('');
     const overig = partijenVan(p.id).filter(y => !getoond.has(y.id));
-    const overigHtml = overig.length ? `<div class="plantinfo"><div class="pi"><b>Ook op dit perceel, nog niet op een spoor ingedeeld:</b></div>${overig.map(y => partijRegel(y, true)).join('')}</div>` : '';
+    const overigHtml = overig.length ? `<div class="plantinfo"><div class="pi"><b>Ook op dit perceel, nog niet op een spoor ingedeeld:</b></div>${overig.map(y => partijRegel(y, true, true)).join('')}</div>` : '';
     const leeg = tel.get(null)?.m2 || 0;
     h += blok('🌱 Wat staat er', (lijst || '<p class="hint">Nog niets ingedeeld.</p>') + overigHtml +
       (leeg > 1 ? rij('Niet ingedeeld', ha(leeg) + ' ha') : '') + (planten ? rij('Totaal planten', '≈ ' + getal(Math.round(planten))) : ''));
@@ -4248,6 +4256,83 @@ function ververs3dTaak() {
   k.querySelector('.dtKop b').textContent = t.tekst; k.querySelector('.dtInhoud').innerHTML = taakInfo3d(t);
 }
 
+/* ============ PARTIJ OP DE SPOREN ============
+   Per partij bijhouden op welke sporen hij staat (partijen.sporen = [{z: zone-id, nrs: [..]}]).
+   Zo weet je bij elk spoor precies welke batch er staat, ook als een soort meerdere partijen heeft. */
+let partijKwast = null, spoorPartijMap = null, spoorPartijVan = null;
+function spoorPartijIndex() {
+  if (spoorPartijMap && spoorPartijVan === S.partijen) return spoorPartijMap;
+  spoorPartijMap = new Map(); spoorPartijVan = S.partijen;
+  (S.partijen || []).forEach(x => (Array.isArray(x.sporen) ? x.sporen : []).forEach(s => (s.nrs || []).forEach(nr => spoorPartijMap.set(s.z + '|' + nr, x))));
+  return spoorPartijMap;
+}
+const partijOpSpoor = (z, nr) => spoorPartijIndex().get(z.id + '|' + nr) || null;
+const partijSporen = (x, zid) => (Array.isArray(x.sporen) ? x.sporen : []).filter(s => !zid || s.z === zid).flatMap(s => s.nrs || []);
+function reeksTekst(nrs) {   // 1,2,3,7,8 → "1–3, 7–8"
+  const a = [...new Set(nrs)].sort((x, y) => x - y), uit = [];
+  for (let i = 0; i < a.length; i++) { let j = i; while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++; uit.push(i === j ? a[i] : `${a[i]}–${a[j]}`); i = j; }
+  return uit.join(', ');
+}
+function sporenLabel(x) {
+  const n = partijSporen(x); if (!n.length) return '';
+  return `<span class="plSporen">📍 ${n.length === 1 ? 'spoor' : 'sporen'} ${reeksTekst(n)}</span>`;
+}
+function partijKwastStart(id) {
+  const x = (S.partijen || []).find(y => y.id === id); if (!x || !mag('partijen_beheren')) return;
+  if (!x.perceel_id || !perceel(x.perceel_id)) { toast('Koppel deze partij eerst aan een perceel', 1); return; }
+  $('#modal')?.classList.remove('open');
+  partijKwast = {id}; gereedschap = undefined; kwast = undefined; gekozenPlant = undefined;
+  if (actief !== x.perceel_id) { actief = x.perceel_id; tab = 'percelen'; }
+  paneelKlein(); render(true); partijKwastBalk();
+}
+function partijKwastStop() { partijKwast = null; $('#pkBalk')?.remove(); render(true); }
+function partijKwastBalk() {
+  const x = partijKwast && (S.partijen || []).find(y => y.id === partijKwast.id); if (!x) { $('#pkBalk')?.remove(); return; }
+  let el = $('#pkBalk'); if (!el) { el = document.createElement('div'); el.id = 'pkBalk'; document.body.appendChild(el); }
+  const p = perceel(x.perceel_id), zs = alleZones(p).filter(z => banenVan(z).length), n = partijSporen(x).length;
+  el.innerHTML = `<div class="pgKop">🖌️ ${esc(partijRas(x) || soort(x.soort_id)?.naam || 'Partij')}${x.bio ? ' <span class="badge bio">BIO</span>' : ''} <button class="pgX" onclick="partijKwastStop()">✕</button></div>
+    <div class="pgTekst">${[x.batch ? 'batch <b>' + esc(x.batch) + '</b>' : '', x.nak && x.nak !== x.batch ? 'NAK ' + esc(x.nak) : '', x.klasse ? esc(x.klasse) : '', x.doel ? esc(x.doel) : ''].filter(Boolean).join(' · ')}<br>
+      Tik op de sporen waar deze partij staat (nog eens tikken = eraf).${n ? `<br><b>Staat nu op ${n === 1 ? 'spoor' : 'sporen'} ${reeksTekst(partijSporen(x))}</b>` : ''}</div>
+    <div class="pgRij">${zs.length > 1 ? `<select id="pkZone" class="veld" style="flex:1 1 100%">${zs.map(z => `<option value="${z.id}">${z._vak ? esc(z.naam) : 'Hoofdveld'}</option>`).join('')}</select>` : ''}
+      <span>Sporen</span><input id="pkVan" class="veld" type="number" inputmode="numeric" min="1" placeholder="van" style="width:70px;margin:0"><span>t/m</span><input id="pkTot" class="veld" type="number" inputmode="numeric" min="1" placeholder="tot" style="width:70px;margin:0">
+      <button class="knop licht" style="flex:0 0 auto;width:auto;margin:0" onclick="partijBereik()">Zetten</button></div>
+    <div class="pgRij"><button class="knop licht" onclick="partijSporenWis()">Alles eraf</button><button class="knop" onclick="partijKwastStop()">✔ Klaar</button></div>`;
+}
+// sporen toewijzen: een spoor hoort maar bij één partij, en krijgt ook het ras van de partij
+async function partijZetSporen(x, z, nrs, aan) {
+  const wijzigingen = new Map();
+  const zetVoor = (y, lijst) => { const s = (Array.isArray(y.sporen) ? y.sporen : []).filter(q => q.z !== z.id); if (lijst.length) s.push({z: z.id, nrs: [...new Set(lijst)].sort((a, b) => a - b)}); y.sporen = s; wijzigingen.set(y.id, y); };
+  if (aan) (S.partijen || []).forEach(y => { if (y.id !== x.id) { const o = partijSporen(y, z.id), r = o.filter(nr => !nrs.includes(nr)); if (r.length !== o.length) zetVoor(y, r); } });
+  const eigen = partijSporen(x, z.id);
+  zetVoor(x, aan ? [...eigen, ...nrs] : eigen.filter(nr => !nrs.includes(nr)));
+  // ras op de sporen zetten zodat kleur en oppervlak kloppen
+  if (aan && x.ras_id && mag('soorten_indelen')) {
+    const arr = [...(z.banen || [])]; let anders = false;
+    nrs.forEach(nr => { while (arr.length < nr) arr.push(null); const v = arr[nr - 1]; if (!isGeknipt(v) && v !== x.ras_id) { arr[nr - 1] = x.ras_id; anders = true; } });
+    if (anders) zetBanen(z, arr);
+  }
+  spoorPartijMap = null; render(true); partijKwastBalk();
+  for (const y of wijzigingen.values()) { const {error} = await sb.from('partijen').update({sporen: y.sporen}).eq('id', y.id); if (error) { toast('Opslaan mislukt: ' + error.message, 1); break; } }
+}
+function partijKlikSpoor(z, bn) {
+  const x = (S.partijen || []).find(y => y.id === partijKwast?.id); if (!x) return false;
+  if (ouder(z).id !== x.perceel_id) { toast('Deze partij hoort bij ' + (perceel(x.perceel_id)?.naam || 'een ander perceel'), 1); return true; }
+  partijZetSporen(x, z, [bn.nr], !partijSporen(x, z.id).includes(bn.nr));
+  return true;
+}
+function partijBereik() {
+  const x = (S.partijen || []).find(y => y.id === partijKwast?.id); if (!x) return;
+  const p = perceel(x.perceel_id), z = alleZones(p).find(q => q.id === $('#pkZone')?.value) || p, n = banenVan(z).length;
+  const van = Math.max(1, +$('#pkVan').value || 0), tot = Math.min(n, +$('#pkTot').value || van);
+  if (!van || tot < van) { toast('Vul in van welk tot welk spoor', 1); return; }
+  partijZetSporen(x, z, Array.from({length: tot - van + 1}, (_, i) => van + i), true);
+}
+function partijSporenWis() {
+  const x = (S.partijen || []).find(y => y.id === partijKwast?.id); if (!x) return;
+  x.sporen = []; spoorPartijMap = null; render(true); partijKwastBalk();
+  sb.from('partijen').update({sporen: []}).eq('id', x.id).then(({error}) => error && toast('Opslaan mislukt: ' + error.message, 1));
+}
+
 /* ============ TEELTGEGEVENS INLADEN (Excel / CSV) ============
    Een lijst met per perceel de partijen (batch, NAK-nummer, ras, klasse, doel) wordt ingelezen.
    Elk tabblad is een gewas ("Aardbei vermeerdering"), de kolommen worden herkend aan hun kop,
@@ -4436,10 +4521,10 @@ function partijLijst(lijst, {metPerceel = false, metGewas = false} = {}) {
   const beh = mag('partijen_beheren'), groepen = new Map();
   lijst.forEach(x => { const k = (x.soort_id || '') + '|' + normTekst(partijRas(x)); if (!groepen.has(k)) groepen.set(k, []); groepen.get(k).push(x); });
   const det = x => [x.batch ? `<span>batch <b>${esc(x.batch)}</b></span>` : '', x.nak && x.nak !== x.batch ? `<span>NAK <b>${esc(x.nak)}</b></span>` : x.nak ? '<span>= NAK</span>' : '',
-    x.klasse ? `<span>klasse <b>${esc(x.klasse)}</b></span>` : '', x.doel ? `<span>${esc(x.doel)}</span>` : '', x.teeltdoel ? `<span>${esc(x.teeltdoel)}</span>` : ''].filter(Boolean).join('');
+    x.klasse ? `<span>klasse <b>${esc(x.klasse)}</b></span>` : '', x.doel ? `<span>${esc(x.doel)}</span>` : '', x.teeltdoel ? `<span>${esc(x.teeltdoel)}</span>` : '', sporenLabel(x)].filter(Boolean).join('');
   const perc = x => metPerceel ? (x.perceel_id && perceel(x.perceel_id) ? `<a href="#" class="plPerc" onclick="event.preventDefault();kies('${x.perceel_id}');perceelTab='partijen';render(true)">📍 ${esc(perceel(x.perceel_id).naam)}</a>`
       : `<span class="plPerc grijs">📍 ${esc(x.perceel_tekst || 'niet gekoppeld')}</span>${beh && x.perceel_tekst ? ` <button class="link klein" onclick="partijKoppelen(${esc(JSON.stringify(x.perceel_tekst))})">🔗 koppelen</button>` : ''}`) : '';
-  const knop = x => beh ? `<button class="icoon klein" title="Aanpassen" onclick="event.stopPropagation();partijBewerk('${x.id}')">✏️</button>` : '';
+  const knop = x => beh ? `${x.perceel_id && perceel(x.perceel_id) ? `<button class="icoon klein" title="Aanwijzen op welke sporen deze partij staat" onclick="event.stopPropagation();partijKwastStart('${x.id}')">🖌️</button>` : ''}<button class="icoon klein" title="Aanpassen" onclick="event.stopPropagation();partijBewerk('${x.id}')">✏️</button>` : '';
   const kleur = x => { const r = x.ras_id && ras(x.ras_id); return r?.kleur || soort(x.soort_id)?.kleur || '#9e9e9e'; };
   return `<div class="plLijst">${[...groepen.values()].map(g => {
     const x = g[0], naam = `<i class="kl" style="background:${esc(kleur(x))}"></i><b>${esc(partijRas(x) || soort(x.soort_id)?.naam || '?')}</b>${g.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}${metGewas && soort(x.soort_id) ? ` <small>${esc(soort(x.soort_id).naam)}</small>` : ''}`;
@@ -4496,16 +4581,17 @@ function partijenVanTeelt(pid, teeltId) {
   return partijenVan(pid).filter(y => r ? y.ras_id === r.id || (!y.ras_id && y.soort_id === r.soort_id && normTekst(y.ras_tekst || '').includes(normTekst(r.naam)))
     : y.soort_id === teeltId && !y.ras_id);
 }
-const partijRegel = (y, metRas) => `<div class="pi">🏷️ ${metRas ? `<b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> · ` : ''}${[y.batch ? 'batch ' + esc(y.batch) : '', y.nak && y.nak !== y.batch ? 'NAK ' + esc(y.nak) : '', y.klasse ? esc(y.klasse) : '', y.doel ? esc(y.doel) : '', y.teeltdoel ? esc(y.teeltdoel) : ''].filter(Boolean).join(' · ')}${y.bio && metRas ? ' <span class="badge bio">BIO</span>' : ''}</div>`;
+const partijRegel = (y, metRas, metKnop) => `<div class="pi">🏷️ ${metRas ? `<b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> · ` : ''}${[y.batch ? 'batch ' + esc(y.batch) : '', y.nak && y.nak !== y.batch ? 'NAK ' + esc(y.nak) : '', y.klasse ? esc(y.klasse) : '', y.doel ? esc(y.doel) : '', y.teeltdoel ? esc(y.teeltdoel) : ''].filter(Boolean).join(' · ')}${y.bio && metRas ? ' <span class="badge bio">BIO</span>' : ''}
+  ${sporenLabel(y)}${metKnop && mag('partijen_beheren') ? ` <button class="link klein" onclick="partijKwastStart('${y.id}')">🖌️ ${partijSporen(y).length ? 'sporen aanpassen' : 'aanwijzen op welke sporen'}</button>` : ''}</div>`;
 // wat je ziet als je met de muis over een spoor gaat (of erop tikt)
 function spoorTip(p, bn, st) {
   const t = teelt(st.id), f = patroonVan(p) ? rijWaarde(p, bn.nr) : (spuitSet(p).has(bn.nr) ? 2 : 1);
   const vak = spuitvakkenVan(p).find(v => v.nrs.includes(bn.nr));
   const kop = `<b>Spoor ${bn.nr}</b>${vak ? ` · vak ${vak.letter}` : ''}${f === 2 ? ' · 🚜 spuitspoor' : f === .5 ? ' · half gevuld' : f === 0 ? ' · leeg' : ''}`;
   if (!t) return `${kop}<br><small>Niet ingedeeld · ${Math.round(st.tot - st.van)} m</small>`;
-  const pr = partijenVanTeelt(p.id, st.id), r = ras(st.id);
+  const eigen = partijOpSpoor(p, bn.nr), pr = eigen ? [eigen] : partijenVanTeelt(p.id, st.id), r = ras(st.id);
   return `${kop}<br>${icoonHtml(t.icoon)} <b>${esc(t.naam)}</b>${pr.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}<br><small>${Math.round(st.tot - st.van)} m · ${Math.round(st.m2 * (f === .5 ? .5 : 1)).toLocaleString('nl-NL')} m²</small>
-    ${pr.length ? `<div class="tipPartijen">${pr.slice(0, 4).map(y => partijRegel(y)).join('')}${pr.length > 4 ? `<div class="pi">…en nog ${pr.length - 4}</div>` : ''}</div>` : ''}
+    ${pr.length ? `<div class="tipPartijen">${eigen ? '<b>Op dit spoor:</b>' : pr.length > 1 ? '<small>Nog niet aangewezen welke partij hier staat:</small>' : ''}${pr.slice(0, 4).map(y => partijRegel(y)).join('')}${pr.length > 4 ? `<div class="pi">…en nog ${pr.length - 4}</div>` : ''}</div>` : ''}
     ${r?.notitie ? `<div class="pi">📝 ${esc(r.notitie.slice(0, 120))}</div>` : ''}`;
 }
 function htmlPerceelPartijenTab(p) {
