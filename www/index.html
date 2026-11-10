@@ -364,6 +364,24 @@ textarea.veld{resize:vertical;font-family:inherit}
 .tractor-label:before{display:none}
 .trstip{width:34px;height:34px;border-radius:50%;background:#eceee9;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none}
 .trstip.live{background:#ffe0cc;box-shadow:0 0 0 3px #ff6d0055}
+.trstip.rijdt{background:#d6e9fb;box-shadow:0 0 0 3px #1e88e555}.trstip.aan{background:#ffe9cc}
+.voertuig{background:none;border:0}
+.voertuig .vw{position:absolute;left:0;top:0;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);transform:scale(var(--ls,1));background:#90a4ae}
+.voertuig .vw.rijdt{background:#1e88e5}.voertuig .vw.aan{background:#fb8c00}.voertuig .vw.oud{opacity:.55}
+.voertuig-label{background:#1e88e5;color:#fff;border:0;border-radius:7px;font-weight:700;font-size:calc(11px * var(--ls,1));padding:calc(2px * var(--ls,1)) calc(7px * var(--ls,1));box-shadow:none}
+.voertuig-label:before{display:none}
+.fgStatus{background:var(--licht);border-radius:10px;padding:8px 10px;font-size:13px;margin:8px 0;word-break:break-word}
+.fgStatus.fout{background:#fdecea;color:#b71c1c}
+.plattegrondBeeld{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none!important;max-height:none!important;width:auto;height:auto;pointer-events:none;user-select:none;-webkit-user-drag:none}
+.plattegrondBeeld.sleep{pointer-events:auto;cursor:move;outline:2px dashed #ff9100;touch-action:none}
+#pgBalk{position:fixed;right:16px;bottom:16px;z-index:1300;width:min(380px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:12px 14px}
+#pgBalk .pgKop{font-weight:800;display:flex;justify-content:space-between;align-items:center}
+#pgBalk .pgX{border:0;background:none;font-size:18px;cursor:pointer}
+#pgBalk .pgTekst{font-size:13px;margin:6px 0}
+.pgRij{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}.pgRij span{font-size:12px;color:var(--grijs)}.pgRij input[type=range]{flex:1;accent-color:var(--groen)}
+.pgRij.knoppen button{border:1px solid var(--rand);background:var(--licht);border-radius:10px;padding:6px 10px;font-weight:700;cursor:pointer}
+.pgRij .knop{flex:1}
+body.pgSleept::after{content:'🗺️ Laat los om de plattegrond in te laden';position:fixed;inset:12px;border:4px dashed var(--groen);border-radius:20px;background:rgba(46,125,50,.12);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--groen);z-index:5000;pointer-events:none}
 .tel.live{background:#ff6d00;color:#fff}
 .rijkaart{border-color:#ffb380;background:#fff7f0}
 .rijkaart p{font-size:14px;line-height:1.45}
@@ -686,10 +704,10 @@ const datumKort = d => d ? new Date(d).toLocaleDateString('nl-NL', {day: 'numeri
 const vandaag = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };   // lokale datum
 
 let sb = null, me = null, gestart = false, wachtRender = false;
-const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], profielen: [], seizoenen: [], uren: [], inst: {}, middelen: [], oogst: [], machines: [], machine_log: [], kosten: [], meldingen: []};
+const S = {percelen: [], taken: [], soorten: [], rassen: [], markeringen: [], tractoren: [], voertuigen: [], profielen: [], seizoenen: [], uren: [], inst: {}, middelen: [], oogst: [], machines: [], machine_log: [], kosten: [], meldingen: []};
 let bekeken = null, archief = false, livePercelen = null;   // seizoen dat je bekijkt
 let perceelTab = 'info', actief = null, tab = 'percelen', kwast, gereedschap, taakFocus, tekenDoel = 'perceel', markLagen = {}, gekozenPlant, openPlant, openRechten, takenFilter = 'open', vormLaag = null;
-let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, locatieLaag, basis = {}, laagModus = 'sat';
+let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, voertuigLaag, locatieLaag, basis = {}, laagModus = 'sat';
 
 const mijnProfiel = () => S.profielen.find(x => x.id === me?.id);
 const naamMe = () => mijnProfiel()?.naam || me?.user_metadata?.naam || me?.email?.split('@')[0] || 'Onbekend';
@@ -763,6 +781,8 @@ const RECHTEN = [
   ['tractoren_volgen', 'Tractoren op de kaart zien en volgen', 'Tractoren'],
   ['tractor_rijden', 'Locatie delen als tractor (telefoon in de trekker)', 'Tractoren'],
   ['tractoren_beheren', 'Tractoren toevoegen, hernoemen en verwijderen', 'Tractoren'],
+  ['voertuigen_zien', 'Bussen en auto\'s (FleetGO) live op de kaart zien', 'Bussen en auto\'s'],
+  ['voertuigen_beheren', 'FleetGO-koppeling instellen, voertuigen hernoemen en verbergen', 'Bussen en auto\'s'],
   ['uren_bekijken', 'Uren van iedereen bekijken (eigen uren ziet iedereen)', 'Uren'],
   ['uren_beheren', 'Uren corrigeren, toevoegen en verwijderen', 'Uren'],
   ['uren_mailen', 'Urenoverzicht mailen', 'Uren'],
@@ -774,7 +794,7 @@ const RECHTEN = [
 const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, spuitsporen_bewerken: true, deelvelden_bewerken: true,
   percelen_uitschakelen: false, percelen_verwijderen: false, soorten_indelen: true, soorten_beheren: false,
   taken_toevoegen: true, taken_afvinken: true, werk_registreren: true, taken_verwijderen: false, markeringen_maken: true,
-  weer_bekijken: true, historie_bekijken: true, seizoen_starten: false, tractoren_volgen: true, tractor_rijden: true, tractoren_beheren: false,
+  weer_bekijken: true, historie_bekijken: true, seizoen_starten: false, tractoren_volgen: true, tractor_rijden: true, tractoren_beheren: false, voertuigen_zien: false, voertuigen_beheren: false,
   uren_bekijken: false, uren_beheren: false, uren_mailen: false,
   middelen_beheren: false, oogst_registreren: true, oogst_bekijken: true, machines_beheren: false, kosten_bekijken: false,
   percelen_aanpassen: false, kopeinden_bewerken: true, gerooid_aangeven: true};
@@ -1037,6 +1057,8 @@ async function opstarten() {
   let bezig = null; try { bezig = localStorage.getItem('rijdt'); } catch {}
   if (bezig && S.tractoren.find(t => t.id === bezig)) { startRijden(bezig, true); }
   setInterval(() => { if (S.tractoren.length) { tekenTractoren(); if (tab === 'tractoren') render(); } }, 30000);   // "laatst gezien" bijwerken
+  setInterval(() => voertuigenTik(), 20000);
+  pgSleepInit();   // plattegrond op de kaart slepen   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
   setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
 }
 const actiefSeizoen = () => S.seizoenen.find(s => s.actief);
@@ -1067,6 +1089,7 @@ async function laadAlles() {
   S.soorten = s.data || []; S.rassen = rs.data || []; S.markeringen = mk.data || []; S.tractoren = tr.data || []; S.profielen = pr.data || [];
   render(true);
   bewaarCache(); verwerkWachtrij(); controleerVorst(); belTeken(); netStatus();
+  voertuigenTik(true);
 }
 function verwerkLive(pl) {
   if (pl.table === 'seizoenen') {
@@ -1086,6 +1109,7 @@ function verwerkLive(pl) {
     else { const i = livePercelen.findIndex(x => x.id === pl.new.id); if (i >= 0) livePercelen[i] = pl.new; else livePercelen.push(pl.new); }
     return;
   }
+  if (pl.table === 'voertuigen') { voertuigLive(pl); return; }
   const lijst = S[pl.table]; if (!lijst) return;
   if (pl.eventType === 'DELETE') {
     S[pl.table] = lijst.filter(x => x.id !== pl.old.id);
@@ -1995,14 +2019,16 @@ function alleLagen() {
     ${rij('kwNamen', '🏷️ Namen van velden', aan('_namen'))}
     ${rij('kwGewas', '🍓 Gewas-icoontjes onder de naam', aan('_gewasIcoon'))}
     ${rij('kwOmtrek', '⬜ Omtrekken van velden', aan('_omtrek'))}
+    ${S.percelen.some(p => p.plattegrond) ? rij('kwPlattegrond', '🗺️ Plattegronden (ingeladen afbeeldingen)', aan('_plattegrond')) : ''}
     ${rij('kwTrekkers', '🚜 Tractoren', aan('_tractoren'))}
+    ${ziet('voertuigen_zien') ? rij('kwVoertuigen', '🚐 Bussen en auto\'s (FleetGO)', aan('_voertuigen')) : ''}
     <div class="rij" style="margin-top:12px"><button class="knop licht" id="kwAlles">Alles aan</button><button class="knop licht" id="kwNiets">Alles uit</button></div>
     <p class="hint">Per veld kun je lagen ook apart aan- en uitzetten bij het veld zelf.</p>
     <button class="knop" id="mJa">Klaar</button></div>`;
   const m = $('#modal'); m.classList.add('open');
   const toepassen = () => {
     weergave._g = Object.fromEntries(LAAG.map(k => [k, $('#kw_' + k).checked]));
-    weergave._namen = $('#kwNamen').checked; weergave._gewasIcoon = $('#kwGewas').checked; weergave._omtrek = $('#kwOmtrek').checked; weergave._tractoren = $('#kwTrekkers').checked;
+    weergave._namen = $('#kwNamen').checked; weergave._gewasIcoon = $('#kwGewas').checked; weergave._omtrek = $('#kwOmtrek').checked; if ($('#kwPlattegrond')) weergave._plattegrond = $('#kwPlattegrond').checked; weergave._tractoren = $('#kwTrekkers').checked; if ($('#kwVoertuigen')) weergave._voertuigen = $('#kwVoertuigen').checked;
     bewaarWeergave(); render(true);
   };
   m.querySelectorAll('input[type=checkbox]').forEach(i => i.onchange = toepassen);
@@ -2404,7 +2430,7 @@ function kaartSchaal() {
 function zetKaartSchaal() {
   if (!map?.getContainer) return;
   map.getContainer().style.setProperty('--ls', kaartSchaal().toFixed(3));
-  [laag, markLaag, focusLaag, tractorLaag].forEach(g => g?.eachLayer?.(l => { try { if (l instanceof L.Tooltip) l.update(); else l.getTooltip?.()?.update(); } catch {} }));
+  [laag, markLaag, focusLaag, tractorLaag, voertuigLaag].forEach(g => g?.eachLayer?.(l => { try { if (l instanceof L.Tooltip) l.update(); else l.getTooltip?.()?.update(); } catch {} }));
   requestAnimationFrame(ontwarLetters);
 }
 // vakletters die over elkaar (of over een veldnaam) vallen verbergen
@@ -2425,7 +2451,7 @@ function initKaart() {
   basis.sat.addTo(map); basis.namen.addTo(map);
   L.control.zoom({position: 'topright'}).addTo(map);
   laag = L.layerGroup().addTo(map); markLaag = L.layerGroup().addTo(map); focusLaag = L.layerGroup().addTo(map); pijlLaag = L.layerGroup().addTo(map);
-  tractorLaag = L.layerGroup().addTo(map); locatieLaag = L.layerGroup().addTo(map);
+  tractorLaag = L.layerGroup().addTo(map); locatieLaag = L.layerGroup().addTo(map); voertuigLaag = L.layerGroup().addTo(map);
   map.on('zoomend', zetKaartSchaal);
 
   map.pm.setLang('nl');
@@ -2561,7 +2587,7 @@ function renderKaart() {
   const ft = taakFocus && S.taken.find(x => x.id === taakFocus);
   if (ft && perceel(ft.perceel_id) && zichtbaar(ft.perceel_id).taken) taakGebied(ft).forEach(g => L.geoJSON(g, {interactive: false,
     style: {color: '#ff00d4', weight: 3, dashArray: '8,5', fillColor: '#ff00d4', fillOpacity: .45}}).addTo(focusLaag));
-  tekenTractoren();
+  tekenTractoren(); tekenVoertuigen(); tekenPlattegronden();
   [focusLaag, tractorLaag, locatieLaag, pijlLaag].forEach(g => g.eachLayer(geenSnap));
   zetKaartSchaal();
 }
@@ -2748,7 +2774,7 @@ function opstaandHtml(p) {
 }
 /* ---- alles over het perceel op één plek ---- */
 function htmlInfo(p) {
-  return verslagenHtml(p.id) + htmlInfoInhoud(p);
+  return verslagenHtml(p.id) + htmlPlattegrond(p) + htmlInfoInhoud(p);
 }
 function htmlInfoInhoud(p) {
   const rij = (k, v) => v === '' || v == null ? '' : `<div class="inforij"><span>${k}</span><b>${v}</b></div>`;
@@ -3948,7 +3974,529 @@ function htmlTractoren() {
     ${beh ? `<label>Nieuwe tractor</label><div class="rij"><input id="trNaam" class="veld" placeholder="bijv. Fendt 724" onkeydown="if(event.key==='Enter')tractorErbij()">
       <button class="knop klein" onclick="tractorErbij()">Toevoegen</button></div>` : ''}
     <p class="hint">🎯 volgen op de kaart (met de route van vandaag) · 📱 deze telefoon gebruiken als GPS in de tractor${beh ? ' · 🔐 sleutel voor een GPS-kastje later' : ''}</p>
-    </section>`;
+    </section>${htmlVoertuigen()}`;
+}
+
+/* ============================================================
+   PLATTEGROND INLADEN
+   Sleep een plattegrond (bijv. Google Earth-afbeelding met getekende vakken) op de kaart.
+   De app zoekt de witte plattegrond in het plaatje, legt hem automatisch over het juiste perceel
+   (vorm vergelijken), vindt de scheidingslijnen tussen de vakken en kan daarmee de rijrichting,
+   de uitlijning van de sporen en de spuitpaden instellen.
+   ============================================================ */
+const PG = {actief: false, img: null, url: null, blob: null, an: null, par: null, p: null, kand: [], kandI: 0, laag: null, doorzicht: .65, oud: null};
+
+// --- 1. het plaatje uitpluizen: waar is de plattegrond en waar lopen de lijnen? ---
+function pgBoxSom(src, w, h) {
+  const W = w + 1, I = new Int32Array(W * (h + 1));
+  for (let y = 0; y < h; y++) { let rij = 0; for (let x = 0; x < w; x++) { rij += src[y * w + x]; I[(y + 1) * W + x + 1] = I[y * W + x + 1] + rij; } }
+  return (x0, y0, x1, y1) => { x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(w - 1, x1); y1 = Math.min(h - 1, y1); if (x1 < x0 || y1 < y0) return [0, 0];
+    return [I[(y1 + 1) * W + x1 + 1] - I[y0 * W + x1 + 1] - I[(y1 + 1) * W + x0] + I[y0 * W + x0], (x1 - x0 + 1) * (y1 - y0 + 1)]; };
+}
+const pgDilate = (src, w, h, r) => { const s = pgBoxSom(src, w, h), o = new Uint8Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) o[y * w + x] = s(x - r, y - r, x + r, y + r)[0] > 0 ? 1 : 0; return o; };
+const pgErode = (src, w, h, r) => { const s = pgBoxSom(src, w, h), o = new Uint8Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const [n, a] = s(x - r, y - r, x + r, y + r); o[y * w + x] = n === a ? 1 : 0; } return o; };
+function pgGrootsteStuk(m, w, h) {
+  const lab = new Int32Array(w * h), st = new Int32Array(w * h); let beste = 0, besteN = 0, id = 0;
+  for (let i = 0; i < w * h; i++) {
+    if (!m[i] || lab[i]) continue;
+    id++; let n = 0, top = 0; st[top++] = i; lab[i] = id;
+    while (top) { const k = st[--top]; n++; const x = k % w, y = (k / w) | 0;
+      if (x > 0 && m[k - 1] && !lab[k - 1]) { lab[k - 1] = id; st[top++] = k - 1; }
+      if (x < w - 1 && m[k + 1] && !lab[k + 1]) { lab[k + 1] = id; st[top++] = k + 1; }
+      if (y > 0 && m[k - w] && !lab[k - w]) { lab[k - w] = id; st[top++] = k - w; }
+      if (y < h - 1 && m[k + w] && !lab[k + w]) { lab[k + w] = id; st[top++] = k + w; } }
+    if (n > besteN) { besteN = n; beste = id; }
+  }
+  const o = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) o[i] = lab[i] === beste ? 1 : 0;
+  // gaten (tekst, letters) opvullen: alles wat niet vanaf de rand bereikbaar is hoort erbij
+  const buiten = new Uint8Array(w * h); let top = 0;
+  const duw = k => { if (!o[k] && !buiten[k]) { buiten[k] = 1; st[top++] = k; } };
+  for (let x = 0; x < w; x++) { duw(x); duw((h - 1) * w + x); } for (let y = 0; y < h; y++) { duw(y * w); duw(y * w + w - 1); }
+  while (top) { const k = st[--top], x = k % w, y = (k / w) | 0; if (x > 0) duw(k - 1); if (x < w - 1) duw(k + 1); if (y > 0) duw(k - w); if (y < h - 1) duw(k + w); }
+  for (let i = 0; i < w * h; i++) o[i] = buiten[i] ? 0 : 1;
+  return {mask: o, n: besteN};
+}
+function analyseerPlattegrond(img) {
+  const W0 = img.naturalWidth || img.width, H0 = img.naturalHeight || img.height, S = Math.min(1, 1000 / Math.max(W0, H0));
+  const w = Math.max(1, Math.round(W0 * S)), h = Math.max(1, Math.round(H0 * S));
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d', {willReadFrequently: true}); ctx.drawImage(img, 0, 0, w, h);
+  const d = ctx.getImageData(0, 0, w, h).data, wit = new Uint8Array(w * h), donker = new Uint8Array(w * h);
+  for (let i = 0, j = 0; i < w * h; i++, j += 4) { const r = d[j], g = d[j + 1], b = d[j + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    wit[i] = mn > 200 && mx - mn < 40 ? 1 : 0; donker[i] = .3 * r + .59 * g + .11 * b < 105 ? 1 : 0; }
+  // witte vlakken samenvoegen over de dunne scheidingslijnen heen
+  const r = Math.max(2, Math.round(3 * S / .64));
+  const dicht = pgErode(pgDilate(wit, w, h, r), w, h, r);
+  const {mask: plan, n} = pgGrootsteStuk(dicht, w, h);
+  const res = {W: W0, H: H0, S, w, h, plan, gevonden: n > w * h * .03, theta: null, lijnen: []};
+  if (!res.gevonden) return res;
+  let cx = 0, cy = 0, opp = 0; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (plan[y * w + x]) { cx += x; cy += y; opp++; }
+  res.cx = cx / opp / S; res.cy = cy / opp / S; res.opp = opp / (S * S);   // in pixels van het originele plaatje
+  // richting van de lijnen: de hoek waarbij de donkere pixels het scherpst in strepen vallen
+  const binnen = pgErode(plan, w, h, 3), pts = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (binnen[y * w + x] && donker[y * w + x]) pts.push(x, y);
+  if (pts.length < 40) return res;
+  const D = Math.ceil(Math.hypot(w, h)) + 2, hist = new Float64Array(2 * D);
+  const score = th => { hist.fill(0); const sn = Math.sin(th), c = Math.cos(th); let s = 0;
+    for (let i = 0; i < pts.length; i += 2) hist[(Math.round(-pts[i] * sn + pts[i + 1] * c) + D)]++;
+    for (let i = 0; i < hist.length; i++) s += hist[i] * hist[i]; return s; };
+  let best = 0, bestS = -1;
+  for (let a = 0; a < 180; a += .5) { const s = score(a * Math.PI / 180); if (s > bestS) { bestS = s; best = a; } }
+  for (let a = best - .5; a <= best + .5; a += .05) { const s = score(a * Math.PI / 180); if (s > bestS) { bestS = s; best = a; } }
+  const th = best * Math.PI / 180, sn = Math.sin(th), c = Math.cos(th);
+  res.theta = th;   // lijnrichting in het plaatje (x naar rechts, y naar beneden)
+  // per strook dwars op de lijnen: hoeveel ervan is zwart?
+  const dk = new Float64Array(2 * D), mk = new Float64Array(2 * D);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const k = y * w + x; if (!binnen[k]) continue; const u = Math.round(-x * sn + y * c) + D; mk[u]++; if (donker[k]) dk[u]++; }
+  const maxL = Math.max(...mk), kandidaat = [];
+  for (let u = 1; u < 2 * D - 1; u++) { const f = (dk[u - 1] + dk[u] + dk[u + 1]) / Math.max(1, mk[u]); if (mk[u] > maxL * .1 && f > .55) kandidaat.push({u, f}); }
+  const groepen = []; kandidaat.forEach(k => { const g = groepen[groepen.length - 1]; if (g && k.u - g[g.length - 1].u <= 2) g.push(k); else groepen.push([k]); });
+  res.lijnen = groepen.map(g => { const u = g.reduce((s, k) => s + k.u * k.f, 0) / g.reduce((s, k) => s + k.f, 0) - D;
+    // begin en eind van de lijn binnen de plattegrond
+    let t0 = null, t1 = null, lang = 0, zwart = 0;
+    for (let t = -D; t <= D; t++) { const x = Math.round(-u * sn + t * c), y = Math.round(u * c + t * sn); if (x < 0 || y < 0 || x >= w || y >= h) continue;
+      if (plan[y * w + x]) { if (t0 === null) t0 = t; t1 = t; }
+      if (binnen[y * w + x]) { lang++; let z = 0; for (let o = -1; o <= 1 && !z; o++) { const xx = Math.round(-(u + o) * sn + t * c), yy = Math.round((u + o) * c + t * sn); if (xx >= 0 && yy >= 0 && xx < w && yy < h && donker[yy * w + xx]) z = 1; } zwart += z; } }
+    if (t0 === null || !lang || zwart / lang < .85) return null;   // een echte lijn is doorlopend zwart, tekst niet
+    const pt = t => [(-u * sn + t * c) / S, (u * c + t * sn) / S];
+    return {u: u / S, a: pt(t0), b: pt(t1)}; }).filter(Boolean);
+  // leesrichting: de vakken A, B, C… lopen in het plaatje van links naar rechts
+  const nn = [-sn, c], tek = nn[0] !== 0 ? Math.sign(nn[0]) : -Math.sign(nn[1]);
+  res.lees = [nn[0] * tek, nn[1] * tek];
+  res.lijnen.sort((a, b) => a.u * tek - b.u * tek);
+  return res;
+}
+
+// --- 2. de plattegrond over een perceel leggen: draaien, schalen en schuiven tot de vormen het best overlappen ---
+function pgRaster(geo, N) {
+  const m = turf.centerOfMass(geo).geometry.coordinates, K = 111320, cl = Math.cos(m[1] * Math.PI / 180);
+  const g = geo.geometry || geo, polys = g.type === 'MultiPolygon' ? g.coordinates : [g.coordinates];
+  const ringen = polys.map(pl => pl.map(rg => rg.map(([x, y]) => [(x - m[0]) * K * cl, (y - m[1]) * K])));
+  const alle = ringen.flat(2), xs = alle.map(q => q[0]), ys = alle.map(q => q[1]);
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const marge = Math.max(x1 - x0, y1 - y0) * .3; x0 -= marge; y0 -= marge; x1 += marge; y1 += marge;
+  const stap = Math.max(x1 - x0, y1 - y0) / N, nx = Math.ceil((x1 - x0) / stap), ny = Math.ceil((y1 - y0) / stap), inside = new Uint8Array(nx * ny);
+  const inRing = (px, py, rg) => { let c = false; for (let i = 0, j = rg.length - 1; i < rg.length; j = i++) { const [xi, yi] = rg[i], [xj, yj] = rg[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) c = !c; } return c; };
+  let opp = 0;
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const px = x0 + (i + .5) * stap, py = y0 + (j + .5) * stap;
+    const ja = ringen.some(pl => inRing(px, py, pl[0]) && !pl.slice(1).some(h => inRing(px, py, h))); if (ja) { inside[j * nx + i] = 1; opp++; } }
+  return {m, K, cl, x0, y0, stap, nx, ny, inside, opp: turf.area(geo)};
+}
+function pgIoU(an, R, par) {
+  const c = Math.cos(par.th), sn = Math.sin(par.th), {plan, w, h, S, cx, cy} = an; let snij = 0, uni = 0;
+  for (let j = 0; j < R.ny; j++) { const gy = R.y0 + (j + .5) * R.stap - par.ty;
+    for (let i = 0; i < R.nx; i++) { const gx = R.x0 + (i + .5) * R.stap - par.tx, qx = c * gx + sn * gy, qy = -sn * gx + c * gy;
+      const ax = ((cx + qx / par.s) * S) | 0, ay = ((cy - qy / par.s) * S) | 0, inS = ax >= 0 && ay >= 0 && ax < w && ay < h && plan[ay * w + ax] === 1, inP = R.inside[j * R.nx + i] === 1;
+      if (inS && inP) snij++; if (inS || inP) uni++; } }
+  return uni ? snij / uni : 0;
+}
+function pgPasAan(an, geo) {
+  const grof = pgRaster(geo, 90), s0 = Math.sqrt(grof.opp / an.opp), hoeken = [];
+  for (let a = 0; a < 360; a += 2) hoeken.push({a, iou: pgIoU(an, grof, {th: a * Math.PI / 180, s: s0, tx: 0, ty: 0})});
+  hoeken.sort((x, y) => y.iou - x.iou);
+  const starts = []; hoeken.forEach(hk => { if (starts.length < 4 && !starts.some(s => Math.abs(((s.a - hk.a + 540) % 360) - 180) < 12)) starts.push(hk); });
+  const fijn = pgRaster(geo, 150), stapT = Math.sqrt(fijn.opp) * .03; let beste = null;
+  for (const st of starts) {
+    let par = {th: st.a * Math.PI / 180, s: s0, tx: 0, ty: 0}, iou = pgIoU(an, fijn, par), stap = {th: 1.5 * Math.PI / 180, s: s0 * .03, tx: stapT, ty: stapT};
+    for (let it = 0; it < 70; it++) {
+      let beter = false;
+      for (const k of ['th', 's', 'tx', 'ty']) for (const r of [1, -1]) { const p2 = {...par, [k]: par[k] + r * stap[k]}; const v = pgIoU(an, fijn, p2); if (v > iou) { iou = v; par = p2; beter = true; } }
+      if (!beter) { for (const k in stap) stap[k] /= 2; if (stap.th < .02 * Math.PI / 180) break; }
+    }
+    if (!beste || iou > beste.iou) beste = {iou, par: {...par, m: fijn.m}};
+  }
+  return beste;
+}
+// van plaatje-pixels naar [lng, lat] en terug
+function pgNaarGeo(an, par, x, y) {
+  const K = 111320, cl = Math.cos(par.m[1] * Math.PI / 180), qx = (x - an.cx) * par.s, qy = -(y - an.cy) * par.s, c = Math.cos(par.th), sn = Math.sin(par.th);
+  return [par.m[0] + (c * qx - sn * qy + par.tx) / (K * cl), par.m[1] + (sn * qx + c * qy + par.ty) / K];
+}
+const pgHoeken = (an, par) => [pgNaarGeo(an, par, 0, 0), pgNaarGeo(an, par, an.W, 0), pgNaarGeo(an, par, 0, an.H)];
+
+// --- 3. de plattegrond als (gedraaid) plaatje op de kaart ---
+const PlattegrondLaag = L.Layer.extend({
+  initialize(url, hoeken, doorzicht) { this._url = url; this._h = hoeken; this._o = doorzicht ?? .65; },
+  onAdd(map) {
+    const pane = map.getPane('plattegrondPane') || map.createPane('plattegrondPane'); pane.style.zIndex = 420;
+    this._img = L.DomUtil.create('img', 'plattegrondBeeld', pane); this._img.src = this._url; this._img.style.opacity = this._o;
+    this._img.onload = () => this._zet();
+    map.on('zoomend viewreset resize', this._zet, this); map.on('zoomstart', this._verberg, this); this._zet();
+  },
+  onRemove(map) { this._img?.remove(); map.off('zoomend viewreset resize', this._zet, this); map.off('zoomstart', this._verberg, this); },
+  _verberg() { if (this._img) this._img.style.visibility = 'hidden'; },
+  zetHoeken(h) { this._h = h; this._zet(); }, zetDoorzicht(o) { this._o = o; if (this._img) this._img.style.opacity = o; },
+  _zet() {
+    const img = this._img, m = this._map; if (!img || !m || !img.naturalWidth) return;
+    const [p0, p1, p2] = this._h.map(([lng, lat]) => m.latLngToLayerPoint([lat, lng])), W = img.naturalWidth, H = img.naturalHeight;
+    img.style.transform = `matrix(${(p1.x - p0.x) / W},${(p1.y - p0.y) / W},${(p2.x - p0.x) / H},${(p2.y - p0.y) / H},${p0.x},${p0.y})`;
+    img.style.visibility = '';
+  }
+});
+const pgLagen = new Map();   // opgeslagen plattegronden die op de kaart staan
+async function fotoUrlVan(pad) {
+  const c = fotoCache.get(pad); if (c && c.tot > Date.now() + 60000) return c.url;
+  const {data} = await sb.storage.from('fotos').createSignedUrls([pad], 3600); const url = data?.[0]?.signedUrl;
+  if (url) fotoCache.set(pad, {url, tot: Date.now() + 3500000}); return url;
+}
+function tekenPlattegronden() {
+  if (!map) return;
+  const zien = new Set();
+  if (weergave._plattegrond !== false) S.percelen.forEach(p => {
+    const pl = p.plattegrond; if (!pl?.pad || (PG.actief && PG.p?.id === p.id)) return;
+    if (!(p.id === actief || pl.altijd)) return;
+    zien.add(p.id);
+    const sleutel = JSON.stringify([pl.pad, pl.hoeken]), oud = pgLagen.get(p.id);
+    if (oud?.sleutel === sleutel) { oud.laag.zetDoorzicht(pl.doorzicht ?? .65); return; }
+    oud?.laag.remove();
+    const item = {sleutel, laag: null}; pgLagen.set(p.id, item);
+    fotoUrlVan(pl.pad).then(url => { if (!url || pgLagen.get(p.id) !== item) return; item.laag = new PlattegrondLaag(url, pl.hoeken, pl.doorzicht).addTo(map); });
+  });
+  pgLagen.forEach((it, id) => { if (!zien.has(id)) { it.laag?.remove(); pgLagen.delete(id); } });
+}
+
+// --- 4. inladen en uitlijnen ---
+function pgKandidaten() {
+  const velden = S.percelen.filter(p => p.geo && p.type !== 'pand' && !p.uitgeschakeld);
+  if (actief && perceel(actief)?.geo) return [perceel(actief)];
+  const b = map.getBounds(), inBeeld = velden.filter(p => { const [x0, y0, x1, y1] = turf.bbox(p.geo); return x1 > b.getWest() && x0 < b.getEast() && y1 > b.getSouth() && y0 < b.getNorth(); });
+  return inBeeld.length ? inBeeld : velden;
+}
+async function plattegrondInladen(bestand) {
+  if (!bestand || !/^image\//.test(bestand.type)) { toast('Kies een afbeelding (jpg of png) van de plattegrond', 1); return; }
+  if (!mag('percelen_bewerken')) { toast('Je mag geen percelen aanpassen', 1); return; }
+  if (PG.actief) pgStop();
+  toast('🗺️ Plattegrond bekijken…');
+  const url = URL.createObjectURL(bestand), img = new Image();
+  await new Promise((ok, fout) => { img.onload = ok; img.onerror = fout; img.src = url; }).catch(() => null);
+  if (!img.naturalWidth) { toast('Kan deze afbeelding niet openen', 1); return; }
+  await new Promise(r => setTimeout(r, 30));
+  const an = analyseerPlattegrond(img);
+  Object.assign(PG, {actief: true, img, url, blob: bestand, an, p: null, par: null, kand: [], kandI: 0, oud: null, doorzicht: .65});
+  if (an.gevonden) {
+    const kand = pgKandidaten();
+    if (kand.length) {
+      // eerst grof alle percelen vergelijken, dan de beste paar nauwkeurig
+      const grof = kand.map(p => { const R = pgRaster(p.geo, 60), s0 = Math.sqrt(R.opp / an.opp); let b = 0; for (let a = 0; a < 360; a += 3) b = Math.max(b, pgIoU(an, R, {th: a * Math.PI / 180, s: s0, tx: 0, ty: 0})); return {p, b}; })
+        .sort((x, y) => y.b - x.b).slice(0, 3);
+      PG.kand = grof.map(({p}) => ({p, ...pgPasAan(an, p.geo)})).sort((x, y) => y.iou - x.iou);
+      pgKies(0); return;
+    }
+  }
+  // niets gevonden: midden in beeld leggen en met de hand goed zetten
+  const c = map.getCenter(), b = map.getBounds(), breedM = map.distance(b.getSouthWest(), L.latLng(b.getSouthWest().lat, b.getNorthEast().lng)) || 300;
+  if (!an.gevonden) { an.cx = an.W / 2; an.cy = an.H / 2; }
+  PG.par = {th: 0, s: breedM * .6 / an.W, tx: 0, ty: 0, m: [c.lng, c.lat]};
+  pgToon(an.gevonden ? 'Geen perceel gevonden om op uit te lijnen. Sleep hem met de hand op zijn plek.' : 'Ik zie geen witte plattegrond in dit plaatje. Sleep en draai hem met de hand op zijn plek.');
+}
+function pgKies(i) {
+  const k = PG.kand[i]; if (!k) return;
+  PG.kandI = i; PG.p = k.p; PG.par = {...k.par};
+  pgToon(`Uitgelijnd op <b>${esc(k.p.naam)}</b> · ${Math.round(k.iou * 100)}% overlap${k.iou < .8 ? ' – controleer het even' : ''}`);
+  if (actief !== k.p.id) { actief = k.p.id; render(true); }
+}
+function pgToon(bericht) {
+  const hk = pgHoeken(PG.an, PG.par);
+  if (PG.laag) PG.laag.zetHoeken(hk); else { PG.laag = new PlattegrondLaag(PG.url, hk, PG.doorzicht).addTo(map); pgSleepbaar(); }
+  pgLijnenTekenen();
+  if (bericht !== undefined) PG.bericht = bericht;
+  let balk = $('#pgBalk'); if (!balk) { balk = document.createElement('div'); balk.id = 'pgBalk'; document.body.appendChild(balk); }
+  const n = PG.an.lijnen.length;
+  balk.innerHTML = `<div class="pgKop">🗺️ Plattegrond uitlijnen <button class="pgX" onclick="pgStop()">✕</button></div>
+    <div class="pgTekst">${PG.bericht || ''}${n ? `<br><small>${n} scheidingslijnen gevonden (oranje stippellijnen)</small>` : ''}</div>
+    <div class="pgRij"><span>Doorzicht</span><input type="range" min="15" max="100" value="${Math.round(PG.doorzicht * 100)}" oninput="PG.doorzicht=this.value/100;PG.laag&&PG.laag.zetDoorzicht(PG.doorzicht)"></div>
+    <div class="pgRij knoppen"><button onclick="pgDraai(-.5)" title="Draai linksom">↺</button><button onclick="pgDraai(.5)" title="Draai rechtsom">↻</button>
+      <button onclick="pgSchaal(.99)" title="Kleiner">−</button><button onclick="pgSchaal(1.01)" title="Groter">+</button>
+      ${PG.kand.length > 1 ? `<button onclick="pgKies((PG.kandI+1)%PG.kand.length)" title="Op een ander perceel leggen">⇄ Ander perceel</button>` : ''}
+      ${PG.kand.length ? `<button onclick="pgKies(PG.kandI)" title="Automatisch opnieuw uitlijnen">🎯 Automatisch</button>` : ''}</div>
+    <p class="hint" style="margin:6px 0">Sleep het plaatje om het te verschuiven.</p>
+    <div class="pgRij"><button class="knop licht" onclick="pgOpslaan(false)">💾 Alleen plattegrond bewaren</button>
+      ${n && PG.p ? `<button class="knop" onclick="pgOvernemen()">✔ Sporen en vakken overnemen</button>` : ''}</div>`;
+}
+function pgDraai(gr) { PG.par.th += gr * Math.PI / 180; pgToon(); }
+function pgSchaal(f) { PG.par.s *= f; pgToon(); }
+function pgSleepbaar() {
+  const img = PG.laag?._img; if (!img) return;
+  img.classList.add('sleep');
+  let start = null;
+  img.addEventListener('pointerdown', e => { if (!PG.actief) return; e.preventDefault(); e.stopPropagation(); img.setPointerCapture(e.pointerId); map.dragging.disable(); start = {ll: map.mouseEventToLatLng(e), tx: PG.par.tx, ty: PG.par.ty}; });
+  img.addEventListener('pointermove', e => { if (!start) return; const ll = map.mouseEventToLatLng(e), K = 111320, cl = Math.cos(PG.par.m[1] * Math.PI / 180);
+    PG.par.tx = start.tx + (ll.lng - start.ll.lng) * K * cl; PG.par.ty = start.ty + (ll.lat - start.ll.lat) * K; PG.laag.zetHoeken(pgHoeken(PG.an, PG.par)); pgLijnenTekenen(); });
+  const los = () => { if (start) { start = null; map.dragging.enable(); } };
+  img.addEventListener('pointerup', los); img.addEventListener('pointercancel', los);
+}
+let pgLijnLaag = null;
+function pgLijnenTekenen() {
+  if (!pgLijnLaag) pgLijnLaag = L.layerGroup().addTo(map); pgLijnLaag.clearLayers();
+  PG.an.lijnen.forEach(l => { const a = pgNaarGeo(PG.an, PG.par, ...l.a), b = pgNaarGeo(PG.an, PG.par, ...l.b);
+    L.polyline([[a[1], a[0]], [b[1], b[0]]], {color: '#ff9100', weight: 3, dashArray: '6 6', interactive: false}).addTo(pgLijnLaag); });
+}
+function pgStop() {
+  PG.laag?.remove(); PG.laag = null; pgLijnLaag?.clearLayers(); $('#pgBalk')?.remove();
+  if (PG.url) URL.revokeObjectURL(PG.url);
+  Object.assign(PG, {actief: false, img: null, url: null, blob: null, an: null, par: null, kand: [], p: null});
+  tekenPlattegronden();
+}
+// plaatje bewaren in de fotomap en de uitlijning bij het perceel opslaan
+async function pgBewaarPlaatje() {
+  const img = PG.img, f = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight)), cv = document.createElement('canvas');
+  cv.width = Math.round(img.naturalWidth * f); cv.height = Math.round(img.naturalHeight * f); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', .88));
+  const pad = `plattegrond/${PG.p.id}-${Date.now().toString(36)}.jpg`;
+  const {error} = await sb.storage.from('fotos').upload(pad, blob, {contentType: 'image/jpeg', upsert: false});
+  if (error) throw error;
+  fotoCache.set(pad, {url: URL.createObjectURL(blob), tot: Infinity});
+  return pad;
+}
+async function pgOpslaan(metSporen, extra = {}) {
+  if (!PG.p) { toast('Leg de plattegrond eerst op een perceel (open het perceel en sleep hem er opnieuw in)', 1); return; }
+  try {
+    toast('Plattegrond opslaan…');
+    const pad = await pgBewaarPlaatje(), p = PG.p, oud = p.plattegrond?.pad;
+    const plattegrond = {pad, hoeken: pgHoeken(PG.an, PG.par), doorzicht: PG.doorzicht, altijd: false, w: PG.an.W, h: PG.an.H,
+      lijnen: PG.an.lijnen.map(l => [pgNaarGeo(PG.an, PG.par, ...l.a), pgNaarGeo(PG.an, PG.par, ...l.b)]), datum: dKey(new Date())};
+    await wijzig(p.id, {plattegrond, ...extra});
+    if (oud) sb.storage.from('fotos').remove([oud]);
+    pgStop(); toast(metSporen ? '✔ Sporen, spuitpaden en plattegrond overgenomen' : '✔ Plattegrond bewaard bij ' + p.naam);
+  } catch (e) { toast('Opslaan mislukt: ' + (e.message || e), 1); }
+}
+// rijrichting, uitlijning en spuitpaden berekenen uit de lijnen
+function pgSporenVoorstel(b) {
+  const p = PG.p, an = PG.an, par = PG.par;
+  const lijnen = an.lijnen.map(l => [pgNaarGeo(an, par, ...l.a), pgNaarGeo(an, par, ...l.b)]);
+  // rijrichting = richting van de lijnen (gemiddelde, gewogen naar lengte)
+  const m = turf.centroid(p.geo).geometry.coordinates, K = 111320, cl = Math.cos(m[1] * Math.PI / 180), naarM = q => [(q[0] - m[0]) * K * cl, (q[1] - m[1]) * K];
+  let sx = 0, sy = 0; lijnen.forEach(([a, c]) => { const A = naarM(a), C = naarM(c), dx = C[0] - A[0], dy = C[1] - A[1], l = Math.hypot(dx, dy), h2 = 2 * Math.atan2(dx, dy); sx += Math.cos(h2) * l; sy += Math.sin(h2) * l; });
+  let hoek = (Math.atan2(sy, sx) / 2 * 180 / Math.PI + 360) % 180;
+  // A, B, C… moeten net als op de plattegrond oplopen: de dwarsrichting van de app moet met de leesrichting meelopen
+  const lees = [an.lees[0], -an.lees[1]], c0 = Math.cos(par.th), s0 = Math.sin(par.th), leesG = [c0 * lees[0] - s0 * lees[1], s0 * lees[0] + c0 * lees[1]];
+  const nVan = h => [Math.cos(h * Math.PI / 180), -Math.sin(h * Math.PI / 180)];
+  if (nVan(hoek)[0] * leesG[0] + nVan(hoek)[1] * leesG[1] < 0) hoek = (hoek + 180) % 360;
+  const d = [Math.sin(hoek * Math.PI / 180), Math.cos(hoek * Math.PI / 180)], n = nVan(hoek);
+  const dwars = q => { const z = naarM(q); return z[0] * n[0] + z[1] * n[1]; };
+  const us = lijnen.map(([a, c]) => (dwars(a) + dwars(c)) / 2);
+  // zelfde referentie als banenVan: A-punt van de GPS-lijn of de rand van het perceel
+  const randMin = Math.min(...turf.coordAll(p.geo).map(dwars));
+  let ref = randMin; if (Array.isArray(p.ab_punt)) ref = dwars(p.ab_punt) - (p.ab_uitlijning === 'rand' ? 0 : b / 2);
+  // verschuiving zo dat er een spoor precies óp elke lijn ligt (het spuitpad)
+  let cs = 0, sn = 0; us.forEach(u => { const f = ((u - b / 2 - ref) % b + b) % b / b * 2 * Math.PI; cs += Math.cos(f); sn += Math.sin(f); });
+  const verschuiving = +((Math.atan2(sn, cs) / (2 * Math.PI) * b + b) % b).toFixed(3);
+  const tijdelijk = {...p, id: p.id + '_pg', richting: +hoek.toFixed(2), breedte: b, banen_aan: true, verschuiving};
+  const banen = banenVan(tijdelijk), nrs = [];
+  us.forEach(u => { let beste = null; banen.forEach(bn => { const afst = Math.abs(bn.a + b / 2 - u); if (!beste || afst < beste.afst) beste = {nr: bn.nr, afst}; }); if (beste && beste.afst < b) nrs.push(beste.nr); });
+  const extra = [...new Set(nrs)].sort((x, y) => x - y);
+  // breedte van elk vak volgens de plattegrond
+  const randen = [randMin, ...us.slice().sort((x, y) => x - y), Math.max(...turf.coordAll(p.geo).map(dwars))];
+  const vakken = randen.slice(1).map((r, i) => ({letter: vakLetter(i), m: r - randen[i], rijen: (r - randen[i]) / b}));
+  return {richting: +hoek.toFixed(2), verschuiving, breedte: b, extra, vakken, banen: banen.length, tijdelijk};
+}
+function pgOvernemen() {
+  const p = PG.p; if (!p) return;
+  const b0 = +p.breedte > 0 ? +p.breedte : 1.5;
+  const toon = () => {
+    const b = parseFloat(String($('#pgB').value).replace(',', '.')); if (!(b > .2 && b < 20)) return;
+    const v = pgSporenVoorstel(b);
+    $('#pgVoorstel').innerHTML = `<div class="inforij"><span>Rijrichting</span><b>${v.richting.toLocaleString('nl-NL')}°</b></div>
+      <div class="inforij"><span>Sporen</span><b>${v.banen} van ${b.toLocaleString('nl-NL')} m</b></div>
+      <div class="inforij"><span>Spuitpaden (op de lijnen)</span><b>${v.extra.length ? 'spoor ' + v.extra.join(', ') : '–'}</b></div>
+      <table class="verdeling vakkentabel" style="margin-top:8px"><tr><td><b>Strook</b></td><td><b>Breedte</b></td><td><b>Rijen (incl. spuitpad)</b></td></tr>
+      ${v.vakken.map(x => `<tr><td>${x.letter}</td><td>${x.m.toLocaleString('nl-NL', {maximumFractionDigits: 1})} m</td><td>${x.rijen.toLocaleString('nl-NL', {maximumFractionDigits: 1})}</td></tr>`).join('')}</table>
+      <p class="hint">Vergelijk de rijen met wat er op je plattegrond staat (bijv. "20+1 rijen" = 21). Komt het niet uit, pas dan de rijbreedte aan.</p>`;
+    PG.voorstel = v;
+  };
+  $('#modal').innerHTML = `<div class="dialoog"><h3>✔ Sporen en vakken overnemen</h3>
+    <p class="hint">De rijrichting komt van de lijnen op de plattegrond. Op elke lijn komt een spuitpad, zodat de vakken A, B, C… gelijk lopen met je plattegrond.</p>
+    <label>Rijbreedte (m)</label><input class="veld" id="pgB" inputmode="decimal" value="${String(b0).replace('.', ',')}">
+    <div id="pgVoorstel"></div>
+    <label class="vinkje"><input type="checkbox" id="pgSp" checked> Spuitpaden op de lijnen zetten</label>
+    <button class="knop" id="mJa">Overnemen</button><button class="knop licht" id="mNee">Annuleren</button></div>`;
+  const m = $('#modal'); m.classList.add('open'); $('#pgB').oninput = toon; toon();
+  $('#mNee').onclick = () => m.classList.remove('open');
+  $('#mJa').onclick = () => {
+    const v = PG.voorstel; if (!v) return; m.classList.remove('open');
+    const patch = {richting: v.richting, verschuiving: v.verschuiving, breedte: v.breedte, banen_aan: true};
+    if ($('#pgSp').checked && mag('spuitsporen_bewerken')) patch.spuit = {...(p.spuit || {}), elke: 0, start: 0, extra: v.extra, uit: []};
+    pgOpslaan(true, patch);
+  };
+}
+// opgeslagen plattegrond: aan/uit, doorzicht, opnieuw uitlijnen, verwijderen
+function pgZichtbaar(id, altijd) { const p = perceel(id); if (!p?.plattegrond) return; wijzig(id, {plattegrond: {...p.plattegrond, altijd}}); }
+function pgDoorzicht(id, v) { const p = perceel(id); if (!p?.plattegrond) return; p.plattegrond.doorzicht = v; pgLagen.get(id)?.laag?.zetDoorzicht(v); clearTimeout(pgDoorzicht._t); pgDoorzicht._t = setTimeout(() => wijzig(id, {plattegrond: {...p.plattegrond}}), 600); }
+async function pgVerwijder(id) {
+  const p = perceel(id); if (!p?.plattegrond || !confirm('Plattegrond van ' + p.naam + ' verwijderen? (De sporen blijven zoals ze zijn.)')) return;
+  const pad = p.plattegrond.pad; await wijzig(id, {plattegrond: null}); if (pad) sb.storage.from('fotos').remove([pad]); toast('Plattegrond verwijderd');
+}
+function pgKiesBestand() { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = () => plattegrondInladen(i.files[0]); i.click(); }
+function htmlPlattegrond(p) {
+  if (p.type === 'pand') return '';
+  const pl = p.plattegrond, beh = mag('percelen_bewerken');
+  if (!pl && !beh) return '';
+  return `<section class="kaartje infoblok"><h4>🗺️ Plattegrond</h4>
+    ${pl ? `<div class="inforij"><span>Ingeladen</span><b>${pl.datum ? new Date(pl.datum).toLocaleDateString('nl-NL') : 'ja'}</b></div>
+      <div class="pgRij"><span>Doorzicht</span><input type="range" min="15" max="100" value="${Math.round((pl.doorzicht ?? .65) * 100)}" oninput="pgDoorzicht('${p.id}', this.value/100)"></div>
+      ${beh ? `<label class="vinkje"><input type="checkbox" ${pl.altijd ? 'checked' : ''} onchange="pgZichtbaar('${p.id}', this.checked)"> Ook tonen als het perceel niet open staat</label>` : ''}` : ''}
+    ${beh ? `<div class="rij" style="margin-top:8px"><button class="knop licht" onclick="pgKiesBestand()">📥 ${pl ? 'Nieuwe plattegrond inladen' : 'Plattegrond inladen'}</button>
+      ${pl ? `<button class="knop licht rood" onclick="pgVerwijder('${p.id}')">Verwijderen</button>` : ''}</div>
+      <p class="hint">Tip: op de computer kun je de afbeelding ook gewoon op de kaart slepen.</p>` : ''}
+  </section>`;
+}
+// slepen en loslaten op het scherm
+function pgSleepInit() {
+  let teller = 0;
+  const heeftBestand = e => [...(e.dataTransfer?.types || [])].includes('Files');
+  document.addEventListener('dragenter', e => { if (!heeftBestand(e) || !mag('percelen_bewerken')) return; teller++; document.body.classList.add('pgSleept'); });
+  document.addEventListener('dragleave', e => { if (!heeftBestand(e)) return; teller = Math.max(0, teller - 1); if (!teller) document.body.classList.remove('pgSleept'); });
+  document.addEventListener('dragover', e => { if (heeftBestand(e) && mag('percelen_bewerken') && !e.target.closest?.('.fotoveld')) e.preventDefault(); });
+  document.addEventListener('drop', e => { teller = 0; document.body.classList.remove('pgSleept');
+    if (!heeftBestand(e) || e.target.closest?.('.fotoveld') || !mag('percelen_bewerken')) return; e.preventDefault();
+    const f = [...e.dataTransfer.files].find(x => /^image\//.test(x.type)); if (f) plattegrondInladen(f); });
+}
+
+/* ============ BUSSEN EN AUTO'S (FleetGO) ============
+   De database haalt de posities op bij FleetGO; de inloggegevens staan alleen in de database.
+   Wie wat ziet: recht "voertuigen_zien" per gebruiker, en per voertuig "verbergen" (bijv. een privé-auto). */
+const VSOORT = {bus: '🚐', auto: '🚗', vrachtwagen: '🚚', pickup: '🛻'};
+const voertuigSoort = v => v.soort || (/transit|sprinter|crafter|transporter|vito|master|trafic|ducato|daily|vivaro|boxer|jumper|proace|movano|expert|berlingo|partner|kangoo|caddy|citan|combo|hiace|nv\d|talento|primastar|e-?delivery/i.test(`${v.merk || ''} ${v.model || ''}`) ? 'bus'
+  : /actros|atego|tgx|tgs|tgl|tgm|scania|daf|\bfh\b|\bfm\b|\bxf\b|\bcf\b|\blf\b|renault t/i.test(`${v.merk || ''} ${v.model || ''}`) ? 'vrachtwagen' : /hilux|ranger|amarok|navara|l200|d-?max/i.test(v.model || '') ? 'pickup' : 'auto');
+const vNaam = v => v.naam || v.kenteken || 'Voertuig';
+const vOud = v => !v.gezien || Date.now() - new Date(v.gezien) > 15 * 60e3;
+const vStatus = v => (v.snelheid || 0) > 3 ? 'rijdt' : v.motor_aan ? 'aan' : 'uit';
+const vStatusTekst = v => (vStatus(v) === 'rijdt' ? `🔵 rijdt · ${Math.round(v.snelheid)} km/u` : vStatus(v) === 'aan' ? '🟠 motor aan, staat stil' : '⚪ staat uit') + (v.gezien ? ' · ' + geleden(v.gezien) : '');
+const vMarkers = new Map(); let vVolgId = null, vBezig = false, vLaatst = 0;
+async function laadVoertuigen() {
+  if (!sb || !(ziet('voertuigen_zien') || ziet('voertuigen_beheren'))) { S.voertuigen = []; return; }
+  const {data, error} = await sb.from('voertuigen').select('*');
+  if (!error) S.voertuigen = data || [];
+}
+// elke 20 seconden: FleetGO laten verversen (database doet maximaal 1x per 15 s echt een verzoek) en de lijst ophalen
+async function voertuigenTik(direct) {
+  if (vBezig || !sb || !me || archief || !(ziet('voertuigen_zien') || ziet('voertuigen_beheren'))) return;
+  if (!direct && (document.hidden || (weergave._voertuigen === false && tab !== 'tractoren'))) return;
+  if (!navigator.onLine) return;
+  vBezig = true;
+  try {
+    await sb.rpc('voertuigen_verversen');
+    await laadVoertuigen(); vLaatst = Date.now();
+    tekenVoertuigen(); if (tab === 'tractoren') render();
+  } catch {} finally { vBezig = false; }
+}
+function voertuigLive(pl) {
+  if (pl.eventType === 'DELETE') S.voertuigen = S.voertuigen.filter(x => x.id !== pl.old.id);
+  else { const i = S.voertuigen.findIndex(x => x.id === pl.new.id); if (pl.new.verborgen && !ziet('voertuigen_beheren')) { if (i >= 0) S.voertuigen.splice(i, 1); } else if (i >= 0) S.voertuigen[i] = pl.new; else S.voertuigen.push(pl.new); }
+  tekenVoertuigen(); if (tab === 'tractoren') render();
+}
+function voertuigIcoon(v) {
+  return L.divIcon({className: 'voertuig', iconSize: [38, 38], iconAnchor: [19, 19], html: `<div class="vw ${vStatus(v)}${vOud(v) ? ' oud' : ''}">${VSOORT[voertuigSoort(v)]}</div>`});
+}
+function voertuigPopup(v) {
+  return `<b>${VSOORT[voertuigSoort(v)]} ${esc(vNaam(v))}</b><br><small>${esc([v.kenteken, v.merk, v.model].filter(Boolean).join(' · '))}</small><br>${vStatusTekst(v)}${v.km ? `<br><small>📟 ${Math.round(v.km).toLocaleString('nl-NL')} km</small>` : ''}
+    <div class="rij" style="margin-top:8px"><button class="knop klein" onclick="voertuigVolg('${v.id}')">${vVolgId === v.id ? 'Stop volgen' : '🎯 Volgen'}</button>
+    ${mag('voertuigen_beheren') ? `<button class="knop klein licht" onclick="voertuigNaam('${v.id}')">✏️ Naam</button>` : ''}</div>`;
+}
+// markers worden niet steeds opnieuw gemaakt maar schuiven soepel naar de nieuwe plek
+function tekenVoertuigen() {
+  if (!voertuigLaag) return;
+  const tonen = weergave._voertuigen !== false && (ziet('voertuigen_zien') || ziet('voertuigen_beheren')) && !archief;
+  const zien = new Set();
+  if (tonen) S.voertuigen.forEach(v => {
+    if (v.lat == null || v.lng == null || (v.verborgen && !ziet('voertuigen_beheren'))) return;
+    zien.add(v.id);
+    const label = esc(vNaam(v)) + (vStatus(v) === 'rijdt' ? ` · ${Math.round(v.snelheid)} km/u` : '');
+    let m = vMarkers.get(v.id);
+    if (!m) {
+      m = L.marker([v.lat, v.lng], {icon: voertuigIcoon(v), zIndexOffset: 900})
+        .bindTooltip(label, {permanent: weergave._namen !== false, direction: 'bottom', offset: [0, 16], className: 'voertuig-label'})
+        .bindPopup(() => voertuigPopup(S.voertuigen.find(x => x.id === v.id) || v)).addTo(voertuigLaag);
+      m._vs = vStatus(v) + vOud(v); vMarkers.set(v.id, m);
+    } else {
+      const nu = m.getLatLng();
+      if (Math.abs(nu.lat - v.lat) > 1e-7 || Math.abs(nu.lng - v.lng) > 1e-7) schuifMarker(m, [v.lat, v.lng]);
+      if (m._vs !== vStatus(v) + vOud(v)) { m.setIcon(voertuigIcoon(v)); m._vs = vStatus(v) + vOud(v); }
+      m.setTooltipContent(label);
+    }
+    if (vVolgId === v.id && map) map.panTo([v.lat, v.lng], {animate: true});
+  });
+  vMarkers.forEach((m, id) => { if (!zien.has(id)) { voertuigLaag.removeLayer(m); vMarkers.delete(id); } });
+}
+function schuifMarker(m, naar, duur = 1500) {
+  const van = m.getLatLng(), t0 = performance.now(); cancelAnimationFrame(m._anim);
+  const stap = nu => { const f = Math.min(1, (nu - t0) / duur), e = f < .5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+    m.setLatLng([van.lat + (naar[0] - van.lat) * e, van.lng + (naar[1] - van.lng) * e]); if (f < 1) m._anim = requestAnimationFrame(stap); };
+  m._anim = requestAnimationFrame(stap);
+}
+function voertuigVolg(id) {
+  map?.closePopup();
+  if (vVolgId === id) { vVolgId = null; toast('Je volgt het voertuig niet meer'); return; }
+  vVolgId = id; const v = S.voertuigen.find(x => x.id === id);
+  if (weergave._voertuigen === false) { weergave._voertuigen = true; bewaarWeergave(); }
+  if (v?.lat != null) map.setView([v.lat, v.lng], Math.max(map.getZoom(), 16));
+  paneelKlein(); render(); tekenVoertuigen(); toast('Je volgt ' + vNaam(v) + ' – sleep de kaart om te stoppen');
+  map.once('dragstart', () => { vVolgId = null; });
+}
+async function voertuigBewaar(id, patch) {
+  const v = S.voertuigen.find(x => x.id === id); if (!v) return;
+  Object.assign(v, patch); tekenVoertuigen(); render();
+  const {error} = await sb.from('voertuigen').update(patch).eq('id', id);
+  if (error) toast('Opslaan mislukt: ' + error.message, 1);
+}
+async function voertuigNaam(id) {
+  const v = S.voertuigen.find(x => x.id === id); if (!v) return; map?.closePopup();
+  const n = await vraag('Naam voor ' + (v.kenteken || 'dit voertuig'), {waarde: v.naam || '', uitleg: 'Bijvoorbeeld "Bus Jan" of "Caddy werkplaats". Leeg laten = kenteken.'});
+  if (n !== null && n !== undefined) voertuigBewaar(id, {naam: n.trim() || null});
+}
+function voertuigWisselSoort(id) {
+  const v = S.voertuigen.find(x => x.id === id); if (!v) return;
+  const s = Object.keys(VSOORT), nu = voertuigSoort(v); voertuigBewaar(id, {soort: s[(s.indexOf(nu) + 1) % s.length]});
+}
+function htmlVoertuigen() {
+  if (!(ziet('voertuigen_zien') || ziet('voertuigen_beheren'))) return '';
+  const beh = mag('voertuigen_beheren'), orde = {rijdt: 0, aan: 1, uit: 2};
+  const lijst = [...S.voertuigen].sort((a, b) => (a.verborgen - b.verborgen) || (orde[vStatus(a)] - orde[vStatus(b)]) || vNaam(a).localeCompare(vNaam(b), 'nl'));
+  return `<section class="kaartje"><h4>🚐 Bussen en auto's <small style="font-weight:400;color:var(--grijs)">live via FleetGO</small></h4>
+    ${lijst.map(v => `<div class="soort" style="${v.verborgen ? 'opacity:.5' : ''}">
+      <span class="trstip ${vStatus(v)}">${VSOORT[voertuigSoort(v)]}</span>
+      <div class="t" style="cursor:pointer" onclick="${v.lat != null ? `voertuigVolg('${v.id}')` : ''}"><b>${esc(vNaam(v))}</b>${vVolgId === v.id ? ' <span class="badge">volgen</span>' : ''}${v.verborgen ? ' <span class="badge">verborgen</span>' : ''}<br>
+        <small>${esc([v.naam ? v.kenteken : '', v.merk, v.model].filter(Boolean).join(' · '))}</small><br><small>${v.lat == null ? '📍 geen positie bekend' : vStatusTekst(v)}</small></div>
+      ${v.lat != null ? `<button class="icoon" title="Volgen op de kaart" onclick="voertuigVolg('${v.id}')">${vVolgId === v.id ? '⏹️' : '🎯'}</button>` : ''}
+      ${beh ? `<button class="icoon" title="Naam" onclick="voertuigNaam('${v.id}')">✏️</button>
+        <button class="icoon" title="Soort icoontje wisselen" onclick="voertuigWisselSoort('${v.id}')">🔁</button>
+        <button class="icoon" title="${v.verborgen ? 'Weer laten zien' : 'Verbergen voor iedereen behalve beheerders (bijv. privé-auto)'}" onclick="voertuigBewaar('${v.id}', {verborgen: ${!v.verborgen}})">${v.verborgen ? '🙈' : '👁️'}</button>` : ''}
+    </div>`).join('') || `<p class="hint">${beh ? 'Nog geen voertuigen. Stel hieronder de FleetGO-koppeling in.' : 'Nog geen voertuigen.'}</p>`}
+    ${beh ? `<button class="knop licht" style="margin-top:10px" onclick="fleetgoInstellen()">⚙️ FleetGO-koppeling</button>` : ''}
+    <p class="hint">${beh ? 'Wie dit mag zien stel je in bij 👥 Gebruikers (recht "Bussen en auto\'s live zien"). 👁️ verbergt één voertuig voor iedereen behalve beheerders. ' : ''}${vLaatst ? 'Bijgewerkt ' + geleden(new Date(vLaatst).toISOString()) + '.' : ''}</p>
+  </section>`;
+}
+async function fleetgoInstellen() {
+  if (!mag('voertuigen_beheren')) return;
+  const {data: st} = await sb.rpc('fleetgo_status');
+  const k = st || {}, status = (b, fout) => `<div class="fgStatus ${fout ? 'fout' : ''}">${b}</div>`;
+  $('#modal').innerHTML = `<div class="dialoog"><h3>⚙️ FleetGO-koppeling</h3>
+    <p class="hint">De client ID en secret vraag je aan bij FleetGO (API-toegang). Gebruik bij voorkeur een apart FleetGO-account dat alleen mag kijken. Deze gegevens worden alleen in de database bewaard en zijn niet uit de app te lezen.</p>
+    <label>Client ID</label><input class="veld" id="fgCid" value="${esc(k.client_id || '')}" autocomplete="off">
+    <label>Client secret</label><input class="veld" id="fgSec" type="password" placeholder="${k.ingesteld ? '•••••• (blijft hetzelfde)' : ''}" autocomplete="new-password">
+    <label>FleetGO-gebruikersnaam</label><input class="veld" id="fgGeb" value="${esc(k.gebruiker || '')}" autocomplete="off">
+    <label>FleetGO-wachtwoord</label><input class="veld" id="fgWw" type="password" placeholder="${k.ingesteld ? '•••••• (blijft hetzelfde)' : ''}" autocomplete="new-password">
+    <div id="fgUit">${k.laatste_fout ? status('⚠️ ' + esc(k.laatste_fout), 1) : k.laatste_sync ? status(`✅ Werkt · ${k.aantal} voertuigen · laatst opgehaald ${geleden(k.laatste_sync)}`) : ''}</div>
+    <button class="knop" id="fgOk">Opslaan en testen</button>
+    <div class="rij" style="margin-top:8px">${k.ingesteld ? '<button class="knop licht rood" id="fgWeg">Koppeling verwijderen</button>' : ''}<button class="knop licht" id="mNee">Sluiten</button></div></div>`;
+  const m = $('#modal'); m.classList.add('open');
+  $('#mNee').onclick = () => m.classList.remove('open');
+  $('#fgOk').onclick = async () => {
+    const b = $('#fgOk'); b.disabled = true; b.textContent = 'Bezig met testen…';
+    let r = await sb.rpc('fleetgo_instellen', {p_client_id: $('#fgCid').value, p_client_secret: $('#fgSec').value, p_gebruiker: $('#fgGeb').value, p_wachtwoord: $('#fgWw').value});
+    if (r.error) { $('#fgUit').innerHTML = status('⚠️ ' + esc(r.error.message), 1); b.disabled = false; b.textContent = 'Opslaan en testen'; return; }
+    r = await sb.rpc('voertuigen_verversen', {p_forceer: true});
+    const ok = r.data?.ok;
+    if (ok) { await laadVoertuigen(); tekenVoertuigen(); render(); }
+    const st2 = (await sb.rpc('fleetgo_status')).data || {};
+    $('#fgUit').innerHTML = status((ok ? '✅ ' : '⚠️ ') + esc(r.data?.bericht || r.error?.message || 'Onbekende fout') + (!ok && st2.laatste_fout ? `<br><small>${esc(st2.laatste_fout)}</small>` : ''), !ok)
+      + (ok && !S.voertuigen.some(v => v.lat != null) && st2.velden ? status(`Er komen voertuigen binnen, maar zonder positie. Velden die FleetGO stuurt: <small>${esc(st2.velden.join(', '))}</small>`, 1) : '');
+    b.disabled = false; b.textContent = 'Opslaan en testen';
+  };
+  $('#fgWeg') && ($('#fgWeg').onclick = async () => {
+    if (!confirm('FleetGO-koppeling verwijderen? De voertuigen blijven in de lijst staan maar worden niet meer bijgewerkt.')) return;
+    const r = await sb.rpc('fleetgo_wissen'); if (r.error) toast(r.error.message, 1); else { toast('Koppeling verwijderd'); m.classList.remove('open'); }
+  });
 }
 
 /* ============ weer ============
