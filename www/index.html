@@ -182,6 +182,8 @@ textarea.veld{resize:vertical;font-family:inherit}
 #archiefBalk button{background:#fff;color:#4527a0;border:0;border-radius:9px;padding:7px 12px;font-weight:700}
 .logregel{display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid var(--rand);cursor:pointer;align-items:flex-start}
 .logregel:last-child{border-bottom:0}
+.logregel small.braakregel{color:#6d4c41;background:#efe5df;border-radius:6px;padding:1px 6px;display:inline-block;margin-top:4px}
+.logknoppen{display:flex;flex-direction:column;gap:4px}
 .logdatum{background:#e8f5e9;color:var(--groen);border-radius:8px;font-size:11px;font-weight:700;padding:4px 6px;white-space:nowrap;flex:none}
 .logregel .t{flex:1;min-width:0;font-size:14px}
 .logregel small{display:block;color:var(--grijs);font-size:12px;margin-top:2px}
@@ -398,6 +400,10 @@ details.plItem>summary::after{content:'▸';margin-left:auto;color:var(--grijs);
 .plAantal{font-size:12px;color:var(--groen);background:var(--licht);border-radius:8px;padding:1px 7px}
 .plDet{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:#455a4a;margin-top:3px;align-items:center}.plDet .icoon{margin-left:auto}
 .plSub{border-top:1px dashed var(--rand);margin-top:6px;padding-top:5px}
+.peRij{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px dashed var(--rand)}.peRij .veld{margin:0;flex:1 1 90px;min-width:0;padding:8px}.peRij .veld[data-k="ras"]{flex:2 1 130px}
+.peNr{width:20px;font-size:12px;color:var(--grijs);text-align:right;flex:none}.peBio{font-size:12px;white-space:nowrap;display:flex;gap:3px;align-items:center}
+.peKies{max-height:46vh;overflow:auto;border:1px solid var(--rand);border-radius:10px;margin:6px 0}.peKiesRij{display:flex;gap:8px;padding:7px 10px;border-bottom:1px solid var(--rand);cursor:pointer;align-items:flex-start;font-size:14px}.peKiesRij small{display:block;color:var(--grijs)}
+.plErbij{display:block;margin-top:4px}
 .plSporen{color:#8a6200;background:#fff4d6;border-radius:6px;padding:0 6px;font-size:11.5px}
 .plKop .icoon.klein+.icoon.klein,.plDet .icoon.klein+.icoon.klein{margin-left:4px}
 #pkBalk{position:fixed;right:16px;bottom:16px;z-index:1300;width:min(380px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:12px 14px;border:3px solid #ffd600}
@@ -538,6 +544,17 @@ details.szblok summary h4{margin:6px 0}
 .filmFeit{margin-top:8px;font-size:clamp(15px,2vw,21px);line-height:1.4;background:rgba(10,20,12,.55);backdrop-filter:blur(6px);border-radius:14px;padding:10px 14px;display:inline-block}
 .filmFeit small{opacity:.75}
 .filmStip{margin-top:8px;display:flex;gap:5px}.filmStip i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.35)}.filmStip i.aan{background:var(--geel)}
+.filmInfo{position:absolute;right:16px;top:calc(7vh + 54px);bottom:calc(7vh + 20px);z-index:6;width:min(430px,40vw);overflow:hidden;color:#fff;background:rgba(10,20,12,.62);backdrop-filter:blur(8px);border-radius:18px;padding:16px 18px;font-size:14.5px;line-height:1.4;opacity:0;transform:translateX(16px);transition:opacity .7s,transform .7s;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.filmInfo.zicht{opacity:1;transform:none}
+.filmInfo{-webkit-mask-image:linear-gradient(#000 calc(100% - 26px),transparent);mask-image:linear-gradient(#000 calc(100% - 26px),transparent);padding-bottom:28px}
+.filmInfo h4{margin:12px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.7;font-weight:700}.filmInfo h4:first-child{margin-top:0}
+.fiCijfers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.fiCijfers div{background:rgba(255,255,255,.09);border-radius:10px;padding:7px 9px}.fiCijfers b{display:block;font-size:19px}.fiCijfers small{opacity:.75;font-size:11.5px}
+.fiTeelt{display:flex;align-items:center;gap:8px;margin:4px 0}.fiTeelt .naam{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fiBalk{height:6px;border-radius:3px;background:rgba(255,255,255,.15);margin:2px 0 0;overflow:hidden}.fiBalk i{display:block;height:100%;border-radius:3px}
+.fiPartij{font-size:12.5px;opacity:.85;margin:1px 0 3px 26px}
+.fiTaak{margin:3px 0}.fiTaak small{opacity:.7}
+.fiWeer{display:flex;align-items:flex-end;gap:5px;height:58px;margin-top:4px}.fiWeer div{flex:1;text-align:center;font-size:10.5px;opacity:.85;display:flex;flex-direction:column;justify-content:flex-end;height:100%}.fiWeer i{display:block;background:#5ab4ff;border-radius:3px 3px 0 0;min-height:2px;margin:0 auto 2px;width:70%}
+.fiNu{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}
+@media (max-width:760px){.filmInfo{left:12px;right:12px;width:auto;top:calc(7vh + 50px);bottom:auto;max-height:46vh;font-size:13px;padding:12px 14px}.fiCijfers b{font-size:16px}.filmKaart{bottom:calc(7vh + 14px)}.filmNaam{font-size:26px}}
 .filmStop{position:absolute;right:16px;top:calc(7vh + 12px);z-index:7;border:0;border-radius:10px;background:rgba(0,0,0,.45);color:#fff;font-weight:700;padding:8px 12px;font-size:13px;opacity:.55}
 .filmStop:hover{opacity:1}
 #drieDKaart{position:absolute;inset:0}
@@ -1562,20 +1579,182 @@ async function rondAf(id) {
   Object.assign(patch, middelPatch({...t, ...patch}));
   Object.assign(t, patch); render(true);
   const {error} = await sb.from('taken').update(patch).eq('id', id);
-  if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1); else { toast('Taak afgerond'); fotosOpruimen(oud, patch.fotos); }
+  if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1); else { toast('Taak afgerond'); fotosOpruimen(oud, patch.fotos); naWerkKlaar(t); }
+}
+/* ============ WERK DAT PLANTEN WEGHAALT (rooien / frezen) + LOGBOEK MET ONGEDAAN MAKEN ============
+   Alleen rooien en frezen halen echt planten weg: de sporen gaan dan op braak. Al het andere werk
+   gebeurt op wat er staat. Wat er stond wordt bij de taak (of het gerooid-vlak) bewaard in "braak",
+   zodat je het met ongedaan maken precies terug kunt zetten. */
+const RUIMT_WEG = /rooi|frees|frez/i;
+const haaltPlantenWeg = t => !!t && !isVerplaats(t) && !isKarTaak(t) && RUIMT_WEG.test(`${t.tekst || ''} ${t.werktuig || ''}`);
+const braakSoort = () => S.soorten.find(s => /^braak$/i.test((s.naam || '').trim())) || null;
+const vanTeelt = t => t?.plantId === braakSoort()?.id;   // staat er braak?
+function scopeVanTaak(t) {
+  if (t.gebied) return {geo: t.gebied};
+  if (t.spoor_van) return {sporen: [t.spoor_van, t.spoor_tot || t.spoor_van]};
+  return {heel: true};
+}
+function scopeVanGeo(geo) {
+  const s = String(geo?.properties?.sporen || '').match(/^(\d+)\D+(\d+)$/);
+  if (s) return {sporen: [+s[1], +s[2]]};
+  if (geo?.properties?.heel) return {heel: true};
+  return {geo};
+}
+const stukBinnen = (geo, gebied) => { try { const x = turf.intersect(geo, gebied); return x ? turf.area(x) / Math.max(1, turf.area(geo)) : 0; } catch { return 0; } };
+// Zet het stuk op braak; geeft terug wat er stond (of null als er niets veranderde)
+async function plantenWeg(pid, scope, wat) {
+  const p = perceel(pid); if (!p || p.type === 'pand') return null;
+  const B = braakSoort()?.id || null;
+  const banen = [...(p.banen || [])], vakken = (p.vakken || []).map(v => ({...v, banen: [...(v.banen || [])]}));
+  let gewas = p.gewas ?? null;
+  const snap = {p: pid, b: B, z: [], g: [], op: new Date().toISOString(), wat: wat || ''};
+  alleZones(p).forEach(z => {
+    const arr = z._vak ? vakken.find(v => v.id === z._vak.id).banen : banen;
+    const rijen = banenVan(z);
+    if (rijen.length) {
+      const nrs = rijen.filter(bn => scope.heel ? true : scope.sporen ? !z._vak && bn.nr >= scope.sporen[0] && bn.nr <= scope.sporen[1] : stukBinnen(bn.geo, scope.geo) >= .5).map(bn => bn.nr);
+      const oud = {};
+      nrs.forEach(nr => { while (arr.length < nr) arr.push(null); const v = arr[nr - 1] ?? null; if (v !== B) { oud[nr] = v; arr[nr - 1] = B; } });
+      if (Object.keys(oud).length) snap.z.push({z: z.id, nrs: oud});
+    } else {
+      const vlak = zoneVlak(z), raak = scope.heel || (scope.geo && vlak && stukBinnen(vlak, scope.geo) >= .5);
+      const huidig = z._vak ? (z._vak.gewas ?? null) : gewas;
+      if (raak && huidig !== B) { snap.g.push({z: z.id, oud: huidig}); if (z._vak) vakken.find(v => v.id === z._vak.id).gewas = B; else gewas = B; }
+    }
+  });
+  if (!snap.z.length && !snap.g.length) return null;
+  return await plantenOpslaan(p, banen, vakken, gewas) ? snap : null;
+}
+async function plantenOpslaan(p, banen, vakken, gewas) {
+  const oud = {banen: p.banen, vakken: p.vakken, gewas: p.gewas};
+  Object.assign(p, {banen, vakken, gewas}); render(true);
+  let {error} = await sb.rpc('planten_bijwerken', {p_perceel: p.id, p_banen: banen, p_vakken: vakken, p_gewas: gewas});
+  if (error && /Could not find|does not exist/i.test(error.message) && mag('soorten_indelen'))
+    ({error} = await sb.from('percelen').update({banen, vakken, gewas, updated_at: new Date().toISOString()}).eq('id', p.id));
+  if (error) {
+    Object.assign(p, oud); render(true);
+    toast(/Could not find|does not exist/i.test(error.message) ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : 'Planten bijwerken mislukt: ' + error.message, 1);
+    return false;
+  }
+  return true;
+}
+// Zet terug wat er stond; alleen sporen die nog braak zijn (wat intussen opnieuw is ingeplant blijft staan)
+async function plantenTerug(snap) {
+  const p = perceel(snap?.p); if (!p) return 0;
+  const banen = [...(p.banen || [])], vakken = (p.vakken || []).map(v => ({...v, banen: [...(v.banen || [])]}));
+  let gewas = p.gewas ?? null, n = 0;
+  (snap.z || []).forEach(({z, nrs}) => {
+    const arr = z === p.id ? banen : vakken.find(v => vakZone(p, v).id === z)?.banen; if (!arr) return;
+    Object.entries(nrs).forEach(([nr, v]) => { if ((arr[nr - 1] ?? null) === snap.b) { arr[nr - 1] = v; n++; } });
+  });
+  (snap.g || []).forEach(({z, oud}) => {
+    if (z === p.id) { if (gewas === snap.b) { gewas = oud; n++; } return; }
+    const v = vakken.find(v => vakZone(p, v).id === z); if (v && (v.gewas ?? null) === snap.b) { v.gewas = oud; n++; }
+  });
+  if (!n) return 0;
+  return await plantenOpslaan(p, banen, vakken, gewas) ? n : 0;
+}
+const braakTekst = snap => {
+  if (!snap) return '';
+  const n = (snap.z || []).reduce((s, x) => s + Object.keys(x.nrs).length, 0), weg = new Set((snap.z || []).flatMap(x => Object.values(x.nrs)).concat((snap.g || []).map(x => x.oud)).filter(Boolean).map(id => teelt(id)?.naam).filter(Boolean));
+  return `${n ? `${n} ${n === 1 ? 'spoor' : 'sporen'}` : 'het vlak'} braak${weg.size ? ` (weg: ${[...weg].slice(0, 3).join(', ')}${weg.size > 3 ? '…' : ''})` : ''}`;
+};
+// na het afronden van rooien/frezen
+async function naWerkKlaar(t) {
+  if (!t?.klaar || t.braak || !haaltPlantenWeg(t)) return;
+  const snap = await plantenWeg(t.perceel_id, scopeVanTaak(t), t.tekst); if (!snap) return;
+  t.braak = snap; render(true);
+  const {error} = await sb.from('taken').update({braak: snap}).eq('id', t.id);
+  if (error) console.warn('braak bij taak bewaren mislukt', error);
+  toast(`🟫 ${perceel(t.perceel_id)?.naam || 'Perceel'}: ${braakTekst(snap)} · terugdraaien kan in het logboek`);
+}
+async function braakTerugVanTaak(t, stil) {
+  if (!t?.braak) return 0;
+  const n = await plantenTerug(t.braak);
+  t.braak = null; await sb.from('taken').update({braak: null}).eq('id', t.id);
+  if (!stil) toast(n ? `🌱 De planten staan weer op ${n} ${n === 1 ? 'spoor' : 'sporen'}` : 'Er was intussen al iets anders neergezet; niets teruggezet');
+  return n;
+}
+// werk terugdraaien vanuit het logboek
+async function werkOngedaan(id) {
+  const t = S.taken.find(x => x.id === id); if (!t || !mag('taken_afvinken')) return;
+  const k = await keuze(`↩️ ${esc(t.tekst)} terugdraaien`,
+    `Uitgevoerd ${t.klaar_op ? new Date(t.klaar_op).toLocaleDateString('nl-NL', {day: 'numeric', month: 'long'}) : ''} door ${esc(t.klaar_door || '?')}.${t.braak ? `<br>Hierbij zijn planten weggehaald: <b>${esc(braakTekst(t.braak))}</b>. Die komen terug.` : ''}`,
+    [...(t.braak ? [['planten', '🌱 Alleen de planten terugzetten (werk blijft gedaan)']] : []),
+     ...(mag('taken_verwijderen') || mag('taken_toevoegen') ? [['weg', '🗑️ Werk helemaal verwijderen']] : []),
+     ['open', '↩️ Terug naar de open taken']]);
+  if (!k) return;
+  if (k === 'planten') { await braakTerugVanTaak(t); render(true); return; }
+  if (t.braak) await braakTerugVanTaak(t, true);
+  if (k === 'open') {
+    const patch = {klaar: false, klaar_door: null, klaar_op: null};
+    Object.assign(t, patch); render(true);
+    const {error} = await sb.from('taken').update(patch).eq('id', id);
+    toast(error ? 'Opslaan mislukt: ' + error.message : '↩️ Teruggezet naar de open taken', !!error);
+  } else {
+    S.taken = S.taken.filter(x => x.id !== id); render(true);
+    const {error} = await sb.from('taken').delete().eq('id', id);
+    if (error) toast('Verwijderen mislukt: ' + error.message, 1); else { toast('🗑️ Werk verwijderd'); fotosOpruimen(t.fotos, []); }
+  }
+}
+async function gerooidOngedaan(id) {
+  const m = S.markeringen.find(x => x.id === id); if (!m || !mag('gerooid_aangeven')) return;
+  if (!await bevestig('Gerooid terugdraaien?', `${m.titel || 'Gerooid'}${m.braak ? ' · de planten komen terug op ' + braakTekst(m.braak).replace(' braak', '') : ''}`)) return;
+  const n = m.braak ? await plantenTerug(m.braak) : 0;
+  const {error} = await sb.from('markeringen').delete().eq('id', id);
+  if (error) { toast(foutTekst(error), 1); return; }
+  S.markeringen = S.markeringen.filter(x => x.id !== id); render(true);
+  toast(n ? `↩️ Teruggedraaid, planten staan weer op ${n} ${n === 1 ? 'spoor' : 'sporen'}` : '↩️ Gerooid teruggedraaid');
+}
+
+/* logboek: één lijst met al het uitgevoerde werk en gerooide stukken */
+let logPerceel = '', logZoek = '';
+function logItems(pid) {
+  const taken = S.taken.filter(t => t.klaar && t.klaar_op && (!pid || betreft(t, pid))).map(t => ({d: t.klaar_op, t}));
+  const gr = S.markeringen.filter(m => m.soort === 'gerooid' && (!pid || m.perceel_id === pid)).map(m => ({d: (m.datum ? m.datum + 'T12:00:00' : m.created_at) || '', m}));
+  return [...taken, ...gr].sort((a, b) => String(b.d).localeCompare(String(a.d)));
+}
+function logRegel(x, metPerceel) {
+  const dat = `<div class="logdatum">${x.d ? new Date(x.d).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'}) : '?'}</div>`;
+  if (x.m) {
+    const m = x.m, p = perceel(m.perceel_id);
+    return `<div class="logregel">${dat}<div class="t"><b>⛏️ ${esc(m.titel || 'Gerooid')}</b>
+      <small>${metPerceel && p ? esc(p.naam) + ' · ' : ''}gerooid aangegeven${m.aangemaakt_door ? ' door ' + esc(m.aangemaakt_door) : ''}</small>
+      ${m.braak ? `<small class="braakregel">🟫 ${esc(braakTekst(m.braak))}</small>` : ''}${m.notitie ? `<small class="opm">💬 ${esc(m.notitie)}</small>` : ''}</div>
+      ${mag('gerooid_aangeven') ? `<button class="weg" title="Terugdraaien" onclick="event.stopPropagation();gerooidOngedaan('${m.id}')">↩️</button>` : ''}</div>`;
+  }
+  const t = x.t, p = perceel(t.perceel_id);
+  return `<div class="logregel" onclick="focusTaak('${t.id}')">${dat}
+    <div class="t"><b>${esc(t.tekst)}</b>${isVerplaats(t) ? ` · ${verplaatsTekst(t)}` : ''}${t.product ? ` · ${esc(t.product)}` : ''}${t.dosering != null ? ` · <b>${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}</b>` : ''}
+      <small>${metPerceel && p ? esc(p.naam) + ' · ' : ''}${totaalTekst(t) ? totaalTekst(t) + ' · ' : ''}📐 ${taakWaar(t)} · 👤 ${esc(t.klaar_door || '?')}${t.trekker ? ' · 🚜 ' + esc(t.trekker) : ''}</small>
+      ${t.braak ? `<small class="braakregel">🟫 ${esc(braakTekst(t.braak))}</small>` : ''}
+      ${t.uitvoering ? `<small class="opm">💬 ${esc(t.uitvoering)}</small>` : ''}${fotoRij(t.fotos)}</div>
+    ${mag('taken_afvinken') ? `<span class="logknoppen"><button class="weg" title="Gegevens aanpassen" onclick="event.stopPropagation();rondAf('${t.id}')">✏️</button><button class="weg" title="Ongedaan maken" onclick="event.stopPropagation();werkOngedaan('${t.id}')">↩️</button></span>` : ''}</div>`;
 }
 function logboekHtml(p) {
-  const lijst = S.taken.filter(t => betreft(t, p.id) && t.klaar).sort((a, b) => (b.klaar_op || '').localeCompare(a.klaar_op || ''));
+  const lijst = logItems(p.id);
   return `<section class="kaartje"><h4>📒 Logboek · seizoen ${esc(seizoenNaam(bekeken))}</h4>
     ${mag('werk_registreren') ? `<button class="knop licht" style="margin:0 0 6px" onclick="taakFormulier(null, true)">✓ Werk registreren</button>` : ''}
-    ${lijst.map(t => `<div class="logregel" onclick="focusTaak('${t.id}')">
-      <div class="logdatum">${new Date(t.klaar_op).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})}</div>
-      <div class="t"><b>${esc(t.tekst)}</b>${isVerplaats(t) ? ` · ${verplaatsTekst(t)}` : ''}${t.product ? ` · ${esc(t.product)}` : ''}${t.dosering != null ? ` · <b>${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}</b>` : ''}
-        <small>${totaalTekst(t) ? totaalTekst(t) + ' · ' : ''}📐 ${taakWaar(t)} · 👤 ${esc(t.klaar_door || '?')}</small>
-        ${t.uitvoering ? `<small class="opm">💬 ${esc(t.uitvoering)}</small>` : ''}${fotoRij(t.fotos)}</div>
-      ${mag('taken_afvinken') ? `<button class="weg" title="Gegevens aanpassen" onclick="event.stopPropagation();rondAf('${t.id}')">✏️</button>` : ''}</div>`).join('')
-      || '<p class="hint">Nog niets uitgevoerd op dit perceel in dit seizoen.</p>'}
+    <p class="hint" style="margin:2px 0 6px">Rooien en frezen zetten de sporen op braak. Met ↩️ draai je werk terug.</p>
+    ${lijst.map(x => logRegel(x)).join('') || '<p class="hint">Nog niets uitgevoerd op dit perceel in dit seizoen.</p>'}
   </section>`;
+}
+function htmlLogboek() {
+  const velden = S.percelen.filter(p => p.type !== 'pand').sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  const z = logZoek.trim().toLowerCase();
+  let lijst = logItems(logPerceel || null);
+  if (z) lijst = lijst.filter(x => [x.t?.tekst, x.t?.product, x.t?.klaar_door, x.t?.trekker, x.m?.titel, perceel(x.t?.perceel_id || x.m?.perceel_id)?.naam].join(' ').toLowerCase().includes(z));
+  const perMaand = new Map();
+  lijst.forEach(x => { const k = x.d ? new Date(x.d).toLocaleDateString('nl-NL', {month: 'long', year: 'numeric'}) : 'Onbekend'; if (!perMaand.has(k)) perMaand.set(k, []); perMaand.get(k).push(x); });
+  return `${seizoenKnop()}<section class="kaartje"><h4>📒 Al het uitgevoerde werk</h4>
+    <div class="pgRij" style="display:flex;gap:6px;flex-wrap:wrap">
+      <select class="veld" style="flex:1 1 160px;margin:0" onchange="logPerceel=this.value;render(true)"><option value="">Alle percelen</option>${velden.map(p => `<option value="${p.id}" ${logPerceel === p.id ? 'selected' : ''}>${esc(p.naam)}</option>`).join('')}</select>
+      <input class="veld" style="flex:1 1 160px;margin:0" placeholder="🔍 Zoek werk, middel, persoon…" value="${esc(logZoek)}" oninput="logZoek=this.value;clearTimeout(window._lz);window._lz=setTimeout(()=>{render(true);const i=document.querySelector('#inhoud input[placeholder^=\\'🔍 Zoek werk\\']');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},350)">
+    </div>
+    ${mag('werk_registreren') ? `<button class="knop licht" style="margin:8px 0 0" onclick="taakFormulier(null, true)">✓ Werk registreren</button>` : ''}
+    <p class="hint" style="margin:6px 0 0">${lijst.length} ${lijst.length === 1 ? 'regel' : 'regels'} · rooien en frezen zetten de sporen op braak · met ↩️ draai je werk terug</p></section>
+    ${[...perMaand].map(([m, xs]) => `<section class="kaartje"><h4>${m.charAt(0).toUpperCase() + m.slice(1)}</h4>${xs.map(x => logRegel(x, !logPerceel)).join('')}</section>`).join('')
+      || '<section class="kaartje"><p class="hint">Nog geen uitgevoerd werk gevonden.</p></section>'}`;
 }
 
 /* ============ planning ============ */
@@ -1821,6 +2000,7 @@ async function slaTaakOp(w, gebied, id) {
   const i = S.taken.findIndex(x => x.id === res.data.id);
   if (i >= 0) S.taken[i] = res.data; else S.taken.push(res.data);
   taakFocus = res.data.id; render(true); verbergTrekker3d();
+  if (res.data.klaar) naWerkKlaar(S.taken.find(x => x.id === res.data.id));
   if (!w.direct && (res.data.trekker || res.data.werktuig)) setTimeout(() => { if (taakFocus === res.data.id) open3D({taak: S.taken.find(x => x.id === res.data.id)}); }, 450);
   toast(w.direct ? 'Werk geregistreerd' : id ? 'Taak opgeslagen' : 'Taak toegevoegd');
 }
@@ -1834,7 +2014,8 @@ async function vinkTaak(id) {
     return;
   }
   if (!t.klaar) { rondAf(id); return; }
-  if (!await bevestig('Weer openzetten?', `"${t.tekst}" gaat terug naar de open taken.`)) return;
+  if (!await bevestig('Weer openzetten?', `"${t.tekst}" gaat terug naar de open taken.${t.braak ? ' De planten die hierbij zijn weggehaald komen terug.' : ''}`)) return;
+  if (t.braak) await braakTerugVanTaak(t, true);
   const patch = {klaar: false, klaar_door: null, klaar_op: null};
   Object.assign(t, patch); render(true);
   const {error} = await sb.from('taken').update(patch).eq('id', id);
@@ -1842,7 +2023,8 @@ async function vinkTaak(id) {
 }
 async function verwijderTaak(id) {
   const t = S.taken.find(x => x.id === id);
-  if (!await bevestig('Taak verwijderen?', t?.tekst || '')) return;
+  if (!await bevestig('Taak verwijderen?', (t?.tekst || '') + (t?.braak ? ' · de planten die hierbij zijn weggehaald komen terug' : ''))) return;
+  if (t?.braak) await plantenTerug(t.braak);
   S.taken = S.taken.filter(t => t.id !== id); render(true);
   const {error} = await sb.from('taken').delete().eq('id', id);
   if (error) toast('Verwijderen mislukt: ' + error.message, 1); else fotosOpruimen(t?.fotos, []);
@@ -1926,7 +2108,7 @@ async function bewerkRas(id, nieuw) {
     const m = $('#modal'); m.classList.add('open');
     $('#mNee').onclick = () => { m.classList.remove('open'); klaar(null); };
     $('#mJa').onclick = () => { const v = {naam: $('#rbNaam').value.trim(), notitie: $('#rbNot').value.trim()}; m.classList.remove('open'); klaar(v); };
-    if ($('#rbNieuw')) $('#rbNieuw').onclick = () => { m.classList.remove('open'); klaar(null); partijBewerk(null, null, {soort_id: r.soort_id, ras: r.naam}); };
+    if ($('#rbNieuw')) $('#rbNieuw').onclick = () => { m.classList.remove('open'); klaar(null); partijenToevoegen('', {soort_id: r.soort_id, ras: r.naam}); };
   });
   if (!w || !mag('soorten_beheren')) return;
   if (w.naam === r.naam && (w.notitie || null) === (r.notitie || null)) return;
@@ -2338,6 +2520,11 @@ async function nieuweMarkering(soort, geo) {
   if (error) { toast('Opslaan mislukt: ' + foutTekst(error), 1); return; }
   if (!S.markeringen.find(x => x.id === data.id)) S.markeringen.push(data);
   render(true); toast(`${MARK[soort].naam} geplaatst`);
+  if (soort === 'gerooid') {
+    const snap = await plantenWeg(pid, scopeVanGeo(geo), rij.titel);
+    if (snap) { const m = S.markeringen.find(x => x.id === data.id); if (m) m.braak = snap; render(true);
+      await sb.from('markeringen').update({braak: snap}).eq('id', data.id); toast(`🟫 ${braakTekst(snap)} · terugdraaien kan in het logboek`); }
+  }
   if (soort === 'gerooid' && mag('oogst_registreren') && await bevestigJa('🌱 Ook de oogst registreren?', 'Wil je meteen invullen hoeveel planten er van dit stuk zijn gekomen?', 'Ja, aantal invullen')) oogstFormulier(pid);
 }
 async function bewerkMarkering(id) {
@@ -2354,7 +2541,8 @@ async function bewerkMarkering(id) {
 async function verwijderMarkering(id) {
   const m = S.markeringen.find(x => x.id === id); if (!m) return;
   map.closePopup();
-  if (!await bevestig('Markering verwijderen?', m.titel)) return;
+  if (!await bevestig('Markering verwijderen?', m.titel + (m.braak ? ' · de planten die hier zijn weggehaald komen terug' : ''))) return;
+  if (m.braak) await plantenTerug(m.braak);
   const {error} = await sb.from('markeringen').delete().eq('id', id);
   if (error) { toast(foutTekst(error), 1); return; }
   fotosOpruimen(m.fotos, []);
@@ -2802,6 +2990,7 @@ function renderPaneel() {
   else if (tab === 'tractoren') h = htmlTractoren();
   else if (tab === 'seizoenen') h = htmlSeizoenen();
   else if (tab === 'uren') h = htmlUren();
+  else if (tab === 'logboek') h = htmlLogboek();
   else if (tab === 'bedrijf') h = htmlBedrijf();
   else if (tab === 'mij') h = htmlMij();
   else if (tab === 'partijen') h = seizoenKnop() + htmlPartijen();
@@ -2946,11 +3135,12 @@ function htmlInfoInhoud(p) {
       const meerdere = pr.length > 1;
       return `<div class="inforij"><span><i class="kl" style="background:${esc(t.kleur)}"></i>${icoonHtml(t.icoon)} ${esc(t.naam)}${pr.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}</span>
         <b>${ha(x.m2)} ha${x.n ? ` · ${getal(x.n, 1)} ${x.n === 1 ? 'rij' : 'rijen'}` : x.vlak ? ' · heel vlak' : ''}${a ? ` · ≈ ${getal(Math.round(a.totaal))} pl` : ''}</b></div>
-        ${pr.length || r?.notitie ? `<div class="plantinfo">${pr.map(y => partijRegel(y, false, true)).join('')}${meerdere && pr.some(y => !partijSporen(y).length) ? '<div class="pi hint">Deze soort heeft meerdere partijen: wijs met 🖌️ aan welke op welke sporen staat.</div>' : ''}${r?.notitie ? `<div class="pi">📝 ${esc(r.notitie)}</div>` : ''}</div>` : ''}`; }).join('');
+        ${pr.length || r?.notitie || (mag('partijen_beheren') && !vanTeelt(t)) ? `<div class="plantinfo">${pr.map(y => partijRegel(y, false, true)).join('')}${mag('partijen_beheren') && !vanTeelt(t) ? `<div class="pi"><button class="link klein" onclick="partijenToevoegen('${p.id}', {soort_id: '${t.plantId}', ras: ${esc(JSON.stringify(ras(id)?.naam || ''))}})">➕ ${pr.length ? 'nog een' : 'een'} partij ${esc(ras(id)?.naam || t.naam)} toevoegen</button></div>` : ''}${meerdere && pr.some(y => !partijSporen(y).length) ? '<div class="pi hint">Deze soort heeft meerdere partijen: wijs met 🖌️ aan welke op welke sporen staat.</div>' : ''}${r?.notitie ? `<div class="pi">📝 ${esc(r.notitie)}</div>` : ''}</div>` : ''}`; }).join('');
     const overig = partijenVan(p.id).filter(y => !getoond.has(y.id));
     const overigHtml = overig.length ? `<div class="plantinfo"><div class="pi"><b>Ook op dit perceel, nog niet op een spoor ingedeeld:</b></div>${overig.map(y => partijRegel(y, true, true)).join('')}</div>` : '';
     const leeg = tel.get(null)?.m2 || 0;
     h += blok('🌱 Wat staat er', (lijst || '<p class="hint">Nog niets ingedeeld.</p>') + overigHtml +
+      (mag('partijen_beheren') ? `<button class="knop licht klein" style="margin-top:6px" onclick="partijenToevoegen('${p.id}')">🏷️ Partijen toevoegen</button>` : '') +
       (leeg > 1 ? rij('Niet ingedeeld', ha(leeg) + ' ha') : '') + (planten ? rij('Totaal planten', '≈ ' + getal(Math.round(planten))) : ''));
     // sporen
     const s = spuitVan(p), vk = spuitvakkenVan(p);
@@ -3336,7 +3526,7 @@ function htmlSoorten() {
             ${pr.length ? `<button class="icoon" title="Partijen tonen" onclick="openRas=${rOpen ? 'null' : `'${r.id}'`};render(true)">${rOpen ? '▴' : '🏷️'}</button>` : ''}
             ${beh ? `<button class="icoon" title="Naam en aantekeningen" onclick="bewerkRas('${r.id}')">✏️</button>
               <button class="weg" title="Soort verwijderen" onclick="verwijderRas('${r.id}')">×</button>` : ''}</div>
-            ${rOpen ? `<div class="raspartijen">${partijLijstPerPerceel(pr)}${mag('partijen_beheren') ? `<button class="knop licht klein" onclick="partijBewerk(null, null, {soort_id: '${s.id}', ras: ${esc(JSON.stringify(r.naam))}})">➕ Partij van ${esc(r.naam)}</button>` : ''}</div>` : ''}`; }).join('')
+            ${rOpen ? `<div class="raspartijen">${partijLijstPerPerceel(pr)}${mag('partijen_beheren') ? `<button class="knop licht klein" onclick="partijenToevoegen('', {soort_id: '${s.id}', ras: ${esc(JSON.stringify(r.naam))}})">➕ Partij van ${esc(r.naam)}</button>` : ''}</div>` : ''}`; }).join('')
             || '<p class="hint" style="margin:6px 0">Nog geen soorten.</p>'}
           ${beh ? `<div class="rij" style="margin:8px 0 4px"><input id="ras_${s.id}" class="veld" placeholder="Nieuwe soort, bijv. ${esc(s.naam === 'Aardappel' ? 'Bintje' : 'naam')}" onkeydown="if(event.key==='Enter')rasErbij('${s.id}','ras_${s.id}')">
             <button class="knop klein" onclick="rasErbij('${s.id}','ras_${s.id}')">＋</button></div>` : ''}
@@ -4151,7 +4341,7 @@ function sectieTabs(s) {
   const trek = ziet('tractoren_volgen') || ziet('tractor_rijden') || ziet('voertuigen_zien');
   return ({
     werken: [['percelen', '🗺️', 'Kaart'], ['taken', '📋', 'Taken'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
-    taken: [['taken', '📋', 'Taken'], ['uren', '⏱️', 'Uren']],
+    taken: [['taken', '📋', 'Taken'], ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : []), ['uren', '⏱️', 'Uren']],
     percelen: [['percelen', '🗺️', 'Percelen'], ['soorten', '🌱', 'Planten'], ['partijen', '🏷️', 'Partijen'], ['seizoenen', '📅', 'Seizoen'], ...(magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf']])],
     persoonlijk: [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Mijn uren']],
     beheer: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(isBeheerder() ? [['team', '👥', 'Team']] : [])]
@@ -4517,7 +4707,7 @@ function teeltKiesBestand() { const i = document.createElement('input'); i.type 
 let partijZoek = '', partijSoort = '';
 const partijRas = x => x.ras_id ? ras(x.ras_id)?.naam || x.ras_tekst : x.ras_tekst || '';
 // partijen als lijst, per ras gegroepeerd; meerdere partijen van hetzelfde ras klappen open
-function partijLijst(lijst, {metPerceel = false, metGewas = false} = {}) {
+function partijLijst(lijst, {metPerceel = false, metGewas = false, erbij = null} = {}) {
   const beh = mag('partijen_beheren'), groepen = new Map();
   lijst.forEach(x => { const k = (x.soort_id || '') + '|' + normTekst(partijRas(x)); if (!groepen.has(k)) groepen.set(k, []); groepen.get(k).push(x); });
   const det = x => [x.batch ? `<span>batch <b>${esc(x.batch)}</b></span>` : '', x.nak && x.nak !== x.batch ? `<span>NAK <b>${esc(x.nak)}</b></span>` : x.nak ? '<span>= NAK</span>' : '',
@@ -4528,10 +4718,11 @@ function partijLijst(lijst, {metPerceel = false, metGewas = false} = {}) {
   const kleur = x => { const r = x.ras_id && ras(x.ras_id); return r?.kleur || soort(x.soort_id)?.kleur || '#9e9e9e'; };
   return `<div class="plLijst">${[...groepen.values()].map(g => {
     const x = g[0], naam = `<i class="kl" style="background:${esc(kleur(x))}"></i><b>${esc(partijRas(x) || soort(x.soort_id)?.naam || '?')}</b>${g.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}${metGewas && soort(x.soort_id) ? ` <small>${esc(soort(x.soort_id).naam)}</small>` : ''}`;
-    if (g.length === 1) return `<div class="plItem"><div class="plKop">${naam}${knop(x)}</div><div class="plDet">${det(x)}</div>${perc(x)}</div>`;
+    const nogEen = beh && erbij !== null ? `<button class="link klein plErbij" onclick="event.stopPropagation();partijenToevoegen('${erbij || x.perceel_id || ''}', {soort_id: '${x.soort_id || ''}', ras: ${esc(JSON.stringify(partijRas(x) || ''))}})">➕ nog een partij ${esc(partijRas(x) || '')}</button>` : '';
+    if (g.length === 1) return `<div class="plItem"><div class="plKop">${naam}${knop(x)}</div><div class="plDet">${det(x)}</div>${perc(x)}${nogEen}</div>`;
     const klassen = [...new Set(g.map(y => y.klasse).filter(Boolean))];
     return `<details class="plItem"><summary class="plKop">${naam} <span class="plAantal">${g.length} partijen${klassen.length ? ' · ' + klassen.map(esc).join(', ') : ''}</span></summary>
-      ${g.map(y => `<div class="plSub"><div class="plDet">${det(y)}${knop(y)}</div>${perc(y)}</div>`).join('')}</details>`;
+      ${g.map(y => `<div class="plSub"><div class="plDet">${det(y)}${knop(y)}</div>${perc(y)}</div>`).join('')}${nogEen ? `<div class="plSub">${nogEen}</div>` : ''}</details>`;
   }).join('')}</div>`;
 }
 // per perceel een kopje met daaronder de partijen
@@ -4540,7 +4731,7 @@ function partijLijstPerPerceel(lijst) {
   return [...per.entries()].sort((a, b) => (a[0][0] === '~') - (b[0][0] === '~') || (perceel(a[0])?.naam || a[0]).localeCompare(perceel(b[0])?.naam || b[0], 'nl')).map(([k, l]) => {
     const p = perceel(k), beh = mag('partijen_beheren');
     return `<div class="plGroep"><div class="plGroepKop">${p ? `<a href="#" onclick="event.preventDefault();kies('${p.id}');perceelTab='partijen';render(true)">📍 ${esc(p.naam)}</a>` : `<span class="grijs">📍 ${esc(k.slice(1) || 'niet gekoppeld')}</span>${beh && k.length > 1 ? ` <button class="link klein" onclick="partijKoppelen(${esc(JSON.stringify(k.slice(1)))})">🔗 koppelen</button>` : ''}`} <small>${l.length}</small></div>
-      ${partijLijst(l.sort((a, b) => partijRas(a).localeCompare(partijRas(b), 'nl')), {metGewas: true})}</div>`; }).join('');
+      ${partijLijst(l.sort((a, b) => partijRas(a).localeCompare(partijRas(b), 'nl')), {metGewas: true, erbij: p ? p.id : ''})}</div>`; }).join('');
 }
 function partijTabel(lijst, metPerceel = true, metGewas = true) {
   const beh = mag('partijen_beheren');
@@ -4557,7 +4748,7 @@ function htmlPartijen() {
   const soorten = [...new Set(alle.map(x => x.soort_id).filter(Boolean))].map(soort).filter(Boolean);
   const zonder = alle.filter(x => !x.perceel_id || !perceel(x.perceel_id)).length;
   return `<section class="kaartje"><h4>🏷️ Partijen <small style="font-weight:400;color:var(--grijs)">seizoen ${esc(seizoenNaam(bekeken))}</small></h4>
-    ${mag('partijen_beheren') ? `<div class="rij"><button class="knop" onclick="teeltKiesBestand()">📥 Teeltgegevens inladen (Excel)</button>${alle.length ? `<button class="knop licht" onclick="partijenExcel()">⬇️ Excel</button>` : ''}</div>
+    ${mag('partijen_beheren') ? `<div class="rij"><button class="knop" onclick="partijenToevoegen(actief && perceel(actief) ? actief : '')">🏷️ Partijen toevoegen</button><button class="knop licht" onclick="teeltKiesBestand()">📥 Excel inladen</button>${alle.length ? `<button class="knop licht" onclick="partijenExcel()">⬇️ Excel</button>` : ''}</div>
       <p class="hint">Een Excel-lijst met per perceel de partijen (ras, batch, NAK-nummer, klasse, doel). Elk tabblad is een gewas. Je kunt het bestand ook gewoon op de app slepen. Opnieuw inladen werkt de gegevens bij.</p>` : ''}
     ${alle.length ? `<input class="veld" placeholder="🔎 Zoek perceel, ras, batch of NAK-nummer…" value="${esc(partijZoek)}" oninput="partijZoek=this.value;clearTimeout(window._pz);window._pz=setTimeout(()=>{render();const z=document.querySelector('#partijZoekVeld');if(z){z.focus();z.setSelectionRange(z.value.length,z.value.length)}},300)" id="partijZoekVeld">
       <div class="lagen" style="margin:8px 0"><button class="chip ${!partijSoort ? 'aan' : ''}" onclick="partijSoort='';render()">Alles (${alle.length})</button>${soorten.map(s => `<button class="chip ${partijSoort === s.id ? 'aan' : ''}" onclick="partijSoort='${s.id}';render()">${icoonHtml(s.icoon)} ${esc(s.naam)} (${alle.filter(x => x.soort_id === s.id).length})</button>`).join('')}</div>
@@ -4589,9 +4780,13 @@ function spoorTip(p, bn, st) {
   const vak = spuitvakkenVan(p).find(v => v.nrs.includes(bn.nr));
   const kop = `<b>Spoor ${bn.nr}</b>${vak ? ` · vak ${vak.letter}` : ''}${f === 2 ? ' · 🚜 spuitspoor' : f === .5 ? ' · half gevuld' : f === 0 ? ' · leeg' : ''}`;
   if (!t) return `${kop}<br><small>Niet ingedeeld · ${Math.round(st.tot - st.van)} m</small>`;
-  const eigen = partijOpSpoor(p, bn.nr), pr = eigen ? [eigen] : partijenVanTeelt(p.id, st.id), r = ras(st.id);
+  // alleen de partij die op dit spoor is aangewezen; is er maar één partij van dit ras, dan is het die
+  const kand = partijenVanTeelt(ouder(p).id, st.id), aangewezen = partijOpSpoor(p, bn.nr);
+  const eigen = aangewezen && !vanTeelt(t) && (kand.some(y => y.id === aangewezen.id) || aangewezen.soort_id === t.plantId) ? aangewezen : kand.length === 1 ? kand[0] : null;
+  const pr = eigen ? [eigen] : [], r = ras(st.id);
   return `${kop}<br>${icoonHtml(t.icoon)} <b>${esc(t.naam)}</b>${pr.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}<br><small>${Math.round(st.tot - st.van)} m · ${Math.round(st.m2 * (f === .5 ? .5 : 1)).toLocaleString('nl-NL')} m²</small>
-    ${pr.length ? `<div class="tipPartijen">${eigen ? '<b>Op dit spoor:</b>' : pr.length > 1 ? '<small>Nog niet aangewezen welke partij hier staat:</small>' : ''}${pr.slice(0, 4).map(y => partijRegel(y)).join('')}${pr.length > 4 ? `<div class="pi">…en nog ${pr.length - 4}</div>` : ''}</div>` : ''}
+    ${eigen ? `<div class="tipPartijen">${aangewezen ? '<b>Op dit spoor:</b>' : ''}${partijRegel(eigen)}</div>`
+      : kand.length > 1 ? `<div class="tipPartijen"><small>${kand.length} partijen ${esc(t.naam)} op dit perceel · nog niet aangewezen welke hier staat${mag('partijen_beheren') ? ' (🖌️ bij Wat staat er)' : ''}</small></div>` : ''}
     ${r?.notitie ? `<div class="pi">📝 ${esc(r.notitie.slice(0, 120))}</div>` : ''}`;
 }
 function htmlPerceelPartijenTab(p) {
@@ -4599,9 +4794,11 @@ function htmlPerceelPartijenTab(p) {
   const perGewas = new Map(); l.forEach(x => { const k = x.soort_id + '|' + (x.teeltdoel || ''); if (!perGewas.has(k)) perGewas.set(k, []); perGewas.get(k).push(x); });
   const losse = beh ? [...new Set((S.partijen || []).filter(x => !x.perceel_id || !perceel(x.perceel_id)).map(x => x.perceel_tekst).filter(Boolean))]
     .map(t => ({t, sc: (() => { const z = perceelZoeken(t); return z.p?.id === p.id ? z.score + 20 : z.score * .3; })()})).sort((a, b) => b.sc - a.sc) : [];
-  return `${[...perGewas.entries()].map(([k, lijst]) => { const [sid, doel] = k.split('|');
+  return `${beh ? `<div class="rij"><button class="knop" onclick="partijenToevoegen('${p.id}')">🏷️ Partijen toevoegen</button><button class="knop licht" onclick="teeltKiesBestand()">📥 Excel inladen</button></div>` : ''}
+  ${[...perGewas.entries()].map(([k, lijst]) => { const [sid, doel] = k.split('|');
       return `<section class="kaartje"><h4>${icoonHtml(plantIcoon(soort(sid) || {}))} ${esc(soort(sid)?.naam || 'Onbekend gewas')}${doel ? ` <small style="font-weight:400;color:var(--grijs)">${esc(doel)}</small>` : ''} <small style="font-weight:400;color:var(--grijs)">· ${lijst.length} ${lijst.length === 1 ? 'partij' : 'partijen'}</small></h4>
-        ${partijLijst(lijst.sort((a, b) => partijRas(a).localeCompare(partijRas(b), 'nl') || String(a.batch || '').localeCompare(String(b.batch || ''))))}
+        ${partijLijst(lijst.sort((a, b) => partijRas(a).localeCompare(partijRas(b), 'nl') || String(a.batch || '').localeCompare(String(b.batch || ''))), {erbij: p.id})}
+        ${beh ? `<button class="knop licht klein" onclick="partijenToevoegen('${p.id}', {soort_id: '${sid}', teeltdoel: ${esc(JSON.stringify(doel || ''))}})">➕ ${esc(soort(sid)?.naam || 'Partij')} toevoegen</button>` : ''}
         ${[...new Set(lijst.map(x => x.perceel_tekst).filter(Boolean))].length ? `<p class="hint">In het bestand: ${[...new Set(lijst.map(x => x.perceel_tekst).filter(Boolean))].map(esc).join(' · ')}</p>` : ''}</section>`; }).join('')
     || `<section class="kaartje"><h4>🏷️ Partijen</h4><p class="hint">Er staan nog geen partijen aan dit perceel gekoppeld.</p></section>`}
   ${beh && losse.length ? `<section class="kaartje"><h4>🔗 Partijen aan dit perceel koppelen</h4>
@@ -4609,8 +4806,7 @@ function htmlPerceelPartijenTab(p) {
       ${losse.length > 8 ? `<input class="veld" placeholder="🔎 Zoek een naam…" oninput="const z=this.value.toLowerCase();this.parentNode.querySelectorAll('.losnaam').forEach(b=>b.style.display=b.dataset.n.includes(z)?'':'none')">` : ''}
       <div>${losse.map(({t}) => `<button class="chip losnaam" data-n="${esc(t.toLowerCase())}" style="margin:3px" onclick="partijKoppelAan(${esc(JSON.stringify(t))}, '${p.id}')">${esc(t)} <small>(${(S.partijen || []).filter(x => x.perceel_tekst === t && !perceel(x.perceel_id)).length})</small></button>`).join('')}</div>
       <p class="hint">Staat de partij er niet tussen? Voeg hem dan zelf toe.</p>
-      <button class="knop licht" onclick="partijBewerk(null, '${p.id}')">➕ Partij toevoegen</button></section>` : ''}
-  ${beh ? `<div class="rij"><button class="knop licht" onclick="partijBewerk(null, '${p.id}')">➕ Partij toevoegen</button><button class="knop licht" onclick="teeltKiesBestand()">📥 Excel inladen</button></div>` : ''}`;
+      <button class="knop licht" onclick="partijenToevoegen('${p.id}')">🏷️ Partijen toevoegen</button></section>` : ''}`;
 }
 // één partij aanpassen of met de hand toevoegen
 function partijBewerk(id, pid, vooraf = {}) {
@@ -4660,6 +4856,123 @@ function partijBewerk(id, pid, vooraf = {}) {
     S.partijen = S.partijen.filter(y => y.id !== id); render(true); toast('Partij verwijderd');
   };
 }
+/* ============ PARTIJEN TOEVOEGEN (meerdere tegelijk, of bestaande hierheen halen) ============ */
+let PE = null;   // staat van het venster
+function partijenToevoegen(pid, vooraf = {}) {
+  if (!mag('partijen_beheren')) return;
+  const p = perceel(pid);
+  const sid = vooraf.soort_id || (p && partijenVan(pid)[0]?.soort_id) || S.soorten.find(s => !/^braak$/i.test(s.naam))?.id || S.soorten[0]?.id;
+  const leeg = (v = {}) => ({ras: v.ras || '', batch: '', nak: '', klasse: v.klasse || '', doel: v.doel || '', bio: !!v.bio});
+  PE = {pid: pid || '', sid, teeltdoel: vooraf.teeltdoel || '', modus: 'nieuw', rijen: [leeg({ras: vooraf.ras})], gekozen: new Set(), kopie: false, zoek: '', leeg};
+  partijenToevoegenTeken();
+}
+function peLees() {   // invoer uit het venster terug in PE
+  if (!PE || !$('#peVenster')) return;
+  PE.pid = $('#peP')?.value ?? PE.pid; PE.sid = $('#peS')?.value ?? PE.sid; PE.teeltdoel = $('#peT')?.value ?? PE.teeltdoel;
+  document.querySelectorAll('#peRijen .peRij').forEach((el, i) => { const r = PE.rijen[i]; if (!r) return;
+    ['ras', 'batch', 'nak', 'klasse', 'doel'].forEach(k => r[k] = el.querySelector(`[data-k="${k}"]`).value); r.bio = el.querySelector('[data-k="bio"]').checked; });
+}
+function partijenToevoegenTeken() {
+  const x = PE, p = perceel(x.pid);
+  const pOpt = [...S.percelen].filter(q => q.type !== 'pand').sort((a, b) => a.naam.localeCompare(b.naam, 'nl')).map(q => `<option value="${q.id}" ${q.id === x.pid ? 'selected' : ''}>${esc(q.naam)}</option>`).join('');
+  const sOpt = S.soorten.map(s => `<option value="${s.id}" ${s.id === x.sid ? 'selected' : ''}>${esc(s.naam)}</option>`).join('');
+  const uniek = k => [...new Set((S.partijen || []).map(y => y[k]).filter(Boolean))].sort();
+  const dl = (id, l) => `<datalist id="${id}">${l.map(v => `<option value="${esc(v)}">`).join('')}</datalist>`;
+  let inhoud;
+  if (x.modus === 'nieuw') {
+    inhoud = `<div class="rij"><div style="flex:1"><label>Gewas</label><select class="veld" id="peS" onchange="peLees();partijenToevoegenTeken()">${sOpt}</select></div>
+        <div style="flex:1"><label>Teeltdoel</label><input class="veld" id="peT" list="peTL" value="${esc(x.teeltdoel)}" placeholder="bijv. vermeerdering">${dl('peTL', uniek('teeltdoel'))}</div></div>
+      ${dl('peRL', rassenVan(x.sid).map(r => r.naam))}${dl('peKL', uniek('klasse'))}${dl('peDL', uniek('doel'))}
+      <div id="peRijen">${x.rijen.map((r, i) => `<div class="peRij">
+        <div class="peNr">${i + 1}</div>
+        <input class="veld" data-k="ras" list="peRL" placeholder="Ras" value="${esc(r.ras)}">
+        <input class="veld" data-k="batch" placeholder="Batch" value="${esc(r.batch)}">
+        <input class="veld" data-k="nak" placeholder="NAK" value="${esc(r.nak)}">
+        <input class="veld" data-k="klasse" list="peKL" placeholder="Klasse" value="${esc(r.klasse)}">
+        <input class="veld" data-k="doel" list="peDL" placeholder="Doel / type" value="${esc(r.doel)}">
+        <label class="peBio"><input type="checkbox" data-k="bio" ${r.bio ? 'checked' : ''}> BIO</label>
+        ${x.rijen.length > 1 ? `<button class="icoon klein" title="Regel weg" onclick="peLees();PE.rijen.splice(${i},1);partijenToevoegenTeken()">✕</button>` : ''}</div>`).join('')}</div>
+      <div class="rij"><button class="knop licht" onclick="peErbij()">➕ Nog een partij</button><button class="knop licht" onclick="pePlakken()">📋 Plakken uit Excel</button></div>
+      <p class="hint">Een nieuwe regel neemt ras, klasse en doel over van de regel erboven, dus vaak hoef je alleen het batchnummer in te vullen.${mag('soorten_beheren') ? ' Een ras dat nog niet bestaat wordt meteen aangemaakt.' : ''}</p>`;
+  } else {
+    const z = normTekst(x.zoek);
+    const lijst = (S.partijen || []).filter(y => y.perceel_id !== x.pid && (!z || normTekst([perceel(y.perceel_id)?.naam, y.perceel_tekst, partijRas(y), soort(y.soort_id)?.naam, y.batch, y.nak, y.klasse, y.doel].join(' ')).includes(z)))
+      .sort((a, b) => partijRas(a).localeCompare(partijRas(b), 'nl') || String(a.batch || '').localeCompare(String(b.batch || '')));
+    inhoud = `<input class="veld" id="peZoek" placeholder="🔎 Zoek ras, batch, NAK of perceel…" value="${esc(x.zoek)}" oninput="PE.zoek=this.value;clearTimeout(window._pez);window._pez=setTimeout(()=>{partijenToevoegenTeken();const i=$('#peZoek');i.focus();i.setSelectionRange(i.value.length,i.value.length)},250)">
+      <div class="peKies">${lijst.slice(0, 200).map(y => `<label class="peKiesRij"><input type="checkbox" ${x.gekozen.has(y.id) ? 'checked' : ''} onchange="this.checked?PE.gekozen.add('${y.id}'):PE.gekozen.delete('${y.id}');$('#peTel').textContent=PE.gekozen.size">
+          <span><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${[y.batch ? 'batch ' + esc(y.batch) : '', y.klasse ? esc(y.klasse) : '', y.doel ? esc(y.doel) : ''].filter(Boolean).join(' · ')}${y.bio ? ' <span class="badge bio">BIO</span>' : ''}
+          <small>📍 ${esc(perceel(y.perceel_id)?.naam || y.perceel_tekst || 'niet gekoppeld')}</small></span></label>`).join('') || '<p class="hint">Geen partijen gevonden.</p>'}
+        ${lijst.length > 200 ? `<p class="hint">…en nog ${lijst.length - 200}, zoek gerichter.</p>` : ''}</div>
+      <label class="vinkje"><input type="checkbox" ${x.kopie ? 'checked' : ''} onchange="PE.kopie=this.checked"> Ook op het oude perceel laten staan (kopie maken)</label>`;
+  }
+  $('#modal').innerHTML = `<div class="dialoog breed" id="peVenster"><h3>🏷️ Partijen toevoegen${p ? ' · ' + esc(p.naam) : ''}</h3>
+    <label>Perceel</label><select class="veld" id="peP" onchange="PE.pid=this.value;partijenToevoegenTeken()"><option value="">— nog geen perceel —</option>${pOpt}</select>
+    <div class="lagen" style="margin:8px 0"><button class="chip ${x.modus === 'nieuw' ? 'aan' : ''}" onclick="peLees();PE.modus='nieuw';partijenToevoegenTeken()">➕ Nieuwe partijen</button><button class="chip ${x.modus === 'bestaand' ? 'aan' : ''}" onclick="peLees();PE.modus='bestaand';partijenToevoegenTeken()">📦 Bestaande partij hierheen</button></div>
+    ${inhoud}
+    <button class="knop" id="mJa" onclick="peOpslaan()">${x.modus === 'nieuw' ? `Opslaan (${x.rijen.length})` : `Toevoegen (<span id="peTel">${x.gekozen.size}</span>)`}</button>
+    <button class="knop licht" onclick="$('#modal').classList.remove('open');PE=null">Annuleren</button></div>`;
+  $('#modal').classList.add('open');
+}
+function peErbij() {
+  peLees(); const v = PE.rijen[PE.rijen.length - 1] || {};
+  PE.rijen.push(PE.leeg(v)); partijenToevoegenTeken();
+  const r = document.querySelectorAll('#peRijen .peRij'); r[r.length - 1]?.querySelector(v.ras ? '[data-k="batch"]' : '[data-k="ras"]')?.focus();
+}
+// regels uit Excel plakken: kolommen ras, batch, NAK, klasse, doel (tab-gescheiden)
+async function pePlakken() {
+  peLees();
+  let tekst = ''; try { tekst = await navigator.clipboard.readText(); } catch {}
+  if (!tekst.trim()) tekst = prompt('Plak hier de regels uit Excel (kolommen: ras, batch, NAK, klasse, doel)') || '';
+  const regels = tekst.split(/\r?\n/).map(l => l.split('\t').map(c => c.trim())).filter(c => c.some(Boolean));
+  if (!regels.length) return;
+  if (/ras|batch/i.test(regels[0].join(' ')) && !/\d{3}/.test(regels[0].join(' '))) regels.shift();   // kopregel overslaan
+  const nieuw = regels.map(c => ({ras: c[0] || '', batch: c[1] || '', nak: c[2] || '', klasse: c[3] || '', doel: c[4] || '', bio: /bio/i.test(c.slice(4).join(' '))}));
+  PE.rijen = [...PE.rijen.filter(r => r.ras || r.batch || r.nak), ...nieuw];
+  partijenToevoegenTeken(); toast(`📋 ${nieuw.length} regels geplakt`);
+}
+async function peOpslaan() {
+  peLees(); const x = PE; if (!x) return;
+  const b = $('#mJa'); b.disabled = true;
+  if (x.modus === 'bestaand') {
+    if (!x.gekozen.size) { b.disabled = false; toast('Vink eerst partijen aan', 1); return; }
+    if (!x.pid) { b.disabled = false; toast('Kies het perceel', 1); return; }
+    const lijst = (S.partijen || []).filter(y => x.gekozen.has(y.id)), naam = perceel(x.pid)?.naam || null;
+    let fout = null;
+    if (x.kopie) {
+      const rijen = lijst.map(y => { const {id, created_at, updated_at, sporen, ...rest} = y; return {...rest, perceel_id: x.pid, perceel_tekst: naam, sporen: [], bron: null, sleutel: 'hand|' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)}; });
+      const {data, error} = await sb.from('partijen').insert(rijen).select(); fout = error;
+      if (!error) (data || []).forEach(d => S.partijen.push(d));
+    } else {
+      const {error} = await sb.from('partijen').update({perceel_id: x.pid, sporen: []}).in('id', lijst.map(y => y.id)); fout = error;
+      if (!error) lijst.forEach(y => { y.perceel_id = x.pid; y.sporen = []; });
+    }
+    if (fout) { b.disabled = false; toast('Opslaan mislukt: ' + fout.message, 1); return; }
+    $('#modal').classList.remove('open'); PE = null; spoorPartijMap = null; render(true);
+    toast(`🏷️ ${lijst.length} ${lijst.length === 1 ? 'partij' : 'partijen'} ${x.kopie ? 'gekopieerd naar' : 'verplaatst naar'} ${naam}`);
+    return;
+  }
+  const rijen = x.rijen.filter(r => r.ras.trim() || r.batch.trim() || r.nak.trim());
+  if (!rijen.length) { b.disabled = false; toast('Vul minstens een ras, batch- of NAK-nummer in', 1); return; }
+  // rassen die nog niet bestaan aanmaken
+  const rasId = new Map(rassenVan(x.sid).map(r => [r.naam.trim().toLowerCase(), r.id]));
+  if (mag('soorten_beheren')) {
+    const nieuw = [...new Set(rijen.map(r => r.ras.trim()).filter(n => n && !rasId.has(n.toLowerCase())))];
+    for (const naam of nieuw) {
+      const {data, error} = await sb.from('rassen').insert({soort_id: x.sid, naam, kleur: tint(soort(x.sid)?.kleur || '#8bc34a', rassenVan(x.sid).length)}).select().single();
+      if (!error && data) { if (!ras(data.id)) S.rassen.push(data); rasId.set(naam.toLowerCase(), data.id); }
+    }
+  }
+  const nu = new Date().toISOString(), v = s => String(s || '').trim() || null;
+  const ins = rijen.map(r => ({seizoen_id: bekeken, perceel_id: x.pid || null, perceel_tekst: perceel(x.pid)?.naam || null, soort_id: x.sid || null,
+    ras_id: rasId.get(r.ras.trim().toLowerCase()) || null, ras_tekst: v(r.ras), teeltdoel: v(x.teeltdoel), batch: v(r.batch), nak: v(r.nak), klasse: v(r.klasse), doel: v(r.doel), bio: !!r.bio,
+    updated_at: nu, sleutel: 'hand|' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)}));
+  const {data, error} = await sb.from('partijen').insert(ins).select();
+  if (error) { b.disabled = false; toast('Opslaan mislukt: ' + error.message, 1); return; }
+  (data || []).forEach(d => { if (!(S.partijen || []).some(y => y.id === d.id)) (S.partijen = S.partijen || []).push(d); });
+  $('#modal').classList.remove('open'); PE = null; render(true);
+  toast(`🏷️ ${ins.length} ${ins.length === 1 ? 'partij' : 'partijen'} toegevoegd${x.pid ? ' aan ' + perceel(x.pid)?.naam : ''}`);
+}
+
 // een naam uit het bestand aan een perceel koppelen (alle partijen met die naam, en onthouden voor de volgende keer)
 async function partijKoppelAan(tekst, pid) {
   const lijst = (S.partijen || []).filter(x => x.perceel_tekst === tekst);
@@ -6893,7 +7206,7 @@ async function gerooidAangeven(pid) {
   if (!w) return;
   if (w.waar === 'tekenen') { tekenMarkering('gerooid'); return; }
   let geo = null;
-  if (w.waar === 'heel') geo = {type: 'Feature', properties: {}, geometry: (vulGebied(p) || p.geo).geometry || p.geo.geometry};
+  if (w.waar === 'heel') geo = {type: 'Feature', properties: {heel: true}, geometry: (vulGebied(p) || p.geo).geometry || p.geo.geometry};
   else {
     let van = parseInt(w.van) || 1, tot = parseInt(w.tot) || van;
     if (w.waar === 'vak') { const v = vakken[parseInt(w.vak) || 0]; van = v.van; tot = v.tot; }
@@ -7019,22 +7332,22 @@ async function startFilm() {
   film.lijst = filmPercelen(); if (!film.lijst.length) { toast('Er zijn nog geen velden om te laten zien', 1); return; }
   film.aan = true; film.i = 0; drieDVak(); drieD.resize();
   const el = $('#drieD'); el.classList.add('film');
-  el.insertAdjacentHTML('beforeend', `<div class="filmKaart" id="filmKaart"></div><button class="filmStop" onclick="stopFilm()">✕ Stop film</button>`);
+  el.insertAdjacentHTML('beforeend', `<div class="filmKaart" id="filmKaart"></div><div class="filmInfo" id="filmInfo"></div><button class="filmStop" onclick="stopFilm()">✕ Stop film</button>`);
   try { film.slot = await navigator.wakeLock?.request('screen'); } catch {}   // scherm blijft aan
   filmVolgende();
 }
 function stopFilm(stil) {
   if (!film.aan) return;
-  film.aan = false; clearTimeout(film.wacht); clearInterval(film.feit);
+  film.aan = false; clearTimeout(film.wacht); clearInterval(film.feit); clearInterval(film.rol);
   try { film.slot?.release(); } catch {} film.slot = null;
-  const el = $('#drieD'); el?.classList.remove('film'); $('#filmKaart')?.remove(); el?.querySelector('.filmStop')?.remove();
+  const el = $('#drieD'); el?.classList.remove('film'); $('#filmKaart')?.remove(); $('#filmInfo')?.remove(); el?.querySelector('.filmStop')?.remove();
   if (!stil && drieD) { drieDVak(); drieD.resize(); }
 }
 function filmVolgende() {
   if (!film.aan || !drieD) return;
   const p = film.lijst[film.i % film.lijst.length]; film.i++;
-  stopOrbit(); clearInterval(film.feit);
-  const kaart = $('#filmKaart'); if (kaart) kaart.classList.remove('zicht');
+  stopOrbit(); clearInterval(film.feit); clearInterval(film.rol);
+  const kaart = $('#filmKaart'); if (kaart) kaart.classList.remove('zicht'); $('#filmInfo')?.classList.remove('zicht');
   const bb = turf.bbox(p.geo), cam = drieD.cameraForBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {padding: 90});
   drieD.flyTo({center: cam?.center || turf.centroid(p.geo).geometry.coordinates, zoom: (cam?.zoom || 16) - .35, pitch: 64, bearing: drieD.getBearing() + 70, duration: film.i === 1 ? 3500 : 7000, curve: 1.3, essential: true});
   drieD.once('moveend', async () => {
@@ -7042,11 +7355,13 @@ function filmVolgende() {
     drieDDraai(true, .0035);   // langzaam om het veld heen
     const feiten = await feitenVan(p);
     if (!film.aan) return;
+    const duur = Math.max(22000, feiten.length * 4600 + 1500);
+    const info = $('#filmInfo'); if (info) { try { info.innerHTML = filmInfo(p); info.scrollTop = 0; info.classList.add('zicht'); filmScroll(info, duur); } catch (e) { console.warn(e); } }
     let k = 0;
     const toon = () => { const el = $('#filmKaart'); if (!el) return; el.classList.remove('zicht');
       setTimeout(() => { el.innerHTML = `<div class="filmNaam">${esc(p.naam)}</div><div class="filmFeit">${feiten[k % feiten.length]}</div><div class="filmStip">${feiten.map((_, j) => `<i class="${j === k % feiten.length ? 'aan' : ''}"></i>`).join('')}</div>`; el.classList.add('zicht'); k++; }, 350); };
     toon(); film.feit = setInterval(toon, 4600);
-    film.wacht = setTimeout(filmVolgende, Math.max(14000, feiten.length * 4600 + 1500));
+    film.wacht = setTimeout(filmVolgende, duur);
   });
 }
 const wanneer = d => { const dg = Math.round((new Date(dKey(new Date())) - new Date(String(d).slice(0, 10))) / 864e5); return dg <= 0 ? 'vandaag' : dg === 1 ? 'gisteren' : dg < 7 ? dg + ' dagen geleden' : dg < 14 ? 'vorige week' : Math.round(dg / 7) + ' weken geleden'; };
@@ -7074,14 +7389,60 @@ async function feitenVan(p) {
     let r = film.regen.get(p.id);
     if (!r || nu - r.t > 18e5) {
       const [lng, lat] = turf.centroid(p.geo).geometry.coordinates;
-      const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lng.toFixed(3)}&daily=precipitation_sum&past_days=7&forecast_days=1&timezone=Europe%2FAmsterdam`)).json();
-      const mm = j.daily?.precipitation_sum || []; r = {t: nu, week: mm.slice(0, 7).reduce((s, x) => s + (x || 0), 0), vandaag: mm[7] || 0}; film.regen.set(p.id, r);
+      const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lng.toFixed(3)}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min&current=temperature_2m,wind_speed_10m,wind_direction_10m,relative_humidity_2m&past_days=7&forecast_days=3&timezone=Europe%2FAmsterdam`)).json();
+      const mm = j.daily?.precipitation_sum || [];
+      r = {t: nu, week: mm.slice(0, 7).reduce((s, x) => s + (x || 0), 0), vandaag: mm[7] || 0, dagen: (j.daily?.time || []).map((d, i) => ({d, mm: mm[i] || 0, max: j.daily.temperature_2m_max?.[i], min: j.daily.temperature_2m_min?.[i]})), nu: j.current || null};
+      film.regen.set(p.id, r);
     }
     const fmt = x => x.toLocaleString('nl-NL', {maximumFractionDigits: 1});
     f.push(r.week >= .5 ? `🌧️ Het heeft hier de afgelopen week <b>${fmt(r.week)} mm</b> geregend${r.vandaag >= .2 ? `, vandaag al ${fmt(r.vandaag)} mm` : ''}` : `☀️ Het is hier de afgelopen week droog gebleven${r.vandaag >= .2 ? `, maar vandaag valt er ${fmt(r.vandaag)} mm` : ''}`);
   } catch {}
   if (f.length === 1 && !S.taken.some(t => !t.klaar && betreft(t, p.id))) f.push('😌 Geen werk gepland – het is hier rustig');
   return f;
+}
+
+// past het infoblok niet, dan rolt het langzaam door (zoals een aftiteling) en blijft onderaan even staan
+function filmScroll(el, duur) {
+  clearInterval(film.rol);
+  const max = el.scrollHeight - el.clientHeight; if (max < 8) return;
+  const start = Date.now() + 4000, eind = start + Math.max(6000, duur - 9000);
+  film.rol = setInterval(() => { const t = (Date.now() - start) / (eind - start); if (t < 0) return; el.scrollTop = max * Math.min(1, t * t * (3 - 2 * t)); if (t >= 1) clearInterval(film.rol); }, 40);
+}
+// groot infoblok naast het veld in de film
+function filmInfo(p) {
+  const opp = turf.area(p.geo), zs = alleZones(p), sporen = zs.reduce((n, z) => n + banenVan(z).length, 0);
+  const tl = [...teeltOppervlak(p).entries()].map(([id, v]) => ({id, t: teelt(id), ...v})).filter(x => x.t).sort((a, b) => b.m2 - a.m2);
+  const beplant = tl.filter(x => !vanTeelt(x.t)).reduce((s, x) => s + x.m2, 0);
+  const open = S.taken.filter(t => !t.klaar && betreft(t, p.id)), klaar = S.taken.filter(t => t.klaar && betreft(t, p.id) && t.klaar_op).sort((a, b) => b.klaar_op.localeCompare(a.klaar_op));
+  const cijfer = (w, l) => `<div><b>${w}</b><small>${l}</small></div>`;
+  let h = `<h4>📐 Het veld</h4><div class="fiCijfers">${cijfer(ha(opp), 'hectare')}${cijfer(sporen ? getal(sporen) : '–', 'sporen')}${cijfer(p.banen_aan && +p.breedte ? String(p.breedte).replace('.', ',') + ' m' : '–', 'spoorbreedte')}
+    ${cijfer(beplant ? Math.min(100, Math.round(beplant / opp * 100)) + '%' : '–', 'beplant')}${cijfer(tl.length || '–', tl.length === 1 ? 'teelt' : 'teelten')}${cijfer(open.length, open.length === 1 ? 'open taak' : 'open taken')}</div>`;
+  if (tl.length) {
+    h += `<h4>🌱 Wat staat er</h4>` + tl.slice(0, 4).map(x => {
+      const pr = partijenVanTeelt(p.id, x.id), pa = plantAantal(p, x.id, x);
+      return `<div class="fiTeelt">${icoonHtml(x.t.icoon)}<span class="naam"><b>${esc(x.t.naam)}</b></span><span>${ha(x.m2)} ha${x.n ? ` · ${getal(x.n, 1)} sp.` : ''}</span></div>
+        <div class="fiBalk"><i style="width:${Math.max(2, x.m2 / opp * 100)}%;background:${x.t.kleur || '#8bc34a'}"></i></div>
+        ${pa ? `<div class="fiPartij">± ${getal(pa.totaal)} planten</div>` : ''}
+        ${pr.slice(0, 3).map(y => `<div class="fiPartij">🏷️ ${[y.batch ? 'batch ' + esc(y.batch) : '', y.klasse ? esc(y.klasse) : '', y.doel ? esc(y.doel) : ''].filter(Boolean).join(' · ')}${partijSporen(y).length ? ' · 📍 ' + reeksTekst(partijSporen(y)) : ''}</div>`).join('')}${pr.length > 3 ? `<div class="fiPartij">…en nog ${pr.length - 3} partijen</div>` : ''}`;
+    }).join('') + (tl.length > 4 ? `<div class="fiPartij" style="margin-left:0">…en nog ${tl.length - 4} andere teelten</div>` : '');
+  }
+  if (open.length || klaar.length) {
+    const datum = d => new Date(d).toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric', month: 'short'});
+    h += `<h4>📋 Werk</h4>` + open.slice(0, 4).map(t => `<div class="fiTaak">${t.bezig_door ? '👷' : '🗓️'} <b>${esc(t.tekst)}</b> <small>${t.bezig_door ? 'nu bezig: ' + esc(t.bezig_door) : (t.gepland || t.deadline) ? datum(t.gepland || t.deadline) : 'nog niet gepland'}${t.trekker ? ' · ' + esc(t.trekker) : ''}</small></div>`).join('')
+      + (open.length > 4 ? `<div class="fiTaak"><small>…en nog ${open.length - 4} taken</small></div>` : '')
+      + klaar.slice(0, 2).map(t => `<div class="fiTaak">✅ ${esc(t.tekst)} <small>${wanneer(t.klaar_op)}${t.klaar_door ? ' · ' + esc(t.klaar_door) : ''}</small></div>`).join('');
+  }
+  const oogst = oogstVan(p.id).reduce((s, o) => s + ((o.eenheid || 'planten') === 'planten' ? +o.aantal || 0 : o.eenheid === 'trays' ? (+o.aantal || 0) * (+o.per_tray || 0) : 0), 0);
+  if (oogst) h += `<h4>🧺 Oogst dit seizoen</h4><div><b>${getal(oogst)}</b> planten van het veld</div>`;
+  const w = film.regen.get(p.id);
+  if (w?.dagen?.length) {
+    const fmt = x => (+x || 0).toLocaleString('nl-NL', {maximumFractionDigits: 1}), max = Math.max(4, ...w.dagen.map(d => d.mm)), vd = dKey(new Date());
+    const wind = w.nu ? ['N', 'NO', 'O', 'ZO', 'Z', 'ZW', 'W', 'NW'][Math.round((+w.nu.wind_direction_10m || 0) / 45) % 8] : '';
+    h += `<h4>🌦️ Weer</h4>${w.nu ? `<div class="fiNu"><span>🌡️ <b>${fmt(w.nu.temperature_2m)}°</b></span><span>💨 ${Math.round(w.nu.wind_speed_10m)} km/u ${wind}</span><span>💧 ${Math.round(w.nu.relative_humidity_2m)}%</span><span>🌧️ week ${fmt(w.week)} mm</span></div>` : ''}
+      <div class="fiWeer">${w.dagen.map(d => `<div style="${d.d > vd ? 'opacity:.55' : ''}" title="${fmt(d.mm)} mm"><span>${d.mm >= .1 ? fmt(d.mm) : ''}</span><i style="height:${d.mm / max * 34}px;${d.d === vd ? 'background:var(--geel)' : ''}"></i>${d.d === vd ? '<b>nu</b>' : new Date(d.d).toLocaleDateString('nl-NL', {weekday: 'narrow'})}</div>`).join('')}</div>
+      <small style="opacity:.65">regen per dag · afgelopen week, vandaag en komende 2 dagen</small>`;
+  }
+  return `<div style="font-weight:800;font-size:18px;margin-bottom:8px">${esc(p.naam)}${p.type && p.type !== 'akker' ? ` <small style="opacity:.7">${esc(p.type)}</small>` : ''}</div>` + h;
 }
 
 function sluit3D() {
