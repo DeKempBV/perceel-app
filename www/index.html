@@ -420,6 +420,7 @@ body.eenvoudig .fab,body.eenvoudig .leaflet-pm-toolbar{display:none !important}
 .fmRaster{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}.fmItem{position:relative;border-radius:10px;overflow:hidden;background:#222;aspect-ratio:4/3}
 .fmItem img,.fmItem video{width:100%;height:100%;object-fit:cover;display:block}.fmSoort{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;border-radius:6px;padding:1px 6px}
 .fmKnoppen{position:absolute;right:4px;top:4px;display:flex;gap:3px}.fmKnoppen button{border:0;border-radius:7px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;padding:3px 7px;cursor:pointer}
+.aiZone{border-top:2px solid var(--rand);margin-top:10px;padding-top:6px}.aiZone h4{margin:4px 0}.aiZone h4 small{font-weight:400;color:var(--grijs);font-size:12px}
 .plSporen{color:#8a6200;background:#fff4d6;border-radius:6px;padding:0 6px;font-size:11.5px}
 .plKop .icoon.klein+.icoon.klein,.plDet .icoon.klein+.icoon.klein{margin-left:4px}
 #pkBalk{position:fixed;right:16px;bottom:16px;z-index:1300;width:min(380px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:12px 14px;border:3px solid #ffd600}
@@ -3151,7 +3152,7 @@ function opstaandHtml(p) {
 }
 /* ---- alles over het perceel op één plek ---- */
 function htmlInfo(p) {
-  return verslagenHtml(p.id) + htmlGebouw(p) + htmlPlattegrond(p) + htmlInfoInhoud(p);
+  return verslagenHtml(p.id) + htmlGebouw(p) + htmlInfoInhoud(p);
 }
 function htmlInfoInhoud(p) {
   const rij = (k, v) => v === '' || v == null ? '' : `<div class="inforij"><span>${k}</span><b>${v}</b></div>`;
@@ -3344,6 +3345,7 @@ function htmlDetail(p) {
   ${bew ? `<section class="kaartje"><h4>Algemeen</h4><div class="lagen" style="margin:0"><span>Soort</span>${Object.entries(TYPES).map(([k, T]) =>
       `<button class="chip ${(p.type || 'veld') === k ? 'aan' : ''}" onclick="wijzig(actief,{type:'${k}'})">${T.icoon} ${T.naam}</button>`).join('')}</div>
       <div class="rij acties" style="margin-top:8px"><button class="knop licht" onclick="hernoem()">✏️ Naam</button><button class="knop licht" onclick="vormAanpassen()">⬡ Vorm</button></div></section>` : ''}
+  ${htmlPlattegrond(p)}
   ${p.type === 'pand' || !(bew || mag('spuitsporen_bewerken')) ? '' : `<section class="kaartje"><h4>Sporen &amp; GPS-richting</h4>
     ${bew ? `<div class="richting">${kompasSVG(+p.richting || 0)}
       <div class="flex1"><label style="margin-top:0">Richting AB-lijn (graden)</label>
@@ -5571,8 +5573,9 @@ function htmlPlattegrond(p) {
     ${beh ? `<div class="rij" style="margin-top:8px"><button class="knop licht" onclick="pgKiesBestand()">📥 ${pl ? 'Nieuwe plattegrond inladen' : 'Plattegrond inladen'}</button>
       ${pl ? `<button class="knop licht rood" onclick="pgVerwijder('${p.id}')">Verwijderen</button>` : ''}</div>
       <p class="hint">Tip: op de computer kun je de afbeelding ook gewoon op de kaart slepen.</p>` : ''}
-    ${pl && mag('soorten_indelen') ? `<button class="knop aiKnop" onclick="aiPlattegrond('${p.id}')">🤖 Planten invullen vanaf de plattegrond</button>
-      <p class="hint">De AI leest op de plattegrond welke rassen en partijen op welke sporen staan. Jij controleert het voordat het wordt overgenomen.</p>` : ''}
+    ${pl && mag('soorten_indelen') && mag('spuitsporen_bewerken') ? `<button class="knop aiKnop" onclick="aiVeldInvullen('${p.id}')">🤖 Hele veld invullen vanaf de plattegrond</button>
+      <p class="hint">De AI leest de plattegrond en vult alles in: planten en partijen per spoor, spuitsporen, kopeinde en (als je wilt) de deelvelden. Je ziet eerst een voorbeeld.</p>` : ''}
+    ${pl && mag('soorten_indelen') ? `<button class="knop licht" onclick="aiPlattegrond('${p.id}')">🤖 Alleen planten op de sporen zetten</button>` : ''}
   </section>`;
 }
 /* ============ AI: PLATTEGROND LEZEN EN HET PERCEEL VULLEN ============
@@ -5593,7 +5596,7 @@ const zoneLetter = (p, z) => z._vak ? String.fromCharCode(65 + (p.vakken || []).
 async function aiPlattegrond(pid) {
   const p = perceel(pid), pl = p?.plattegrond;
   if (!mag('soorten_indelen')) { toast('Je mag geen planten indelen', 1); return; }
-  if (!pl?.pad || !pl.hoeken) { toast('Laad eerst een plattegrond in en lijn hem uit (Info → 🗺️ Plattegrond)', 1); return; }
+  if (!pl?.pad || !pl.hoeken) { toast('Laad eerst een plattegrond in en lijn hem uit (✏️ Wijzig → 🗺️ Plattegrond)', 1); return; }
   const zs = alleZones(p).filter(z => banenVan(z).length);
   if (!zs.length) { toast('Zet eerst de sporen aan bij dit perceel, dan weet de AI welke sporen er zijn', 1); return; }
   try {
@@ -5725,6 +5728,298 @@ async function aiOvernemen() {
     if (x && z && mag('partijen_beheren')) await partijZetSporen(x, z, Array.from({length: b.tot - b.van + 1}, (_, i) => b.van + i), true);
   }
   render(true); toast(`🤖 ${n} sporen ingevuld vanaf de plattegrond`);
+}
+
+/* ============ AI: HET HELE VELD INVULLEN VANAF DE PLATTEGROND ============
+   1. kopeinde-breedte en spuitspoor-opstelling vragen
+   2. (optioneel) deelvelden laten controleren en bijstellen
+   3. blokken per deelveld lezen → sporen, spuitsporen (patroon), planten en partijen invullen
+   4. sporen die aan de randen overblijven worden kopeinde */
+const OPSTELLINGEN = {
+  '2breed': {naam: 'Spuitspoor van 2 banen tussen de blokken (bijv. 111112211111)', tussen: [2, 2]},
+  '20+1': {naam: 'Vakken van 20+1 rijen (1111111111 0,5 2 0,5 1111111111)', tussen: [.5, 2, .5], half: true},
+  '1breed': {naam: 'Spuitspoor van 1 baan tussen de blokken', tussen: [2]},
+  'geen': {naam: 'Geen spuitsporen', tussen: []}};
+let AV = null;
+// plattegrond met daarover het perceel, de deelvelden (letters) en de genummerde sporen
+async function aiVeldBeelden(p) {
+  const pl = p.plattegrond, img = await laadBeeld(await fotoUrlVan(pl.pad)), W = img.naturalWidth, H = img.naturalHeight, naar = pgNaarPixel(pl, W, H);
+  const f = Math.min(1, 1568 / Math.max(W, H)), cw = Math.round(W * f), ch = Math.round(H * f), px = ll => naar(ll).map(v => v * f);
+  const doek = () => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; const g = c.getContext('2d'); g.drawImage(img, 0, 0, cw, ch); return [c, g]; };
+  const [c1] = doek(), [c2, g] = doek();
+  const lijn = (ring, kleur, dik, streep) => { g.setLineDash(streep || []); g.lineWidth = dik; g.strokeStyle = kleur; g.beginPath(); ring.map(px).forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke(); g.setLineDash([]); };
+  turf.getCoords(p.geo.geometry?.type === 'MultiPolygon' ? turf.polygon(p.geo.geometry.coordinates[0]) : p.geo).forEach(r => lijn(r, '#ffffff', 3));
+  const zs = alleZones(p);
+  zs.forEach((z, zi) => {
+    const letter = zoneLetter(p, z), kleur = ['#00e5ff', '#ff4081', '#ffea00', '#76ff03', '#ff9100'][zi % 5];
+    if (z._vak) { try { turf.getCoords(z._vak.geo)[0] && lijn(turf.getCoords(z._vak.geo)[0], kleur, 4, [10, 6]); } catch {}
+      const [x, y] = px(turf.centroid(z._vak.geo).geometry.coordinates); g.font = 'bold 30px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(x - 22, y - 20, 44, 40); g.fillStyle = kleur; g.fillText(letter, x, y); }
+    const rijen = banenVan(z); if (!rijen.length) return;
+    const lijnen = rijen.map(bn => { const pts = turf.coordAll(bn.geo).map(px); let a = pts[0], b = pts[0], d = 0;
+      pts.forEach(q => pts.forEach(r => { const e = (q[0] - r[0]) ** 2 + (q[1] - r[1]) ** 2; if (e > d) { d = e; a = q; b = r; } })); return {bn, pts, a, b}; });
+    const pxBreed = lijnen.length > 1 ? Math.hypot(lijnen[1].a[0] - lijnen[0].a[0], lijnen[1].a[1] - lijnen[0].a[1]) : 20;
+    const fs = 12, tekstB = fs * .62 * (letter + rijen.length).length + 6, stap = [1, 2, 5, 10, 20, 25, 50].find(s => s * Math.max(pxBreed, .5) >= tekstB) || 100;
+    g.lineWidth = 1; g.strokeStyle = kleur + '99';
+    lijnen.forEach(({bn, pts, a, b}) => {
+      g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke();
+      if ((bn.nr - 1) % stap && bn.nr !== rijen.length) return;
+      g.font = `bold ${fs}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L, i = Math.min(14, L / 4);
+      [[a[0] + ux * i, a[1] + uy * i], [b[0] - ux * i, b[1] - uy * i]].forEach(([x, y]) => {
+        x = Math.max(tekstB / 2, Math.min(cw - tekstB / 2, x)); y = Math.max(8, Math.min(ch - 8, y));
+        const t = letter + bn.nr, tw = g.measureText(t).width + 4; g.fillStyle = 'rgba(0,0,0,.72)'; g.fillRect(x - tw / 2, y - fs / 2 - 1, tw, fs + 2); g.fillStyle = kleur; g.fillText(t, x, y); });
+    });
+  });
+  const b64 = c => c.toDataURL('image/jpeg', .85).split(',')[1];
+  // pixel (op het verkleinde plaatje) → [lng, lat]
+  const [h0, h1, h2] = pl.hoeken, naarGeo = (x, y) => { const u = x / cw, v = y / ch; return [h0[0] + u * (h1[0] - h0[0]) + v * (h2[0] - h0[0]), h0[1] + u * (h1[1] - h0[1]) + v * (h2[1] - h0[1])]; };
+  return {beelden: [b64(c1), b64(c2)], voorbeeld: c2.toDataURL('image/jpeg', .7), cw, ch, naarGeo};
+}
+async function aiVraag(beelden, tekst) {
+  const {data, error} = await sb.functions.invoke('ai-plattegrond', {body: {beelden, tekst}});
+  let fout = data?.fout;
+  if (error) { try { fout = (await error.context?.json?.())?.fout; } catch {} fout = fout || error.message; }
+  if (fout) throw new Error(/not found|404|Failed to send/i.test(fout) ? 'De AI-koppeling staat nog niet in Supabase (Edge Function "ai-plattegrond")' : fout);
+  const m = String(data?.antwoord || '').match(/\{[\s\S]*\}/);
+  try { return JSON.parse(m[0]); } catch { console.warn(data?.antwoord); throw new Error('Het antwoord van de AI was niet te lezen, probeer het nog eens'); }
+}
+function zonesTekst(p) {
+  return alleZones(p).map(z => `- ${z._vak ? `deelveld ${zoneLetter(p, z)} ("${z.naam}"), sporen ${z.richting ?? z._vak.richting}°` : `hoofdveld (zonder letter), sporen ${+p.richting || 0}°`}: ${banenVan(z).length} sporen van ${String(z.breedte ?? p.breedte).replace('.', ',')} m in de app`).join('\n');
+}
+async function aiVeldInvullen(pid) {
+  const p = perceel(pid), pl = p?.plattegrond;
+  if (!mag('soorten_indelen') || !mag('spuitsporen_bewerken')) { toast('Hiervoor moet je planten en spuitsporen mogen indelen', 1); return; }
+  if (!pl?.pad || !pl.hoeken) { toast('Laad eerst een plattegrond in en lijn hem uit (✏️ Wijzig → 🗺️ Plattegrond)', 1); return; }
+  if (!alleZones(p).some(z => banenVan(z).length)) { toast('Zet eerst de sporen aan (rijrichting en spoorbreedte), dan kan ik ze invullen', 1); return; }
+  const kops = S.markeringen.filter(m => m.perceel_id === pid && m.soort === 'kopeinde' && kopHeeftLijn(m));
+  const w = await formulier('🤖 Veld invullen vanaf de plattegrond', [
+    {k: '_u', type: 'uitleg', waarde: 'De AI leest de plattegrond en vult het hele veld in: welke planten en partijen op welke sporen staan, de spuitsporen en (als je wilt) de deelvelden. Je ziet eerst een voorbeeld.'},
+    {k: 'kop', label: 'Hoe breed is het kopeinde (de witte rand)? In meters', type: 'number', waarde: kops[0]?.breedte || 6},
+    {k: 'ops', label: 'Opstelling van de spuitsporen', type: 'select', waarde: 'auto', opties: [['auto', '🤖 Laat de AI het zien op de plattegrond'], ...Object.entries(OPSTELLINGEN).map(([k, o]) => [k, o.naam]), ['eigen', 'Zelf invullen…']]},
+    {k: 'eigen', label: 'Eigen opstelling tussen twee blokken (bijv. 0,5 2 0,5)', waarde: '2 2', als: ['ops', 'eigen']},
+    {k: 'vak', label: 'Deelvelden controleren en bijstellen?', type: 'select', waarde: mag('deelvelden_bewerken') ? 'ja' : 'nee', opties: [['ja', 'Ja, laat de AI ze nakijken'], ['nee', 'Nee, de deelvelden kloppen']]},
+    {k: 'rest', label: 'Sporen die aan de randen overblijven', type: 'select', waarde: 'kop', opties: [['kop', 'Kopeinde maken'], ['leeg', 'Leeg laten']]}], 'Start');
+  if (!w) return;
+  AV = {pid, kop: Math.max(0, parseFloat(String(w.kop).replace(',', '.')) || 6), ops: w.ops, eigen: w.eigen, vak: w.vak === 'ja' && mag('deelvelden_bewerken'), rest: w.rest};
+  try {
+    // kopeinde-breedte eerst, want die bepaalt welke sporen er zijn
+    if (mag('kopeinden_bewerken')) {
+      if (kops.length) for (const m of kops) if (+m.breedte !== AV.kop) { m.breedte = AV.kop; await sb.from('markeringen').update({breedte: AV.kop}).eq('id', m.id); }
+      if (!kops.length && AV.kop > 0) {
+        const ring = turf.getCoords(p.geo.geometry?.type === 'MultiPolygon' ? turf.polygon(p.geo.geometry.coordinates[0]) : p.geo)[0];
+        const {data} = await sb.from('markeringen').insert({perceel_id: pid, soort: 'kopeinde', titel: 'Kopeinde', geo: {type: 'Feature', properties: {}, geometry: {type: 'LineString', coordinates: ring}}, breedte: AV.kop, aangemaakt_door: naamMe(), fotos: []}).select().single();
+        if (data && !S.markeringen.find(x => x.id === data.id)) S.markeringen.push(data);
+      }
+      render(true);
+    }
+    if (AV.vak) await aiDeelveldenStap(p); else await aiBlokkenStap(p);
+  } catch (e) { banner(null); toast('🤖 ' + (e.message || e), 1); }
+}
+// --- stap 2: deelvelden ---
+async function aiDeelveldenStap(p) {
+  banner('<b>🤖 Deelvelden nakijken…</b><br>Dit duurt meestal 20 tot 60 seconden.');
+  const B = await aiVeldBeelden(p);
+  const uit = await aiVraag(B.beelden, `Je bent een assistent voor een akkerbouw/fruitteeltbedrijf. Twee afbeeldingen van dezelfde perceelplattegrond van "${p.naam}" (${B.cw}×${B.ch} pixels).
+Afbeelding 1: de originele plattegrond. Daarop zijn de blokken met planten gekleurd, zwarte lijnen tussen de blokken zijn spuitpaden en de witte rand is kopeinde.
+Afbeelding 2: dezelfde plattegrond met daarover hoe het nu in onze app staat: wit = perceelgrens, gestippelde gekleurde lijnen met een grote letter = deelvelden, dunne lijnen met nummers = de sporen (rijen) van de app.
+Zones in de app:
+${zonesTekst(p)}
+Een deelveld is een stuk van het perceel waar de rijen een andere richting hebben (of dat apart gereden wordt). Het hoofdveld is de rest van het perceel.
+Kijk of de deelvelden in de app overeenkomen met de stukken op de plattegrond: liggen de grenzen op de goede plek, en lopen de sporen in dezelfde richting als de blokken op de plattegrond? Ontbreekt er een deelveld (een stuk met een duidelijk andere rijrichting)?
+Antwoord ALLEEN met JSON:
+{"deelvelden":[{"zone":"letter van een bestaand deelveld, of leeg voor een nieuw deelveld","klopt":true/false,"hoeken":[[x,y],...] (alleen als het niet klopt of nieuw is: de hoekpunten van het stuk in pixels van afbeelding 1, met de klok mee),"naam":"korte naam (bij nieuw)","toelichting":"kort"}],"opmerking":""}`);
+  banner(null);
+  const voorstel = (uit.deelvelden || []).filter(d => !d.klopt && Array.isArray(d.hoeken) && d.hoeken.length >= 3).map(d => {
+    let ring = d.hoeken.map(([x, y]) => B.naarGeo(+x, +y));
+    ring = aiSnap(p, ring); ring.push(ring[0]);
+    let geo = {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: [ring]}};
+    try { geo = turf.intersect(geo, p.geo) || geo; geo = {type: 'Feature', properties: {}, geometry: geo.geometry}; } catch {}
+    const v = (p.vakken || [])[String(d.zone || '').toUpperCase().charCodeAt(0) - 65];
+    return {vak: v || null, geo, naam: d.naam || v?.naam || 'Deelveld', uitleg: d.toelichting || '', aan: true, richting: v ? v.richting : aiRichtingIn(p, geo)};
+  });
+  AV.deelOpm = uit.opmerking || '';
+  if (!voorstel.length) { toast('🤖 De deelvelden kloppen met de plattegrond'); return aiBlokkenStap(p); }
+  AV.deel = voorstel;
+  focusLaag.clearLayers();
+  voorstel.forEach(d => L.geoJSON(d.geo, {interactive: false, style: {color: '#ff4081', weight: 3, dashArray: '8 6', fillOpacity: .15}}).addTo(focusLaag));
+  $('#modal').innerHTML = `<div class="dialoog breed"><h3>🤖 Deelvelden bijstellen</h3>
+    <p class="hint" style="margin-top:0">Roze gestippeld op de kaart is het voorstel. Vink uit wat je niet wilt. Rijrichting en spoorbreedte van bestaande deelvelden blijven zoals jij ze hebt ingesteld.</p>
+    ${AV.deelOpm ? `<p class="aiOpm">💬 ${esc(AV.deelOpm)}</p>` : ''}
+    ${voorstel.map((d, i) => `<div class="aiBlok"><label class="aiKop"><input type="checkbox" checked onchange="AV.deel[${i}].aan=this.checked"> <b>${d.vak ? 'Aanpassen: ' + esc(d.vak.naam) : 'Nieuw: ' + esc(d.naam)}</b>
+      <span class="aiZeker">${Math.round(turf.area(d.geo)).toLocaleString('nl-NL')} m²</span></label>
+      ${d.vak ? '' : `<div class="aiVelden"><span>rijrichting</span><input class="veld" type="number" value="${d.richting}" onchange="AV.deel[${i}].richting=+this.value"><span>graden</span></div>`}
+      ${d.uitleg ? `<small>${esc(d.uitleg)}</small>` : ''}</div>`).join('')}
+    <button class="knop" onclick="aiDeelveldenOvernemen()">✔ Overnemen en verder met de planten</button>
+    <button class="knop licht" onclick="$('#modal').classList.remove('open');focusLaag.clearLayers();aiBlokkenStap(perceel(AV.pid))">Overslaan, deelvelden laten zoals ze zijn</button>
+    <button class="knop licht" onclick="$('#modal').classList.remove('open');focusLaag.clearLayers()">Stoppen</button></div>`;
+  $('#modal').classList.add('open');
+}
+// hoekpunten op de perceelgrens of een lijn van de plattegrond leggen als ze er vlakbij liggen
+function aiSnap(p, ring) {
+  const grens = turf.polygonToLine(p.geo), lijnen = (p.plattegrond?.lijnen || []).map(([a, b]) => turf.lineString([a, b]));
+  return ring.map(c => {
+    const pt = turf.point(c); let best = null, bd = 6;
+    [grens, ...lijnen].forEach(l => { try { const q = turf.nearestPointOnLine(l.type === 'FeatureCollection' ? l.features[0] : l, pt, {units: 'meters'}); if (q.properties.dist < bd) { bd = q.properties.dist; best = q.geometry.coordinates; } } catch {} });
+    return best || c;
+  });
+}
+// rijrichting in een stuk: de richting van de plattegrondlijnen die erin liggen
+function aiRichtingIn(p, geo) {
+  const hoeken = [];
+  (p.plattegrond?.lijnen || []).forEach(([a, b]) => { try { if (!turf.booleanPointInPolygon(turf.point([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]), geo)) return; } catch { return; }
+    const r = ((turf.bearing(turf.point(a), turf.point(b)) % 180) + 180) % 180; hoeken.push(r); });
+  if (!hoeken.length) return +p.richting || 0;
+  hoeken.sort((x, y) => x - y); return Math.round(hoeken[Math.floor(hoeken.length / 2)] * 100) / 100;
+}
+async function aiDeelveldenOvernemen() {
+  const p = perceel(AV.pid), lijst = (AV.deel || []).filter(d => d.aan);
+  $('#modal').classList.remove('open'); focusLaag.clearLayers();
+  if (lijst.length) {
+    const vakken = (p.vakken || []).map(v => { const d = lijst.find(x => x.vak?.id === v.id); return d ? {...v, geo: d.geo, banen: []} : v; });
+    lijst.filter(d => !d.vak).forEach(d => vakken.push({id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), naam: d.naam, geo: d.geo, richting: ((+d.richting % 360) + 360) % 360, breedte: +p.breedte || 3, verschuiving: 0, banen: []}));
+    await wijzig(p.id, {vakken}); toast(`🤖 ${lijst.length} deelveld${lijst.length === 1 ? '' : 'en'} bijgesteld`);
+  }
+  await aiBlokkenStap(perceel(AV.pid));
+}
+// --- stap 3: blokken lezen ---
+async function aiBlokkenStap(p) {
+  try {
+    banner('<b>🤖 Planten en spuitsporen lezen…</b><br>Dit duurt meestal 20 tot 60 seconden.');
+    const B = await aiVeldBeelden(p), pr = partijenVan(p.id);
+    const plantTekst = S.soorten.filter(s => !/^braak$/i.test(s.naam)).map(s => `- ${s.naam}${rassenVan(s.id).length ? ': ' + rassenVan(s.id).map(r => r.naam).join(', ') : ''}`).join('\n');
+    const uit = await aiVraag(B.beelden, `Je bent een assistent voor een akkerbouw/fruitteeltbedrijf. Twee afbeeldingen van dezelfde perceelplattegrond van "${p.naam}".
+Afbeelding 1: de originele plattegrond. Elk gekleurd blok is één partij planten, met meestal: ras, "bio frigo" of iets dergelijks, batchnummer, klasse (CM, CAC, BM5…), aantal rijen, lengte, m² en planten per meter. De zwarte lijnen tussen de blokken zijn spuitpaden. De witte rand is kopeinde.
+Afbeelding 2: dezelfde plattegrond met de sporen (rijen) van onze app erover, met spoornummers aan de uiteinden (letter = deelveld, geen letter = hoofdveld). Niet elk spoor heeft een nummer; tussenliggende sporen tellen door.
+Zones in de app:
+${zonesTekst(p)}
+${pr.length ? `Partijen die al bij dit perceel horen:\n${pr.slice(0, 80).map(y => `- ${partijRas(y) || soort(y.soort_id)?.naam || '?'}${y.batch ? ' batch ' + y.batch : ''}${y.klasse ? ' ' + y.klasse : ''}`).join('\n')}\n` : ''}Gewassen en rassen in de app:
+${plantTekst}
+Opdracht: geef per zone ALLE blokken, in volgorde van het laagste naar het hoogste spoornummer van die zone (kijk naar de nummers in afbeelding 2). Neem het aantal rijen over zoals het op de plattegrond staat (bijv. "10 rijen" → 10, "20+1" → 21).
+Geef ook bij het eerste blok van elke zone het spoornummer uit afbeelding 2 waar het begint.
+Bepaal ook de opstelling van de spuitpaden: "2breed" (spuitpad van 2 banen tussen de blokken, bijv. 111112211111), "20+1" (vakken van 20+1 rijen met halve rijen naast het spuitspoor: 1111111111 0,5 2 0,5 1111111111), "1breed" of "geen".
+Antwoord ALLEEN met JSON:
+{"opstelling":"2breed","zones":[{"zone":"" of letter,"eerste_spoor":1,"blokken":[{"ras":"","gewas":"","batch":"","klasse":"","doel":"bijv. bio frigo","rijen":10,"lengte_m":218,"m2":3270,"pl_per_m":3.6,"zekerheid":0.0-1.0}]}],"opmerking":""}`);
+    banner(null);
+    const ops = AV.ops === 'auto' ? (OPSTELLINGEN[uit.opstelling] ? uit.opstelling : '2breed') : AV.ops;
+    AV.opstelling = ops; AV.opm = uit.opmerking || ''; AV.voorbeeld = B.voorbeeld;
+    AV.zones = (uit.zones || []).map(zz => {
+      const zs = alleZones(p).filter(z => banenVan(z).length), letter = String(zz.zone || '').trim().toUpperCase();
+      const z = zs.find(z => zoneLetter(p, z) === letter) || (!letter && zs.find(z => !z._vak)); if (!z) return null;
+      return {zid: z.id, eerste: Math.max(1, parseInt(zz.eerste_spoor) || 1), blokken: (zz.blokken || []).map(b => ({...aiKoppel(p, {...b, zone: letter, van: 1, tot: 1}), rijen: +String(b.rijen).replace(',', '.').replace(/^(\d+)\s*\+\s*(\d+)$/, (_, a, c) => +a + +c) || 0,
+        klasse: b.klasse || '', doel: b.doel || '', lengte: +b.lengte_m || null, m2: +b.m2 || null, plm: +String(b.pl_per_m || '').replace(',', '.') || null, gewas: b.gewas || ''}))};
+    }).filter(Boolean);
+    aiVeldVoorbeeld();
+  } catch (e) { banner(null); toast('🤖 ' + (e.message || e), 1); }
+}
+// opstelling → tussenstuk tussen twee blokken
+function aiTussen() {
+  if (AV.opstelling === 'eigen') return patroonLees(AV.eigen || '2 2');
+  return OPSTELLINGEN[AV.opstelling]?.tussen || [2, 2];
+}
+// de zone uitleggen: per positie {w: 1|0,5|2, id: plant, blok}
+function aiIndeling(zz) {
+  const tussen = aiTussen(), halfAan = tussen.filter(x => x === .5).length, pos = [];
+  zz.blokken.forEach((b, i) => {
+    if (i) tussen.forEach(w => pos.push({w, id: w === .5 ? null : null, blok: w === .5 ? null : -1}));
+    // halve rijen naast het spuitspoor horen bij de blokken ernaast
+    const zijden = (i ? 1 : 0) + (i < zz.blokken.length - 1 ? 1 : 0), vol = Math.max(0, Math.round(b.rijen - (halfAan ? zijden * .5 : 0)));
+    for (let k = 0; k < vol; k++) pos.push({w: 1, id: b.teelt, blok: i});
+  });
+  // halve rijen het ras van het blok ernaast geven
+  pos.forEach((q, i) => { if (q.w === .5) { const nb = pos[i - 1]?.w === 1 ? pos[i - 1] : pos[i + 1]; q.id = nb?.id || null; q.blok = nb?.blok ?? -1; } });
+  return pos;
+}
+function aiVeldVoorbeeld() {
+  const p = perceel(AV.pid);
+  focusLaag.clearLayers();
+  AV.zones.forEach(zz => {
+    const z = alleZones(p).find(x => x.id === zz.zid), rijen = banenVan(z), pos = aiIndeling(zz), n = rijen.length;
+    const voor = Math.max(0, Math.min(n - pos.length, zz.eerste - 1));
+    zz.n = n; zz.pos = pos; zz.voor = Math.max(0, voor); zz.na = Math.max(0, n - pos.length - zz.voor); zz.aStart = rijen[zz.voor]?.a;
+    rijen.forEach((bn, i) => {
+      const q = pos[i - zz.voor], kl = !q ? '#9e9e9e' : q.w === 2 ? '#ff6d00' : teelt(q.id)?.kleur || '#ffeb3b';
+      L.geoJSON(bn.geo, {interactive: false, style: {color: '#fff', weight: .6, fillColor: kl, fillOpacity: !q ? .55 : q.w === .5 ? .45 : .8}}).addTo(focusLaag);
+    });
+  });
+  const zoneNaam = zid => { const z = alleZones(p).find(x => x.id === zid); return z?._vak ? z.naam : 'Hoofdveld'; };
+  const pr = partijenVan(p.id);
+  $('#modal').innerHTML = `<div class="dialoog breed"><h3>🤖 Veld invullen: voorbeeld</h3>
+    <p class="hint" style="margin-top:0">Op de kaart: de kleur van het ras, oranje = spuitspoor, grijs = ${AV.rest === 'kop' ? 'wordt kopeinde' : 'blijft leeg'}. Pas aan wat niet klopt; het voorbeeld werkt meteen bij.</p>
+    ${AV.opm ? `<p class="aiOpm">💬 ${esc(AV.opm)}</p>` : ''}
+    <label>Opstelling spuitsporen</label><select class="veld" onchange="AV.opstelling=this.value;aiVeldVoorbeeld()">${Object.entries(OPSTELLINGEN).map(([k, o]) => `<option value="${k}" ${AV.opstelling === k ? 'selected' : ''}>${esc(o.naam)}</option>`).join('')}<option value="eigen" ${AV.opstelling === 'eigen' ? 'selected' : ''}>Eigen: ${esc(AV.eigen || '')}</option></select>
+    ${AV.zones.map((zz, zi) => {
+      const plant = zz.blokken.reduce((s, b) => s + b.rijen, 0), past = zz.pos.length <= zz.n;
+      return `<section class="aiZone"><h4>${esc(zoneNaam(zz.zid))} <small>${zz.n} sporen in de app · plattegrond: ${String(plant).replace('.', ',')} rijen + spuitsporen = ${zz.pos.length} sporen</small></h4>
+        ${past ? (zz.voor + zz.na ? `<p class="hint">${zz.voor ? `${zz.voor} spoor/sporen aan het begin` : ''}${zz.voor && zz.na ? ' en ' : ''}${zz.na ? `${zz.na} aan het eind` : ''} ${AV.rest === 'kop' ? 'worden kopeinde' : 'blijven leeg'}.</p>` : '')
+          : `<p class="aiOpm" style="background:#fff3e0">⚠️ De plattegrond heeft ${zz.pos.length - zz.n} sporen meer dan de app. Controleer de spoorbreedte of de deelvelden; de laatste vallen er nu af.</p>`}
+        <div class="aiVelden"><span>Eerste blok begint bij spoor</span><input class="veld" type="number" min="1" value="${zz.eerste}" onchange="AV.zones[${zi}].eerste=Math.max(1,+this.value||1);aiVeldVoorbeeld()"></div>
+        ${zz.blokken.map((b, bi) => `<div class="aiBlok ${b.zeker < .5 ? 'twijfel' : ''}"><div class="aiVelden">
+          <select class="veld" onchange="AV.zones[${zi}].blokken[${bi}].teelt=this.value;aiVeldVoorbeeld()">${aiTeeltOpties(b.teelt)}</select>
+          <input class="veld" type="number" step="0.5" value="${b.rijen}" title="rijen" onchange="AV.zones[${zi}].blokken[${bi}].rijen=+this.value||0;aiVeldVoorbeeld()"><span>rijen</span>
+          <button class="icoon klein" title="Blok weghalen" onclick="AV.zones[${zi}].blokken.splice(${bi},1);aiVeldVoorbeeld()">✕</button></div>
+          <small>${esc(b.ras || '?')}${b.batch ? ' · batch ' + esc(b.batch) : ''}${b.klasse ? ' · ' + esc(b.klasse) : ''}${b.doel ? ' · ' + esc(b.doel) : ''}${b.lengte ? ' · ' + b.lengte + ' m' : ''}${b.plm ? ' · ' + String(b.plm).replace('.', ',') + ' pl/m' : ''}
+            ${b.batch ? (pr.some(y => normTekst(y.batch) === normTekst(b.batch)) ? ' · 🏷️ partij gevonden' : mag('partijen_beheren') ? ' · 🏷️ partij wordt aangemaakt' : '') : ''}</small></div>`).join('')}
+      </section>`; }).join('') || '<p class="hint">De AI heeft geen blokken kunnen lezen.</p>'}
+    <details class="aiDet"><summary>Wat heeft de AI gezien?</summary><img src="${AV.voorbeeld}" style="width:100%;border-radius:8px;margin-top:6px"></details>
+    <button class="knop" onclick="aiVeldOvernemen()">✔ Overnemen op het perceel</button>
+    <button class="knop licht" onclick="$('#modal').classList.remove('open');focusLaag.clearLayers()">Annuleren</button></div>`;
+  $('#modal').classList.add('open');
+}
+async function aiVeldOvernemen() {
+  const p = perceel(AV.pid);
+  $('#modal').classList.remove('open'); focusLaag.clearLayers();
+  banner('<b>🤖 Veld invullen…</b>');
+  try {
+    // 1. sporen die overblijven → kopeinde (vlakken precies over die sporen)
+    const restVlakken = [];
+    if (AV.rest === 'kop' && mag('kopeinden_bewerken')) AV.zones.forEach(zz => {
+      const z = alleZones(p).find(x => x.id === zz.zid), rijen = banenVan(z), meta = rijen.meta; if (!meta) return;
+      const strook = (a1, a2) => { const lengte = 5000, {n, d, naarG} = meta; return [[a1, -lengte], [a2, -lengte], [a2, lengte], [a1, lengte], [a1, -lengte]].map(([o, t]) => naarG([n[0] * o + d[0] * t, n[1] * o + d[1] * t])); };
+      if (zz.voor) restVlakken.push(strook(rijen[0].a - 50, rijen[zz.voor - 1].a + rijen[zz.voor - 1].b + .01));
+      if (zz.na) { const eerste = rijen[rijen.length - zz.na]; restVlakken.push(strook(eerste.a - .01, rijen[rijen.length - 1].a + rijen[rijen.length - 1].b + 50)); }
+    });
+    if (restVlakken.length) {
+      const {data, error} = await sb.from('markeringen').insert({perceel_id: p.id, soort: 'kopeinde', titel: 'Kopeinde (rest naast de plattegrond)', aangemaakt_door: naamMe(), fotos: [],
+        geo: {type: 'Feature', properties: {vlakken: restVlakken.slice(1).map(r => [r])}, geometry: {type: 'Polygon', coordinates: [restVlakken[0]]}}}).select().single();
+      if (error) throw error;
+      if (!S.markeringen.find(x => x.id === data.id)) S.markeringen.push(data);
+      render(true);
+    }
+    // 2. per zone: patroon (spuitsporen + halve rijen) en planten
+    const banen = [...(p.banen || [])], vakken = (p.vakken || []).map(v => ({...v})); let spuitHoofd = p.spuit, totaal = 0;
+    const plaatsen = [];
+    AV.zones.forEach(zz => {
+      const z = alleZones(p).find(x => x.id === zz.zid), rijen = banenVan(z), n = rijen.length;
+      // waar begint het eerste blok nu (na het kopeinde kan de nummering verschoven zijn)
+      let off = zz.aStart == null ? -1 : rijen.findIndex(bn => Math.abs(bn.a - zz.aStart) < .05); if (off < 0) off = AV.rest === 'kop' ? 0 : zz.voor;
+      zz.off = off;
+      const lijst = Array(n).fill(null), patroon = Array(n).fill(0);
+      zz.pos.forEach((q, i) => { const nr = off + i + 1; if (nr > n) return; patroon[nr - 1] = q.w; if (q.w !== 2 && q.id) { lijst[nr - 1] = q.id; totaal++; } });
+      const tekst = patroon.map(w => w === .5 ? '0,5' : String(w)).join('');
+      const spuit = {...(z._vak ? z._vak.spuit : p.spuit || {}), patroon: tekst, patroonStart: 1, extra: [], uit: [], elke: 0};
+      if (z._vak) { const v = vakken.find(v => v.id === z._vak.id); v.banen = lijst; v.spuit = spuit; } else { banen.splice(0, banen.length, ...lijst); spuitHoofd = spuit; }
+      zz.pos.forEach((q, i) => { if (q.blok >= 0) { const nr = zz.off + i + 1; if (nr <= n && q.w !== 2) (plaatsen[`${zz.zid}|${q.blok}`] = plaatsen[`${zz.zid}|${q.blok}`] || []).push(nr); } });
+    });
+    await wijzig(p.id, {banen, vakken, spuit: spuitHoofd});
+    // 3. partijen koppelen of aanmaken en op hun sporen zetten
+    let nieuw = 0;
+    if (mag('partijen_beheren')) for (const zz of AV.zones) for (const [bi, b] of zz.blokken.entries()) {
+      const nrs = plaatsen[`${zz.zid}|${bi}`] || []; if (!b.batch && !b.partij) continue;
+      let x = (S.partijen || []).find(y => y.id === b.partij) || partijenVan(p.id).find(y => b.batch && normTekst(y.batch) === normTekst(b.batch) && (!b.teelt || y.ras_id === b.teelt || y.soort_id === b.teelt || y.soort_id === ras(b.teelt)?.soort_id));
+      if (!x && b.batch) {
+        const r = ras(b.teelt), sid = r ? r.soort_id : soort(b.teelt) ? b.teelt : null;
+        const {data, error} = await sb.from('partijen').insert({seizoen_id: bekeken, perceel_id: p.id, perceel_tekst: p.naam, soort_id: sid, ras_id: r?.id || null, ras_tekst: b.ras || r?.naam || null,
+          batch: b.batch, klasse: b.klasse || null, doel: b.doel || null, bio: /bio/i.test(b.doel || ''), extra: {rijen: b.rijen, lengte_m: b.lengte, m2: b.m2, pl_per_m: b.plm, bron: 'plattegrond'},
+          sleutel: 'plattegrond|' + p.id + '|' + normTekst(b.batch) + '|' + normTekst(b.ras), bron: 'plattegrond'}).select().single();
+        if (!error && data) { (S.partijen = S.partijen || []).push(data); x = data; nieuw++; }
+      }
+      const z = alleZones(perceel(p.id)).find(q => q.id === zz.zid);
+      if (x && z && nrs.length) await partijZetSporen(x, z, nrs, true);
+    }
+    banner(null); render(true);
+    toast(`🤖 Veld ingevuld: ${totaal} sporen met planten${restVlakken.length ? ', rest is kopeinde' : ''}${nieuw ? `, ${nieuw} nieuwe partijen` : ''}`);
+  } catch (e) { banner(null); toast('Invullen mislukt: ' + (e.message || e), 1); }
 }
 
 // slepen en loslaten op het scherm
