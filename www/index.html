@@ -4505,16 +4505,19 @@ function geleden(d) {
 const trekkerBeeldCache = new Map();
 const trekkerGrootte = () => Math.max(.5, Math.min(3, +weergave._trekkerGrootte || 1));
 function trekkerBeeld(t, px) {
-  const r = Math.round((+t.richting || 0) / 6) * 6, key = `${t.naam}|${t.werktuig || ''}|${r}|${px}`;
+  const r = Math.round((+t.richting || 0) / 6) * 6, key = `${t.naam}|${t.werktuig || ''}|${t.werktuig_voor || ''}|${r}|${px}|${(S.machines || []).map(m => m.kleur || '').join('')}`;
   if (trekkerBeeldCache.has(key)) return trekkerBeeldCache.get(key);
   const dpr = Math.min(devicePixelRatio || 1, 2), cv = document.createElement('canvas'); cv.width = cv.height = Math.round(px * dpr);
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const zelf = (S.machines || []).find(x => x.tractor_id === t.id && /spuit/i.test(x.soort || '')), wt = t.werktuig || (zelf ? 'Spuitmachine' : '');
   const k = r * Math.PI / 180, s = px / (wt ? 13 : 6.5), fw = [Math.sin(k), Math.cos(k)], li = [-Math.cos(k), Math.sin(k)], cx = px / 2, cy = px * .58;
-  const sch = wt ? -2.8 : 0;   // met werktuig erachter: het midden van de hele combinatie in het midden
+  const voor = t.werktuig_voor ? String(t.werktuig_voor).split(' + ') : [];
+  const sch = (wt ? -2.8 : 0) + (voor.length ? 1.2 : 0);   // met werktuig erachter: het midden van de hele combinatie in het midden
   const naarScherm = ([x, y, zz]) => { x -= sch; const E = (x * fw[0] + zz * li[0]) * s, N = (x * fw[1] + zz * li[1]) * s, yg = cy - N; return [cx + E, yg - y * s * Math.cos(SCHUIN), 1e5 - yg - y * s * Math.sin(SCHUIN)]; };
   const naarWereld = ([x, y, zz]) => [x * fw[0] + zz * li[0], y, -(x * fw[1] + zz * li[1])];
-  tekenModel3d(ctx, {id: 'gps:' + t.id, trekker: t.naam, werktuig: wt, tekst: wt}, 0, naarScherm, naarWereld, null);
+  // voorop: een eenvoudig blok (fronttank, frontgewicht, …) in de kleur van die machine
+  const extra = voor.length ? blok(2.75, .35, -1.05, 3.85, 1.55, 1.05, machineOpNaam(voor[0])?.kleur || werktuigKleur(voor[0])) : null;
+  tekenModel3d(ctx, {id: 'gps:' + t.id, trekker: t.naam, werktuig: wt, tekst: wt}, 0, naarScherm, naarWereld, null, extra ? {extra} : {});
   const url = cv.toDataURL(); if (trekkerBeeldCache.size > 300) trekkerBeeldCache.clear(); trekkerBeeldCache.set(key, url); return url;
 }
 function tractorIcoon(t) {
@@ -4536,7 +4539,7 @@ function tekenTractoren() {
     L.polyline(routes[volgId], {color: '#ff6d00', weight: 4, opacity: .85, interactive: false}).addTo(tractorLaag);
   S.tractoren.forEach(t => {
     if (t.lat == null || t.lng == null) return;
-    const info = `<b>${esc(t.naam)}</b>${t.werktuig ? ` <small>+ ⚙️ ${esc(t.werktuig)}</small>` : ''}<br>${isLive(t) ? `🟢 live${t.snelheid != null ? ' · ' + Math.round(t.snelheid) + ' km/u' : ''}` : '⚪ ' + geleden(t.bijgewerkt)}${t.bestuurder && isLive(t) ? '<br>👤 ' + esc(t.bestuurder) : ''}`;
+    const info = `<b>${esc(t.naam)}</b>${aangekoppeldTekst(t) ? `<br><small>⚙️ ${esc(aangekoppeldTekst(t))}</small>` : ''}<br>${isLive(t) ? `🟢 live${t.snelheid != null ? ' · ' + Math.round(t.snelheid) + ' km/u' : ''}` : '⚪ ' + geleden(t.bijgewerkt)}${t.bestuurder && isLive(t) ? '<br>👤 ' + esc(t.bestuurder) : ''}`;
     L.marker([t.lat, t.lng], {icon: tractorIcoon(t), zIndexOffset: 1000})
       .bindTooltip(esc(t.naam), {permanent: weergave._namen !== false, direction: 'bottom', offset: [0, 18], className: 'tractor-label'})
       .bindPopup(info + `<div class="rij" style="margin-top:8px"><button class="knop klein" onclick="volgTractor('${t.id}')">${volgId === t.id ? 'Stop volgen' : 'Volgen'}</button></div>`)
@@ -6001,7 +6004,7 @@ function tmRender() {
   const p = perceel(TM.pid), sp = p && TM.pos && !TM.handmatig ? spoorOpPunt(p.id, TM.pos) : p && TM.pos ? spoorOpPunt(p.id, TM.pos) : null, taken = tmTaken();
   const kop = `<div class="tmKop"><div><div class="tmPerceel">${p ? esc(p.naam) : TM.pos ? 'Niet op een perceel' : '📡 GPS zoeken…'}</div>
       <div class="tmGps">${(() => { const tid = mijnProfiel()?.trekker_id, tr = S.tractoren.find(t => t.id === (rijdt || tid));
-        return rijdt ? `📡 Op de kaart als <b>${esc(tr?.naam || 'trekker')}</b>${tr?.werktuig ? ` + ⚙️ ${esc(tr.werktuig)}` : ''}` : isApparaat() ? (tid ? '📡 Locatie wordt niet gedeeld (tablet niet aan de stroom?)' : '⚠️ Deze tablet is nog niet aan een trekker gekoppeld') : ''; })()}</div>
+        return rijdt ? `📡 Op de kaart als <b>${esc(tr?.naam || 'trekker')}</b>${aangekoppeldTekst(tr) ? ` · ⚙️ ${esc(aangekoppeldTekst(tr))}` : ''}` : isApparaat() ? (tid ? '📡 Locatie wordt niet gedeeld (tablet niet aan de stroom?)' : '⚠️ Deze tablet is nog niet aan een trekker gekoppeld') : ''; })()}</div>
       <div class="tmSpoor">${sp ? `Spoor <b>${sp.spoor}</b>${sp.vak ? ` · vak ${sp.vak}` : ''}${sp.zoneNaam ? ` · ${esc(sp.zoneNaam)}` : ''}` : p ? 'naast de sporen' : ''}${TM.pos?.properties?.acc ? ` <small>(±${Math.round(TM.pos.properties.acc)} m)</small>` : ''}</div></div>
     <div class="tmRechts">${TM.chauffeur ? `<button class="tmWie" onclick="tmAfmelden()" title="Iemand anders rijdt">👤 ${esc(TM.chauffeur.naam)}</button>` : ''}<span id="tmKlok">${new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}</span>${isApparaat() ? '' : '<button class="tmX" onclick="trekkerModus(false)">✕</button>'}</div></div>`;
   let body = '';
@@ -6019,10 +6022,12 @@ function tmRender() {
     ${taken.map(t => `<div class="tmTaak"><div><b>${esc(t.tekst)}</b><small>${perceel(t.perceel_id) && !TM.pid ? '📍 ' + esc(perceel(t.perceel_id).naam) + ' · ' : ''}${t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot || t.spoor_van} · ` : ''}${t.product ? esc(t.product) : ''}</small>${machineFotosHtml(t)}</div>
       ${mag('taken_afvinken') ? `<button class="tmKlein ${t.bezig_door ? 'aan' : ''}" onclick="zetBezig('${t.id}').then(tmRender)">${t.bezig_door ? '⏸' : '▶'}</button><button class="tmKlein groen" onclick="vinkTaak('${t.id}').then(tmRender)">✓ Klaar</button>` : ''}</div>`).join('') || '<p class="tmLeeg">Geen taken voor hier en nu 👍</p>'}`;
   else if (TM.scherm === 'machine') { const keuze = TM.keuze || [], ms = (S.machines || []).filter(x => !isTrekkerMachine(x)).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
-    body = `<div class="rij" style="gap:10px"><button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button><button class="tmTerug" style="background:#2e7d32;flex:1" onclick="tmWerktuig(TM.keuze.join(' + '))">✔ Klaar${keuze.length ? ': ' + esc(keuze.join(' + ')) : ': niets aangekoppeld'}</button></div>
-    <div class="tmVraag">Wat zit er aangekoppeld? <small style="font-size:18px;font-weight:600">Tik er één of meer aan (combinatie)</small></div>
+    const vk = n => keuze.find(k => normTekst(k.naam) === normTekst(n)), tekst = aangekoppeldTekst(keuzeNaarTrekker(keuze));
+    body = `<div class="rij" style="gap:10px"><button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button><button class="tmTerug" style="background:#2e7d32;flex:1" onclick="tmWerktuigOpslaan()">✔ Klaar: ${esc(tekst || 'niets aangekoppeld')}</button></div>
+    <div class="tmVraag">Wat zit er aangekoppeld? <small style="font-size:18px;font-weight:600">Tik om aan te koppelen (machines die voor én achter kunnen: nog een keer tikken = andere kant) · meerdere kan</small></div>
+    ${(() => { const sug = tmSuggesties().filter(n => !vk(n)); return sug.length ? `<div class="tmVraag" style="font-size:20px">📋 Nodig voor je taken:</div><div class="tmTegels tmMachines">${sug.map(n => { const x = machineOpNaam(n); return `<button class="tmTegel" style="outline:3px dashed #fb8c00" onclick="tmKeuzeWissel(${esc(JSON.stringify(x?.naam || n))})">${(x?.fotos || []).length ? `<img data-foto="${esc(x.fotos[0])}" alt="">` : '<span>⚙️</span>'}${esc(x?.naam || n)}<small class="tmKlein2">${tmSuggesties.taak[normTekst(n)] || ''}</small></button>`; }).join('')}</div><div class="tmVraag" style="font-size:20px">Alle machines:</div>` : ''; })()}
     <div class="tmTegels tmMachines"><button class="tmTegel ${!keuze.length ? 'aan' : ''}" onclick="TM.keuze=[];tmRender()"><span>🚫</span>Niets</button>
-    ${ms.map(x => `<button class="tmTegel ${keuze.some(k => normTekst(k) === normTekst(x.naam)) ? 'aan' : ''}" onclick="tmKeuzeWissel(${esc(JSON.stringify(x.naam))})">${(x.fotos || []).length ? `<img data-foto="${esc(x.fotos[0])}" alt="">` : '<span>⚙️</span>'}${esc(x.naam)}${keuze.some(k => normTekst(k) === normTekst(x.naam)) ? `<small class="tmKlein2">${keuze.findIndex(k => normTekst(k) === normTekst(x.naam)) + 1}e</small>` : ''}</button>`).join('')}</div>
+    ${ms.map(x => { const k = vk(x.naam); return `<button class="tmTegel ${k ? 'aan' : ''}" onclick="tmKeuzeWissel(${esc(JSON.stringify(x.naam))})">${(x.fotos || []).length ? `<img data-foto="${esc(x.fotos[0])}" alt="">` : '<span>⚙️</span>'}${esc(x.naam)}${k ? `<small class="tmKlein2">${k.plek === 'voor' ? '▲ voor' : '▼ achter'}</small>` : ''}</button>`; }).join('')}</div>
     ${!ms.length ? '<p class="tmLeeg">Nog geen werktuigen. Die voeg je toe bij Gegevens aanpassen → Bedrijf → Machines.</p>' : ''}`; }
   else if (TM.scherm === 'perceel') body = `<button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
     <button class="tmRij" onclick="TM.handmatig=false;TM.pid=TM.pos?perceelOpPunt(TM.pos)?.id||null:null;TM.scherm='start';tmRender()">📡 Automatisch (GPS)</button>
@@ -6032,16 +6037,48 @@ function tmRender() {
       ${mag('taken_toevoegen') || mag('werk_registreren') ? `<button class="tmTegel" onclick="tmRegistreren()"><span>🧪</span>Spuiten / bemesten registreren</button>` : ''}
       ${mag('markeringen_maken') ? `<button class="tmTegel" onclick="tmVlag()"><span>🚩</span>Vlag hier</button>` : ''}
       ${mag('markeringen_maken') || mag('monsters_beheren') ? `<button class="tmTegel" onclick="waarnemingFormulier(null,{perceel_id:TM.pid,geo:TM.pos})"><span>🐛</span>Ziekte / plaag hier</button>` : ''}
-      <button class="tmTegel" onclick="TM.keuze=(tmTrekker()?.werktuig||TM.werktuig||'').split(' + ').filter(Boolean);TM.scherm='machine';tmRender()"><span>⚙️</span>Machine${tmTrekker()?.werktuig ? `<small class="tmKlein2">${esc(tmTrekker().werktuig)}</small>` : '<small class="tmKlein2">niets aangekoppeld</small>'}</button>
+      <button class="tmTegel" onclick="tmMachineOpen()"><span>⚙️</span>Machine<small class="tmKlein2">${esc(aangekoppeldTekst(tmTrekker() || {werktuig: TM.werktuig, werktuig_voor: TM.werktuigVoor}) || 'niets aangekoppeld')}</small></button>
       <button class="tmTegel" onclick="TM.scherm='perceel';tmRender()"><span>🔀</span>Ander perceel</button>
       <button class="tmTegel" onclick="tmKaart()"><span>🗺️</span>Kaart</button></div>`;
   el.innerHTML = kop + `<div class="tmBody">${body}</div>`;
 }
 function tmRegistreren() { if (!TM.pid) { toast('Kies eerst het perceel', 1); TM.scherm = 'perceel'; tmRender(); return; } actief = TM.pid;
-  const tr = tmTrekker(); taakFormulier(null, true, {perceel_id: TM.pid, ...(tr ? {trekker: tr.naam} : {}), ...((tr?.werktuig || TM.werktuig) ? {werktuig: tr?.werktuig || TM.werktuig} : {})}); }
+  const tr = tmTrekker(), wt = [tr?.werktuig_voor || TM.werktuigVoor, tr?.werktuig || TM.werktuig].filter(Boolean).join(' + ');
+  taakFormulier(null, true, {perceel_id: TM.pid, ...(tr ? {trekker: tr.naam} : {}), ...(wt ? {werktuig: wt} : {})}); }
 // de trekker van deze tablet (gekoppeld of waar hij de locatie voor deelt)
 const tmTrekker = () => S.tractoren.find(t => t.id === (rijdt || mijnProfiel()?.trekker_id)) || null;
-function tmKeuzeWissel(naam) { const l = TM.keuze || []; TM.keuze = l.some(k => normTekst(k) === normTekst(naam)) ? l.filter(k => normTekst(k) !== normTekst(naam)) : [...l, naam]; tmRender(); }
+// keuze: [{naam, plek: 'voor'|'achter'}]; tikken: eerst waar hij meestal hangt, dan de andere kant, dan weer uit
+function tmKeuzeWissel(naam) {
+  const l = TM.keuze || [], i = l.findIndex(k => normTekst(k.naam) === normTekst(naam)), pl = machineOpNaam(naam)?.plek || 'achter', std = pl === 'voor' ? 'voor' : 'achter';
+  if (i < 0) TM.keuze = [...l, {naam, plek: std}];
+  else if (pl === 'beide' && l[i].plek === std) TM.keuze = l.map((k, j) => j === i ? {...k, plek: std === 'voor' ? 'achter' : 'voor'} : k);
+  else TM.keuze = l.filter((_, j) => j !== i);
+  tmRender();
+}
+// werktuigen die in de taken van deze chauffeur staan, als suggestie bovenaan
+function tmSuggesties() {
+  const l = [], tk = {};
+  for (const t of tmTaken()) for (const n of String(t.werktuig || '').split(' + ').map(x => x.trim()).filter(Boolean)) {
+    const m = machineOpNaam(n); if (m && isTrekkerMachine(m)) continue;
+    const k = normTekst(m?.naam || n); if (tk[k]) continue; tk[k] = (t.tekst || '').slice(0, 30); l.push(m?.naam || n);
+  }
+  tmSuggesties.taak = tk; return l;
+}
+const keuzeNaarTrekker = keuze => ({werktuig: keuze.filter(k => k.plek !== 'voor').map(k => k.naam).join(' + '), werktuig_voor: keuze.filter(k => k.plek === 'voor').map(k => k.naam).join(' + ')});
+const aangekoppeldTekst = t => [t?.werktuig_voor ? '▲ ' + t.werktuig_voor : '', t?.werktuig ? '▼ ' + t.werktuig : ''].filter(Boolean).join(' · ');
+function tmMachineOpen() {
+  const tr = tmTrekker() || {werktuig: TM.werktuig, werktuig_voor: TM.werktuigVoor};
+  TM.keuze = [...String(tr.werktuig_voor || '').split(' + ').filter(Boolean).map(naam => ({naam, plek: 'voor'})), ...String(tr.werktuig || '').split(' + ').filter(Boolean).map(naam => ({naam, plek: 'achter'}))];
+  TM.scherm = 'machine'; tmRender();
+}
+async function tmWerktuigOpslaan() {
+  const {werktuig, werktuig_voor} = keuzeNaarTrekker(TM.keuze || []), tr = tmTrekker();
+  TM.werktuig = werktuig; TM.werktuigVoor = werktuig_voor;
+  if (tr) { let {error} = await sb.rpc('zet_werktuig', {p_tractor: tr.id, p_werktuig: werktuig || null, p_voor: werktuig_voor || null});
+    if (error && /p_voor|function/i.test(error.message || '')) ({error} = await sb.rpc('zet_werktuig', {p_tractor: tr.id, p_werktuig: [werktuig_voor, werktuig].filter(Boolean).join(' + ') || null}));
+    if (error) toast(/zet_werktuig|function/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); else { tr.werktuig = werktuig || null; tr.werktuig_voor = werktuig_voor || null; tekenTractoren(); } }
+  TM.scherm = 'start'; tmRender(); toast((werktuig || werktuig_voor) ? `⚙️ ${aangekoppeldTekst({werktuig, werktuig_voor})}` : 'Niets aangekoppeld');
+}
 async function tmWerktuig(naam) {
   const tr = tmTrekker(); TM.werktuig = naam || '';
   if (tr) { const {error} = await sb.rpc('zet_werktuig', {p_tractor: tr.id, p_werktuig: naam || null});
@@ -7025,6 +7062,9 @@ async function machineFormulier(id, voor = {}) {
     {k: 'naam', label: 'Naam', waarde: m.naam || '', placeholder: 'bijv. Fendt 724 of Spuitmachine'},
     {k: 'soort', label: 'Soort machine of werktuig', waarde: m.soort || '', lijst: MACHINE_SOORTEN, placeholder: 'bijv. Ploeg, Frees of Trekker'},
     {k: 'kenteken', label: 'Kenteken / serienummer', waarde: m.kenteken || ''},
+    ...(isTr ? [] : [{k: 'plek', label: 'Waar kan hij hangen?', type: 'select', waarde: m.plek || 'achter', opties: [['achter', '▼ Alleen achter de trekker'], ['voor', '▲ Alleen voor de trekker (fronthef)'], ['beide', '▲▼ Voor én achter']]}]),
+    {k: 'kleurbron', label: 'Kleur in 3D', type: 'select', waarde: m.kleur && m.kleur_zelf ? 'zelf' : 'foto', opties: [['foto', '📷 Uit de foto (automatisch)'], ['zelf', '🎨 Zelf kiezen']]},
+    {k: 'kleur', label: 'Kleur', type: 'color', waarde: m.kleur || '#2e7d32', als: ['kleurbron', 'zelf']},
     {k: 'stoffen', label: 'Gebruikt deze machine meststoffen of spuitmiddelen?', type: 'select', waarde: m.stoffen || '', opties: [['', 'Nee'], ['mest', '🌾 Meststoffen (kunstmest strooien)'], ['spuit', '🧪 Spuitmiddelen'], ['beide', 'Allebei']]},
     {k: 'draaiuren', label: 'Draaiuren nu', type: 'number', waarde: m.draaiuren ?? ''},
     {k: 'onderhoud_interval', label: 'Onderhoud elke … draaiuren', type: 'number', waarde: m.onderhoud_interval ?? '', placeholder: 'bijv. 500'},
@@ -7040,7 +7080,9 @@ async function machineFormulier(id, voor = {}) {
   if (isTr && !w.tractor_id && mag('tractoren_beheren')) { const {data: tr, error: e1} = await sb.from('tractoren').insert({naam: w.naam}).select().single();
     if (e1) { toast('Trekker aanmaken mislukt: ' + foutTekst(e1), 1); return; } S.tractoren.push(tr); w.tractor_id = tr.id; }
   const n = k => { const x = parseFloat(String(w[k]).replace(',', '.')); return isNaN(x) ? null : x; };
-  const rij = {naam: w.naam, soort: w.soort || null, kenteken: w.kenteken || null, stoffen: w.stoffen || null, fotos: w.fotos || [], draaiuren: n('draaiuren'), onderhoud_interval: n('onderhoud_interval'),
+  let kleur = w.kleurbron === 'zelf' ? w.kleur : null;
+  if (!kleur && (w.fotos || []).length) { try { kleur = await kleurUitFoto(w.fotos[0]); } catch {} }
+  const rij = {naam: w.naam, soort: w.soort || null, kenteken: w.kenteken || null, stoffen: w.stoffen || null, fotos: w.fotos || [], kleur: kleur || (w.kleurbron === 'zelf' ? null : m.kleur) || null, kleur_zelf: w.kleurbron === 'zelf', ...(isTr ? {} : {plek: w.plek || 'achter'}), draaiuren: n('draaiuren'), onderhoud_interval: n('onderhoud_interval'),
     onderhoud_bij: n('onderhoud_bij'), keuring_datum: w.keuring_datum || null, tractor_id: w.tractor_id || null, notitie: w.notitie || null};
   const res = id ? await sb.from('machines').update(rij).eq('id', id).select().single() : await sb.from('machines').insert(rij).select().single();
   if (res.error) { toast('Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
@@ -7048,6 +7090,22 @@ async function machineFormulier(id, voor = {}) {
   const tr = rij.tractor_id && S.tractoren.find(t => t.id === rij.tractor_id);
   if (tr && isTr && tr.naam !== rij.naam && mag('tractoren_beheren')) { tr.naam = rij.naam; await sb.from('tractoren').update({naam: rij.naam}).eq('id', tr.id); }
   render(true); toast('Opgeslagen');
+}
+// de hoofdkleur van een machine uit zijn foto halen (de meest voorkomende verzadigde kleur)
+async function kleurUitFoto(pad) {
+  const url = await fotoUrlVan(pad); if (!url) return null;
+  const img = await new Promise((ok, nee) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => ok(i); i.onerror = nee; i.src = url; });
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.drawImage(img, 0, 0, 64, 64);
+  const d = g.getImageData(0, 0, 64, 64).data, bak = Array.from({length: 24}, () => ({n: 0, r: 0, g: 0, b: 0}));
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i] / 255, gg = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), sat = mx ? (mx - mn) / mx : 0;
+    if (sat < .35 || mx < .2 || mx > .97) continue;
+    let h = mx === r ? ((gg - b) / (mx - mn)) % 6 : mx === gg ? (b - r) / (mx - mn) + 2 : (r - gg) / (mx - mn) + 4; h = ((h * 60) + 360) % 360;
+    if (h > 70 && h < 160 && sat < .55) continue;   // gras/groen op de achtergrond overslaan als het flets is
+    const x = bak[Math.floor(h / 15)]; x.n++; x.r += d[i]; x.g += d[i + 1]; x.b += d[i + 2];
+  }
+  const top = bak.sort((a, b) => b.n - a.n)[0]; if (!top.n || top.n < 40) return null;
+  const hx = v => Math.round(v / top.n).toString(16).padStart(2, '0'); return '#' + hx(top.r) + hx(top.g) + hx(top.b);
 }
 const isTrekkerMachine = m => !!m && (/trekker|tractor|zelfrijdend/i.test(m.soort || '') || !!m.tractor_id);
 // een machine die zelf rijdt (bijv. een zelfrijdende spuit) ook als trekker: op de kaart, te volgen en aan een tablet te koppelen
@@ -9204,7 +9262,7 @@ function machineVlakken(t, tijd) {
 }
 /* ---- het model tekenen met een willekeurige projectie (eigen camera of de 3D-kaart) ---- */
 function tekenModel3d(ctx, t, tijd, naarScherm, naarWereld, grondKleur, opt = {}) {
-  const mv = machineVlakken(t, tijd), vlakken = mv.vlakken;
+  const mv = machineVlakken(t, tijd), vlakken = opt.extra ? [...mv.vlakken, ...opt.extra] : mv.vlakken;
   // schaduw onder de machine(s)
   const sch = [[2.7, 0, -mv.zij], [2.7, 0, mv.zijL], [-1.6 - mv.achter, 0, mv.zijL], [-1.6 - mv.achter, 0, -mv.zij]].map(naarScherm);
   if (sch.every(p => p[2] > 0)) { ctx.beginPath(); sch.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.filter = 'blur(4px)'; ctx.fill(); ctx.filter = 'none'; }
@@ -9266,7 +9324,12 @@ function werktuigSoort(t) {   // welk model tekenen: eerst het gekozen werktuig,
   return kies(s) || kies(w) || (t.werktuig ? 'werktuig' : '');
 }
 const machineOpNaam = n => n ? (S.machines || []).find(m => m.naam.trim().toLowerCase() === String(n).trim().toLowerCase()) : null;
-function merkKleuren(naam) {   // romp, velgen, dak, onderstel – volgens de kleurstelling van het merk
+function merkKleuren(naam) {   // romp, velgen, dak, onderstel – volgens de kleurstelling van het merk (of de kleur uit de foto)
+  const eigen = machineOpNaam(naam)?.kleur;
+  if (eigen) { const m = merkKleurenStd(naam); return {...m, romp: eigen, dak: /f2f2|ffff|efef/i.test(m.dak) ? m.dak : eigen}; }
+  return merkKleurenStd(naam);
+}
+function merkKleurenStd(naam) {
   const n = (naam || '').toLowerCase();
   if (/deere/.test(n)) return {romp: '#367c2b', velg: '#ffde00', dak: '#367c2b', chassis: '#1f1f1f'};
   if (/fendt/.test(n)) return {romp: '#3f7d3b', velg: '#8e2f25', dak: '#f2f2ef', chassis: '#5b6064'};          // Nature Green, Terra Red velgen, Sky White dak, Tech Grey
@@ -9282,6 +9345,8 @@ function merkKleuren(naam) {   // romp, velgen, dak, onderstel – volgens de kl
   return {romp: '#2e7d32', velg: '#d9d9d9', dak: '#2e7d32', chassis: '#2b2b2b'};
 }
 function werktuigKleur(naam) {
+  const delen = String(naam || '').split(' + '), eigen = machineOpNaam(delen[0])?.kleur || machineOpNaam(naam)?.kleur;   // eerste achter het trekker = het zichtbare werktuig
+  if (eigen) return eigen;
   const n = (naam || '').toLowerCase();
   return /kuhn|grimme|kverneland|vicon|pottinger|pöttinger/.test(n) ? '#c62828' : /lemken|rabe|dewulf/.test(n) ? '#1565c0' : /amazone|hardi|agrifac/.test(n) ? '#2e7d32' : /imants|baselier/.test(n) ? '#f9a825' : '#ef6c00';
 }
