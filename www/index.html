@@ -58,6 +58,9 @@ label{display:block;font-size:12px;color:var(--grijs);margin:8px 0 4px}
 .rij{display:flex;gap:8px;align-items:center}
 .rij>.knop{flex:1}
 .raster3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.wtPercelen{max-height:220px;overflow:auto;border:1px solid #e3e8e0;border-radius:10px;padding:4px 8px}
+.mFoto{width:54px;height:54px;object-fit:cover;border-radius:10px;margin-right:8px;cursor:zoom-in;flex:0 0 auto}
+.mTaakFotos{display:flex;gap:8px;margin:6px 0;flex-wrap:wrap}.mTaakFotos figure{margin:0;cursor:zoom-in;text-align:center}.mTaakFotos img{width:96px;height:72px;object-fit:cover;border-radius:10px;display:block}.mTaakFotos figcaption{font-size:11px;color:#5b6b58;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .schuifBlok{margin-top:10px}.schuifRij{display:grid!important;grid-template-columns:repeat(3,1fr) 1.4fr repeat(3,1fr);gap:4px;align-items:center}.schuifRij .knop.klein{font-size:12px;padding:7px 2px}.schuifBlok .knop.klein{flex:1 1 auto;width:auto;margin:0;padding:7px 6px}.schuifRij .veld{flex:1 1 80px;margin:0;min-width:70px;text-align:center}
 .hint{font-size:12px;color:var(--grijs);margin-top:8px;line-height:1.45}
 .leeg{text-align:center;color:var(--grijs);padding:36px 12px}
@@ -3092,7 +3095,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -3132,8 +3135,10 @@ function renderPaneel() {
   else if (tab === 'bedrijf') h = htmlBedrijf();
   else if (tab === 'mij') h = htmlMij();
   else if (tab === 'partijen') h = seizoenKnop() + htmlPartijen();
-  else if (tab === 'spuitregister') { srSoort = 'spuiten'; h = seizoenKnop() + nieuweTaakKnoppen() + htmlSpuitregister(); }
-  else if (tab === 'mestregister') { srSoort = 'bemesting'; h = seizoenKnop() + htmlBemesting() + htmlSpuitregister(); }
+  else if (tab === 'spuittaken') h = htmlWerkTaken('spuiten');
+  else if (tab === 'mesttaken') h = htmlWerkTaken('bemesten');
+  else if (tab === 'spuitregister') { srSoort = 'spuiten'; h = seizoenKnop() + htmlSpuitregister(); }
+  else if (tab === 'mestregister') { srSoort = 'bemesting'; h = seizoenKnop() + `<div class="rij" style="margin:0 0 10px;flex-wrap:wrap">${mag('taken_toevoegen') ? `<button class="knop" style="margin:0" onclick="werkTaakFormulier('bemesten')">＋ Bemesten plannen</button>` : ''}${mag('middelen_beheren') ? `<button class="knop licht" style="margin:0" onclick="middelFormulier(null,'meststof')">＋ Meststof toevoegen</button>` : ''}</div>` + htmlBemesting() + htmlSpuitregister(); }
   else if (tab === 'middelen') h = bedrijfGeladen ? htmlMiddelen() : '<p class="hint">Laden…</p>';
   else if (tab === 'voorraad') h = bedrijfGeladen ? seizoenKnop() + htmlVoorraad() : '<p class="hint">Laden…</p>';
   else if (tab === 'waarnemingen') h = htmlWaarnemingen();
@@ -3608,7 +3613,43 @@ function htmlMarkeringen(p, welke) {
       <small>${m.notitie ? esc(m.notitie.slice(0, 80)) + (m.notitie.length > 80 ? '…' : '') + ' · ' : ''}${esc(m.aangemaakt_door || '?')} · ${datumKort(m.created_at)}${fotoTel(m.fotos)}</small>${fotoRij(m.fotos)}</div>
       ${magMark(m.soort) && !archief ? `<div class="markvorm">${vormKnoppen(m, true)}</div><button class="weg" onclick="verwijderMarkering('${m.id}')">×</button>` : ''}</div>`).join('')
       || `<p class="hint">${leeg}</p>`}
+    ${welke !== 'vlag' && !archief && p.type !== 'pand' && mag('percelen_bewerken') && alleZones(p).some(z => banenVan(z).length || (z.sporen_weg || []).length) ? `<div class="rij" style="margin-top:8px;flex-wrap:wrap">
+      <button class="knop licht" onclick="legeSporenBraak('${p.id}')">🟫 Lege sporen weghalen (braak)</button>
+      ${alleZones(p).some(z => (z.sporen_weg || []).length) ? `<button class="knop licht" onclick="alleSporenTerug('${p.id}')">↩︎ Weggehaalde sporen terug</button>` : ''}
+      ${mag('kopeinden_bewerken') && lijst.some(m => m.soort === 'kopeinde') ? `<button class="knop licht rood" onclick="alleKopeindesWeg('${p.id}')">✕ Alle kopeindes weghalen</button>` : ''}</div>` : ''}
   </section>`;
+}
+// lege sporen weghalen: daar komen geen sporen meer, het blijft gewoon braak liggen
+async function legeSporenBraak(pid) {
+  const p = perceel(pid); if (!p) return;
+  const k = await keuze('🟫 Lege sporen weghalen', 'Sporen zonder planten worden weggehaald: daar ligt het perceel dan gewoon braak, zonder sporen. Terugzetten kan altijd.',
+    [['rand', '↕️ Alleen de lege sporen aan de randen (overgebleven sporen)'], ['alles', '▦ Alle lege sporen (spuitsporen blijven staan)'], ['nee', 'Annuleren']]);
+  if (!k || k === 'nee') return;
+  let totaal = 0;
+  for (const z of alleZones(p)) {
+    const rijen = banenVan(z); if (!rijen.length) continue;
+    const leeg = bn => !waarden((z.banen || [])[bn.nr - 1]).some(Boolean);
+    let weg = [];
+    if (k === 'rand') {
+      for (const bn of rijen) { if (!leeg(bn)) break; weg.push(bn.k); }
+      for (const bn of [...rijen].reverse()) { if (!leeg(bn)) break; weg.push(bn.k); }
+    } else weg = rijen.filter(bn => leeg(bn) && !isSpuitRij(z, bn.nr) && !(patroonVan(z) && rijWaarde(z, bn.nr) === 0)).map(bn => bn.k);
+    weg = [...new Set(weg)]; if (!weg.length) continue;
+    totaal += weg.length;
+    await sporenOmzetten(pid, z.id, {sporen_weg: [...new Set([...(z.sporen_weg || []), ...weg])]}, false);
+  }
+  render(true); toast(totaal ? `🟫 ${totaal} lege sporen weggehaald; daar ligt het nu braak` : 'Er zijn geen lege sporen om weg te halen');
+}
+async function alleSporenTerug(pid) {
+  const p = perceel(pid); if (!p) return;
+  for (const z of alleZones(p)) if ((z.sporen_weg || []).length) await sporenOmzetten(pid, z.id, {sporen_weg: []}, false);
+  render(true); toast('↩︎ Alle weggehaalde sporen staan er weer (leeg)');
+}
+async function alleKopeindesWeg(pid) {
+  const l = S.markeringen.filter(m => m.perceel_id === pid && m.soort === 'kopeinde'); if (!l.length) return;
+  if (!await bevestig(`Alle ${l.length} kopeinde${l.length > 1 ? 's' : ''} weghalen?`, 'Daar komen weer gewone sporen.')) return;
+  for (const m of l) { const {error} = await sb.from('markeringen').delete().eq('id', m.id); if (!error) S.markeringen = S.markeringen.filter(x => x.id !== m.id); else { toast(foutTekst(error), 1); break; } }
+  render(true); toast('Kopeindes weggehaald');
 }
 
 function taakHtml(t, metPerceel) {
@@ -3622,6 +3663,7 @@ function taakHtml(t, metPerceel) {
     <div class="t" onclick="focusTaak('${t.id}')" style="cursor:pointer"><span>${esc(t.tekst)}</span>
       ${t.omschrijving ? `<div class="omschr">${esc(t.omschrijving).replace(/\n/g, '<br>')}</div>` : ''}
       ${fotoRij(t.fotos)}
+      ${!t.klaar ? machineFotosHtml(t) : ''}
       ${t.bezig_door && !t.klaar ? `<div class="bezigregel">${bezigTekst(t)}</div>` : ''}
       <small>${metPerceel && p && !isVerplaats(t) ? `📍 ${esc(p.naam)} · ` : ''}${info}${t.trekker || t.werktuig ? ` · 🚜 ${esc([t.trekker, t.werktuig].filter(Boolean).join(' + '))}` : ''}${t.herhaal ? ' · ' + herhaalTekst(t) : ''}${t.klaar && t.verbruik != null && middel(t.middel_id) ? ` · 📦 −${getal(t.verbruik, 2)} ${esc(middel(t.middel_id).voorraad_eenheid || '')}` : ''}</small>
       ${!t.klaar && mag('taken_afvinken') ? `<button class="bezigknop ${t.bezig_door ? 'aan' : ''}" onclick="event.stopPropagation();zetBezig('${t.id}')">${t.bezig_door ? '⏸ Niet meer bezig' : '▶ Ik ben bezig'}</button>` : ''}</div>
@@ -4548,8 +4590,8 @@ function sectieTabs(s) {
   const trek = ziet('tractoren_volgen') || ziet('tractor_rijden') || ziet('voertuigen_zien');
   return ({
     werken: [['percelen', '🗺️', 'Kaart'], ['taken', '📋', 'Taken'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
-    spuiten: [['spuitregister', '📒', 'Spuitregister'], ['middelen', '🧪', 'Middelen']],
-    kunstmest: [['mestregister', '🌱', 'Bemesting'], ['middelen', '🧪', 'Meststoffen']],
+    spuiten: [['spuittaken', '📋', 'Taken'], ['spuitregister', '📒', 'Spuitregister'], ['middelen', '🧪', 'Middelen']],
+    kunstmest: [['mesttaken', '📋', 'Taken'], ['mestregister', '🌱', 'Bemesting'], ['middelen', '🌾', 'Meststoffen']],
     monsters: [['waarnemingen', '🐛', 'Ziektes & plagen'], ['monsters', '🧪', 'Monsters']],
     opslag: [['voorraad', '❄️', 'Koelcel'], ['middelen', '🧪', 'Middelenvoorraad']],
     taken: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : []), ['uren', '⏱️', 'Uren']],
@@ -5822,7 +5864,7 @@ function tmRender() {
     <div class="tmRechts"><span id="tmKlok">${new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}</span><button class="tmX" onclick="trekkerModus(false)">✕</button></div></div>`;
   let body = '';
   if (TM.scherm === 'taken') body = `<button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
-    ${taken.map(t => `<div class="tmTaak"><div><b>${esc(t.tekst)}</b><small>${perceel(t.perceel_id) && !TM.pid ? '📍 ' + esc(perceel(t.perceel_id).naam) + ' · ' : ''}${t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot || t.spoor_van} · ` : ''}${t.product ? esc(t.product) : ''}</small></div>
+    ${taken.map(t => `<div class="tmTaak"><div><b>${esc(t.tekst)}</b><small>${perceel(t.perceel_id) && !TM.pid ? '📍 ' + esc(perceel(t.perceel_id).naam) + ' · ' : ''}${t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot || t.spoor_van} · ` : ''}${t.product ? esc(t.product) : ''}</small>${machineFotosHtml(t)}</div>
       ${mag('taken_afvinken') ? `<button class="tmKlein ${t.bezig_door ? 'aan' : ''}" onclick="zetBezig('${t.id}').then(tmRender)">${t.bezig_door ? '⏸' : '▶'}</button><button class="tmKlein groen" onclick="vinkTaak('${t.id}').then(tmRender)">✓ Klaar</button>` : ''}</div>`).join('') || '<p class="tmLeeg">Geen taken voor hier en nu 👍</p>'}`;
   else if (TM.scherm === 'perceel') body = `<button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
     <button class="tmRij" onclick="TM.handmatig=false;TM.pid=TM.pos?perceelOpPunt(TM.pos)?.id||null:null;TM.scherm='start';tmRender()">📡 Automatisch (GPS)</button>
@@ -5983,6 +6025,75 @@ async function gierToevoegen() {
       await wijzig(p.id, {vakken: perceel(p.id).vakken.map(v => v.id === vak.id ? {...v, spuit: {elke: 0, start: 0, extra, uit: []}} : v)}); }
   }
   render(true); toast(`🟨 ${vak.naam} toegevoegd: ${N} rijen`);
+}
+
+/* ============ APARTE TAKEN VOOR SPUITEN EN BEMESTEN ============ */
+// machines: bij elke machine staat of hij meststoffen en/of spuitmiddelen gebruikt
+const machineDoet = (m, wat) => !!m && (m.stoffen === 'beide' || m.stoffen === wat);
+const isMestWerk = t => isBemestTaak(t) || /bemest|kunstmest|strooi|mest\b|kas\b/i.test(`${t.tekst || ''} ${t.product || ''}`) || (machineDoet(machineOpNaam(t.werktuig), 'mest') && !machineDoet(machineOpNaam(t.werktuig), 'spuit'));
+const isSpuitWerk = t => !isMestWerk(t) && (isSpuitTaak(t) || /spuit/i.test(`${t.tekst || ''} ${t.werktuig || ''}`) || machineDoet(machineOpNaam(t.werktuig), 'spuit'));
+const WERKSOORT = {
+  spuiten: {titel: 'Spuiten', icoon: '🧪', werkwoord: 'Spuiten', cat: 'gewasbescherming', eenheid: 'l/ha', is: isSpuitWerk, stof: 'spuit'},
+  bemesten: {titel: 'Bemesten', icoon: '🌾', werkwoord: 'Bemesten', cat: 'meststof', eenheid: 'kg/ha', is: isMestWerk, stof: 'mest'}};
+let wtFilter = 'open';
+function htmlWerkTaken(soortW) {
+  const W = WERKSOORT[soortW], alle = S.taken.filter(W.is);
+  const open = alle.filter(t => !t.klaar).sort((a, b) => (a.gepland || a.deadline || '9999').localeCompare(b.gepland || b.deadline || '9999'));
+  const klaar = alle.filter(t => t.klaar).sort((a, b) => String(b.klaar_op || '').localeCompare(String(a.klaar_op || ''))).slice(0, 30);
+  const l = wtFilter === 'klaar' ? klaar : open;
+  return `<section class="kaartje"><h4>${W.icoon} ${W.titel}: taken</h4>
+    <div class="rij" style="flex-wrap:wrap">${mag('taken_toevoegen') ? `<button class="knop" onclick="werkTaakFormulier('${soortW}')">＋ ${W.werkwoord} plannen</button>` : ''}
+      ${mag('werk_registreren') || mag('taken_toevoegen') ? `<button class="knop licht" onclick="werkTaakFormulier('${soortW}',true)">✓ Al gedaan: registreren</button>` : ''}</div>
+    <div class="schakel" style="margin-top:8px"><button class="${wtFilter !== 'klaar' ? 'aan' : ''}" onclick="wtFilter='open';render(true)">Nog te doen (${open.length})</button><button class="${wtFilter === 'klaar' ? 'aan' : ''}" onclick="wtFilter='klaar';render(true)">Gedaan</button></div></section>
+  <section class="kaartje">${l.map(t => taakHtml(t, true)).join('') || `<p class="hint">${wtFilter === 'klaar' ? 'Nog niets gedaan dit seizoen.' : `Geen ${W.titel.toLowerCase()}-taken open.`}</p>`}</section>`;
+}
+// eigen formulier: meerdere percelen tegelijk, middel uit de lijst, dosering, wanneer en wie
+async function werkTaakFormulier(soortW, direct) {
+  const W = WERKSOORT[soortW];
+  const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  const middelen = (S.middelen || []).filter(m => (m.categorie || 'overig') === W.cat).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  if (direct) {   // één perceel, het bestaande registratieformulier met alles al ingevuld
+    const pid = actief && perceel(actief)?.type !== 'pand' ? actief : await kiesPerceel(`${W.icoon} Welk perceel?`); if (!pid) return;
+    actief = pid; taakFormulier(null, true, {perceel_id: pid, tekst: W.werkwoord}); return;
+  }
+  const mensen = [...S.profielen].sort((a, b) => (a.naam || '').localeCompare(b.naam || '', 'nl'));
+  const m = $('#modal');
+  m.innerHTML = `<div class="dialoog breed"><h3>${W.icoon} ${W.werkwoord} plannen</h3>
+    <label>Welke percelen?</label><div class="wtPercelen">${velden.map(p => `<label class="vinkje"><input type="checkbox" value="${p.id}" ${p.id === actief ? 'checked' : ''}> ${esc(p.naam)} ${isBioPerceel(p) ? '<span class="badge bio">BIO</span>' : ''} <small>${ha(turf.area(p.geo))} ha</small></label>`).join('')}</div>
+    <div class="rij" style="margin:4px 0"><button class="link klein" onclick="document.querySelectorAll('.wtPercelen input').forEach(i=>i.checked=true)">alles</button><button class="link klein" onclick="document.querySelectorAll('.wtPercelen input').forEach(i=>i.checked=false)">niets</button>
+      <button class="link klein" onclick="document.querySelectorAll('.wtPercelen input').forEach(i=>i.checked=isBioPerceel(perceel(i.value)))">alleen bio</button></div>
+    <label>${soortW === 'bemesten' ? 'Meststof' : 'Middel'}</label>
+    <select class="veld" id="wtMiddel"><option value="">— kies —</option>${middelen.map(x => `<option value="${x.id}">${esc(x.naam)}${x.max_dosering ? ` (max ${getal(x.max_dosering, 2)} ${esc(x.dosering_eenheid || '')})` : ''}</option>`).join('')}<option value="_anders">Iets anders (hieronder typen)</option></select>
+    <input class="veld" id="wtAnders" placeholder="naam ${soortW === 'bemesten' ? 'meststof' : 'middel'}" style="display:none">
+    <div class="raster3"><div><label>Dosering</label><input class="veld" id="wtDos" type="number" inputmode="decimal" step="any"></div>
+      <div><label>Eenheid</label><select class="veld" id="wtEenh">${EENHEDEN.map(([k, l]) => `<option value="${k}" ${k === W.eenheid ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+      <div><label>Wanneer</label><input class="veld" id="wtDatum" type="date" value="${vandaag()}"></div></div>
+    ${(() => { const ms = (S.machines || []).filter(x => machineDoet(x, W.stof)); return `<label>Met welke machine?</label><select class="veld" id="wtMachine"><option value="">— nog niet bepaald —</option>${ms.map(x => `<option value="${esc(x.naam)}">${esc(x.naam)}</option>`).join('')}</select>${ms.length ? '' : `<p class="hint">Nog geen machine voor ${W.titel.toLowerCase()}. Bij Gegevens aanpassen → Bedrijf → Machines geef je per machine aan of hij meststoffen of spuitmiddelen gebruikt.</p>`}`; })()}
+    <label>Wie doet het?</label><select class="veld" id="wtWie"><option value="">— nog niemand —</option>${mensen.map(u => `<option value="${u.id}">${esc(u.naam || '?')}</option>`).join('')}</select>
+    <label>Opmerking</label><textarea class="veld" id="wtOpm" rows="2" placeholder="bijv. tankmix, alleen de kopeinden, na de regen"></textarea>
+    <p class="hint" id="wtLet"></p>
+    <button class="knop" id="mJa">Plannen</button><button class="knop licht" onclick="$('#modal').classList.remove('open')">Annuleren</button></div>`;
+  m.classList.add('open');
+  const sel = $('#wtMiddel'), let_ = () => { const x = middel(sel.value), bio = [...m.querySelectorAll('.wtPercelen input:checked')].some(i => isBioPerceel(perceel(i.value)));
+    $('#wtLet').innerHTML = x && soortW === 'spuiten' && bio && !x.bio_toegestaan ? '⚠️ Er zit een bio-perceel bij en dit middel staat niet als bio-toegestaan aangevinkt.' : x?.veiligheidstermijn ? `Veiligheidstermijn ${x.veiligheidstermijn} dagen.` : ''; };
+  sel.onchange = () => { $('#wtAnders').style.display = sel.value === '_anders' ? '' : 'none'; const x = middel(sel.value);
+    if (x?.max_dosering && !$('#wtDos').value) $('#wtDos').value = x.max_dosering; if (x?.dosering_eenheid) $('#wtEenh').value = x.dosering_eenheid; let_(); };
+  m.querySelectorAll('.wtPercelen input').forEach(i => i.onchange = let_);
+  $('#mJa').onclick = async () => {
+    const pids = [...m.querySelectorAll('.wtPercelen input:checked')].map(i => i.value), x = middel(sel.value), naam = x?.naam || ($('#wtAnders').value || '').trim();
+    if (!pids.length) { toast('Vink minstens één perceel aan', 1); return; }
+    if (!naam) { toast(`Kies ${soortW === 'bemesten' ? 'de meststof' : 'het middel'}`, 1); return; }
+    const dos = parseFloat(String($('#wtDos').value).replace(',', '.'));
+    m.classList.remove('open'); let n = 0;
+    for (const pid of pids) {
+      const rij = {perceel_id: pid, tekst: `${W.werkwoord}: ${naam}`, omschrijving: $('#wtOpm').value || null, product: naam, middel_id: x?.id || null,
+        dosering: isNaN(dos) ? null : dos, eenheid: isNaN(dos) ? null : $('#wtEenh').value, gepland: $('#wtDatum').value || null, toegewezen_aan: $('#wtWie').value || null, werktuig: $('#wtMachine')?.value || null, aangemaakt_door: naamMe()};
+      const {data, error} = await sb.from('taken').insert(rij).select().single();
+      if (error) { toast('Opslaan mislukt: ' + foutTekst(error), 1); break; }
+      if (!S.taken.find(t => t.id === data.id)) S.taken.push(data); n++;
+    }
+    render(true); if (n) toast(`${W.icoon} ${n} ${n === 1 ? 'taak' : 'taken'} gepland`);
+  };
 }
 
 /* ============ BUSSEN EN AUTO'S (FleetGO) ============
@@ -6278,7 +6389,7 @@ let bedrijfGeladen = false;
 
 /* ---------- middelen & voorraad ---------- */
 const MID_CAT = [['gewasbescherming', '🧪 Gewasbescherming'], ['meststof', '🌾 Meststof'], ['plantgoed', '🌱 Plantgoed'], ['materiaal', '📦 Materiaal / trays'], ['overig', '• Overig']];
-const VOORRAAD_EENHEDEN = [['liter', 'liter'], ['kg', 'kg'], ['stuks', 'stuks'], ['trays', 'trays'], ['zakken', 'zakken'], ['m³', 'm³']];
+const VOORRAAD_EENHEDEN = [['liter', 'liter'], ['kg', 'kg'], ['ton', 'ton'], ['stuks', 'stuks'], ['trays', 'trays'], ['zakken', 'zakken'], ['m³', 'm³']];
 const middel = id => (S.middelen || []).find(m => m.id === id);
 const middelOpNaam = naam => naam ? (S.middelen || []).find(m => m.naam.trim().toLowerCase() === String(naam).trim().toLowerCase()) : null;
 const voorraadTekst = m => m.voorraad == null ? '' : `${getal(m.voorraad, 1)} ${m.voorraad_eenheid || ''}`;
@@ -6329,10 +6440,10 @@ function vgtVan(pid) {
   return best;
 }
 const vgtTekst = v => v ? `⛔ Niet oogsten tot en met ${new Date(v.tot.getTime() - 864e5).toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric', month: 'short'})} (${esc(v.middel.naam)}, ${v.middel.veiligheidstermijn} dagen)` : '';
-async function middelFormulier(id) {
-  const m = id ? middel(id) : {categorie: 'gewasbescherming', voorraad_eenheid: 'liter'};
+async function middelFormulier(id, cat) {
+  const m = id ? middel(id) : cat === 'meststof' ? {categorie: 'meststof', voorraad_eenheid: 'kg', dosering_eenheid: 'kg/ha'} : {categorie: cat || 'gewasbescherming', voorraad_eenheid: 'liter'};
   if (!mag('middelen_beheren')) return;
-  const w = await formulier(id ? `✏️ ${m.naam}` : '＋ Nieuw middel of product', [
+  const w = await formulier(id ? `✏️ ${m.naam}` : cat === 'meststof' ? '＋ Nieuwe meststof' : '＋ Nieuw middel of product', [
     {k: 'naam', label: 'Naam', waarde: m.naam || '', placeholder: 'bijv. Luna Sensation'},
     {k: 'categorie', label: 'Soort', type: 'select', waarde: m.categorie, opties: MID_CAT},
     {k: 'toelatingsnummer', label: 'Toelatingsnummer (Ctgb)', waarde: m.toelatingsnummer || '', placeholder: 'bijv. 14062 N', als: ['categorie', 'gewasbescherming']},
@@ -6366,6 +6477,59 @@ async function middelFormulier(id) {
   const i = S.middelen.findIndex(x => x.id === res.data.id); if (i >= 0) S.middelen[i] = res.data; else S.middelen.push(res.data);
   render(true); toast('Opgeslagen');
 }
+// bij een taak: foto's van de trekker en het werktuig, zodat je precies ziet wat je moet pakken
+function machineFotosHtml(t) {
+  const l = [t.trekker, t.werktuig].map(n => machineOpNaam(n)).filter(m => m && (m.fotos || []).length);
+  if (!l.length) return '';
+  return `<div class="mTaakFotos">${l.map(m => `<figure onclick="event.stopPropagation();fotoBekijk(${esc(JSON.stringify(m.fotos))},0)"><img data-foto="${esc(m.fotos[0])}" alt=""><figcaption>${/trekker|tractor/i.test(m.soort || '') ? '🚜' : '⚙️'} ${esc(m.naam)}</figcaption></figure>`).join('')}</div>`;
+}
+// werktuigen in één keer toevoegen (ploeg, frees, eg …)
+async function werktuigenKiezen() {
+  if (!mag('machines_beheren')) return;
+  const al = new Set((S.machines || []).map(x => normTekst(x.soort || x.naam)));
+  const m = $('#modal');
+  m.innerHTML = `<div class="dialoog"><h3>📋 Machines en werktuigen</h3><p class="hint" style="margin-top:0">Vink aan wat jullie hebben. Daarna kun je ze een eigen naam geven (bijv. "Ploeg Lemken") en aangeven of ze meststoffen of spuitmiddelen gebruiken.</p>
+    ${MACHINE_SOORTEN.filter(x => x !== 'Overig').map((x, i) => `<label class="vinkje"><input type="checkbox" data-n="${esc(x)}"> ${esc(x)}${al.has(normTekst(x)) ? ' <small>(heb je al)</small>' : ''}</label>`).join('')}
+    <button class="knop" id="mJa">Toevoegen</button><button class="knop licht" onclick="$('#modal').classList.remove('open')">Annuleren</button></div>`;
+  m.classList.add('open');
+  $('#mJa').onclick = async () => {
+    const keus = [...m.querySelectorAll('input[data-n]:checked')].map(i => i.dataset.n); m.classList.remove('open'); let n = 0;
+    for (const soortM of keus) {
+      const stoffen = /spuit/i.test(soortM) ? 'spuit' : /kunstmest|mestinjecteur/i.test(soortM) ? 'mest' : null;
+      const {data, error} = await sb.from('machines').insert({naam: soortM.split(' / ')[0], soort: soortM, stoffen}).select().single();
+      if (error) { toast('Toevoegen mislukt: ' + (/stoffen/.test(error.message || '') ? 'voer eerst het nieuwe beheer.sql uit' : foutTekst(error)), 1); break; }
+      S.machines.push(data); n++;
+    }
+    render(true); if (n) toast(`🔧 ${n} toegevoegd`);
+  };
+}
+// gangbare meststoffen in één keer toevoegen (N en P₂O₅ per kg; controleer met de etiketten/het mestboek)
+const STANDAARD_MESTSTOFFEN = [
+  ['KAS 27% N', .27, 0, 'kunstmest'], ['Ureum 46% N', .46, 0, 'kunstmest'], ['Ammoniumsulfaat 21% N', .21, 0, 'kunstmest'], ['Kalksalpeter 15,5% N', .155, 0, 'kunstmest'],
+  ['NPK 12-10-18', .12, .10, 'kunstmest'], ['NPK 15-15-15', .15, .15, 'kunstmest'], ['Tripel superfosfaat 45% P₂O₅', 0, .45, 'kunstmest'], ['Patentkali (30% K₂O)', 0, 0, 'kunstmest'],
+  ['Kieserite (MgO)', 0, 0, 'kunstmest'], ['Kalium sulfaat (50% K₂O)', 0, 0, 'kunstmest'],
+  ['Bio korrel 4-3-3 (bijv. DCM)', .04, .03, 'bio'], ['Verenmeel 12% N', .12, 0, 'bio'], ['Bloedmeel 13% N', .13, 0, 'bio'], ['Vinasse (kali)', .03, 0, 'bio'],
+  ['Champost (per ton)', 7.5, 3.5, 'bio'], ['Vaste rundermest (per ton)', 6.5, 3.5, 'bio'], ['GFT-compost (per ton)', 9, 3.5, 'bio'], ['Groencompost (per ton)', 5, 2, 'bio']];
+async function meststoffenKiezen() {
+  if (!mag('middelen_beheren')) return;
+  const al = new Set((S.middelen || []).map(m => normTekst(m.naam)));
+  const m = $('#modal');
+  m.innerHTML = `<div class="dialoog"><h3>📋 Meststoffen kiezen</h3><p class="hint" style="margin-top:0">Vink aan wat je gebruikt. De N- en fosfaatgehaltes zijn richtwaarden; pas ze daarna aan naar je etiket of mestbon.</p>
+    ${[['kunstmest', 'Kunstmest (per kg)'], ['bio', 'Organisch / bio']].map(([g, l]) => `<div class="infosub">${l}</div>` + STANDAARD_MESTSTOFFEN.map((x, i) => x[3] !== g ? '' : `<label class="vinkje"><input type="checkbox" data-i="${i}" ${al.has(normTekst(x[0])) ? 'disabled' : ''}> ${esc(x[0])}${al.has(normTekst(x[0])) ? ' <small>(heb je al)</small>' : ''}</label>`).join('')).join('')}
+    <button class="knop" id="mJa">Toevoegen</button><button class="knop licht" onclick="$('#modal').classList.remove('open')">Annuleren</button></div>`;
+  m.classList.add('open');
+  $('#mJa').onclick = async () => {
+    const keus = [...m.querySelectorAll('input[data-i]:checked')].map(i => STANDAARD_MESTSTOFFEN[+i.dataset.i]); m.classList.remove('open'); let n = 0;
+    for (const [naam, N, P, g] of keus) {
+      const ton = /per ton/.test(naam);
+      const {data, error} = await sb.from('middelen').insert({naam: naam.replace(' (per ton)', ''), categorie: 'meststof', voorraad_eenheid: ton ? 'ton' : 'kg', dosering_eenheid: ton ? 'ton/ha' : 'kg/ha',
+        n_per_eenheid: N || null, p_per_eenheid: P || null, bio_toegestaan: g === 'bio'}).select().single();
+      if (error) { toast('Toevoegen mislukt: ' + foutTekst(error), 1); break; }
+      S.middelen.push(data); n++;
+    }
+    render(true); if (n) toast(`🌾 ${n} meststof${n > 1 ? 'fen' : ''} toegevoegd`);
+  };
+}
 async function voorraadBoeken(id, erbij) {
   const m = middel(id); if (!m) return;
   const w = await formulier(`${erbij ? '＋ Bijboeken' : '− Afboeken'}: ${m.naam}`, [
@@ -6393,12 +6557,15 @@ async function middelWissel(id) {
     voorraadLogCache[id] = data || []; render(true);
   }
 }
-function htmlMiddelen() {
-  const beh = mag('middelen_beheren'), lijst = S.middelen || [];
+function htmlMiddelen(alleenCat) {
+  if (alleenCat === undefined && tab === 'middelen') alleenCat = sectie === 'kunstmest' ? 'meststof' : sectie === 'spuiten' ? 'gewasbescherming' : undefined;
+  const beh = mag('middelen_beheren'), lijst = (S.middelen || []).filter(m => !alleenCat || (m.categorie || 'overig') === alleenCat);
   const laag = lijst.filter(voorraadLaag);
   return `<section class="kaartje"><h4>🧪 Middelen &amp; voorraad</h4>
     ${laag.length ? `<div class="waarschuwing">⚠️ Bijna op: ${laag.map(m => `<b>${esc(m.naam)}</b> (${voorraadTekst(m)})`).join(', ')}</div>` : ''}
-    ${beh ? `<div class="rij" style="margin:0 0 8px"><button class="knop klein" onclick="middelFormulier()">＋ Middel of product</button></div>` : ''}
+    ${beh ? `<div class="rij" style="margin:0 0 8px">${alleenCat === 'gewasbescherming' ? `<button class="knop klein" onclick="middelFormulier()">＋ Middel toevoegen</button>` : alleenCat === 'meststof' ? `<button class="knop klein" onclick="middelFormulier(null,'meststof')">＋ Meststof toevoegen</button><button class="knop klein licht" onclick="meststoffenKiezen()">📋 Uit een lijst kiezen</button>`
+      : `<button class="knop klein" onclick="middelFormulier()">＋ Middel of product</button>`}</div>` : ''}
+    ${alleenCat === 'meststof' && !lijst.length ? '<p class="hint">Nog geen meststoffen. Voeg ze toe met de knop hierboven, of kies er een paar uit de lijst.</p>' : ''}
     ${MID_CAT.map(([cat, label]) => { const l = lijst.filter(m => (m.categorie || 'overig') === cat); if (!l.length) return '';
       return `<div class="infosub">${label}</div>` + l.map(m => `<div class="middel ${voorraadLaag(m) ? 'laag' : ''}">
         <div class="t" onclick="middelWissel('${m.id}')"><b>${esc(m.naam)}</b>
@@ -6656,18 +6823,20 @@ async function machineFormulier(id) {
   const m = id ? machine(id) : {};
   const w = await formulier(id ? `✏️ ${m.naam}` : '＋ Machine toevoegen', [
     {k: 'naam', label: 'Naam', waarde: m.naam || '', placeholder: 'bijv. Fendt 724 of Spuitmachine'},
-    {k: 'soort', label: 'Soort', waarde: m.soort || '', lijst: ['Trekker', 'Spuitmachine', 'Kunstmeststrooier', 'Plantmachine', 'Rooier', 'Shovel', 'Heftruck', 'Aanhanger', 'Bus / auto']},
+    {k: 'soort', label: 'Soort machine of werktuig', waarde: m.soort || '', lijst: MACHINE_SOORTEN, placeholder: 'bijv. Ploeg, Frees of Trekker'},
     {k: 'kenteken', label: 'Kenteken / serienummer', waarde: m.kenteken || ''},
+    {k: 'stoffen', label: 'Gebruikt deze machine meststoffen of spuitmiddelen?', type: 'select', waarde: m.stoffen || '', opties: [['', 'Nee'], ['mest', '🌾 Meststoffen (kunstmest strooien)'], ['spuit', '🧪 Spuitmiddelen'], ['beide', 'Allebei']]},
     {k: 'draaiuren', label: 'Draaiuren nu', type: 'number', waarde: m.draaiuren ?? ''},
     {k: 'onderhoud_interval', label: 'Onderhoud elke … draaiuren', type: 'number', waarde: m.onderhoud_interval ?? '', placeholder: 'bijv. 500'},
     {k: 'onderhoud_bij', label: 'Laatste beurt bij … draaiuren', type: 'number', waarde: m.onderhoud_bij ?? ''},
     {k: 'keuring_datum', label: 'Keuring / APK geldig tot', type: 'date', waarde: m.keuring_datum || ''},
     {k: 'tractor_id', label: 'Gekoppeld aan GPS-trekker', type: 'select', waarde: m.tractor_id || '', opties: [['', '— geen —'], ...S.tractoren.map(t => [t.id, t.naam])]},
-    {k: 'notitie', label: 'Aantekeningen', type: 'textarea', waarde: m.notitie || '', placeholder: 'bijv. olie 15W40, filternummers, dealer'}], id ? 'Opslaan' : 'Toevoegen');
+    {k: 'notitie', label: 'Aantekeningen', type: 'textarea', waarde: m.notitie || '', placeholder: 'bijv. olie 15W40, filternummers, dealer'},
+    fotoVeld(m.fotos || [], "📷 Foto's (zie je bij elke taak met deze machine)")], id ? 'Opslaan' : 'Toevoegen');
   if (!w) return;
   if (!w.naam) { toast('Geef de machine een naam', 1); return; }
   const n = k => { const x = parseFloat(String(w[k]).replace(',', '.')); return isNaN(x) ? null : x; };
-  const rij = {naam: w.naam, soort: w.soort || null, kenteken: w.kenteken || null, draaiuren: n('draaiuren'), onderhoud_interval: n('onderhoud_interval'),
+  const rij = {naam: w.naam, soort: w.soort || null, kenteken: w.kenteken || null, stoffen: w.stoffen || null, fotos: w.fotos || [], draaiuren: n('draaiuren'), onderhoud_interval: n('onderhoud_interval'),
     onderhoud_bij: n('onderhoud_bij'), keuring_datum: w.keuring_datum || null, tractor_id: w.tractor_id || null, notitie: w.notitie || null};
   const res = id ? await sb.from('machines').update(rij).eq('id', id).select().single() : await sb.from('machines').insert(rij).select().single();
   if (res.error) { toast('Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
@@ -6703,12 +6872,13 @@ async function machineWeg(id) {
 let machineOpen = null;
 function htmlMachines() {
   const beh = mag('machines_beheren'), log = mag('machines_beheren') || mag('tractor_rijden');
-  return `<section class="kaartje"><h4>🔧 Machines &amp; onderhoud</h4>
-    ${beh ? `<div class="rij" style="margin:0 0 8px"><button class="knop klein" onclick="machineFormulier()">＋ Machine</button></div>` : ''}
+  return `<section class="kaartje"><h4>🔧 Machines, werktuigen &amp; onderhoud</h4>
+    ${beh ? `<div class="rij" style="margin:0 0 8px"><button class="knop klein" onclick="machineFormulier()">＋ Machine of werktuig</button><button class="knop klein licht" onclick="werktuigenKiezen()">📋 Werktuigen uit een lijst</button></div>` : ''}
     ${(S.machines || []).map(m => { const st = machineStatus(m), regels = S.machine_log.filter(l => l.machine_id === m.id);
       const kosten = regels.filter(l => l.kosten && new Date(l.datum) >= seizoenStart()).reduce((s, l) => s + +l.kosten, 0);
       return `<div class="machine ${st.some(s => s.niveau === 'rood') ? 'rood' : st.some(s => s.niveau === 'oranje') ? 'oranje' : ''}">
-        <div class="t" onclick="machineOpen=machineOpen==='${m.id}'?null:'${m.id}';render(true)"><b>${esc(m.naam)}</b> <small style="display:inline">${esc(m.soort || '')}${m.kenteken ? ' · ' + esc(m.kenteken) : ''}</small>
+        ${(m.fotos || []).length ? `<img class="mFoto" data-foto="${esc(m.fotos[0])}" alt="" onclick="fotoBekijk(${esc(JSON.stringify(m.fotos))},0)">` : ''}
+        <div class="t" onclick="machineOpen=machineOpen==='${m.id}'?null:'${m.id}';render(true)"><b>${esc(m.naam)}</b> <small style="display:inline">${esc(m.soort || '')}${m.kenteken ? ' · ' + esc(m.kenteken) : ''}${m.stoffen ? ' · ' + {mest: '🌾 meststoffen', spuit: '🧪 spuitmiddelen', beide: '🌾🧪 mest en spuit'}[m.stoffen] : ''}</small>
           <small>${m.draaiuren != null ? '⏱️ ' + getal(m.draaiuren) + ' draaiuren' : ''}${kosten ? ' · ' + geld(kosten) + ' dit seizoen' : ''}</small>
           ${st.map(s => `<small class="mst ${s.niveau}">${s.tekst}</small>`).join('')}</div>
         ${log ? `<button class="icoon" title="Draaiuren of onderhoud noteren" onclick="machineNoteren('${m.id}')">📝</button>` : ''}
@@ -8844,6 +9014,9 @@ function tekenModel3d(ctx, t, tijd, naarScherm, naarWereld, grondKleur, opt = {}
    KLEINE 3D-TREKKER (eigen tekenaar op canvas, geen bibliotheek)
    Bij een aangeklikte taak zweeft de trekker met het werktuig boven het veld en draait rond.
    ============================================================ */
+const MACHINE_SOORTEN = ['Trekker', 'Spuitmachine', 'Kunstmeststrooier', 'Mestinjecteur', 'Ploeg', 'Cultivator', 'Woelpoot / diepwoeler', 'Rotorkopeg', 'Frees', 'Spitmachine', 'Eg / triltand',
+  'Ruggenfrees / beddenvormer', 'Rol / cambridgerol', 'Schoffelmachine', 'Wiedeg', 'Zaaimachine', 'Plantmachine', 'Pootmachine', 'Folielegger', 'Rooier', 'Maaier', 'Klepelmaaier',
+  'Shovel', 'Heftruck', 'Verreiker', 'Aanhanger', 'Kipper', 'Beregeningshaspel', 'Bus / auto', 'Overig'];
 const WERKTUIGEN = ['Rotorkopeg', 'Frees', 'Spitmachine', 'Ploeg', 'Cultivator', 'Schoffelmachine', 'Spuitmachine', 'Kunstmeststrooier', 'Mestinjecteur', 'Plantmachine', 'Pootmachine', 'Zaaimachine', 'Rooier', 'Maaier', 'Klepelmaaier', 'Aanhanger', 'Kipper', 'Rol', 'Bedden­vormer'];
 const isTrekkerNaam = s => /trekker|tractor|fendt|deere|massey|holland|case|claas|deutz|valtra|kubota|mccormick|zetor|landini|steyr|same|ford/i.test(s || '');
 function werktuigSoort(t) {   // welk model tekenen: eerst het gekozen werktuig, anders het werk zelf
