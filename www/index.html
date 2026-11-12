@@ -5690,8 +5690,7 @@ Antwoord ALLEEN met JSON in dit formaat, zonder andere tekst:
     if (fout) {
       toast(/not found|404|Failed to send/i.test(fout) ? 'De AI-koppeling staat nog niet in Supabase (Edge Function "ai-plattegrond"), zie de uitleg' : '🤖 ' + fout, 1); return;
     }
-    const m = String(data?.antwoord || '').match(/\{[\s\S]*\}/);
-    let uit; try { uit = JSON.parse(m[0]); } catch { toast('🤖 Het antwoord was niet te lezen, probeer het nog eens', 1); console.warn(data?.antwoord); return; }
+    const uit = leesAiJson(data?.antwoord); if (!uit) { toast('🤖 Het antwoord was niet te lezen, probeer het nog eens', 1); console.warn(data?.antwoord); return; }
     AI = {pid, blokken: (uit.blokken || []).map(b => aiKoppel(p, b)).filter(Boolean), opmerking: uit.opmerking || '', extra: AI?.extra || '', voorbeeld: c2.toDataURL('image/jpeg', .7)};
     aiVoorbeeld();
   } catch (e) { banner(null); toast('🤖 Mislukt: ' + (e.message || e), 1); }
@@ -5818,8 +5817,32 @@ async function aiVraag(beelden, tekst) {
   let fout = data?.fout;
   if (error) { try { fout = (await error.context?.json?.())?.fout; } catch {} fout = fout || error.message; }
   if (fout) throw new Error(/not found|404|Failed to send/i.test(fout) ? 'De AI-koppeling staat nog niet in Supabase (Edge Function "ai-plattegrond")' : fout);
-  const m = String(data?.antwoord || '').match(/\{[\s\S]*\}/);
-  try { return JSON.parse(m[0]); } catch { console.warn(data?.antwoord); throw new Error('Het antwoord van de AI was niet te lezen, probeer het nog eens'); }
+  const uit = leesAiJson(data?.antwoord);
+  if (!uit) { console.warn(data?.antwoord); throw new Error('Het antwoord van de AI was niet te lezen, probeer het nog eens'); }
+  return uit;
+}
+// JSON uit het antwoord halen, ook als er tekst omheen staat, komma's teveel zijn of het einde ontbreekt
+function leesAiJson(tekst) {
+  let t = String(tekst || '').replace(/```(?:json)?/gi, '').trim();
+  const begin = t.indexOf('{'); if (begin < 0) return null;
+  t = t.slice(begin);
+  const probeer = x => { try { return JSON.parse(x); } catch { return null; } };
+  const eind = t.lastIndexOf('}');
+  let uit = eind > 0 ? probeer(t.slice(0, eind + 1)) : null; if (uit) return uit;
+  // opruimen: commentaar, komma's voor een sluithaakje, enkele quotes rond sleutels
+  let s = t.replace(/\/\/[^\n"]*$/gm, '').replace(/,\s*([}\]])/g, '$1');
+  uit = probeer(s.slice(0, s.lastIndexOf('}') + 1)); if (uit) return uit;
+  // afgebroken antwoord: tot het laatste complete object en de haakjes sluiten
+  for (let i = s.length; i > 0; i--) {
+    if (s[i - 1] !== '}') continue;
+    const stuk = s.slice(0, i), open = [];
+    let inStr = false, esc = false;
+    for (const ch of stuk) { if (esc) { esc = false; continue; } if (ch === '\\') { esc = true; continue; } if (ch === '"') inStr = !inStr; else if (!inStr) { if (ch === '{' || ch === '[') open.push(ch); else if (ch === '}' || ch === ']') open.pop(); } }
+    if (inStr) continue;
+    const dicht = open.reverse().map(c => c === '{' ? '}' : ']').join('');
+    uit = probeer(stuk.replace(/,\s*$/, '') + dicht); if (uit) return uit;
+  }
+  return null;
 }
 function zonesTekst(p) {
   return alleZones(p).map(z => `- ${z._vak ? `deelveld ${zoneLetter(p, z)} ("${z.naam}"), sporen ${z.richting ?? z._vak.richting}°` : `hoofdveld (zonder letter), sporen ${+p.richting || 0}°`}: ${banenVan(z).length} sporen van ${String(z.breedte ?? p.breedte).replace('.', ',')} m in de app`).join('\n');
