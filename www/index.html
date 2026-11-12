@@ -408,6 +408,11 @@ details.plItem>summary::after{content:'▸';margin-left:auto;color:var(--grijs);
 .ingangrij{font-size:12.5px;color:var(--grijs);margin:-4px 0 8px}
 /* eenvoudige weergave: geen aanpasknoppen op de kaart */
 body.eenvoudig .fab,body.eenvoudig .leaflet-pm-toolbar{display:none !important}
+.aiKnop{background:linear-gradient(135deg,#6a3df0,#1a73e8) !important;color:#fff !important;margin-top:8px}
+.aiBlok{border:1px solid var(--rand);border-radius:12px;padding:8px 10px;margin:6px 0}.aiBlok.twijfel{border-color:#ffb300;background:#fff8e1}
+.aiKop{display:flex;gap:6px;align-items:center;cursor:pointer}.aiZeker{margin-left:auto;font-size:12px;background:#eef;border-radius:8px;padding:1px 7px}
+.aiVelden{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:13px}.aiVelden .veld{margin:0;padding:7px;width:auto;flex:1 1 120px;min-width:0}.aiVelden input[type=number]{flex:0 0 68px}
+.aiBlok small{display:block;color:var(--grijs);margin-top:4px}.aiOpm{background:#eef3ff;border-radius:10px;padding:8px 10px;font-size:13px}.aiDet summary{cursor:pointer;font-size:13px;margin:6px 0}
 .plSporen{color:#8a6200;background:#fff4d6;border-radius:6px;padding:0 6px;font-size:11.5px}
 .plKop .icoon.klein+.icoon.klein,.plDet .icoon.klein+.icoon.klein{margin-left:4px}
 #pkBalk{position:fixed;right:16px;bottom:16px;z-index:1300;width:min(380px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:12px 14px;border:3px solid #ffd600}
@@ -5356,8 +5361,8 @@ function tekenPlattegronden() {
     if (!(p.id === actief || pl.altijd)) return;
     zien.add(p.id);
     const sleutel = JSON.stringify([pl.pad, pl.hoeken]), oud = pgLagen.get(p.id);
-    if (oud?.sleutel === sleutel) { oud.laag.zetDoorzicht(pl.doorzicht ?? .65); return; }
-    oud?.laag.remove();
+    if (oud?.sleutel === sleutel) { oud.laag?.zetDoorzicht(pl.doorzicht ?? .65); return; }
+    oud?.laag?.remove();
     const item = {sleutel, laag: null}; pgLagen.set(p.id, item);
     fotoUrlVan(pl.pad).then(url => { if (!url || pgLagen.get(p.id) !== item) return; item.laag = new PlattegrondLaag(url, pl.hoeken, pl.doorzicht).addTo(map); });
   });
@@ -5547,8 +5552,162 @@ function htmlPlattegrond(p) {
     ${beh ? `<div class="rij" style="margin-top:8px"><button class="knop licht" onclick="pgKiesBestand()">📥 ${pl ? 'Nieuwe plattegrond inladen' : 'Plattegrond inladen'}</button>
       ${pl ? `<button class="knop licht rood" onclick="pgVerwijder('${p.id}')">Verwijderen</button>` : ''}</div>
       <p class="hint">Tip: op de computer kun je de afbeelding ook gewoon op de kaart slepen.</p>` : ''}
+    ${pl && mag('soorten_indelen') ? `<button class="knop aiKnop" onclick="aiPlattegrond('${p.id}')">🤖 Planten invullen vanaf de plattegrond</button>
+      <p class="hint">De AI leest op de plattegrond welke rassen en partijen op welke sporen staan. Jij controleert het voordat het wordt overgenomen.</p>` : ''}
   </section>`;
 }
+/* ============ AI: PLATTEGROND LEZEN EN HET PERCEEL VULLEN ============
+   De uitgelijnde plattegrond gaat (met de sporen van de app erover getekend en genummerd) naar Claude.
+   Die leest welke planten/rassen/partijen op welke sporen staan; jij controleert en neemt het over.
+   De sleutel staat veilig in Supabase (Edge Function "ai-plattegrond"), niet in de app. */
+let AI = null;
+function laadBeeld(url) {
+  return new Promise((ok, nee) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => ok(i); i.onerror = () => nee(new Error('Plaatje laden lukte niet')); i.src = url; });
+}
+// [lng,lat] → pixel op de plattegrond (omgekeerde van de 3 opgeslagen hoeken)
+function pgNaarPixel(pl, W, H) {
+  const [a, b, c] = pl.hoeken, cl = Math.cos(a[1] * Math.PI / 180), m = ([x, y]) => [x * cl, y];
+  const A = m(a), ux = m(b)[0] - A[0], uy = m(b)[1] - A[1], vx = m(c)[0] - A[0], vy = m(c)[1] - A[1], det = ux * vy - uy * vx;
+  return ll => { const q = m(ll), dx = q[0] - A[0], dy = q[1] - A[1]; return [(dx * vy - dy * vx) / det * W, (ux * dy - uy * dx) / det * H]; };
+}
+const zoneLetter = (p, z) => z._vak ? String.fromCharCode(65 + (p.vakken || []).findIndex(v => v.id === z._vak.id)) : '';
+async function aiPlattegrond(pid) {
+  const p = perceel(pid), pl = p?.plattegrond;
+  if (!mag('soorten_indelen')) { toast('Je mag geen planten indelen', 1); return; }
+  if (!pl?.pad || !pl.hoeken) { toast('Laad eerst een plattegrond in en lijn hem uit (Info → 🗺️ Plattegrond)', 1); return; }
+  const zs = alleZones(p).filter(z => banenVan(z).length);
+  if (!zs.length) { toast('Zet eerst de sporen aan bij dit perceel, dan weet de AI welke sporen er zijn', 1); return; }
+  try {
+    banner('<b>🤖 Plattegrond voorbereiden…</b>');
+    const img = await laadBeeld(await fotoUrlVan(pl.pad)), W = img.naturalWidth, H = img.naturalHeight, naar = pgNaarPixel(pl, W, H);
+    const f = Math.min(1, 1568 / Math.max(W, H)), cw = Math.round(W * f), ch = Math.round(H * f);
+    const doek = () => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; const g = c.getContext('2d'); g.drawImage(img, 0, 0, cw, ch); return [c, g]; };
+    const [c1] = doek(), [c2, g] = doek();
+    // sporen erover tekenen, met nummers aan beide uiteinden
+    zs.forEach((z, zi) => {
+      const rijen = banenVan(z), letter = zoneLetter(p, z), kleur = ['#00e5ff', '#ff4081', '#ffea00', '#76ff03'][zi % 4];
+      const lijnen = rijen.map(bn => {
+        const pts = turf.coordAll(bn.geo).map(ll => naar(ll).map(v => v * f));
+        let a = pts[0], b = pts[0], d = 0;
+        pts.forEach(x => pts.forEach(y => { const e = (x[0] - y[0]) ** 2 + (x[1] - y[1]) ** 2; if (e > d) { d = e; a = x; b = y; } }));
+        return {bn, pts, a, b};
+      });
+      const pxBreed = lijnen.length > 1 ? Math.hypot(lijnen[1].a[0] - lijnen[0].a[0], lijnen[1].a[1] - lijnen[0].a[1]) : 20;
+      const fs = 12, tekstB = fs * .62 * (letter + rijen.length).length + 6;
+      const stap = [1, 2, 5, 10, 20, 25, 50].find(s => s * Math.max(pxBreed, .5) >= tekstB) || 100;
+      g.lineWidth = 1; g.strokeStyle = kleur + 'cc';
+      lijnen.forEach(({bn, pts, a, b}) => {
+        g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke();
+        if ((bn.nr - 1) % stap && bn.nr !== rijen.length) return;
+        g.font = `bold ${fs}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L, in_ = Math.min(14, L / 4);
+        [[a[0] + ux * in_, a[1] + uy * in_], [b[0] - ux * in_, b[1] - uy * in_]].forEach(([x, y]) => {
+          x = Math.max(tekstB / 2, Math.min(cw - tekstB / 2, x)); y = Math.max(8, Math.min(ch - 8, y));
+          const t = letter + bn.nr, tw = g.measureText(t).width + 4;
+          g.fillStyle = 'rgba(0,0,0,.72)'; g.fillRect(x - tw / 2, y - fs / 2 - 1, tw, fs + 2); g.fillStyle = kleur; g.fillText(t, x, y);
+        });
+      });
+    });
+    const b64 = c => c.toDataURL('image/jpeg', .85).split(',')[1];
+    const pr = partijenVan(p.id);
+    const zoneTekst = zs.map(z => `- ${z._vak ? `deelveld "${z.naam}": nummers met letter ${zoneLetter(p, z)} (bijv. ${zoneLetter(p, z)}1)` : 'hoofdveld: nummers zonder letter'}, ${banenVan(z).length} sporen`).join('\n');
+    const plantTekst = S.soorten.filter(s => !/^braak$/i.test(s.naam)).map(s => `- ${s.naam}${rassenVan(s.id).length ? ': ' + rassenVan(s.id).map(r => r.naam).join(', ') : ''}`).join('\n');
+    const tekst = `Je bent een assistent voor een akkerbouw/fruitteeltbedrijf. Je krijgt twee afbeeldingen van dezelfde perceelplattegrond van perceel "${p.naam}".
+Afbeelding 1 is de originele plattegrond. Afbeelding 2 is dezelfde plattegrond met daarover de sporen (plantrijen) zoals ze in onze app staan: dunne gekleurde vlakjes, met spoornummers aan beide uiteinden. Niet elk spoor heeft een nummer: de tussenliggende sporen tellen gewoon door.
+Zones:
+${zoneTekst}
+${pr.length ? `Partijen die op dit perceel horen:\n${pr.slice(0, 80).map(y => `- ${partijRas(y) || soort(y.soort_id)?.naam || '?'}${y.batch ? ' batch ' + y.batch : ''}${y.nak && y.nak !== y.batch ? ' NAK ' + y.nak : ''}${y.klasse ? ' ' + y.klasse : ''}${y.doel ? ' ' + y.doel : ''}`).join('\n')}\n` : ''}Gewassen en rassen die in de app bestaan:
+${plantTekst}
+${AI?.extra ? `Extra uitleg van de gebruiker: ${AI.extra}\n` : ''}
+Opdracht: lees op de plattegrond (tekst, legenda, kleuren, vakken, pijlen, aantallen) welke plant/ras (en eventueel batch/partij) op welke sporen staat. Gebruik afbeelding 2 om te bepalen om welke spoornummers het gaat.
+Neem spuitpaden, lege stroken en paden niet op. Maak aaneengesloten reeksen per ras/partij.
+Antwoord ALLEEN met JSON in dit formaat, zonder andere tekst:
+{"blokken":[{"zone":"" of de letter,"van":1,"tot":12,"ras":"naam zoals op de plattegrond","gewas":"als bekend","batch":"als vermeld, anders leeg","zekerheid":0.0-1.0,"toelichting":"kort waarom"}],"opmerking":"wat onduidelijk was"}`;
+    banner('<b>🤖 Claude leest de plattegrond…</b><br>Dit duurt meestal 20 tot 60 seconden.');
+    const {data, error} = await sb.functions.invoke('ai-plattegrond', {body: {beelden: [b64(c1), b64(c2)], tekst}});
+    banner(null);
+    let fout = data?.fout;
+    if (error) { try { fout = (await error.context?.json?.())?.fout; } catch {} fout = fout || error.message; }
+    if (fout) {
+      toast(/not found|404|Failed to send/i.test(fout) ? 'De AI-koppeling staat nog niet in Supabase (Edge Function "ai-plattegrond"), zie de uitleg' : '🤖 ' + fout, 1); return;
+    }
+    const m = String(data?.antwoord || '').match(/\{[\s\S]*\}/);
+    let uit; try { uit = JSON.parse(m[0]); } catch { toast('🤖 Het antwoord was niet te lezen, probeer het nog eens', 1); console.warn(data?.antwoord); return; }
+    AI = {pid, blokken: (uit.blokken || []).map(b => aiKoppel(p, b)).filter(Boolean), opmerking: uit.opmerking || '', extra: AI?.extra || '', voorbeeld: c2.toDataURL('image/jpeg', .7)};
+    aiVoorbeeld();
+  } catch (e) { banner(null); toast('🤖 Mislukt: ' + (e.message || e), 1); }
+}
+// naam van de plattegrond → teelt (ras/soort) en partij in de app
+function aiKoppel(p, b) {
+  const zs = alleZones(p).filter(z => banenVan(z).length), letter = String(b.zone || '').trim().toUpperCase();
+  const z = zs.find(z => zoneLetter(p, z) === letter) || zs.find(z => !z._vak) || zs[0];
+  const n = banenVan(z).length, van = Math.max(1, Math.min(n, parseInt(b.van) || 1)), tot = Math.max(van, Math.min(n, parseInt(b.tot) || van));
+  const nm = normTekst(b.ras), gw = normTekst(b.gewas);
+  const soortVan = S.soorten.find(s => gw && (normTekst(s.naam) === gw || normTekst(s.naam).includes(gw) || gw.includes(normTekst(s.naam))));
+  let r = S.rassen.filter(r => !soortVan || r.soort_id === soortVan.id).find(r => normTekst(r.naam) === nm)
+       || S.rassen.find(r => normTekst(r.naam) === nm) || (nm.length > 3 && S.rassen.find(r => nm.includes(normTekst(r.naam)) || normTekst(r.naam).includes(nm)));
+  const s = !r && (S.soorten.find(s => normTekst(s.naam) === nm) || soortVan);
+  const bt = normTekst(b.batch), pr = partijenVan(p.id);
+  const partij = bt ? pr.find(y => normTekst(y.batch) === bt || normTekst(y.nak) === bt) : null;
+  if (!r && partij?.ras_id) r = ras(partij.ras_id);
+  return {zid: z.id, van, tot, teelt: r?.id || s?.id || '', partij: partij?.id || '', ras: b.ras || '', batch: b.batch || '', zeker: Math.max(0, Math.min(1, +b.zekerheid || 0)), uitleg: b.toelichting || '', aan: true};
+}
+function aiTeeltOpties(sel) {
+  return `<option value="">— niet herkend, kies —</option>` + S.soorten.map(s => `<optgroup label="${esc(s.naam)}"><option value="${s.id}" ${sel === s.id ? 'selected' : ''}>${esc(s.naam)} (geen ras)</option>${rassenVan(s.id).map(r => `<option value="${r.id}" ${sel === r.id ? 'selected' : ''}>${esc(r.naam)}</option>`).join('')}</optgroup>`).join('');
+}
+function aiLees() {
+  document.querySelectorAll('#aiLijst .aiBlok').forEach((el, i) => { const b = AI.blokken[i]; if (!b) return;
+    b.aan = el.querySelector('[data-k=aan]').checked; b.zid = el.querySelector('[data-k=zone]')?.value || b.zid;
+    b.van = +el.querySelector('[data-k=van]').value || b.van; b.tot = +el.querySelector('[data-k=tot]').value || b.tot;
+    b.teelt = el.querySelector('[data-k=teelt]').value; b.partij = el.querySelector('[data-k=partij]')?.value || ''; });
+  const e = $('#aiExtra'); if (e) AI.extra = e.value;
+}
+function aiVoorbeeld() {
+  const p = perceel(AI.pid), zs = alleZones(p).filter(z => banenVan(z).length), pr = partijenVan(p.id);
+  focusLaag.clearLayers();
+  AI.blokken.filter(b => b.aan && b.teelt).forEach(b => {
+    const z = zs.find(z => z.id === b.zid); if (!z) return; const kl = teelt(b.teelt)?.kleur || '#ff0';
+    banenVan(z).filter(bn => bn.nr >= b.van && bn.nr <= b.tot && !isSpuitRij(z, bn.nr)).forEach(bn => L.geoJSON(bn.geo, {interactive: false, style: {color: '#fff', weight: 1, fillColor: kl, fillOpacity: .75}}).addTo(focusLaag));
+  });
+  const zoneSel = b => zs.length > 1 ? `<select class="veld" data-k="zone">${zs.map(z => `<option value="${z.id}" ${z.id === b.zid ? 'selected' : ''}>${z._vak ? esc(z.naam) : 'Hoofdveld'}</option>`).join('')}</select>` : '';
+  $('#modal').innerHTML = `<div class="dialoog breed"><h3>🤖 Gelezen van de plattegrond</h3>
+    <p class="hint" style="margin-top:0">Controleer elke regel: pas de sporen of het ras aan waar het niet klopt en vink uit wat niet over moet. Op de kaart zie je het voorbeeld.</p>
+    ${AI.opmerking ? `<p class="aiOpm">💬 ${esc(AI.opmerking)}</p>` : ''}
+    <div id="aiLijst">${AI.blokken.map((b, i) => `<div class="aiBlok ${b.zeker < .5 ? 'twijfel' : ''}">
+      <label class="aiKop"><input type="checkbox" data-k="aan" ${b.aan ? 'checked' : ''}> <b>${esc(b.ras || '?')}</b>${b.batch ? ` · batch ${esc(b.batch)}` : ''} <span class="aiZeker" title="Hoe zeker de AI is">${Math.round(b.zeker * 100)}%</span></label>
+      <div class="aiVelden">${zoneSel(b)}<span>sporen</span><input class="veld" type="number" data-k="van" value="${b.van}" min="1"><span>t/m</span><input class="veld" type="number" data-k="tot" value="${b.tot}" min="1">
+        <select class="veld" data-k="teelt">${aiTeeltOpties(b.teelt)}</select>
+        ${pr.length ? `<select class="veld" data-k="partij"><option value="">geen partij</option>${pr.map(y => `<option value="${y.id}" ${b.partij === y.id ? 'selected' : ''}>🏷️ ${esc(partijRas(y) || '')} ${y.batch ? esc(y.batch) : ''} ${y.klasse ? esc(y.klasse) : ''}</option>`).join('')}</select>` : ''}</div>
+      ${b.uitleg ? `<small>${esc(b.uitleg)}</small>` : ''}</div>`).join('') || '<p class="hint">De AI heeft niets kunnen lezen.</p>'}</div>
+    <details class="aiDet"><summary>Wat heeft de AI gezien?</summary><img src="${AI.voorbeeld}" style="width:100%;border-radius:8px;margin-top:6px"></details>
+    <label>Extra uitleg voor de AI (optioneel)</label><textarea class="veld" id="aiExtra" rows="2" placeholder="bijv. de kleuren in de legenda zijn partijen; vak 1 begint aan de slootkant">${esc(AI.extra)}</textarea>
+    <div class="rij"><button class="knop licht" onclick="aiLees();aiVoorbeeld()">👁️ Voorbeeld bijwerken</button><button class="knop licht" onclick="aiLees();$('#modal').classList.remove('open');aiPlattegrond(AI.pid)">🔄 Opnieuw laten lezen</button></div>
+    <button class="knop" onclick="aiOvernemen()">✔ Overnemen op het perceel</button>
+    <button class="knop licht" onclick="$('#modal').classList.remove('open');focusLaag.clearLayers()">Annuleren</button></div>`;
+  $('#modal').classList.add('open');
+  $('#modal').querySelectorAll('#aiLijst select, #aiLijst input').forEach(el => el.onchange = () => { aiLees(); aiVoorbeeld(); });
+}
+async function aiOvernemen() {
+  aiLees();
+  const p = perceel(AI.pid), lijst = AI.blokken.filter(b => b.aan && b.teelt);
+  if (!lijst.length) { toast('Er is niets aangevinkt met een plant erbij', 1); return; }
+  const banen = [...(p.banen || [])], vakken = (p.vakken || []).map(v => ({...v, banen: [...(v.banen || [])]}));
+  let n = 0;
+  lijst.forEach(b => {
+    const z = alleZones(p).find(z => z.id === b.zid); if (!z) return;
+    const arr = z._vak ? vakken.find(v => v.id === z._vak.id).banen : banen;
+    for (let nr = b.van; nr <= b.tot; nr++) { if (isSpuitRij(z, nr)) continue; while (arr.length < nr) arr.push(null); arr[nr - 1] = b.teelt; n++; }
+  });
+  $('#modal').classList.remove('open'); focusLaag.clearLayers();
+  await wijzig(p.id, {banen, vakken});
+  // partijen op hun sporen zetten
+  for (const b of lijst.filter(b => b.partij)) {
+    const x = (S.partijen || []).find(y => y.id === b.partij), z = alleZones(p).find(z => z.id === b.zid);
+    if (x && z && mag('partijen_beheren')) await partijZetSporen(x, z, Array.from({length: b.tot - b.van + 1}, (_, i) => b.van + i), true);
+  }
+  render(true); toast(`🤖 ${n} sporen ingevuld vanaf de plattegrond`);
+}
+
 // slepen en loslaten op het scherm
 function pgSleepInit() {
   let teller = 0;
