@@ -713,6 +713,13 @@ details.szblok summary h4{margin:6px 0}
   .agcelkop b{font-size:12.5px}
   .kop .agknop{padding:6px 7px}
 }
+/* hele scherm voor lijsten en beheer (geen kaart nodig) */
+body.volscherm #panel{width:100% !important;transform:none !important;box-shadow:none}
+body.volscherm #map,body.volscherm #kaartUI,body.volscherm #paneelKnop,body.volscherm #rand{display:none !important}
+body.volscherm #inhoud{padding-left:max(16px,calc((100% - 1100px) / 2));padding-right:max(16px,calc((100% - 1100px) / 2))}
+body.volscherm .kaartTerug{display:inline-flex}
+.kaartTerug{display:none}
+@media(max-width:760px){body.volscherm #panel{top:0 !important;height:100% !important;border-radius:0}body.volscherm .greep{visibility:hidden}}
 /* paneel in- en uitschuiven (computer) */
 body.dicht #panel{transform:translateX(-100%)}
 body.dicht #map,body.dicht #kaartUI{left:0}
@@ -2780,9 +2787,10 @@ const taakWaar = t => isVerplaats(t) ? `${locNaam(t, 'van')} → ${locNaam(t, 'n
   (t.spoor_van && perceel(t.perceel_id) && spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot))
     ? 'vak ' + spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot).letter : t.spoor_van ? (t.spoor_tot && t.spoor_tot !== t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot}` : `spoor ${t.spoor_van}`) : 'hele perceel';
 function focusTaak(id) {
-  if (taakFocus === id) { taakFocus = undefined; verbergTrekker3d(); if (drieD) sluit3D(); render(true); return; }
+  if (taakFocus === id) { taakFocus = undefined; verbergTrekker3d(); if (drieD) sluit3D(); kaartErbij = false; render(true); return; }
   const t = S.taken.find(x => x.id === id); if (!t) return;
   taakFocus = id; verbergTrekker3d(); if (drieD) sluit3D();
+  if (VOL_TABS.has(tab)) kaartTonen(true);
   if (!t.klaar && (t.trekker || t.werktuig || werktuigSoort(t))) setTimeout(() => { if (taakFocus === id) open3D({taak: t}); }, 450);
   if (isVerplaats(t)) {
     if (tab === 'percelen' && t.perceel_id) actief = t.perceel_id;
@@ -3036,11 +3044,22 @@ function render(forceer) {
 }
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
-function zetTab(t) { if (t === 'uren' && tab !== 'uren') laadUren(); tab = t; if (t !== 'percelen') { kwast = undefined; gekozenPlant = undefined; } render(true); $('#inhoud').scrollTop = 0; }
+// schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
+const VOL_TABS = new Set(['taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij']);
+let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
+function volScherm() {
+  const vol = VOL_TABS.has(tab) && !kaartErbij && !(typeof menuOpen !== 'undefined' && menuOpen);
+  if (document.body.classList.contains('volscherm') === vol) return;
+  document.body.classList.toggle('volscherm', vol);
+  setTimeout(() => { try { map.invalidateSize(); } catch {} }, 280);
+}
+function kaartTonen(aan) { kaartErbij = aan; volScherm(); }
+function zetTab(t) { if (t === 'uren' && tab !== 'uren') laadUren(); if (t !== tab) kaartErbij = false; tab = t; if (t !== 'percelen') { kwast = undefined; gekozenPlant = undefined; } render(true); $('#inhoud').scrollTop = 0; }
 
 function renderPaneel() {
   const open = S.taken.filter(t => !t.klaar).length;
   document.body.classList.toggle('eenvoudig', eenvoudig()); document.body.classList.toggle('geenFilm', !ziet('film_bekijken'));
+  volScherm();
   $('#wie').innerHTML = `${esc(naamMe())}<br><small>${isBeheerder() ? 'Beheerder' : 'Medewerker'}</small>`;
   if (tab === 'team' && !magTeam()) tab = 'percelen';
   if (tab === 'tractoren' && !(ziet('tractoren_volgen') || ziet('tractor_rijden'))) tab = 'percelen';
@@ -3051,7 +3070,8 @@ function renderPaneel() {
   if (!sectieTabs(sectie).some(t => t[0] === tab)) tab = sectieTabs(sectie)[0]?.[0] || 'percelen';
   const tellers = {taken: [open], tractoren: [live, 'live'], uren: [bezigN, 'live'], bedrijf: [bedrijfLet ? '!' : 0]};
   $('#tabs').innerHTML = `<button class="menuknop" onclick="toonMenu()" title="Hoofdmenu"><span class="ti">🏠</span>Menu</button>` + sectieTabs(sectie).map(([k, i, l]) => [k, i, l, ...(tellers[k] || [])])
-    .map(([k, i, l, n, kl]) => `<button class="${tab === k ? 'aan' : ''}" onclick="zetTab('${k}')"><span class="ti">${i}${n ? `<span class="tel ${kl || ''}">${n}</span>` : ''}</span>${l}</button>`).join('');
+    .map(([k, i, l, n, kl]) => `<button class="${tab === k ? 'aan' : ''}" onclick="zetTab('${k}')"><span class="ti">${i}${n ? `<span class="tel ${kl || ''}">${n}</span>` : ''}</span>${l}</button>`).join('')
+    + (VOL_TABS.has(tab) && !isMobiel() ? (kaartErbij ? `<button onclick="kaartTonen(false)" title="Kaart weg, hele scherm"><span class="ti">⛶</span>Volledig</button>` : `<button onclick="kaartTonen(true)" title="De kaart erbij"><span class="ti">🗺️</span>Kaart</button>`) : '');
   let h = '';
   if (tab === 'percelen') h = actief && perceel(actief) ? htmlDetail(perceel(actief)) : htmlLijst();
   else if (tab === 'taken') h = htmlAlleTaken();
@@ -4230,7 +4250,7 @@ function initPaneel() {
   let geenKlik = false;
   document.addEventListener('click', e => { if (geenKlik) { e.stopPropagation(); e.preventDefault(); geenKlik = false; } }, true);
   [$('.kop'), $('#tabs')].forEach(el => el.addEventListener('pointerdown', e => {
-    if (!isMobiel() || e.button > 0) return;
+    if (!isMobiel() || e.button > 0 || document.body.classList.contains('volscherm')) return;
     const x0 = e.clientX, y0 = e.clientY, h0 = ph, opKnop = !!e.target.closest('button,input,select,a'); let stand = 0;   // 0 = nog onbeslist, 1 = slepen, -1 = zijwaarts
     const mv = ev => {
       const dx = ev.clientX - x0, dy = ev.clientY - y0;
@@ -4248,7 +4268,7 @@ function initPaneel() {
   // inhoud: bovenaan omlaag vegen maakt het blad kleiner, omhoog vegen maakt het eerst groot en scrolt daarna
   const inh = $('#inhoud'); let t0 = null;
   inh.addEventListener('touchstart', e => {
-    if (!isMobiel() || e.touches.length !== 1 || e.target.closest('input,textarea,select,.peKies,.fiWeer,[data-geenblad]')) { t0 = null; return; }
+    if (!isMobiel() || document.body.classList.contains('volscherm') || e.touches.length !== 1 || e.target.closest('input,textarea,select,.peKies,.fiWeer,[data-geenblad]')) { t0 = null; return; }
     t0 = {y: e.touches[0].clientY, x: e.touches[0].clientX, h: ph, top: inh.scrollTop, stand: 0};
   }, {passive: true});
   inh.addEventListener('touchmove', e => {
