@@ -568,6 +568,7 @@ details.szblok summary h4{margin:6px 0}
 .tmRij{display:block;width:100%;text-align:left;border:0;background:#24442d;color:#fff;border-radius:14px;font-size:24px;padding:18px;margin-bottom:10px}.tmRij.aan{background:#2e7d32;outline:3px solid #ffd54f}
 .tmTaak{display:flex;align-items:center;gap:10px;background:#24442d;border-radius:14px;padding:14px;margin-bottom:10px}.tmTaak>div{flex:1}.tmTaak small{display:block;color:#c8e6c9;font-size:17px;margin-top:4px}
 .tmKlein{border:0;border-radius:12px;min-width:70px;height:64px;font-size:22px;font-weight:700;background:#455a64;color:#fff}.tmKlein.aan{background:#f9a825;color:#222}.tmKlein.groen{background:#2e7d32;min-width:120px}
+.tmWie{border:0;border-radius:12px;background:#2e5e3a;color:#fff;font-size:18px;font-weight:700;padding:10px 14px}.tmVraag{font-size:30px;font-weight:800;margin:6px 0 14px}
 .tmLeeg{text-align:center;font-size:24px;margin-top:40px;color:#c8e6c9}
 .mIcoon{font-size:34px;width:56px;height:56px;border-radius:16px;background:var(--licht);display:flex;align-items:center;justify-content:center;flex:none}
 .mTekst{display:flex;flex-direction:column;gap:3px}.mTekst b{font-size:18px;color:var(--groen)}.mTekst small{color:var(--grijs);font-size:13px;line-height:1.35}
@@ -847,7 +848,8 @@ let perceelTab = 'info', actief = null, tab = 'percelen', kwast, gereedschap, ta
 let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, voertuigLaag, locatieLaag, basis = {}, laagModus = 'sat';
 
 const mijnProfiel = () => S.profielen.find(x => x.id === me?.id);
-const naamMe = () => mijnProfiel()?.naam || me?.user_metadata?.naam || me?.email?.split('@')[0] || 'Onbekend';
+const naamMe = () => (typeof TM !== 'undefined' && TM.chauffeur ? TM.chauffeur.naam : null) || mijnProfiel()?.naam || me?.user_metadata?.naam || me?.email?.split('@')[0] || 'Onbekend';
+const isApparaat = () => !!mijnProfiel()?.apparaat;   // gedeeld apparaat (trekker-tablet): geen persoonlijke gegevens
 const isBeheerder = () => mijnProfiel()?.rol === 'beheerder';
 const perceel = id => S.percelen.find(p => p.id === id);
 let wijsAan = false;   // bezig met een punt aanwijzen op de kaart
@@ -1223,7 +1225,8 @@ async function opstarten() {
   setInterval(() => voertuigenTik(), 20000);
   pgSleepInit();   // plattegrond op de kaart slepen
   const tmLink = /[?&]trekker=1/.test(location.search);
-  if (tmLink || tmAltijd()) trekkerModus(true); else toonMenu();      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
+  if (tmLink || tmAltijd() || isApparaat()) trekkerModus(true); else toonMenu();
+  apparaatGPS();   // trekker-tablet: locatie van de gekoppelde trekker delen zolang hij aan staat      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
   setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
 }
 const actiefSeizoen = () => S.seizoenen.find(s => s.actief);
@@ -1252,6 +1255,7 @@ async function laadAlles() {
   if (p.error) toast('Database niet bereikbaar: ' + p.error.message, 1);
   if (archief) livePercelen = p.data || []; else S.percelen = p.data || [];
   S.soorten = s.data || []; S.rassen = rs.data || []; S.markeringen = mk.data || []; S.tractoren = tr.data || []; S.profielen = pr.data || [];
+  if (isApparaat()) { const {data: ch} = await sb.rpc('chauffeurs'); (ch || []).forEach(c => { if (!S.profielen.find(x => x.id === c.id)) S.profielen.push({...c, chauffeur: true}); }); }
   render(true);
   bewaarCache(); verwerkWachtrij(); controleerVorst(); controleerWeer(); belTeken(); netStatus();
   voertuigenTik(true);
@@ -3114,7 +3118,7 @@ function renderPaneel() {
   const open = S.taken.filter(t => !t.klaar).length;
   document.body.classList.toggle('eenvoudig', eenvoudig()); document.body.classList.toggle('geenFilm', !ziet('film_bekijken'));
   volScherm();
-  $('#wie').innerHTML = `${esc(naamMe())}<br><small>${isBeheerder() ? 'Beheerder' : 'Medewerker'}</small>`;
+  $('#wie').innerHTML = `${esc(naamMe())}<br><small>${isApparaat() ? '🚜 Trekker-tablet' : isBeheerder() ? 'Beheerder' : 'Medewerker'}</small>`;
   if (tab === 'team' && !magTeam()) tab = 'percelen';
   if (tab === 'tractoren' && !(ziet('tractoren_volgen') || ziet('tractor_rijden'))) tab = 'percelen';
   const live = S.tractoren.filter(isLive).length, bezigN = S.taken.filter(t => t.bezig_door && !t.klaar).length;
@@ -4222,12 +4226,17 @@ function htmlTeam() {
       ${isBeheerder() ? `<label>Rol</label><select class="veld" id="tRol" onchange="document.getElementById('tRechten').style.display=this.value==='beheerder'?'none':''"><option value="medewerker">Medewerker</option><option value="beheerder">Beheerder</option></select>` : '<input type="hidden" id="tRol" value="medewerker">'}
       <div id="tRechten"><label>Wat mag deze medewerker?</label>
         <div class="rij" style="flex-wrap:wrap;margin-bottom:6px">${Object.entries(RECHT_SJABLONEN).map(([k, x]) => `<button class="knop klein licht" style="flex:0 0 auto;width:auto" onclick="sjabloonKiezen('${k}')">${x.naam}</button>`).join('')}</div>${rechtenLijst(k => STANDAARD[k] && (isBeheerder() || recht(k)), k => `data-recht="${k}" ${isBeheerder() || recht(k) ? '' : 'disabled title="Dit recht heb je zelf niet"'}`)}</div>
+      <label class="vinkje"><input type="checkbox" id="tChauffeur"> 🚜 Chauffeur: staat in de lijst "wie rijdt er?" op de trekker-tablets</label>
+      ${isBeheerder() ? '<label class="vinkje"><input type="checkbox" id="tApparaat"> 📱 Dit is een trekker-tablet (gedeeld apparaat): start in de trekker-modus en kan geen persoonlijke gegevens zien</label>' : ''}
       <button class="knop" id="tKnop" onclick="maakMedewerker()">Account aanmaken</button>
       <p class="hint">Geef de medewerker zijn e-mail en wachtwoord door. Hij kan het wachtwoord daarna zelf wijzigen met 🔑.</p>
     </section>
     <section class="kaartje"><h4>Team (${lijst.length})</h4>
       ${lijst.map(u => `<div class="soort">
-        <div class="t"><b>${esc(u.naam)}</b> ${u.rol === 'beheerder' ? '<span class="badge">Beheerder</span>' : ''}${u.id === me.id ? ' <small>(jij)</small>' : ''}<br><small>${esc(u.email || '')}</small></div>
+        <div class="t"><b>${esc(u.naam)}</b> ${u.rol === 'beheerder' ? '<span class="badge">Beheerder</span>' : ''}${u.apparaat ? '<span class="badge">📱 Trekker-tablet</span>' : ''}${u.id === me.id ? ' <small>(jij)</small>' : ''}<br><small>${esc(u.email || '')}</small>
+          ${!u.apparaat && (isBeheerder() || (u.rol !== 'beheerder' && u.id !== me.id)) ? `<label class="vinkje klein" style="margin:2px 0 0"><input type="checkbox" ${u.chauffeur ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_chauffeur:this.checked})"> 🚜 Chauffeur (staat op de trekker-tablets)</label>` : ''}
+          ${isBeheerder() && u.id !== me.id && u.rol !== 'beheerder' ? `<label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.apparaat ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_apparaat:this.checked})"> 📱 Gedeeld apparaat (trekker-tablet)</label>` : ''}
+          ${u.apparaat && isBeheerder() ? `<div class="aiVelden"><span>🚜 Zit in trekker</span><select class="veld" onchange="zetTrekker('${u.id}',this.value)"><option value="">— geen —</option>${S.tractoren.map(t => `<option value="${t.id}" ${u.trekker_id === t.id ? 'selected' : ''}>${esc(t.naam)}</option>`).join('')}</select></div>` : ''}</div>
         ${isBeheerder() || (u.rol !== 'beheerder' && u.id !== me.id) ? `<button class="icoon" title="Naam wijzigen" onclick="teamNaam('${u.id}')">✏️</button>
         <button class="icoon" title="Wachtwoord opnieuw instellen" onclick="teamWachtwoord('${u.id}')">🔑</button>` : ''}
         ${u.rol !== 'beheerder' && (isBeheerder() || u.id !== me.id) ? `<button class="icoon" title="Rechten" onclick="openRechten=openRechten==='${u.id}'?undefined:'${u.id}';render(true)">🛡️</button>` : ''}
@@ -4255,19 +4264,43 @@ async function maakMedewerker() {
   $('#tKnop').disabled = false;
   if (error) { toast(foutTekst(error), 1); return; }
   toast(`Account voor ${naam} aangemaakt`);
+  const ch = $('#tChauffeur')?.checked, ap = $('#tApparaat')?.checked;
+  if (ch || ap) { await laadTeam(); const u = S.profielen.find(x => (x.email || '').toLowerCase() === email.toLowerCase());
+    if (u) { const {error: e2} = await sb.rpc('zet_profiel_vlag', {p_id: u.id, p_chauffeur: ch ? true : null, p_apparaat: ap ? true : null}); if (e2) toast(foutTekst(e2), 1); } }
   await laadTeam();
 }
 // snel de rechten instellen voor een soort account
 const RECHT_SJABLONEN = {
-  trekker: {naam: '🚜 Trekker-tablet', aan: ['taken_afvinken', 'werk_registreren', 'markeringen_maken', 'weer_bekijken', 'tractor_rijden', 'tractoren_volgen', 'film_bekijken']},
+  trekker: {naam: '🚜 Trekker-tablet', aan: ['taken_afvinken', 'werk_registreren', 'markeringen_maken', 'weer_bekijken', 'tractor_rijden', 'tractoren_volgen']},
   kijken: {naam: '👀 Alleen kijken', aan: ['weer_bekijken', 'historie_bekijken', 'film_bekijken', 'oogst_bekijken', 'voorraad_bekijken', 'tractoren_volgen']},
   standaard: {naam: '📋 Standaard medewerker', standaard: true}};
 const sjabloonRechten = k => { const x = RECHT_SJABLONEN[k]; return Object.fromEntries(RECHTEN.map(([r]) => [r, x.standaard ? !!STANDAARD[r] : x.aan.includes(r)])); };
 function sjabloonKiezen(k) {
   const r = sjabloonRechten(k);
   document.querySelectorAll('#tRechten input[data-recht]').forEach(i => { if (!i.disabled) i.checked = !!r[i.dataset.recht]; });
-  if (k === 'trekker' && !$('#tNaam').value) $('#tNaam').value = 'Trekker ';
+  if (k === 'trekker') { if (!$('#tNaam').value) $('#tNaam').value = 'Trekker '; if ($('#tApparaat')) $('#tApparaat').checked = true; if ($('#tChauffeur')) $('#tChauffeur').checked = false; }
   toast(`${RECHT_SJABLONEN[k].naam}: rechten ingevuld, pas aan waar nodig`);
+}
+async function zetTrekker(id, trekker) {
+  const u = S.profielen.find(x => x.id === id); if (!u) return;
+  const {error} = await sb.rpc('zet_trekker', {p_id: id, p_trekker: trekker || null});
+  if (error) { toast(/zet_trekker|function/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); return; }
+  u.trekker_id = trekker || null; toast(trekker ? `Gekoppeld aan ${S.tractoren.find(t => t.id === trekker)?.naam}: de tablet deelt de locatie zolang hij aan staat` : 'Niet meer gekoppeld');
+}
+// tablet in de trekker: zelf de locatie van zijn trekker delen, alleen als de trekker aan staat (tablet aan de stroom)
+async function apparaatGPS() {
+  const tid = mijnProfiel()?.trekker_id; if (!isApparaat() || !tid || !S.tractoren.find(t => t.id === tid)) return;
+  let accu = null; try { accu = await navigator.getBattery?.(); } catch {}
+  const pas = () => { const aan = !accu || accu.charging;
+    if (aan && rijdt !== tid) startRijden(tid, true); else if (!aan && rijdt === tid) stopRijden(); };
+  if (accu) accu.addEventListener('chargingchange', pas);
+  pas();
+}
+async function zetVlag(id, vlag) {
+  const u = S.profielen.find(x => x.id === id); if (!u) return;
+  const {error} = await sb.rpc('zet_profiel_vlag', {p_id: id, p_chauffeur: null, p_apparaat: null, ...vlag});
+  if (error) { toast(/zet_profiel_vlag|function/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); laadTeam(); return; }
+  if ('p_chauffeur' in vlag) u.chauffeur = vlag.p_chauffeur; if ('p_apparaat' in vlag) u.apparaat = vlag.p_apparaat; render(true); toast('Opgeslagen');
 }
 async function sjabloonVoor(id, k) {
   const u = S.profielen.find(x => x.id === id); if (!u) return;
@@ -4310,6 +4343,7 @@ async function teamVerwijder(id) {
   if (error) toast(foutTekst(error), 1); else { toast('Account verwijderd'); laadTeam(); }
 }
 async function eigenWachtwoord() {
+  if (isApparaat()) { toast('Op een trekker-tablet kun je geen wachtwoord wijzigen. Log daarvoor in op je eigen telefoon of computer.', 1); return; }
   const ww = await vraag('Je eigen wachtwoord wijzigen', {type: 'password', knop: 'Wijzigen', uitleg: 'Kies een nieuw wachtwoord van minimaal 6 tekens.'});
   if (!ww) return;
   if (ww.length < 6) { toast('Minimaal 6 tekens', 1); return; }
@@ -4629,7 +4663,7 @@ function sectieTabs(s) {
     opslag: [['voorraad', '❄️', 'Koelcel'], ['middelen', '🧪', 'Middelenvoorraad']],
     taken: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : []), ['uren', '⏱️', 'Uren']],
     percelen: [['percelen', '🗺️', 'Kaart'], ['partijen', '🏷️', 'Partijen'], ['prognose', '📈', 'Prognose'], ['plantplan', '🧮', 'Plantplan'], ['vruchtwisseling', '🔄', 'Wisseling'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
-    persoonlijk: [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Mijn uren']],
+    persoonlijk: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Mijn uren']],
     beheer: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['dossier', '📁', 'Bio-dossier'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])]
   })[s] || [];
 }
@@ -4653,8 +4687,8 @@ function toonMenu() {
       ${tegel('percelen', 'Percelen', 'De kaart, partijen, prognose, plantplan en vruchtwisseling', `${velden.length} velden · ${ha(haTot)} ha${live ? ` · 🚜 ${live} rijden` : ''}`)}
       ${tegel('taken', 'Taken', 'Alle taken, weekplanning en wie wat doet', `${open.length} open${mijn.length ? ` · <b>${mijn.length} voor jou</b>` : ''}${bezig.length ? ` · 🟡 ${bezig.length} bezig` : ''}`)}
       ${ziet('voorraad_bekijken') || mag('voorraad_beheren') ? tegel('opslag', 'Opslag', 'De koelcel: wat er ligt, leveringen en terugzoeken', '') : ''}
-      ${tegel('persoonlijk', 'Persoonlijke gegevens', 'Je gegevens, je uren, je agenda en je wachtwoord', '')}
-      ${magBeheer() ? tegel('beheer', 'Gegevens aanpassen', 'Bedrijf, bio-dossier, machines, planten, seizoenen en het team', 'voor beheerders') : ''}
+      ${isApparaat() ? '' : tegel('persoonlijk', 'Persoonlijke gegevens', 'Je gegevens, je uren, je agenda en je wachtwoord', '')}
+      ${magBeheer() && !isApparaat() ? tegel('beheer', 'Gegevens aanpassen', 'Bedrijf, bio-dossier, machines, planten, seizoenen en het team', 'voor beheerders') : ''}
     </div>
     <div class="mSnel"><button onclick="trekkerModus(true)">🚜 Trekker-modus</button><button onclick="verbergMenu();openAgenda()">📆 Agenda</button><button onclick="verbergMenu();openMeldingen()">🔔 Meldingen</button><button onclick="verbergMenu();startFilm()">🎬 Film</button></div>
   </div>`;
@@ -5866,7 +5900,12 @@ async function zetBio(id, aan) { await wijzig(id, {bio: aan}); render(true); toa
 /* ============ TREKKER-MODUS ============
    Groot en simpel voor de tablet in de trekker: het perceel waar je rijdt (GPS), het spoor, de taken van vandaag
    en snel iets registreren. Start vanzelf als dat op dit apparaat is aangezet (of met ?trekker=1 in de link). */
-const TM = {aan: false, watch: null, pos: null, pid: null, handmatig: false, scherm: 'start', wake: null, klok: null};
+const TM = {aan: false, watch: null, pos: null, pid: null, handmatig: false, scherm: 'start', wake: null, klok: null, chauffeur: null, weg: 0};
+const chauffeursLijst = () => S.profielen.filter(u => u.chauffeur && !u.apparaat).sort((a, b) => (a.naam || '').localeCompare(b.naam || '', 'nl'));
+function tmKiesChauffeur(id) { const u = S.profielen.find(x => x.id === id); TM.chauffeur = u ? {id: u.id, naam: u.naam} : null; TM.scherm = 'start'; tmRender(); if (u) toast(`👋 Hoi ${u.naam.split(' ')[0]}`); }
+function tmAfmelden() { TM.chauffeur = null; TM.scherm = 'wie'; tmRender(); }
+// tablet een tijd uit of weggelegd: de volgende keer opnieuw kiezen wie er rijdt
+document.addEventListener('visibilitychange', () => { if (document.hidden) TM.weg = Date.now(); else if (TM.weg && Date.now() - TM.weg > 10 * 60e3 && TM.chauffeur) { TM.chauffeur = null; if (TM.aan) { TM.scherm = 'wie'; tmRender(); } } });
 const tmAltijd = () => { try { return localStorage.getItem('trekker_start') === '1'; } catch { return false; } };
 function tmAltijdZet(aan) { try { localStorage.setItem('trekker_start', aan ? '1' : '0'); } catch {} toast(aan ? '🚜 Dit apparaat start voortaan in de trekker-modus' : 'Uitgezet'); }
 async function trekkerModus(aan = true) {
@@ -5875,7 +5914,7 @@ async function trekkerModus(aan = true) {
   if (!aan) { try { screen.orientation?.unlock?.(); } catch {} el?.remove(); if (TM.watch != null) navigator.geolocation?.clearWatch(TM.watch); TM.watch = null; clearInterval(TM.klok); try { TM.wake?.release(); } catch {} TM.wake = null; tekenWaarnemingen(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'trekkerScherm'; document.body.appendChild(el); }
   verbergMenu?.();
-  TM.scherm = 'start';
+  TM.scherm = !TM.chauffeur && chauffeursLijst().length ? 'wie' : 'start';
   try { TM.wake = await navigator.wakeLock?.request('screen'); } catch {}
   try { await screen.orientation?.lock?.('landscape'); } catch {}   // lukt alleen in de app/volledig scherm; anders draaien uitzetten op de tablet
   if (navigator.geolocation && TM.watch == null) TM.watch = navigator.geolocation.watchPosition(pos => {
@@ -5887,17 +5926,20 @@ async function trekkerModus(aan = true) {
   tmRender();
 }
 function tmTaken() {
-  return S.taken.filter(t => !t.klaar && (!TM.pid || betreft(t, TM.pid)) && (!t.gepland || t.gepland <= vandaag()))
-    .sort((a, b) => ((b.toegewezen_aan === me?.id) - (a.toegewezen_aan === me?.id)) || (a.gepland || a.deadline || '9').localeCompare(b.gepland || b.deadline || '9'));
+  const ik = TM.chauffeur?.id || me?.id;
+  // de taken van de chauffeur (overal), plus wat er op dit perceel nog voor niemand klaarstaat
+  return S.taken.filter(t => !t.klaar && (!t.gepland || t.gepland <= vandaag()) && (t.toegewezen_aan === ik || ((!TM.pid || betreft(t, TM.pid)) && !t.toegewezen_aan)))
+    .sort((a, b) => ((b.toegewezen_aan === ik) - (a.toegewezen_aan === ik)) || (a.gepland || a.deadline || '9').localeCompare(b.gepland || b.deadline || '9'));
 }
 function tmRender() {
   const el = $('#trekkerScherm'); if (!el || !TM.aan) return;
   const p = perceel(TM.pid), sp = p && TM.pos && !TM.handmatig ? spoorOpPunt(p.id, TM.pos) : p && TM.pos ? spoorOpPunt(p.id, TM.pos) : null, taken = tmTaken();
   const kop = `<div class="tmKop"><div><div class="tmPerceel">${p ? esc(p.naam) : TM.pos ? 'Niet op een perceel' : '📡 GPS zoeken…'}</div>
       <div class="tmSpoor">${sp ? `Spoor <b>${sp.spoor}</b>${sp.vak ? ` · vak ${sp.vak}` : ''}${sp.zoneNaam ? ` · ${esc(sp.zoneNaam)}` : ''}` : p ? 'naast de sporen' : ''}${TM.pos?.properties?.acc ? ` <small>(±${Math.round(TM.pos.properties.acc)} m)</small>` : ''}</div></div>
-    <div class="tmRechts"><span id="tmKlok">${new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}</span><button class="tmX" onclick="trekkerModus(false)">✕</button></div></div>`;
+    <div class="tmRechts">${TM.chauffeur ? `<button class="tmWie" onclick="tmAfmelden()" title="Iemand anders rijdt">👤 ${esc(TM.chauffeur.naam)}</button>` : ''}<span id="tmKlok">${new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}</span>${isApparaat() ? '' : '<button class="tmX" onclick="trekkerModus(false)">✕</button>'}</div></div>`;
   let body = '';
-  if (TM.scherm === 'taken') body = `<button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
+  if (TM.scherm === 'wie') body = `<div class="tmVraag">Wie rijdt er?</div><div class="tmTegels">${chauffeursLijst().map(u => `<button class="tmTegel" onclick="tmKiesChauffeur('${u.id}')"><span>👤</span>${esc(u.naam)}</button>`).join('')}</div>`;
+  else if (TM.scherm === 'taken') body = `<button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
     ${taken.map(t => `<div class="tmTaak"><div><b>${esc(t.tekst)}</b><small>${perceel(t.perceel_id) && !TM.pid ? '📍 ' + esc(perceel(t.perceel_id).naam) + ' · ' : ''}${t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot || t.spoor_van} · ` : ''}${t.product ? esc(t.product) : ''}</small>${machineFotosHtml(t)}</div>
       ${mag('taken_afvinken') ? `<button class="tmKlein ${t.bezig_door ? 'aan' : ''}" onclick="zetBezig('${t.id}').then(tmRender)">${t.bezig_door ? '⏸' : '▶'}</button><button class="tmKlein groen" onclick="vinkTaak('${t.id}').then(tmRender)">✓ Klaar</button>` : ''}</div>`).join('') || '<p class="tmLeeg">Geen taken voor hier en nu 👍</p>'}`;
   else if (TM.scherm === 'perceel') body = `<button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
