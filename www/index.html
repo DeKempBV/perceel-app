@@ -2993,6 +2993,7 @@ function kies(id) {
 
 function renderKaart() {
   if (!map) return;
+  if (typeof TM !== 'undefined' && TM.aan) { laag.clearLayers(); pijlLaag.clearLayers(); return; }   // trekker-modus ligt eroverheen: niets tekenen, scheelt veel geheugen
   startVloot2d();
   if (trekker3d) { const tk = S.taken.find(x => x.id === trekker3d.id); if (!tk || tk.klaar || !zichtbaar(tk.perceel_id || tk.van_perceel)?.taken || taakFocus !== tk.id) verbergTrekker3d(); }
   laag.clearLayers(); pijlLaag.clearLayers(); tractorLaag.clearLayers();
@@ -4292,7 +4293,8 @@ async function apparaatGPS() {
   const tid = mijnProfiel()?.trekker_id; if (!isApparaat() || !tid || !S.tractoren.find(t => t.id === tid)) return;
   let accu = null; try { accu = await navigator.getBattery?.(); } catch {}
   const pas = () => { const aan = !accu || accu.charging;
-    if (aan && rijdt !== tid) startRijden(tid, true); else if (!aan && rijdt === tid) stopRijden(); };
+    if (aan && rijdt !== tid) { if (TM.watch != null) { navigator.geolocation.clearWatch(TM.watch); TM.watch = null; } startRijden(tid, true); }
+    else if (!aan && rijdt === tid) { stopRijden(); if (TM.aan && TM.watch == null && navigator.geolocation) TM.watch = navigator.geolocation.watchPosition(tmPositie, () => {}, {enableHighAccuracy: true, maximumAge: 3000, timeout: 20000}); } };
   if (accu) accu.addEventListener('chargingchange', pas);
   pas();
 }
@@ -4555,6 +4557,7 @@ function stopRijden() {
   toonRijBalk(); render(true); toast('Locatie delen gestopt');
 }
 async function verstuurPositie(pos) {
+  if (typeof TM !== 'undefined' && TM.aan) tmPositie(pos);
   if (!rijdt) return;
   const {latitude: lat, longitude: lng, heading, speed, accuracy} = pos.coords, nu = Date.now();
   const afstand = laatste.t ? turf.distance([laatste.lng, laatste.lat], [lng, lat]) * 1000 : Infinity;
@@ -4612,25 +4615,30 @@ async function tractorSleutel(id) {
 }
 function htmlTractoren() {
   const beh = mag('tractoren_beheren');
+  if (!trekkersOvergezet && (S.machines || []).some(m => /trekker|tractor/i.test(m.soort || '') && !m.tractor_id)) setTimeout(trekkersOverzetten, 0);
   const lijst = [...S.tractoren].sort((a, b) => (isLive(b) - isLive(a)) || a.naam.localeCompare(b.naam, 'nl'));
   return `${rijdt ? `<section class="kaartje rijkaart"><h4>Deze telefoon</h4>
       <p>Je deelt je locatie als <b>${esc(S.tractoren.find(t => t.id === rijdt)?.naam || '')}</b>. ${bgWatcher
         ? 'Dit blijft werken als het scherm uit gaat (je ziet een melding bovenin je telefoon). Leg de telefoon wel aan de lader.'
         : 'Laat de app open en het scherm aan, en leg de telefoon aan de lader. <br><small>Tip: in de echte Android-app (APK) blijft het ook met het scherm uit werken.</small>'}</p>
       <button class="knop rood" onclick="stopRijden()">Stop met locatie delen</button></section>` : ''}
-    <section class="kaartje"><h4>Tractoren</h4>
+    <section class="kaartje"><h4>🚜 Trekkers</h4>
     ${lijst.map(t => `<div class="soort">
       <span class="trstip ${isLive(t) ? 'live' : ''}">🚜</span>
+      ${(() => { const m = (S.machines || []).find(x => x.tractor_id === t.id); return m && (m.fotos || []).length ? `<img class="mFoto" data-foto="${esc(m.fotos[0])}" alt="" onclick="fotoBekijk(${esc(JSON.stringify(m.fotos))},0)">` : ''; })()}
       <div class="t" style="cursor:pointer" onclick="${t.lat != null ? `volgTractor('${t.id}')` : ''}"><b>${esc(t.naam)}</b>${volgId === t.id ? ' <span class="badge">volgen</span>' : ''}<br>
-        <small>${isLive(t) ? `🟢 live${t.snelheid != null ? ' · ' + Math.round(t.snelheid) + ' km/u' : ''}${t.bestuurder ? ' · 👤 ' + esc(t.bestuurder) : ''}` : '⚪ ' + geleden(t.bijgewerkt)}</small></div>
+        <small>${isLive(t) ? `🟢 live${t.snelheid != null ? ' · ' + Math.round(t.snelheid) + ' km/u' : ''}${t.bestuurder ? ' · 👤 ' + esc(t.bestuurder) : ''}` : '⚪ ' + geleden(t.bijgewerkt)}</small>
+        ${(() => { const m = (S.machines || []).find(x => x.tractor_id === t.id); if (!m) return ''; const st = machineStatus(m);
+          return `<small>${[m.kenteken ? esc(m.kenteken) : '', m.draaiuren != null ? '⏱️ ' + getal(m.draaiuren) + ' u' : '', m.stoffen ? {mest: '🌾 mest', spuit: '🧪 spuit', beide: '🌾🧪'}[m.stoffen] : ''].filter(Boolean).join(' · ')}</small>${st.map(x => `<small class="mst ${x.niveau}">${x.tekst}</small>`).join('')}`; })()}</div>
       ${t.lat != null ? `<button class="icoon" title="${volgId === t.id ? 'Stop volgen' : 'Volgen op de kaart'}" onclick="volgTractor('${t.id}')">${volgId === t.id ? '⏹️' : '🎯'}</button>` : ''}
       ${mag('tractor_rijden') && rijdt !== t.id ? `<button class="icoon" title="Ik rijd met deze tractor" onclick="startRijden('${t.id}')">📱</button>` : ''}
-      ${beh ? `<button class="icoon" title="Naam wijzigen" onclick="tractorNaam('${t.id}')">✏️</button>
+      ${mag('machines_beheren') || mag('tractor_rijden') ? (() => { const m = (S.machines || []).find(x => x.tractor_id === t.id); return m ? `<button class="icoon" title="Draaiuren of onderhoud noteren" onclick="machineNoteren('${m.id}')">📝</button>` : ''; })() : ''}
+      ${beh ? `<button class="icoon" title="Gegevens" onclick="${mag('machines_beheren') ? `trekkerFormulier('${t.id}')` : `tractorNaam('${t.id}')`}">✏️</button>
         <button class="icoon" title="Geheime sleutel (voor later)" onclick="tractorSleutel('${t.id}')">🔐</button>
         <button class="weg" title="Verwijderen" onclick="tractorWeg('${t.id}')">×</button>` : ''}
     </div>`).join('') || '<p class="hint">Nog geen tractoren.</p>'}
-    ${beh ? `<label>Nieuwe tractor</label><div class="rij"><input id="trNaam" class="veld" placeholder="bijv. Fendt 724" onkeydown="if(event.key==='Enter')tractorErbij()">
-      <button class="knop klein" onclick="tractorErbij()">Toevoegen</button></div>` : ''}
+    ${beh ? (mag('machines_beheren') ? `<button class="knop" style="margin-top:8px" onclick="trekkerFormulier()">＋ Trekker toevoegen</button>` : `<label>Nieuwe tractor</label><div class="rij"><input id="trNaam" class="veld" placeholder="bijv. Fendt 724" onkeydown="if(event.key==='Enter')tractorErbij()">
+      <button class="knop klein" onclick="tractorErbij()">Toevoegen</button></div>`) : ''}
     <p class="hint">🎯 volgen op de kaart (met de route van vandaag) · 📱 deze telefoon gebruiken als GPS in de tractor${beh ? ' · 🔐 sleutel voor een GPS-kastje later' : ''}</p>
     </section>${htmlVoertuigen()}`;
 }
@@ -4727,6 +4735,7 @@ function htmlMij() {
       <div class="rij" style="margin-top:8px"><button class="knop licht" onclick="takenFilter='mij';kiesSectie('taken')">Al mijn taken ›</button><button class="knop licht" onclick="agTab='mij';openAgenda()">📆 Mijn agenda</button></div></section>
     ${ziet('tractor_rijden') ? `<section class="kaartje"><h4>📱 Telefoon als GPS in de trekker</h4><p class="hint" style="margin-top:0">Rijd je vandaag? Zet dan je telefoon aan als GPS, dan ziet iedereen waar je bent.</p>
       <button class="knop licht" onclick="kiesSectie('werken');zetTab('tractoren')">🚜 Naar trekkers</button></section>` : ''}
+    <section class="kaartje"><h4>🪶 Lichte modus</h4><label class="vinkje"><input type="checkbox" ${lichtModus ? 'checked' : ''} ${isIOS() ? 'disabled' : ''} onchange="try{localStorage.setItem('licht',this.checked?'1':'0')}catch{};location.reload()"> Zonder 3D-trekkers op de kaart (voor oudere of trage tablets)</label>${isIOS() ? '<p class="hint">Op iPad en iPhone staat dit altijd aan.</p>' : ''}</section>
     <section class="kaartje"><h4>🚜 Trekker-modus</h4><p class="hint" style="margin-top:0">Groot en simpel scherm voor de tablet in de trekker: het perceel en spoor waar je rijdt, de taken van hier en snel iets registreren.</p>
       <button class="knop" onclick="trekkerModus(true)">🚜 Trekker-modus starten</button>
       <label class="vinkje" style="margin-top:8px"><input type="checkbox" ${tmAltijd() ? 'checked' : ''} onchange="tmAltijdZet(this.checked)"> Dit apparaat altijd in de trekker-modus starten</label></section>
@@ -5911,17 +5920,13 @@ function tmAltijdZet(aan) { try { localStorage.setItem('trekker_start', aan ? '1
 async function trekkerModus(aan = true) {
   TM.aan = aan;
   let el = $('#trekkerScherm');
-  if (!aan) { try { screen.orientation?.unlock?.(); } catch {} el?.remove(); if (TM.watch != null) navigator.geolocation?.clearWatch(TM.watch); TM.watch = null; clearInterval(TM.klok); try { TM.wake?.release(); } catch {} TM.wake = null; tekenWaarnemingen(); return; }
+  if (!aan) { try { screen.orientation?.unlock?.(); } catch {} el?.remove(); TM.aan = false; setTimeout(() => render(true), 0); if (TM.watch != null) navigator.geolocation?.clearWatch(TM.watch); TM.watch = null; clearInterval(TM.klok); try { TM.wake?.release(); } catch {} TM.wake = null; tekenWaarnemingen(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'trekkerScherm'; document.body.appendChild(el); }
   verbergMenu?.();
   TM.scherm = !TM.chauffeur && chauffeursLijst().length ? 'wie' : 'start';
   try { TM.wake = await navigator.wakeLock?.request('screen'); } catch {}
   try { await screen.orientation?.lock?.('landscape'); } catch {}   // lukt alleen in de app/volledig scherm; anders draaien uitzetten op de tablet
-  if (navigator.geolocation && TM.watch == null) TM.watch = navigator.geolocation.watchPosition(pos => {
-    TM.pos = {type: 'Feature', properties: {acc: pos.coords.accuracy}, geometry: {type: 'Point', coordinates: [pos.coords.longitude, pos.coords.latitude]}};
-    if (!TM.handmatig) { const p = perceelOpPunt(TM.pos); if (p && p.id !== TM.pid) TM.pid = p.id; }
-    tmRender();
-  }, () => tmRender(), {enableHighAccuracy: true, maximumAge: 3000, timeout: 20000});
+  if (navigator.geolocation && TM.watch == null && !rijdt) TM.watch = navigator.geolocation.watchPosition(tmPositie, () => tmRender(), {enableHighAccuracy: true, maximumAge: 3000, timeout: 20000});
   clearInterval(TM.klok); TM.klok = setInterval(() => { const k = $('#tmKlok'); if (k) k.textContent = new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}); }, 15000);
   tmRender();
 }
@@ -5930,6 +5935,13 @@ function tmTaken() {
   // de taken van de chauffeur (overal), plus wat er op dit perceel nog voor niemand klaarstaat
   return S.taken.filter(t => !t.klaar && (!t.gepland || t.gepland <= vandaag()) && (t.toegewezen_aan === ik || ((!TM.pid || betreft(t, TM.pid)) && !t.toegewezen_aan)))
     .sort((a, b) => ((b.toegewezen_aan === ik) - (a.toegewezen_aan === ik)) || (a.gepland || a.deadline || '9').localeCompare(b.gepland || b.deadline || '9'));
+}
+let tmLaatsteRender = 0;
+function tmPositie(pos) {
+  TM.pos = {type: 'Feature', properties: {acc: pos.coords.accuracy}, geometry: {type: 'Point', coordinates: [pos.coords.longitude, pos.coords.latitude]}};
+  let anders = false;
+  if (!TM.handmatig) { const p = perceelOpPunt(TM.pos); if (p && p.id !== TM.pid) { TM.pid = p.id; anders = true; } }
+  if (anders || Date.now() - tmLaatsteRender > 4000) { tmLaatsteRender = Date.now(); tmRender(); }   // niet bij elke GPS-stip alles opnieuw opbouwen
 }
 function tmRender() {
   const el = $('#trekkerScherm'); if (!el || !TM.aan) return;
@@ -6907,10 +6919,10 @@ function machineStatus(m) {
   }
   return uit;
 }
-async function machineFormulier(id) {
+async function machineFormulier(id, voor = {}) {
   if (!mag('machines_beheren')) return;
-  const m = id ? machine(id) : {};
-  const w = await formulier(id ? `✏️ ${m.naam}` : '＋ Machine toevoegen', [
+  const m = id ? machine(id) : {...voor}, isTr = voor.trekker || isTrekkerMachine(m);
+  const w = await formulier(id ? `✏️ ${m.naam}` : isTr ? '🚜 Trekker toevoegen' : '＋ Machine toevoegen', [
     {k: 'naam', label: 'Naam', waarde: m.naam || '', placeholder: 'bijv. Fendt 724 of Spuitmachine'},
     {k: 'soort', label: 'Soort machine of werktuig', waarde: m.soort || '', lijst: MACHINE_SOORTEN, placeholder: 'bijv. Ploeg, Frees of Trekker'},
     {k: 'kenteken', label: 'Kenteken / serienummer', waarde: m.kenteken || ''},
@@ -6919,18 +6931,44 @@ async function machineFormulier(id) {
     {k: 'onderhoud_interval', label: 'Onderhoud elke … draaiuren', type: 'number', waarde: m.onderhoud_interval ?? '', placeholder: 'bijv. 500'},
     {k: 'onderhoud_bij', label: 'Laatste beurt bij … draaiuren', type: 'number', waarde: m.onderhoud_bij ?? ''},
     {k: 'keuring_datum', label: 'Keuring / APK geldig tot', type: 'date', waarde: m.keuring_datum || ''},
-    {k: 'tractor_id', label: 'Gekoppeld aan GPS-trekker', type: 'select', waarde: m.tractor_id || '', opties: [['', '— geen —'], ...S.tractoren.map(t => [t.id, t.naam])]},
+    ...(isTr ? [] : [{k: 'tractor_id', label: 'Gekoppeld aan GPS-trekker', type: 'select', waarde: m.tractor_id || '', opties: [['', '— geen —'], ...S.tractoren.map(t => [t.id, t.naam])]}]),
     {k: 'notitie', label: 'Aantekeningen', type: 'textarea', waarde: m.notitie || '', placeholder: 'bijv. olie 15W40, filternummers, dealer'},
     fotoVeld(m.fotos || [], "📷 Foto's (zie je bij elke taak met deze machine)")], id ? 'Opslaan' : 'Toevoegen');
   if (!w) return;
   if (!w.naam) { toast('Geef de machine een naam', 1); return; }
+  if (isTr) { w.tractor_id = m.tractor_id || null; if (!w.soort) w.soort = 'Trekker'; }
+  // nieuwe trekker: ook op de kaart (voor de GPS/live volgen)
+  if (isTr && !w.tractor_id && mag('tractoren_beheren')) { const {data: tr, error: e1} = await sb.from('tractoren').insert({naam: w.naam}).select().single();
+    if (e1) { toast('Trekker aanmaken mislukt: ' + foutTekst(e1), 1); return; } S.tractoren.push(tr); w.tractor_id = tr.id; }
   const n = k => { const x = parseFloat(String(w[k]).replace(',', '.')); return isNaN(x) ? null : x; };
   const rij = {naam: w.naam, soort: w.soort || null, kenteken: w.kenteken || null, stoffen: w.stoffen || null, fotos: w.fotos || [], draaiuren: n('draaiuren'), onderhoud_interval: n('onderhoud_interval'),
     onderhoud_bij: n('onderhoud_bij'), keuring_datum: w.keuring_datum || null, tractor_id: w.tractor_id || null, notitie: w.notitie || null};
   const res = id ? await sb.from('machines').update(rij).eq('id', id).select().single() : await sb.from('machines').insert(rij).select().single();
   if (res.error) { toast('Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
   const i = S.machines.findIndex(x => x.id === res.data.id); if (i >= 0) S.machines[i] = res.data; else S.machines.push(res.data);
+  const tr = rij.tractor_id && S.tractoren.find(t => t.id === rij.tractor_id);
+  if (tr && isTr && tr.naam !== rij.naam && mag('tractoren_beheren')) { tr.naam = rij.naam; await sb.from('tractoren').update({naam: rij.naam}).eq('id', tr.id); }
   render(true); toast('Opgeslagen');
+}
+const isTrekkerMachine = m => !!m && (/trekker|tractor/i.test(m.soort || '') || !!m.tractor_id);
+// trekker: alle gegevens staan bij de machine die aan de trekker gekoppeld is
+function trekkerFormulier(tid) {
+  if (!tid) return machineFormulier(null, {soort: 'Trekker', trekker: true});
+  const t = S.tractoren.find(x => x.id === tid), m = (S.machines || []).find(x => x.tractor_id === tid);
+  return m ? machineFormulier(m.id) : machineFormulier(null, {naam: t?.naam || '', soort: 'Trekker', tractor_id: tid, trekker: true});
+}
+// trekkers die nog alleen bij Machines stonden: één keer naar het kopje Trekkers halen (krijgen een plek op de kaart)
+let trekkersOvergezet = false;
+async function trekkersOverzetten() {
+  if (trekkersOvergezet || !mag('tractoren_beheren') || !mag('machines_beheren')) return; trekkersOvergezet = true;
+  const los = (S.machines || []).filter(m => /trekker|tractor/i.test(m.soort || '') && !m.tractor_id); let n = 0;
+  for (const m of los) {
+    const al = S.tractoren.find(t => normTekst(t.naam) === normTekst(m.naam) && !(S.machines || []).some(x => x.tractor_id === t.id));
+    let tid = al?.id;
+    if (!tid) { const {data, error} = await sb.from('tractoren').insert({naam: m.naam}).select().single(); if (error) break; S.tractoren.push(data); tid = data.id; }
+    const {error} = await sb.from('machines').update({tractor_id: tid}).eq('id', m.id); if (!error) { m.tractor_id = tid; n++; }
+  }
+  if (n) { toast(`🚜 ${n} trekker${n > 1 ? 's' : ''} van Machines naar Trekkers gezet`); render(true); }
 }
 async function machineNoteren(id) {
   const m = machine(id); if (!m) return;
@@ -6963,7 +7001,8 @@ function htmlMachines() {
   const beh = mag('machines_beheren'), log = mag('machines_beheren') || mag('tractor_rijden');
   return `<section class="kaartje"><h4>🔧 Machines, werktuigen &amp; onderhoud</h4>
     ${beh ? `<div class="rij" style="margin:0 0 8px"><button class="knop klein" onclick="machineFormulier()">＋ Machine of werktuig</button><button class="knop klein licht" onclick="werktuigenKiezen()">📋 Werktuigen uit een lijst</button></div>` : ''}
-    ${(S.machines || []).map(m => { const st = machineStatus(m), regels = S.machine_log.filter(l => l.machine_id === m.id);
+    ${(S.machines || []).some(isTrekkerMachine) ? `<p class="hint">🚜 De trekkers staan bij <a href="#" onclick="event.preventDefault();kiesSectie('percelen');zetTab('tractoren')">het kopje Trekkers</a>.</p>` : ''}
+    ${(S.machines || []).filter(m => !isTrekkerMachine(m)).map(m => { const st = machineStatus(m), regels = S.machine_log.filter(l => l.machine_id === m.id);
       const kosten = regels.filter(l => l.kosten && new Date(l.datum) >= seizoenStart()).reduce((s, l) => s + +l.kosten, 0);
       return `<div class="machine ${st.some(s => s.niveau === 'rood') ? 'rood' : st.some(s => s.niveau === 'oranje') ? 'oranje' : ''}">
         ${(m.fotos || []).length ? `<img class="mFoto" data-foto="${esc(m.fotos[0])}" alt="" onclick="fotoBekijk(${esc(JSON.stringify(m.fotos))},0)">` : ''}
@@ -10355,11 +10394,17 @@ function vlootLicht(T, sc) {
 /* ---------- 2D-kaart: alle trekkers rijden altijd mee ---------- */
 const V2 = {cv: null, r: null, sc: null, cam: null, wg: null, items: new Map(), raf: 0, laatst: 0, fout: false, ctx: null, leeg: true};
 const SCHUIN = 58 * Math.PI / 180;   // hoek waaronder we op de 2D-kaart naar de trekkers kijken
+// lichte modus: geen 3D-trekkers op de kaart (minder geheugen). Aan op iPad/iPhone, en vanzelf na een vastloper bij het opstarten
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let lichtModus = (() => { try { return localStorage.getItem('licht') === '1'; } catch { return false; } })() || isIOS();
+(() => { try { if (localStorage.getItem('opstart_bezig') === '1') { lichtModus = true; localStorage.setItem('licht', '1'); setTimeout(() => toast('De app liep de vorige keer vast. Hij draait nu in de lichte modus (zonder 3D op de kaart).', 1), 3000); }
+  localStorage.setItem('opstart_bezig', '1'); setTimeout(() => { try { localStorage.removeItem('opstart_bezig'); } catch {} }, 12000); } catch {} })();
 function startVloot2d() {
   if (V2.raf || !map) return;
+  if (lichtModus) V2.fout = true;
   map.on('zoomstart', () => { if (V2.cv) V2.cv.style.opacity = 0; });
   map.on('zoomend', () => { if (V2.cv) V2.cv.style.opacity = 1; });
-  if ('WebGLRenderingContext' in window) laadM3D().then(M => { V2.M = M; }).catch(() => { V2.fout = true; }); else V2.fout = true;
+  if ('WebGLRenderingContext' in window && !lichtModus) laadM3D().then(M => { V2.M = M; }).catch(() => { V2.fout = true; }); else V2.fout = true;
   const lus = nu => { V2.raf = requestAnimationFrame(lus); if (nu - V2.laatst < (V2.M ? 33 : 66)) return; V2.laatst = nu; try { tekenVloot2d(nu); } catch (e) { console.warn(e); V2.fout = true; V2.M = null; } };
   V2.raf = requestAnimationFrame(lus);
 }
@@ -10371,7 +10416,7 @@ function vloot2dCanvas(soort) {
 }
 function tekenVloot2d(nu) {
   const box = map.getContainer(), W = box.clientWidth, H = box.clientHeight;
-  const lijst = (document.hidden || drieD || map.getZoom() < 14.5 || !W) ? [] : vlootTaken();
+  const lijst = (document.hidden || drieD || (typeof TM !== 'undefined' && TM.aan) || map.getZoom() < 14.5 || !W) ? [] : vlootTaken();
   if (!lijst.length && V2.leeg) return;
   if (!V2.M && !V2.fout) return;   // motor wordt nog geladen
   const dpr = Math.min(devicePixelRatio || 1, 2), z = map.getZoom(), zien = new Set();
