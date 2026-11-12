@@ -569,6 +569,9 @@ details.szblok summary h4{margin:6px 0}
 .tmTaak{display:flex;align-items:center;gap:10px;background:#24442d;border-radius:14px;padding:14px;margin-bottom:10px}.tmTaak>div{flex:1}.tmTaak small{display:block;color:#c8e6c9;font-size:17px;margin-top:4px}
 .tmKlein{border:0;border-radius:12px;min-width:70px;height:64px;font-size:22px;font-weight:700;background:#455a64;color:#fff}.tmKlein.aan{background:#f9a825;color:#222}.tmKlein.groen{background:#2e7d32;min-width:120px}
 .tmWie{border:0;border-radius:12px;background:#2e5e3a;color:#fff;font-size:18px;font-weight:700;padding:10px 14px}.tmVraag{font-size:30px;font-weight:800;margin:6px 0 14px}
+.tmBalk{display:flex;gap:10px;padding:12px;background:rgba(20,38,26,.94);pointer-events:auto}.tmBalk button{flex:1;min-height:76px;border:0;border-radius:16px;background:#2e5e3a;color:#fff;font-size:20px;font-weight:700}.tmBalk button.aan{background:#1e88e5}
+#trekkerScherm.kaart{background:transparent;pointer-events:none}#trekkerScherm.kaart .tmKop{pointer-events:auto;background:rgba(31,61,39,.94)}#trekkerScherm.kaart .tmBody{display:flex;flex-direction:column;justify-content:flex-end;padding:0;overflow:visible}
+body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.tmKaart #kaartUI,body.tmKaart #paneelKnop,body.tmKaart #rijBalk{display:none!important}body.tmKaart #map{left:0!important;top:0!important;bottom:0!important;right:0!important}
 .tmLeeg{text-align:center;font-size:24px;margin-top:40px;color:#c8e6c9}
 .mIcoon{font-size:34px;width:56px;height:56px;border-radius:16px;background:var(--licht);display:flex;align-items:center;justify-content:center;flex:none}
 .mTekst{display:flex;flex-direction:column;gap:3px}.mTekst b{font-size:18px;color:var(--groen)}.mTekst small{color:var(--grijs);font-size:13px;line-height:1.35}
@@ -1213,10 +1216,24 @@ async function authVerstuur(e) {
 }
 async function uitloggen() { await sb.auth.signOut(); location.reload(); }
 
+// opstart-stappen bijhouden: loopt de app vast, dan zie je de volgende keer waar (voor het oplossen)
+const veilig = /[?&]veilig=1/.test(location.search);
+function stap(t) { try { const l = JSON.parse(localStorage.getItem('opstart_stappen') || '[]'); l.push(`${new Date().toLocaleTimeString('nl-NL')} ${t}`); localStorage.setItem('opstart_stappen', JSON.stringify(l.slice(-25))); } catch {} }
+function toonVorigeVastloper() {
+  let l = []; try { l = JSON.parse(localStorage.getItem('vorige_stappen') || '[]'); } catch {}
+  if (!l.length) return;
+  const m = $('#modal'); m.innerHTML = `<div class="dialoog"><h3>⚠️ De app liep de vorige keer vast</h3><p class="hint" style="margin-top:0">Maak een schermafbeelding van dit scherm en stuur hem door; dan is te zien waar het misging.</p>
+    <pre style="white-space:pre-wrap;font-size:12px;background:#f3f7f1;border-radius:10px;padding:8px;max-height:50vh;overflow:auto">${esc(navigator.userAgent)}
+
+${l.map(esc).join('\n')}</pre>
+    <button class="knop" onclick="try{localStorage.removeItem('vorige_stappen')}catch{};$('#modal').classList.remove('open')">Sluiten</button></div>`;
+  m.classList.add('open');
+}
 async function opstarten() {
-  scherm(null);
-  initKaart();
-  await laadAlles();
+  stap('start'); scherm(null);
+  initKaart(); stap('kaart klaar');
+  if (veilig || /[?&]trekker=1/.test(location.search) || tmAltijd()) TM.aan = true;   // trekker-modus: de kaart niet eerst helemaal tekenen
+  await laadAlles(); stap('gegevens geladen');
   sb.channel('live').on('postgres_changes', {event: '*', schema: 'public'}, verwerkLive).subscribe();
   if (S.percelen.length) map.fitBounds(L.geoJSON(S.percelen.map(p => p.geo)).getBounds(), {padding: [40, 40], maxZoom: 17});
   let bezig = null; try { bezig = localStorage.getItem('rijdt'); } catch {}
@@ -1225,8 +1242,9 @@ async function opstarten() {
   setInterval(() => voertuigenTik(), 20000);
   pgSleepInit();   // plattegrond op de kaart slepen
   const tmLink = /[?&]trekker=1/.test(location.search);
-  if (tmLink || tmAltijd() || isApparaat()) trekkerModus(true); else toonMenu();
-  apparaatGPS();   // trekker-tablet: locatie van de gekoppelde trekker delen zolang hij aan staat      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
+  if (veilig) { TM.aan = false; toonMenu(); toast('🛟 Veilige start: de kaart wordt pas getekend als je een perceel kiest'); stap('veilige start klaar'); opstartGelukt(); toonVorigeVastloper(); return; }
+  stap('menu of trekker'); if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else toonMenu();
+  stap('gps'); apparaatGPS(); stap('klaar'); opstartGelukt(); toonVorigeVastloper();   // trekker-tablet: locatie van de gekoppelde trekker delen zolang hij aan staat      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
   setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
 }
 const actiefSeizoen = () => S.seizoenen.find(s => s.actief);
@@ -1255,9 +1273,10 @@ async function laadAlles() {
   if (p.error) toast('Database niet bereikbaar: ' + p.error.message, 1);
   if (archief) livePercelen = p.data || []; else S.percelen = p.data || [];
   S.soorten = s.data || []; S.rassen = rs.data || []; S.markeringen = mk.data || []; S.tractoren = tr.data || []; S.profielen = pr.data || [];
+  stap('profielen'); if (isApparaat()) TM.aan = true;
   if (isApparaat()) { const {data: ch} = await sb.rpc('chauffeurs'); (ch || []).forEach(c => { if (!S.profielen.find(x => x.id === c.id)) S.profielen.push({...c, chauffeur: true}); }); }
-  render(true);
-  bewaarCache(); verwerkWachtrij(); controleerVorst(); controleerWeer(); belTeken(); netStatus();
+  stap('tekenen'); render(true); stap('getekend');
+  bewaarCache(); verwerkWachtrij(); controleerVorst(); controleerWeer(); belTeken(); netStatus(); stap('weer en cache');
   voertuigenTik(true);
 }
 function verwerkLive(pl) {
@@ -2993,12 +3012,15 @@ function kies(id) {
 
 function renderKaart() {
   if (!map) return;
-  if (typeof TM !== 'undefined' && TM.aan) { laag.clearLayers(); pijlLaag.clearLayers(); return; }   // trekker-modus ligt eroverheen: niets tekenen, scheelt veel geheugen
+  if (veilig && !actief) { laag.clearLayers(); pijlLaag.clearLayers(); return; }
+  const tmAan = typeof TM !== 'undefined' && TM.aan;
+  if (tmAan && TM.scherm !== 'kaart') { laag.clearLayers(); pijlLaag.clearLayers(); return; }   // trekker-modus ligt eroverheen: niets tekenen, scheelt veel geheugen
   startVloot2d();
   if (trekker3d) { const tk = S.taken.find(x => x.id === trekker3d.id); if (!tk || tk.klaar || !zichtbaar(tk.perceel_id || tk.van_perceel)?.taken || taakFocus !== tk.id) verbergTrekker3d(); }
   laag.clearLayers(); pijlLaag.clearLayers(); tractorLaag.clearLayers();
   const toonNamen = weergave._namen !== false, toonOmtrek = weergave._omtrek !== false, toonGewas = weergave._gewasIcoon !== false;
-  S.percelen.forEach(p => { if (!p?.geo) return; try {
+  S.percelen.forEach(p => { if (!p?.geo) return; if (tmAan && p.id !== TM.pid) return;   // trekker-kaart: alleen het perceel waar je bent
+    try {
     const isA = p.id === actief;
     const T = typeVan(p);
     L.geoJSON(p.geo, {style: {stroke: false, fillColor: T.kleur,
@@ -5918,9 +5940,9 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) TM.we
 const tmAltijd = () => { try { return localStorage.getItem('trekker_start') === '1'; } catch { return false; } };
 function tmAltijdZet(aan) { try { localStorage.setItem('trekker_start', aan ? '1' : '0'); } catch {} toast(aan ? '🚜 Dit apparaat start voortaan in de trekker-modus' : 'Uitgezet'); }
 async function trekkerModus(aan = true) {
-  TM.aan = aan;
+  TM.aan = aan; stap('trekker-modus ' + (aan ? 'aan' : 'uit'));
   let el = $('#trekkerScherm');
-  if (!aan) { try { screen.orientation?.unlock?.(); } catch {} el?.remove(); TM.aan = false; setTimeout(() => render(true), 0); if (TM.watch != null) navigator.geolocation?.clearWatch(TM.watch); TM.watch = null; clearInterval(TM.klok); try { TM.wake?.release(); } catch {} TM.wake = null; tekenWaarnemingen(); return; }
+  if (!aan) { try { screen.orientation?.unlock?.(); } catch {} el?.remove(); TM.aan = false; document.body.classList.remove('tmKaart'); tmLaag?.clearLayers(); setTimeout(() => render(true), 0); if (TM.watch != null) navigator.geolocation?.clearWatch(TM.watch); TM.watch = null; clearInterval(TM.klok); try { TM.wake?.release(); } catch {} TM.wake = null; tekenWaarnemingen(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'trekkerScherm'; document.body.appendChild(el); }
   verbergMenu?.();
   TM.scherm = !TM.chauffeur && chauffeursLijst().length ? 'wie' : 'start';
@@ -5941,6 +5963,7 @@ function tmPositie(pos) {
   TM.pos = {type: 'Feature', properties: {acc: pos.coords.accuracy}, geometry: {type: 'Point', coordinates: [pos.coords.longitude, pos.coords.latitude]}};
   let anders = false;
   if (!TM.handmatig) { const p = perceelOpPunt(TM.pos); if (p && p.id !== TM.pid) { TM.pid = p.id; anders = true; } }
+  if (TM.scherm === 'kaart') { tmPlek(); if (anders) { actief = TM.pid; render(true); } }
   if (anders || Date.now() - tmLaatsteRender > 4000) { tmLaatsteRender = Date.now(); tmRender(); }   // niet bij elke GPS-stip alles opnieuw opbouwen
 }
 function tmRender() {
@@ -5950,7 +5973,15 @@ function tmRender() {
       <div class="tmSpoor">${sp ? `Spoor <b>${sp.spoor}</b>${sp.vak ? ` · vak ${sp.vak}` : ''}${sp.zoneNaam ? ` · ${esc(sp.zoneNaam)}` : ''}` : p ? 'naast de sporen' : ''}${TM.pos?.properties?.acc ? ` <small>(±${Math.round(TM.pos.properties.acc)} m)</small>` : ''}</div></div>
     <div class="tmRechts">${TM.chauffeur ? `<button class="tmWie" onclick="tmAfmelden()" title="Iemand anders rijdt">👤 ${esc(TM.chauffeur.naam)}</button>` : ''}<span id="tmKlok">${new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}</span>${isApparaat() ? '' : '<button class="tmX" onclick="trekkerModus(false)">✕</button>'}</div></div>`;
   let body = '';
-  if (TM.scherm === 'wie') body = `<div class="tmVraag">Wie rijdt er?</div><div class="tmTegels">${chauffeursLijst().map(u => `<button class="tmTegel" onclick="tmKiesChauffeur('${u.id}')"><span>👤</span>${esc(u.naam)}</button>`).join('')}</div>`;
+  el.classList.toggle('kaart', TM.scherm === 'kaart');
+  if (TM.scherm !== 'kaart') document.body.classList.remove('tmKaart');
+  if (TM.scherm === 'kaart') body = `<div class="tmBalk">
+      <button onclick="tmUitKaart()">◀ Terug</button>
+      <button class="${TM.volg ? 'aan' : ''}" onclick="TM.volg=!TM.volg;tmRender();tmPlek()">🎯 ${TM.volg ? 'Volgt mij' : 'Volgen'}</button>
+      ${mag('markeringen_maken') ? '<button onclick="tmVlag()">🚩 Vlag hier</button>' : ''}
+      ${mag('markeringen_maken') || mag('monsters_beheren') ? '<button onclick="waarnemingFormulier(null,{perceel_id:TM.pid,geo:TM.pos})">🐛 Ziekte hier</button>' : ''}
+      <button onclick="tmUitKaart('taken')">📋 Taken</button></div>`;
+  else if (TM.scherm === 'wie') body = `<div class="tmVraag">Wie rijdt er?</div><div class="tmTegels">${chauffeursLijst().map(u => `<button class="tmTegel" onclick="tmKiesChauffeur('${u.id}')"><span>👤</span>${esc(u.naam)}</button>`).join('')}</div>`;
   else if (TM.scherm === 'taken') body = `<button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
     ${taken.map(t => `<div class="tmTaak"><div><b>${esc(t.tekst)}</b><small>${perceel(t.perceel_id) && !TM.pid ? '📍 ' + esc(perceel(t.perceel_id).naam) + ' · ' : ''}${t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot || t.spoor_van} · ` : ''}${t.product ? esc(t.product) : ''}</small>${machineFotosHtml(t)}</div>
       ${mag('taken_afvinken') ? `<button class="tmKlein ${t.bezig_door ? 'aan' : ''}" onclick="zetBezig('${t.id}').then(tmRender)">${t.bezig_door ? '⏸' : '▶'}</button><button class="tmKlein groen" onclick="vinkTaak('${t.id}').then(tmRender)">✓ Klaar</button>` : ''}</div>`).join('') || '<p class="tmLeeg">Geen taken voor hier en nu 👍</p>'}`;
@@ -5971,11 +6002,27 @@ async function tmVlag() {
   if (!TM.pid || !TM.pos) { toast(TM.pos ? 'Je staat niet op een perceel' : 'Nog geen GPS-plek', 1); return; }
   actief = TM.pid; await nieuweMarkering('vlag', JSON.parse(JSON.stringify(TM.pos))); tmRender();
 }
+// kaart binnen de trekker-modus: groot en simpel, alleen het perceel waar je bent, met je eigen plek
+let tmLaag = null;
 function tmKaart() {
-  const pid = TM.pid; trekkerModus(false);
-  if (pid) kies(pid); else if (TM.pos) map.setView([TM.pos.geometry.coordinates[1], TM.pos.geometry.coordinates[0]], 17);
-  toast('Terug naar de trekker-modus: 🏠 Menu → 🚜 Trekker-modus');
+  TM.scherm = 'kaart'; TM.volg = true; actief = TM.pid || null;
+  document.body.classList.add('tmKaart'); tmRender(); render(true);
+  setTimeout(() => { try { map.invalidateSize(); } catch {}
+    const p = perceel(TM.pid);
+    if (TM.pos) map.setView([TM.pos.geometry.coordinates[1], TM.pos.geometry.coordinates[0]], 18);
+    else if (p?.geo) map.fitBounds(L.geoJSON(p.geo).getBounds(), {padding: [30, 30]});
+    tmPlek(); }, 150);
 }
+function tmPlek() {
+  if (!map || TM.scherm !== 'kaart') return;
+  if (!tmLaag) tmLaag = L.layerGroup().addTo(map);
+  tmLaag.clearLayers(); if (!TM.pos) return;
+  const [lng, lat] = TM.pos.geometry.coordinates;
+  L.circle([lat, lng], {radius: Math.max(2, TM.pos.properties?.acc || 0), color: '#1e88e5', weight: 1, fillOpacity: .12, interactive: false}).addTo(tmLaag);
+  L.circleMarker([lat, lng], {radius: 11, color: '#fff', weight: 3, fillColor: '#1e88e5', fillOpacity: 1, interactive: false}).addTo(tmLaag);
+  if (TM.volg) map.panTo([lat, lng], {animate: true});
+}
+function tmUitKaart(naar = 'start') { TM.scherm = naar; document.body.classList.remove('tmKaart'); tmLaag?.clearLayers(); tmRender(); render(true); }
 
 /* ============ SPOREN OPSCHUIVEN EN LOSSE SPOREN WEGHALEN ============
    Elk spoor heeft een vaste plek in het raster (k). Bij opschuiven of weghalen verandert de nummering,
@@ -10397,8 +10444,10 @@ const SCHUIN = 58 * Math.PI / 180;   // hoek waaronder we op de 2D-kaart naar de
 // lichte modus: geen 3D-trekkers op de kaart (minder geheugen). Aan op iPad/iPhone, en vanzelf na een vastloper bij het opstarten
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let lichtModus = (() => { try { return localStorage.getItem('licht') === '1'; } catch { return false; } })() || isIOS();
-(() => { try { if (localStorage.getItem('opstart_bezig') === '1') { lichtModus = true; localStorage.setItem('licht', '1'); setTimeout(() => toast('De app liep de vorige keer vast. Hij draait nu in de lichte modus (zonder 3D op de kaart).', 1), 3000); }
-  localStorage.setItem('opstart_bezig', '1'); setTimeout(() => { try { localStorage.removeItem('opstart_bezig'); } catch {} }, 12000); } catch {} })();
+let vorigeVast = false;
+(() => { try { if (localStorage.getItem('opstart_bezig') === '1') { vorigeVast = true; lichtModus = true; localStorage.setItem('vorige_stappen', localStorage.getItem('opstart_stappen') || '[]'); localStorage.setItem('licht', '1'); setTimeout(() => toast('De app liep de vorige keer vast. Hij draait nu in de lichte modus (zonder 3D op de kaart).', 1), 3000); }
+  localStorage.setItem('opstart_stappen', '[]'); localStorage.setItem('opstart_bezig', '1'); } catch {} })();
+const opstartGelukt = () => setTimeout(() => { try { localStorage.removeItem('opstart_bezig'); } catch {} }, 3000);   // 3 s na "klaar" niet meer als vastloper tellen
 function startVloot2d() {
   if (V2.raf || !map) return;
   if (lichtModus) V2.fout = true;
