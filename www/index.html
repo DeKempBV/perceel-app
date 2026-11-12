@@ -569,6 +569,10 @@ details.szblok summary h4{margin:6px 0}
 .tmTaak{display:flex;align-items:center;gap:10px;background:#24442d;border-radius:14px;padding:14px;margin-bottom:10px}.tmTaak>div{flex:1}.tmTaak small{display:block;color:#c8e6c9;font-size:17px;margin-top:4px}
 .tmKlein{border:0;border-radius:12px;min-width:70px;height:64px;font-size:22px;font-weight:700;background:#455a64;color:#fff}.tmKlein.aan{background:#f9a825;color:#222}.tmKlein.groen{background:#2e7d32;min-width:120px}
 .tmWie{border:0;border-radius:12px;background:#2e5e3a;color:#fff;font-size:18px;font-weight:700;padding:10px 14px}.tmVraag{font-size:30px;font-weight:800;margin:6px 0 14px}
+.prikken .leaflet-interactive{pointer-events:none!important}.prikken{cursor:crosshair!important}
+.tmLijst{max-height:46vh;overflow:auto;background:rgba(20,38,26,.96);padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;pointer-events:auto}
+.tmLijst button{min-height:64px;border:0;border-radius:14px;background:#2e5e3a;color:#fff;font-size:20px;font-weight:700;text-align:left;padding:8px 14px}.tmLijst button.aan{background:#1e88e5}.tmLijst small{display:block;font-size:15px;font-weight:500;opacity:.85}
+.tmPrikUitleg{background:#fb8c00;color:#fff;font-size:20px;font-weight:700;padding:10px 14px;text-align:center;pointer-events:auto}
 .tmBalk{display:flex;gap:10px;padding:12px;background:rgba(20,38,26,.94);pointer-events:auto}.tmBalk button{flex:1;min-height:76px;border:0;border-radius:16px;background:#2e5e3a;color:#fff;font-size:20px;font-weight:700}.tmBalk button.aan{background:#1e88e5}
 #trekkerScherm.kaart{background:transparent;pointer-events:none}#trekkerScherm.kaart .tmKop{pointer-events:auto;background:rgba(31,61,39,.94)}#trekkerScherm.kaart .tmBody{display:flex;flex-direction:column;justify-content:flex-end;padding:0;overflow:visible}
 body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.tmKaart #kaartUI,body.tmKaart #paneelKnop,body.tmKaart #rijBalk{display:none!important}body.tmKaart #map{left:0!important;top:0!important;bottom:0!important;right:0!important}
@@ -1177,7 +1181,8 @@ function start() {
     if (sessie?.user) {
       me = sessie.user;
       if (!gestart) { gestart = true; setTimeout(opstarten, 0); }
-    } else { me = null; scherm('auth'); }
+    } else { me = null; scherm('auth');
+      try { if (localStorage.getItem('wwOpnieuw')) { localStorage.removeItem('wwOpnieuw'); const w = $('#aWw'); w.value = ''; w.autocomplete = 'off'; setTimeout(() => { w.value = ''; }, 600); } } catch {} }
   });
 }
 function slaSetupOp() {
@@ -1218,6 +1223,16 @@ async function authVerstuur(e) {
   $('#aKnop').disabled = false;
 }
 async function uitloggen() { await sb.auth.signOut(); location.reload(); }
+// uitloggen vanuit de trekker-modus: alleen met het wachtwoord van dit account; daarna moet je opnieuw inloggen
+async function tmUitloggen() {
+  const ww = await vraag('🔒 Uitloggen van deze trekker', {type: 'password', knop: 'Uitloggen', uitleg: `Vul het wachtwoord van ${me?.email || 'dit account'} in. Daarna moet je opnieuw inloggen met e-mail en wachtwoord.`});
+  if (!ww) return;
+  const {error} = await sb.auth.signInWithPassword({email: me?.email, password: ww});
+  if (error) { toast(/Invalid login/i.test(error.message || '') ? 'Wachtwoord klopt niet' : foutTekst(error), 1); return; }
+  try { localStorage.setItem('wwOpnieuw', '1'); } catch {}
+  try { stopRijden?.(); } catch {}
+  await sb.auth.signOut(); location.reload();
+}
 
 // opstart-stappen bijhouden: loopt de app vast, dan zie je de volgende keer waar (voor het oplossen)
 const veilig = /[?&]veilig=1/.test(location.search);
@@ -6006,15 +6021,24 @@ function tmRender() {
       <div class="tmGps">${(() => { const tid = mijnProfiel()?.trekker_id, tr = S.tractoren.find(t => t.id === (rijdt || tid));
         return rijdt ? `📡 Op de kaart als <b>${esc(tr?.naam || 'trekker')}</b>${aangekoppeldTekst(tr) ? ` · ⚙️ ${esc(aangekoppeldTekst(tr))}` : ''}` : isApparaat() ? (tid ? '📡 Locatie wordt niet gedeeld (tablet niet aan de stroom?)' : '⚠️ Deze tablet is nog niet aan een trekker gekoppeld') : ''; })()}</div>
       <div class="tmSpoor">${sp ? `Spoor <b>${sp.spoor}</b>${sp.vak ? ` · vak ${sp.vak}` : ''}${sp.zoneNaam ? ` · ${esc(sp.zoneNaam)}` : ''}` : p ? 'naast de sporen' : ''}${TM.pos?.properties?.acc ? ` <small>(±${Math.round(TM.pos.properties.acc)} m)</small>` : ''}</div></div>
-    <div class="tmRechts">${TM.chauffeur ? `<button class="tmWie" onclick="tmAfmelden()" title="Iemand anders rijdt">👤 ${esc(TM.chauffeur.naam)}</button>` : ''}<span id="tmKlok">${new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}</span>${isApparaat() ? '' : '<button class="tmX" onclick="trekkerModus(false)">✕</button>'}</div></div>`;
+    <div class="tmRechts">${TM.chauffeur ? `<button class="tmWie" onclick="tmAfmelden()" title="Iemand anders rijdt">👤 ${esc(TM.chauffeur.naam)}</button>` : ''}<span id="tmKlok">${new Date().toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}</span><button class="tmX" onclick="tmUitloggen()" title="Uitloggen (wachtwoord nodig)">🔒</button>${isApparaat() ? '' : '<button class="tmX" onclick="trekkerModus(false)">✕</button>'}</div></div>`;
   let body = '';
   el.classList.toggle('kaart', TM.scherm === 'kaart');
   if (TM.scherm !== 'kaart') document.body.classList.remove('tmKaart');
-  if (TM.scherm === 'kaart') body = `<div class="tmBalk">
+  if (TM.scherm === 'kaart' && TM.prik === 'vlag') body = `<div class="tmPrikUitleg">👆 Tik op de kaart waar de vlag moet komen</div><div class="tmBalk">
+      <button onclick="tmPrikStop()">✕ Stoppen</button>
+      <button onclick="tmPrikStop();tmVlag()">📍 Waar ik nu sta</button></div>`;
+  else if (TM.scherm === 'kaart' && TM.prik === 'gebied') { const n = (TM.prikPunten || []).length;
+    body = `<div class="tmPrikUitleg">👆 Tik de hoeken van het gebied aan${n ? ` · ${n} punt${n > 1 ? 'en' : ''}` : ''}</div><div class="tmBalk">
+      <button onclick="tmPrikStop()">✕ Stoppen</button>
+      <button onclick="TM.prikPunten.pop();tmPrikTeken();tmRender()" ${n ? '' : 'disabled'}>↶ Punt terug</button>
+      ${TM.pos ? '<button onclick="tmPrikKlik({latlng:{lng:TM.pos.geometry.coordinates[0],lat:TM.pos.geometry.coordinates[1]}})">📍 Punt waar ik sta</button>' : ''}
+      <button class="${n >= 3 ? 'aan' : ''}" onclick="tmGebiedKlaar()">✔ Klaar</button></div>`; }
+  else if (TM.scherm === 'kaart') body = (TM.lijst ? `<div class="tmLijst">${tmPerceelLijst().map(({p, km}) => `<button class="${p.id === TM.pid ? 'aan' : ''}" onclick="tmNaarPerceel('${p.id}')">${esc(p.naam)}<small>${km != null ? (km < 1 ? Math.round(km * 1000) + ' m' : getal(km, 1) + ' km') + ' hiervandaan' : ''}${p.bio ? ' · 🌿 bio' : ''}</small></button>`).join('') || '<p style="color:#fff">Geen percelen</p>'}</div>` : '') + `<div class="tmBalk">
       <button onclick="tmUitKaart()">◀ Terug</button>
-      <button class="${TM.volg ? 'aan' : ''}" onclick="TM.volg=!TM.volg;if(TM.volg){TM.handmatig=false;const q=TM.pos&&perceelOpPunt(TM.pos);if(q){TM.pid=q.id;actief=q.id;render(true);}}tmRender();tmPlek()">🎯 ${TM.volg ? 'Volgt mij' : 'Volgen'}</button>
-      <button onclick="tmAlles()">🗺️ Alle percelen</button>
-      ${mag('markeringen_maken') ? '<button onclick="tmVlag()">🚩 Vlag hier</button>' : ''}
+      <button class="${TM.volg ? 'aan' : ''}" onclick="TM.volg=!TM.volg;if(TM.volg){TM.lijst=false;TM.handmatig=false;const q=TM.pos&&perceelOpPunt(TM.pos);if(q){TM.pid=q.id;actief=q.id;render(true);}}tmRender();tmPlek()">🎯 ${TM.volg ? 'Volgt mij' : 'Volgen'}</button>
+      <button class="${TM.lijst ? 'aan' : ''}" onclick="tmAlles()">🗺️ Alle percelen</button>
+      ${mag('markeringen_maken') ? '<button onclick="tmPrikStart(\'vlag\')">🚩 Vlag</button><button onclick="tmPrikStart(\'gebied\')">✏️ Gebied</button>' : ''}
       ${mag('markeringen_maken') || mag('monsters_beheren') ? '<button onclick="waarnemingFormulier(null,{perceel_id:TM.pid,geo:TM.pos})">🐛 Ziekte hier</button>' : ''}
       <button onclick="tmUitKaart('taken')">📋 Taken</button></div>`;
   else if (TM.scherm === 'wie') body = `<div class="tmVraag">Wie rijdt er?</div><div class="tmTegels">${chauffeursLijst().map(u => `<button class="tmTegel" onclick="tmKiesChauffeur('${u.id}')"><span>👤</span>${esc(u.naam)}</button>`).join('')}</div>`;
@@ -6035,7 +6059,7 @@ function tmRender() {
   else body = `<div class="tmTegels">
       <button class="tmTegel" onclick="TM.scherm='taken';tmRender()"><span>📋</span>Taken<b>${taken.length}</b></button>
       ${mag('taken_toevoegen') || mag('werk_registreren') ? `<button class="tmTegel" onclick="tmRegistreren()"><span>🧪</span>Spuiten / bemesten registreren</button>` : ''}
-      ${mag('markeringen_maken') ? `<button class="tmTegel" onclick="tmVlag()"><span>🚩</span>Vlag hier</button>` : ''}
+      ${mag('markeringen_maken') ? `<button class="tmTegel" onclick="tmPrikStart('vlag')"><span>🚩</span>Vlag zetten<small class="tmKlein2">tik op de kaart</small></button><button class="tmTegel" onclick="tmPrikStart('gebied')"><span>✏️</span>Gebied tekenen<small class="tmKlein2">met aantekening</small></button>` : ''}
       ${mag('markeringen_maken') || mag('monsters_beheren') ? `<button class="tmTegel" onclick="waarnemingFormulier(null,{perceel_id:TM.pid,geo:TM.pos})"><span>🐛</span>Ziekte / plaag hier</button>` : ''}
       <button class="tmTegel" onclick="tmMachineOpen()"><span>⚙️</span>Machine<small class="tmKlein2">${esc(aangekoppeldTekst(tmTrekker() || {werktuig: TM.werktuig, werktuig_voor: TM.werktuigVoor}) || 'niets aangekoppeld')}</small></button>
       <button class="tmTegel" onclick="TM.scherm='perceel';tmRender()"><span>🔀</span>Ander perceel</button>
@@ -6109,9 +6133,58 @@ function tmPlek() {
   L.circleMarker([lat, lng], {radius: 11, color: '#fff', weight: 3, fillColor: '#1e88e5', fillOpacity: 1, interactive: false}).addTo(tmLaag);
   if (TM.volg) map.panTo([lat, lng], {animate: true});
 }
+// vlag op een aangetikte plek, of een gebied tekenen door de hoeken aan te tikken
+let tmTekenLaag = null;
+function tmPrikStart(soort) {
+  if (TM.scherm !== 'kaart') tmKaart(); TM.lijst = false;
+  TM.prik = soort; TM.prikPunten = []; TM.volg = false;
+  setTimeout(() => { if (!map) return; map.getContainer().classList.add('prikken');
+    if (!tmPrikStart.aan) { map.on('click', e => tmPrikKlik(e)); tmPrikStart.aan = true; } tmPrikTeken(); }, 200);
+  tmRender();
+}
+function tmPrikStop() { TM.prik = null; TM.prikPunten = []; map?.getContainer().classList.remove('prikken'); tmTekenLaag?.clearLayers(); if (TM.aan) tmRender(); }
+function tmPrikKlik(e) {
+  if (!TM.aan || !TM.prik || TM.scherm !== 'kaart') return;
+  const pt = [e.latlng.lng, e.latlng.lat];
+  if (TM.prik === 'vlag') { tmVlagOp(pt); return; }
+  TM.prikPunten.push(pt); tmPrikTeken(); tmRender();
+}
+function tmPrikTeken() {
+  if (!map) return; if (!tmTekenLaag) tmTekenLaag = L.layerGroup().addTo(map);
+  tmTekenLaag.clearLayers(); const ll = (TM.prikPunten || []).map(([x, y]) => [y, x]);
+  if (ll.length >= 3) L.polygon(ll, {color: '#fb8c00', weight: 3, dashArray: '6,4', fillColor: '#fb8c00', fillOpacity: .25, interactive: false}).addTo(tmTekenLaag);
+  else if (ll.length === 2) L.polyline(ll, {color: '#fb8c00', weight: 3, interactive: false}).addTo(tmTekenLaag);
+  ll.forEach(p => L.circleMarker(p, {radius: 10, color: '#fff', weight: 3, fillColor: '#fb8c00', fillOpacity: 1, interactive: false}).addTo(tmTekenLaag));
+}
+const puntGeo = pt => ({type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: pt}});
+async function tmVlagOp(pt) {
+  const p = perceelOpPunt(puntGeo(pt)); if (!p) { toast('Tik binnen een perceel', 1); return; }
+  tmPrikStop(); actief = p.id; await nieuweMarkering('vlag', puntGeo(pt)); tmRender(); tmPlek();
+}
+async function tmGebiedKlaar() {
+  const l = TM.prikPunten || []; if (l.length < 3) { toast('Tik minstens 3 hoeken aan', 1); return; }
+  const geo = {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: [[...l, l[0]]]}};
+  let p = null; try { p = perceelOpPunt(turf.centroid(geo)); } catch {}
+  p = p || l.map(x => perceelOpPunt(puntGeo(x))).find(Boolean) || perceel(TM.pid);
+  if (!p) { toast('Teken het gebied op een perceel', 1); return; }
+  tmPrikStop(); actief = p.id; await nieuweMarkering('gebied', geo); tmRender(); tmPlek();
+}
 function tmPerceelKiezen(id) { TM.pid = id; TM.handmatig = true; TM.volg = false; actief = id; tmRender(); render(true); tmPlek(); }
-function tmAlles() { TM.volg = false; tmRender(); try { map.fitBounds(L.geoJSON(S.percelen.filter(p => p.geo).map(p => p.geo)).getBounds(), {padding: [30, 30]}); } catch {} }
-function tmUitKaart(naar = 'start') { TM.scherm = naar; document.body.classList.remove('tmKaart'); tmLaag?.clearLayers(); tmRender(); render(true); }
+// lijst van alle percelen (dichtstbij eerst); aantikken = er naartoe op de kaart
+function tmPerceelLijst() {
+  const [lng, lat] = TM.pos?.geometry?.coordinates || [];
+  return S.percelen.filter(p => p.geo).map(p => { let km = null;
+    if (lat != null) { try { const c = L.geoJSON(p.geo).getBounds().getCenter(), r = Math.PI / 180;
+      km = 6371 * 2 * Math.asin(Math.sqrt(Math.sin((c.lat - lat) * r / 2) ** 2 + Math.cos(lat * r) * Math.cos(c.lat * r) * Math.sin((c.lng - lng) * r / 2) ** 2)); } catch {} }
+    return {p, km}; }).sort((a, b) => a.km != null && b.km != null ? a.km - b.km : a.p.naam.localeCompare(b.p.naam, 'nl', {numeric: true}));
+}
+function tmNaarPerceel(id) {
+  const p = perceel(id); if (!p) return;
+  TM.lijst = false; TM.pid = id; TM.handmatig = true; TM.volg = false; actief = id; tmRender(); render(true);
+  setTimeout(() => { try { map.fitBounds(L.geoJSON(p.geo).getBounds(), {padding: [40, 40], maxZoom: 19}); } catch {} tmPlek(); }, 80);
+}
+function tmAlles() { TM.lijst = !TM.lijst; TM.volg = false; tmRender(); if (!TM.lijst) return; try { map.fitBounds(L.geoJSON(S.percelen.filter(p => p.geo).map(p => p.geo)).getBounds(), {padding: [30, 30]}); } catch {} }
+function tmUitKaart(naar = 'start') { TM.lijst = false; TM.prik = null; TM.prikPunten = []; map?.getContainer().classList.remove('prikken'); tmTekenLaag?.clearLayers(); TM.scherm = naar; document.body.classList.remove('tmKaart'); tmLaag?.clearLayers(); tmRender(); render(true); }
 
 /* ============ SPOREN OPSCHUIVEN EN LOSSE SPOREN WEGHALEN ============
    Elk spoor heeft een vaste plek in het raster (k). Bij opschuiven of weghalen verandert de nummering,
