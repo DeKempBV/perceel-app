@@ -6055,14 +6055,37 @@ function aiIndeling(zz) {
   pos.forEach((q, i) => { if (q.w === .5) { const nb = pos[i - 1]?.w === 1 ? pos[i - 1] : pos[i + 1]; q.id = nb?.id || null; q.blok = nb?.blok ?? -1; } });
   return pos;
 }
+// waar de blokken het best passen: het stuk met de langste (volle) sporen; bij gelijke stand in het midden
+function besteVenster(rijen, L) {
+  const n = rijen.length; if (L >= n) return 0;
+  const lengte = rijen.map(bn => bn.t1 - bn.t0), score = [];
+  let som = lengte.slice(0, L).reduce((a, b) => a + b, 0); score.push(som);
+  for (let i = 1; i + L <= n; i++) { som += lengte[i + L - 1] - lengte[i - 1]; score.push(som); }
+  const max = Math.max(...score), mid = (n - L) / 2;
+  return score.map((v, i) => ({v, i})).filter(x => x.v >= max * .99).sort((a, b) => Math.abs(a.i - mid) - Math.abs(b.i - mid))[0].i;
+}
+// nieuwe vorm voor een deelveld: alleen de L sporen vanaf spoor (start+1), langs de sporenraster-lijnen afgeknipt
+function vakPassend(z, start, L) {
+  const rijen = banenVan(z), meta = rijen.meta; if (!meta || !rijen.length) return null;
+  const eind = Math.min(rijen.length, start + L), A1 = start === 0 ? rijen[0].a - 1000 : rijen[start].a, A2 = eind === rijen.length ? rijen[eind - 1].a + rijen[eind - 1].b + 1000 : rijen[eind - 1].a + rijen[eind - 1].b;
+  const {n, d, naarG} = meta, lang = 5000;
+  const strook = turf.polygon([[[A1, -lang], [A2, -lang], [A2, lang], [A1, lang], [A1, -lang]].map(([o, t]) => naarG([n[0] * o + d[0] * t, n[1] * o + d[1] * t]))]);
+  try {
+    let g = turf.intersect(z._vak.geo, strook); if (!g) return null;
+    if (g.geometry.type === 'MultiPolygon') g = g.geometry.coordinates.map(c => turf.polygon(c)).sort((a, b) => turf.area(b) - turf.area(a))[0];
+    return {type: 'Feature', properties: {}, geometry: g.geometry};
+  } catch { return null; }
+}
 function aiVeldVoorbeeld() {
   const p = perceel(AV.pid);
   focusLaag.clearLayers();
   AV.zones.forEach(zz => {
     const z = alleZones(p).find(x => x.id === zz.zid), rijen = banenVan(z), pos = aiIndeling(zz), n = rijen.length;
-    // de tekening valt meestal niet precies over het perceel: wat overblijft eerlijk over beide randen verdelen, tenzij je het zelf aanpast
-    const voor = Math.max(0, Math.min(n - pos.length, zz.eerste ? zz.eerste - 1 : Math.floor((n - pos.length) / 2)));
+    // de tekening valt meestal niet precies over het perceel: de blokken op de volle (lange) sporen leggen, niet op de stompjes
+    const voor = Math.max(0, Math.min(n - pos.length, zz.eerste ? zz.eerste - 1 : besteVenster(rijen, pos.length)));
     zz.n = n; zz.pos = pos; zz.voor = Math.max(0, voor); zz.na = Math.max(0, n - pos.length - zz.voor); zz.aStart = rijen[zz.voor]?.a;
+    if (zz.passend == null) zz.passend = !!z?._vak && zz.voor + zz.na > 0 && mag('deelvelden_bewerken');
+    if (z?._vak && zz.passend && zz.voor + zz.na > 0) { const g = vakPassend(z, zz.voor, pos.length); if (g) L.geoJSON(g, {interactive: false, style: {color: '#ff4081', weight: 3, dashArray: '8 6', fill: false}}).addTo(focusLaag); }
     rijen.forEach((bn, i) => {
       const q = pos[i - zz.voor], kl = !q ? '#9e9e9e' : q.w === 2 ? '#ff6d00' : teelt(q.id)?.kleur || '#ffeb3b';
       L.geoJSON(bn.geo, {interactive: false, style: {color: '#fff', weight: .6, fillColor: kl, fillOpacity: !q ? .55 : q.w === .5 ? .45 : .8}}).addTo(focusLaag);
@@ -6079,6 +6102,7 @@ function aiVeldVoorbeeld() {
       return `<section class="aiZone"><h4>${esc(zoneNaam(zz.zid))} <small>${zz.n} sporen in de app · plattegrond: ${String(plant).replace('.', ',')} rijen + spuitsporen = ${zz.pos.length} sporen</small></h4>
         ${past ? (zz.voor + zz.na ? `<p class="hint">${zz.voor ? `${zz.voor} spoor/sporen aan het begin` : ''}${zz.voor && zz.na ? ' en ' : ''}${zz.na ? `${zz.na} aan het eind` : ''} ${AV.rest === 'kop' ? 'worden kopeinde' : 'blijven leeg'}.${(() => { const z = alleZones(p).find(x => x.id === zz.zid), b = +(z?.breedte ?? p.breedte) || 0; return z?._vak && zz.voor + zz.na > 2 ? ` Dit deelveld is ongeveer <b>${String(Math.round((zz.voor + zz.na) * b * 10) / 10).replace('.', ',')} m breder</b> dan op de tekening; maak het smaller als dat niet klopt.` : ''; })()}</p>` : '')
           : `<p class="aiOpm" style="background:#fff3e0">⚠️ Volgens de tekening zijn hier ${zz.pos.length} sporen nodig, de app heeft er ${zz.n}. ${(() => { const z = alleZones(p).find(x => x.id === zz.zid), b = +(z?.breedte ?? p.breedte) || 0; return z?._vak ? `Maak dit deelveld ongeveer <b>${String(Math.round((zz.pos.length - zz.n) * b * 10) / 10).replace('.', ',')} m breder</b> (dwars op de rijen), of controleer de spoorbreedte.` : 'Controleer de spoorbreedte of maak een deelveld kleiner.'; })()} De laatste vallen er nu af.</p>`}
+        ${(() => { const z = alleZones(p).find(x => x.id === zz.zid); return z?._vak && zz.voor + zz.na > 0 && mag('deelvelden_bewerken') ? `<label class="vinkje"><input type="checkbox" ${zz.passend ? 'checked' : ''} onchange="AV.zones[${zi}].passend=this.checked;aiVeldVoorbeeld()"> ✂️ Deelveld passend maken: van ${zz.n} naar ${zz.pos.length} sporen (roze gestippeld). De rest wordt weer gewoon hoofdveld.</label>` : ''; })()}
         <div class="aiVelden"><span>Eerste blok begint bij spoor</span><input class="veld" type="number" min="1" value="${zz.voor + 1}" onchange="AV.zones[${zi}].eerste=Math.max(1,+this.value||1);aiVeldVoorbeeld()"></div>
         ${zz.blokken.map((b, bi) => `<div class="aiBlok ${b.zeker < .5 ? 'twijfel' : ''}"><div class="aiVelden">
           <select class="veld" onchange="AV.zones[${zi}].blokken[${bi}].teelt=this.value;aiVeldVoorbeeld()">${aiTeeltOpties(b.teelt)}</select>
@@ -6097,6 +6121,12 @@ async function aiVeldOvernemen() {
   $('#modal').classList.remove('open'); focusLaag.clearLayers();
   banner('<b>🤖 Veld invullen…</b>');
   try {
+    // 0. deelvelden die te breed getekend zijn passend maken (precies de sporen van de tekening)
+    const nieuweVakken = (p.vakken || []).map(v => ({...v})); let geknipt = 0;
+    AV.zones.forEach(zz => { const z = alleZones(p).find(x => x.id === zz.zid); if (!z?._vak || !zz.passend || !(zz.voor + zz.na)) return;
+      const g = vakPassend(z, zz.voor, zz.pos.length); if (!g) return; const v = nieuweVakken.find(x => x.id === z._vak.id); v.geo = g; v.banen = []; geknipt++; zz.eerste = null; zz.aStart = null; });
+    if (geknipt) { await wijzig(p.id, {vakken: nieuweVakken}); AV.zones.forEach(zz => { const z = alleZones(perceel(AV.pid)).find(x => x.id === zz.zid); const rijen = banenVan(z); zz.n = rijen.length;
+        const v = Math.max(0, Math.min(zz.n - zz.pos.length, besteVenster(rijen, zz.pos.length))); zz.voor = v; zz.na = Math.max(0, zz.n - zz.pos.length - v); zz.aStart = rijen[v]?.a; }); }
     // 1. sporen die overblijven → kopeinde (vlakken precies over die sporen)
     const restVlakken = [];
     if (AV.rest === 'kop' && mag('kopeinden_bewerken')) AV.zones.forEach(zz => {
