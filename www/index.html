@@ -5689,7 +5689,36 @@ function htmlPlattegrond(p) {
     ${pl && mag('ai_gebruiken') && mag('soorten_indelen') && mag('spuitsporen_bewerken') ? `<button class="knop licht" onclick="aiVeldInvullen('${p.id}')">🤖 Invullen met de delen die er al zijn</button>
       <p class="hint">De AI leest de plattegrond en vult alles in: planten en partijen per spoor, spuitsporen, kopeinde en (als je wilt) de deelvelden. Je ziet eerst een voorbeeld.</p>` : ''}
     ${pl && mag('ai_gebruiken') && mag('soorten_indelen') ? `<button class="knop licht" onclick="aiPlattegrond('${p.id}')">🤖 Alleen planten op de sporen zetten</button>` : ''}
+    ${mag('percelen_bewerken') ? `<button class="knop licht rood" style="margin-top:10px" onclick="perceelLeegmaken('${p.id}')">🧹 Perceel leegmaken</button>` : ''}
   </section>`;
+}
+// perceel weer leeg maken: de omtrek, rijrichting, spoorbreedte en plattegrond blijven staan
+async function perceelLeegmaken(id) {
+  const p = perceel(id); if (!p || !mag('percelen_bewerken')) return;
+  const k = await keuze('🧹 Perceel leegmaken', `Wat wil je van <b>${esc(p.naam)}</b> weghalen? De omtrek, de plattegrond, de rijrichting en de spoorbreedte blijven staan. Partijen blijven bestaan, ze staan alleen niet meer op de sporen.`,
+    [['planten', '🌱 Alleen de planten en partijen van de sporen halen'],
+     ['alles', '🧹 Alles: planten, partijen van de sporen, deelvelden (links/rechts/gier), spuitsporen en kopeindes'],
+     ['nee', 'Annuleren']]);
+  if (!k || k === 'nee') return;
+  banner('<b>🧹 Perceel leegmaken…</b>');
+  try {
+    const zones = new Set(alleZones(p).map(z => z.id));
+    // partijen: alleen de plekken op dit perceel weghalen
+    for (const y of (S.partijen || [])) {
+      const s = Array.isArray(y.sporen) ? y.sporen : []; const rest = s.filter(q => !zones.has(q.z) && !String(q.z).startsWith(p.id + ':'));
+      if (rest.length === s.length) continue;
+      y.sporen = rest; const {error} = await sb.from('partijen').update({sporen: rest}).eq('id', y.id); if (error) throw error;
+    }
+    spoorPartijMap = null;
+    if (k === 'planten') await wijzig(id, {banen: [], gewas: null, beplanting: {}, vakken: (p.vakken || []).map(v => ({...v, banen: [], gewas: null}))});
+    else {
+      await wijzig(id, {banen: [], gewas: null, beplanting: {}, vakken: [], spuit: {}, verschuiving: 0});
+      if (mag('kopeinden_bewerken')) for (const m of S.markeringen.filter(m => m.perceel_id === id && m.soort === 'kopeinde')) {
+        const {error} = await sb.from('markeringen').delete().eq('id', m.id); if (!error) S.markeringen = S.markeringen.filter(x => x.id !== m.id);
+      }
+    }
+    banner(null); render(true); toast('🧹 Perceel is leeggemaakt');
+  } catch (e) { banner(null); toast('Leegmaken mislukt: ' + (e.message || e), 1); }
 }
 /* ============ AI: PLATTEGROND LEZEN EN HET PERCEEL VULLEN ============
    De uitgelijnde plattegrond gaat (met de sporen van de app erover getekend en genummerd) naar Claude.
@@ -6421,6 +6450,7 @@ Antwoord ALLEEN met JSON:
     AV.indeling = stukken.map((g, i) => ({geo: {type: 'Feature', properties: {}, geometry: g.geometry}, deel: toewijzing.get(i) || {naam: 'deel ' + (i + 1), gps: NaN, blokken: []}}))
       .sort((a, b) => turf.area(b.geo) - turf.area(a.geo));
     AV.lijnen = lijnen; AV.uitlezen = uit; AV.voorbeeld = B.voorbeeld; AV.opm = uit.opmerking || '';
+    tegenDeRandVanDeStrook(p);
     AV.opstelling = AV.ops === 'auto' ? (OPSTELLINGEN[uit.opstelling] ? uit.opstelling : '2breed') : AV.ops;
     indelingVoorbeeld();
   } catch (e) { banner(null); toast('🤖 ' + (e.message || e), 1); }
@@ -6445,6 +6475,43 @@ function indelingVoorbeeld() {
 }
 // de sporen van een deel zo opschuiven dat een spoorrand precies op de scheiding met het deel ernaast valt
 // (de scheiding loopt evenwijdig aan de rijen), zodat daar geen halve sporen wegvallen
+/* Ligt er een strook (gat in de omtrek) tussen twee delen, dan begint elk deel precies langs de rand van die strook,
+   evenwijdig aan zijn rijen. De korte stukjes tussen de strook en de scheidingslijn (waar de omtrek aan elkaar zit)
+   worden kopeinde, zodat daar geen rijen half de muur in lopen. */
+function tegenDeRandVanDeStrook(p) {
+  AV.randen = {}; AV.strookVlakken = [];
+  const geo = p.geo.geometry?.type === 'MultiPolygon' ? grootsteDeel(p.geo) : p.geo, ringen = turf.getCoords(geo);
+  const m = turf.centroid(geo).geometry.coordinates, K = 111320, cl = Math.cos(m[1] * Math.PI / 180);
+  const naarM = q => [(q[0] - m[0]) * K * cl, (q[1] - m[1]) * K], naarG = q => [m[0] + q[0] / (K * cl), m[1] + q[1] / K];
+  (AV.lijnen || []).forEach(l => {
+    const A = naarM(l.a), B = naarM(l.b), lu = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1, u = [(B[0] - A[0]) / lu, (B[1] - A[1]) / lu], nn = [-u[1], u[0]];
+    const zij = q => (q[0] - A[0]) * nn[0] + (q[1] - A[1]) * nn[1];
+    l.tussen.forEach(naam => {
+      const x = AV.indeling.find(y => y.deel.naam === naam); if (!x || !Number.isFinite(x.deel.gps)) return;
+      const kant = Math.sign(zij(naarM(turf.centroid(x.geo).geometry.coordinates))); if (!kant) return;
+      const r = x.deel.gps * Math.PI / 180, d = [Math.sin(r), Math.cos(r)];
+      // randen van de omtrek die ongeveer evenwijdig aan de rijen lopen, vlak bij de scheiding en aan de kant van dit deel
+      let beste = null;
+      ringen.forEach(ring => ring.slice(0, -1).forEach((q, i) => {
+        const P = naarM(q), Q = naarM(ring[i + 1]), lg = Math.hypot(Q[0] - P[0], Q[1] - P[1]); if (lg < 15) return;
+        const c = Math.abs(((Q[0] - P[0]) * d[0] + (Q[1] - P[1]) * d[1]) / lg); if (c < Math.cos(6 * Math.PI / 180)) return;
+        const zp = zij(P) * kant, zq = zij(Q) * kant; if (zp < .3 || zq < .3 || Math.max(zp, zq) > 40) return;
+        if (!beste || lg > beste.lg) beste = {lg, P, Q, diep: Math.max(zp, zq)};
+      }));
+      if (!beste) return;
+      // snijlijn evenwijdig aan de rijen, door het punt van die rand dat het verst van de scheiding af ligt
+      const S0 = zij(beste.P) * kant >= zij(beste.Q) * kant ? beste.P : beste.Q;
+      const a = naarG(S0), b = naarG([S0[0] + d[0] * 50, S0[1] + d[1] * 50]);
+      const stukken = knipMetLijn(x.geo, a, b); if (stukken.length !== 2) return;
+      const zijS = q => ((q[0] - S0[0]) * -d[1] + (q[1] - S0[1]) * d[0]);
+      const ref = zijS(naarM(turf.centroid(x.geo).geometry.coordinates)), houd = stukken.find(g => Math.sign(zijS(naarM(turf.centroid(g).geometry.coordinates))) === Math.sign(ref));
+      if (!houd || turf.area(houd) < turf.area(x.geo) * .75) return;
+      let weg = null; try { weg = turf.difference(x.geo, houd); } catch {}
+      x.geo = {type: 'Feature', properties: {}, geometry: houd.geometry}; AV.randen[naam] = [a, b];
+      if (weg) (weg.geometry.type === 'MultiPolygon' ? weg.geometry.coordinates : [weg.geometry.coordinates]).forEach(c => { if (turf.area(turf.polygon(c)) > 1) AV.strookVlakken.push(c[0]); });
+    });
+  });
+}
 async function sporenOpScheiding(pid, vakken) {
   const p = perceel(pid), zs = alleZones(p), patch = {}, nieuw = (p.vakken || []).map(v => ({...v})); let iets = false;
   AV.indeling.forEach((x, i) => {
@@ -6453,8 +6520,9 @@ async function sporenOpScheiding(pid, vakken) {
     const lijn = (AV.lijnen || []).filter(l => l.tussen.includes(x.deel.naam)).find(l => {
       const K = 111320, cl = Math.cos(l.a[1] * Math.PI / 180), hk = Math.atan2((l.b[0] - l.a[0]) * K * cl, (l.b[1] - l.a[1]) * K) * 180 / Math.PI;
       const v = ((((hk - z.richting) % 180) + 180) % 180); return Math.min(v, 180 - v) < 1.5; });
-    if (!lijn) return;
-    const q = meta.naarM(lijn.a), L = q[0] * meta.n[0] + q[1] * meta.n[1];
+    // eerst de rand van de strook (als die er is), anders de scheidingslijn
+    const rand = AV.randen?.[x.deel.naam]; if (!lijn && !rand) return;
+    const q = meta.naarM(rand ? rand[0] : lijn.a), L = q[0] * meta.n[0] + q[1] * meta.n[1];
     let sch = ((L - rijen[0].a) % b + b) % b; if (sch < .02 || b - sch < .02) return;
     sch = Math.round(sch * 1000) / 1000; iets = true;
     if (i === 0) patch.verschuiving = sch; else { const v = nieuw.find(v => v.id === vakken[i - 1].id); v.verschuiving = sch; v.banen = []; }
@@ -6470,6 +6538,14 @@ async function indelingOvernemen() {
   try {
     const rond = g => Math.round((((g % 360) + 360) % 360) * 1000) / 1000;
     const vakken = rest.map((x, i) => ({id: Date.now().toString(36) + i + Math.random().toString(36).slice(2, 6), naam: DEEL_NAMEN[x.deel.naam] || x.deel.naam, geo: x.geo, richting: rond(x.deel.gps), breedte: AV.breedte, verschuiving: 0, banen: [], spuit: {}}));
+    // de korte stukjes bij de strook tussen de delen: kopeinde, zodat daar geen rijen komen
+    if ((AV.strookVlakken || []).length && mag('kopeinden_bewerken')) {
+      const sv = AV.strookVlakken, oud = S.markeringen.find(m => m.perceel_id === p.id && m.soort === 'kopeinde' && m.titel === 'Kopeinde (bij de strook tussen de delen)');
+      const g = {type: 'Feature', properties: {vlakken: sv.slice(1).map(r => [r])}, geometry: {type: 'Polygon', coordinates: [sv[0]]}};
+      if (oud) { oud.geo = g; await sb.from('markeringen').update({geo: g}).eq('id', oud.id); }
+      else { const {data, error} = await sb.from('markeringen').insert({perceel_id: p.id, soort: 'kopeinde', titel: 'Kopeinde (bij de strook tussen de delen)', aangemaakt_door: naamMe(), fotos: [], geo: g}).select().single();
+        if (!error && data && !S.markeringen.find(x => x.id === data.id)) S.markeringen.push(data); }
+    }
     await wijzig(p.id, {richting: rond(hoofd.deel.gps), breedte: AV.breedte, verschuiving: 0, aantal: 0, banen_aan: true, banen: [], spuit: {}, vakken, gewas: null});
     render(true);
     await sporenOpScheiding(p.id, vakken);
