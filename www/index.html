@@ -58,7 +58,8 @@ label{display:block;font-size:12px;color:var(--grijs);margin:8px 0 4px}
 .rij{display:flex;gap:8px;align-items:center}
 .rij>.knop{flex:1}
 .raster3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.wtPercelen{max-height:220px;overflow:auto;border:1px solid #e3e8e0;border-radius:10px;padding:4px 8px}
+.wtP{border-bottom:1px solid #f0f3ee;padding:2px 0}.wtVakken{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:0 0 6px 26px}.wtVak{display:inline-flex;align-items:center;gap:3px;background:#f3f7f1;border-radius:8px;padding:3px 8px;font-size:13px;font-weight:600;cursor:pointer}
+.wtPercelen{max-height:260px;overflow:auto;border:1px solid #e3e8e0;border-radius:10px;padding:4px 8px}
 .mFoto{width:54px;height:54px;object-fit:cover;border-radius:10px;margin-right:8px;cursor:zoom-in;flex:0 0 auto}
 .mTaakFotos{display:flex;gap:8px;margin:6px 0;flex-wrap:wrap}.mTaakFotos figure{margin:0;cursor:zoom-in;text-align:center}.mTaakFotos img{width:96px;height:72px;object-fit:cover;border-radius:10px;display:block}.mTaakFotos figcaption{font-size:11px;color:#5b6b58;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .schuifBlok{margin-top:10px}.schuifRij{display:grid!important;grid-template-columns:repeat(3,1fr) 1.4fr repeat(3,1fr);gap:4px;align-items:center}.schuifRij .knop.klein{font-size:12px;padding:7px 2px}.schuifBlok .knop.klein{flex:1 1 auto;width:auto;margin:0;padding:7px 6px}.schuifRij .veld{flex:1 1 80px;margin:0;min-width:70px;text-align:center}
@@ -2831,7 +2832,7 @@ function taakGebied(t) {
   }
   return [p.geo];
 }
-const taakWaar = t => isVerplaats(t) ? `${locNaam(t, 'van')} → ${locNaam(t, 'naar')}` : t.gebied ? 'getekend stuk' :
+const taakWaar = t => isVerplaats(t) ? `${locNaam(t, 'van')} → ${locNaam(t, 'naar')}` : t.gebied?.properties?.vakken?.length ? 'vak ' + t.gebied.properties.vakken.join(', ') : t.gebied ? 'getekend stuk' :
   (t.spoor_van && perceel(t.perceel_id) && spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot))
     ? 'vak ' + spuitvakkenVan(perceel(t.perceel_id)).find(v => v.van === t.spoor_van && v.tot === t.spoor_tot).letter : t.spoor_van ? (t.spoor_tot && t.spoor_tot !== t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot}` : `spoor ${t.spoor_van}`) : 'hele perceel';
 function focusTaak(id) {
@@ -6048,6 +6049,14 @@ function htmlWerkTaken(soortW) {
   <section class="kaartje">${l.map(t => taakHtml(t, true)).join('') || `<p class="hint">${wtFilter === 'klaar' ? 'Nog niets gedaan dit seizoen.' : `Geen ${W.titel.toLowerCase()}-taken open.`}</p>`}</section>`;
 }
 // eigen formulier: meerdere percelen tegelijk, middel uit de lijst, dosering, wanneer en wie
+// alle spuitvakken van een perceel (alle delen), met hun sporen
+const perceelVakken = p => p ? alleZones(p).flatMap(z => spuitvakkenVan(z).map(v => ({...v, z}))) : [];
+// het stuk van de gekozen vakken als één vlak (de sporen zelf, zonder de spuitsporen)
+function vakkenGebied(vakken) {
+  const coords = [];
+  vakken.forEach(v => { const rijen = banenVan(v.z); v.nrs.forEach(nr => { const g = rijen[nr - 1]?.geo?.geometry; if (!g) return; if (g.type === 'Polygon') coords.push(g.coordinates); else if (g.type === 'MultiPolygon') coords.push(...g.coordinates); }); });
+  return coords.length ? {type: 'Feature', properties: {vakken: vakken.map(v => v.letter)}, geometry: {type: 'MultiPolygon', coordinates: coords}} : null;
+}
 async function werkTaakFormulier(soortW, direct) {
   const W = WERKSOORT[soortW];
   const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
@@ -6059,9 +6068,11 @@ async function werkTaakFormulier(soortW, direct) {
   const mensen = [...S.profielen].sort((a, b) => (a.naam || '').localeCompare(b.naam || '', 'nl'));
   const m = $('#modal');
   m.innerHTML = `<div class="dialoog breed"><h3>${W.icoon} ${W.werkwoord} plannen</h3>
-    <label>Welke percelen?</label><div class="wtPercelen">${velden.map(p => `<label class="vinkje"><input type="checkbox" value="${p.id}" ${p.id === actief ? 'checked' : ''}> ${esc(p.naam)} ${isBioPerceel(p) ? '<span class="badge bio">BIO</span>' : ''} <small>${ha(turf.area(p.geo))} ha</small></label>`).join('')}</div>
-    <div class="rij" style="margin:4px 0"><button class="link klein" onclick="document.querySelectorAll('.wtPercelen input').forEach(i=>i.checked=true)">alles</button><button class="link klein" onclick="document.querySelectorAll('.wtPercelen input').forEach(i=>i.checked=false)">niets</button>
-      <button class="link klein" onclick="document.querySelectorAll('.wtPercelen input').forEach(i=>i.checked=isBioPerceel(perceel(i.value)))">alleen bio</button></div>
+    <label>Welke percelen?</label><div class="wtPercelen">${velden.map(p => { const vk = perceelVakken(p);
+      return `<div class="wtP"><label class="vinkje"><input type="checkbox" value="${p.id}" ${p.id === actief ? 'checked' : ''}> ${esc(p.naam)} ${isBioPerceel(p) ? '<span class="badge bio">BIO</span>' : ''} <small>${ha(turf.area(p.geo))} ha</small></label>
+        ${vk.length ? `<div class="wtVakken" style="${p.id === actief ? '' : 'display:none'}"><small>Hele perceel, of alleen vak:</small> ${vk.map((x, i) => `<label class="wtVak"><input type="checkbox" data-vak="${i}"> ${esc(x.letter)}</label>`).join('')}</div>` : ''}</div>`; }).join('')}</div>
+    <div class="rij" style="margin:4px 0"><button class="link klein" onclick="document.querySelectorAll('.wtPercelen input[value]').forEach(i=>{i.checked=true;i.onchange()})">alles</button><button class="link klein" onclick="document.querySelectorAll('.wtPercelen input[value]').forEach(i=>{i.checked=false;i.onchange()})">niets</button>
+      <button class="link klein" onclick="document.querySelectorAll('.wtPercelen input[value]').forEach(i=>{i.checked=isBioPerceel(perceel(i.value));i.onchange()})">alleen bio</button></div>
     <label>${soortW === 'bemesten' ? 'Meststof' : 'Middel'}</label>
     <select class="veld" id="wtMiddel"><option value="">— kies —</option>${middelen.map(x => `<option value="${x.id}">${esc(x.naam)}${x.max_dosering ? ` (max ${getal(x.max_dosering, 2)} ${esc(x.dosering_eenheid || '')})` : ''}</option>`).join('')}<option value="_anders">Iets anders (hieronder typen)</option></select>
     <input class="veld" id="wtAnders" placeholder="naam ${soortW === 'bemesten' ? 'meststof' : 'middel'}" style="display:none">
@@ -6074,19 +6085,22 @@ async function werkTaakFormulier(soortW, direct) {
     <p class="hint" id="wtLet"></p>
     <button class="knop" id="mJa">Plannen</button><button class="knop licht" onclick="$('#modal').classList.remove('open')">Annuleren</button></div>`;
   m.classList.add('open');
-  const sel = $('#wtMiddel'), let_ = () => { const x = middel(sel.value), bio = [...m.querySelectorAll('.wtPercelen input:checked')].some(i => isBioPerceel(perceel(i.value)));
+  const sel = $('#wtMiddel'), let_ = () => { const x = middel(sel.value), bio = [...m.querySelectorAll('.wtPercelen input[value]:checked')].some(i => isBioPerceel(perceel(i.value)));
     $('#wtLet').innerHTML = x && soortW === 'spuiten' && bio && !x.bio_toegestaan ? '⚠️ Er zit een bio-perceel bij en dit middel staat niet als bio-toegestaan aangevinkt.' : x?.veiligheidstermijn ? `Veiligheidstermijn ${x.veiligheidstermijn} dagen.` : ''; };
   sel.onchange = () => { $('#wtAnders').style.display = sel.value === '_anders' ? '' : 'none'; const x = middel(sel.value);
     if (x?.max_dosering && !$('#wtDos').value) $('#wtDos').value = x.max_dosering; if (x?.dosering_eenheid) $('#wtEenh').value = x.dosering_eenheid; let_(); };
-  m.querySelectorAll('.wtPercelen input').forEach(i => i.onchange = let_);
+  m.querySelectorAll('.wtPercelen input[value]').forEach(i => i.onchange = () => { const v = i.closest('.wtP').querySelector('.wtVakken'); if (v) v.style.display = i.checked ? '' : 'none'; let_(); });
   $('#mJa').onclick = async () => {
-    const pids = [...m.querySelectorAll('.wtPercelen input:checked')].map(i => i.value), x = middel(sel.value), naam = x?.naam || ($('#wtAnders').value || '').trim();
+    const pids = [...m.querySelectorAll('.wtPercelen input[value]:checked')].map(i => i.value), x = middel(sel.value), naam = x?.naam || ($('#wtAnders').value || '').trim();
     if (!pids.length) { toast('Vink minstens één perceel aan', 1); return; }
     if (!naam) { toast(`Kies ${soortW === 'bemesten' ? 'de meststof' : 'het middel'}`, 1); return; }
     const dos = parseFloat(String($('#wtDos').value).replace(',', '.'));
     m.classList.remove('open'); let n = 0;
     for (const pid of pids) {
-      const rij = {perceel_id: pid, tekst: `${W.werkwoord}: ${naam}`, omschrijving: $('#wtOpm').value || null, product: naam, middel_id: x?.id || null,
+      const box = m.querySelector(`.wtPercelen input[value="${pid}"]`).closest('.wtP'), vk = perceelVakken(perceel(pid));
+      const gekozen = [...box.querySelectorAll('input[data-vak]:checked')].map(i => vk[+i.dataset.vak]).filter(Boolean);
+      const gebied = gekozen.length ? vakkenGebied(gekozen) : null, waar = gekozen.length ? ` (vak ${gekozen.map(x => x.letter).join(', ')})` : '';
+      const rij = {perceel_id: pid, tekst: `${W.werkwoord}: ${naam}${waar}`, gebied, omschrijving: $('#wtOpm').value || null, product: naam, middel_id: x?.id || null,
         dosering: isNaN(dos) ? null : dos, eenheid: isNaN(dos) ? null : $('#wtEenh').value, gepland: $('#wtDatum').value || null, toegewezen_aan: $('#wtWie').value || null, werktuig: $('#wtMachine')?.value || null, aangemaakt_door: naamMe()};
       const {data, error} = await sb.from('taken').insert(rij).select().single();
       if (error) { toast('Opslaan mislukt: ' + foutTekst(error), 1); break; }
