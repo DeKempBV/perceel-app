@@ -5844,7 +5844,20 @@ function leesAiJson(tekst) {
   }
   return null;
 }
-function zonesTekst(p) {
+const KOMPAS = ['noord', 'noordoost', 'oost', 'zuidoost', 'zuid', 'zuidwest', 'west', 'noordwest'];
+const kompasVan = (van, naar) => KOMPAS[Math.round(((turf.bearing(turf.point(van), turf.point(naar)) + 360) % 360) / 45) % 8];
+const beeldPlek = (x, y, B) => `${y < B.ch / 3 ? 'boven' : y > B.ch * 2 / 3 ? 'onder' : 'midden'}${x < B.cw / 3 ? 'links' : x > B.cw * 2 / 3 ? 'rechts' : ''}`;
+function zonesTekst(p, B) {
+  const mid = turf.centroid(p.geo).geometry.coordinates;
+  return alleZones(p).map(z => {
+    const rijen = banenVan(z); if (!rijen.length) return '';
+    const zmid = turf.centroid(z._vak ? z._vak.geo : p.geo).geometry.coordinates, r1 = turf.centroid(rijen[0].geo).geometry.coordinates;
+    let beeld = '';
+    if (B && p.plattegrond?.hoeken) { try { const naar = pgNaarPixel(p.plattegrond, B.cw, B.ch), [x, y] = naar(r1); beeld = ` (in de plaatjes ongeveer ${beeldPlek(x, y, B)})`; } catch {} }
+    return `- ${z._vak ? `deelveld ${zoneLetter(p, z)} ("${z.naam}") aan de ${kompasVan(mid, zmid)}kant van het perceel` : 'hoofdveld (zonder letter)'}: ${rijen.length} sporen van ${String(z.breedte ?? p.breedte).replace('.', ',')} m in de app; spoor 1 ligt aan de ${kompasVan(zmid, r1)}kant${beeld}`;
+  }).filter(Boolean).join('\n');
+}
+function zonesTekstOud(p) {
   return alleZones(p).map(z => `- ${z._vak ? `deelveld ${zoneLetter(p, z)} ("${z.naam}"), sporen ${z.richting ?? z._vak.richting}°` : `hoofdveld (zonder letter), sporen ${+p.richting || 0}°`}: ${banenVan(z).length} sporen van ${String(z.breedte ?? p.breedte).replace('.', ',')} m in de app`).join('\n');
 }
 async function aiVeldInvullen(pid) {
@@ -5858,7 +5871,7 @@ async function aiVeldInvullen(pid) {
     {k: 'kop', label: 'Hoe breed is het kopeinde (de witte rand)? In meters', type: 'number', waarde: kops[0]?.breedte || 6},
     {k: 'ops', label: 'Opstelling van de spuitsporen', type: 'select', waarde: 'auto', opties: [['auto', '🤖 Laat de AI het zien op de plattegrond'], ...Object.entries(OPSTELLINGEN).map(([k, o]) => [k, o.naam]), ['eigen', 'Zelf invullen…']]},
     {k: 'eigen', label: 'Eigen opstelling tussen twee blokken (bijv. 0,5 2 0,5)', waarde: '2 2', als: ['ops', 'eigen']},
-    ...((p.vakken || []).length ? [{k: 'vak', label: 'Je deelvelden laten nakijken (smaller/breder)?', type: 'select', waarde: mag('deelvelden_bewerken') ? 'ja' : 'nee', opties: [['ja', 'Ja, laat de AI ze nakijken'], ['nee', 'Nee, ze kloppen']]}] : []),
+    ...((p.vakken || []).length ? [{k: 'vak', label: 'Je deelvelden laten nakijken op de tekening?', type: 'select', waarde: 'nee', opties: [['nee', 'Nee (de tekening valt meestal niet precies over het perceel)'], ['ja', 'Ja, de tekening ligt er precies over']]}] : []),
     {k: 'rest', label: 'Sporen die aan de randen overblijven', type: 'select', waarde: 'kop', opties: [['kop', 'Kopeinde maken'], ['leeg', 'Leeg laten']]}], 'Start');
   if (!w) return;
   AV = {pid, kop: Math.max(0, parseFloat(String(w.kop).replace(',', '.')) || 6), ops: w.ops, eigen: w.eigen, vak: w.vak === 'ja' && mag('deelvelden_bewerken'), rest: w.rest};
@@ -5982,23 +5995,23 @@ async function aiBlokkenStap(p) {
     const plantTekst = S.soorten.filter(s => !/^braak$/i.test(s.naam)).map(s => `- ${s.naam}${rassenVan(s.id).length ? ': ' + rassenVan(s.id).map(r => r.naam).join(', ') : ''}`).join('\n');
     const uit = await aiVraag(B.beelden, `Je bent een assistent voor een akkerbouw/fruitteeltbedrijf. Twee afbeeldingen van dezelfde perceelplattegrond van "${p.naam}".
 Afbeelding 1: de originele plattegrond. Elk gekleurd blok is één partij planten, met meestal: ras, "bio frigo" of iets dergelijks, batchnummer, klasse (CM, CAC, BM5…), aantal rijen, lengte, m² en planten per meter. De zwarte lijnen tussen de blokken zijn spuitpaden. De witte rand is kopeinde.
-Afbeelding 2: dezelfde plattegrond met de sporen (rijen) van onze app erover, met spoornummers aan de uiteinden (letter = deelveld, geen letter = hoofdveld). Niet elk spoor heeft een nummer; tussenliggende sporen tellen door.
+Afbeelding 2: dezelfde plattegrond met de sporen (rijen) van onze app erover, met spoornummers aan de uiteinden (letter = deelveld, geen letter = hoofdveld).
+LET OP: de tekening valt meestal NIET precies over het perceel en de sporen van de app (andere schaal, verschoven, iets scheef). Gebruik afbeelding 2 alleen om te zien aan welke kant spoor 1 ligt en welk stuk bij welk deelveld hoort. Haal al het andere uit de TEKST op de tekening: vooral het aantal rijen per blok en de volgorde van de blokken. Tel nooit sporen af op de lijntjes van afbeelding 2.
 Zones in de app:
-${zonesTekst(p)}
+${zonesTekst(p, B)}
 ${pr.length ? `Partijen die al bij dit perceel horen:\n${pr.slice(0, 80).map(y => `- ${partijRas(y) || soort(y.soort_id)?.naam || '?'}${y.batch ? ' batch ' + y.batch : ''}${y.klasse ? ' ' + y.klasse : ''}`).join('\n')}\n` : ''}Gewassen en rassen in de app:
 ${plantTekst}
-Opdracht: geef per zone ALLE blokken, in volgorde van het laagste naar het hoogste spoornummer van die zone (kijk naar de nummers in afbeelding 2). Neem het aantal rijen over zoals het op de plattegrond staat (bijv. "10 rijen" → 10, "20+1" → 21).
-Geef ook bij het eerste blok van elke zone het spoornummer uit afbeelding 2 waar het begint.
+Opdracht: geef per zone ALLE blokken, in volgorde vanaf de kant waar spoor 1 ligt tot de andere kant. Neem het aantal rijen over zoals het op de tekening staat (bijv. "10 rijen" → 10, "20+1" → 21). Staat er geen aantal, schat het dan uit de breedte van het blok ten opzichte van de blokken waar wel een aantal bij staat, en geef dan een lage zekerheid.
 Bepaal ook de opstelling van de spuitpaden: "2breed" (spuitpad van 2 banen tussen de blokken, bijv. 111112211111), "20+1" (vakken van 20+1 rijen met halve rijen naast het spuitspoor: 1111111111 0,5 2 0,5 1111111111), "1breed" of "geen".
 Antwoord ALLEEN met JSON:
-{"opstelling":"2breed","zones":[{"zone":"" of letter,"eerste_spoor":1,"blokken":[{"ras":"","gewas":"","batch":"","klasse":"","doel":"bijv. bio frigo","rijen":10,"lengte_m":218,"m2":3270,"pl_per_m":3.6,"zekerheid":0.0-1.0}]}],"opmerking":""}`);
+{"opstelling":"2breed","zones":[{"zone":"" of letter,"blokken":[{"ras":"","gewas":"","batch":"","klasse":"","doel":"bijv. bio frigo","rijen":10,"lengte_m":218,"m2":3270,"pl_per_m":3.6,"zekerheid":0.0-1.0}]}],"opmerking":""}`);
     banner(null);
     const ops = AV.ops === 'auto' ? (OPSTELLINGEN[uit.opstelling] ? uit.opstelling : '2breed') : AV.ops;
     AV.opstelling = ops; AV.opm = uit.opmerking || ''; AV.voorbeeld = B.voorbeeld;
     AV.zones = (uit.zones || []).map(zz => {
       const zs = alleZones(p).filter(z => banenVan(z).length), letter = String(zz.zone || '').trim().toUpperCase();
       const z = zs.find(z => zoneLetter(p, z) === letter) || (!letter && zs.find(z => !z._vak)); if (!z) return null;
-      return {zid: z.id, eerste: Math.max(1, parseInt(zz.eerste_spoor) || 1), blokken: (zz.blokken || []).map(b => ({...aiKoppel(p, {...b, zone: letter, van: 1, tot: 1}), rijen: +String(b.rijen).replace(',', '.').replace(/^(\d+)\s*\+\s*(\d+)$/, (_, a, c) => +a + +c) || 0,
+      return {zid: z.id, eerste: null, blokken: (zz.blokken || []).map(b => ({...aiKoppel(p, {...b, zone: letter, van: 1, tot: 1}), rijen: +String(b.rijen).replace(',', '.').replace(/^(\d+)\s*\+\s*(\d+)$/, (_, a, c) => +a + +c) || 0,
         klasse: b.klasse || '', doel: b.doel || '', lengte: +b.lengte_m || null, m2: +b.m2 || null, plm: +String(b.pl_per_m || '').replace(',', '.') || null, gewas: b.gewas || ''}))};
     }).filter(Boolean);
     aiVeldVoorbeeld();
@@ -6027,7 +6040,8 @@ function aiVeldVoorbeeld() {
   focusLaag.clearLayers();
   AV.zones.forEach(zz => {
     const z = alleZones(p).find(x => x.id === zz.zid), rijen = banenVan(z), pos = aiIndeling(zz), n = rijen.length;
-    const voor = Math.max(0, Math.min(n - pos.length, zz.eerste - 1));
+    // de tekening valt meestal niet precies over het perceel: wat overblijft eerlijk over beide randen verdelen, tenzij je het zelf aanpast
+    const voor = Math.max(0, Math.min(n - pos.length, zz.eerste ? zz.eerste - 1 : Math.floor((n - pos.length) / 2)));
     zz.n = n; zz.pos = pos; zz.voor = Math.max(0, voor); zz.na = Math.max(0, n - pos.length - zz.voor); zz.aStart = rijen[zz.voor]?.a;
     rijen.forEach((bn, i) => {
       const q = pos[i - zz.voor], kl = !q ? '#9e9e9e' : q.w === 2 ? '#ff6d00' : teelt(q.id)?.kleur || '#ffeb3b';
@@ -6043,9 +6057,9 @@ function aiVeldVoorbeeld() {
     ${AV.zones.map((zz, zi) => {
       const plant = zz.blokken.reduce((s, b) => s + b.rijen, 0), past = zz.pos.length <= zz.n;
       return `<section class="aiZone"><h4>${esc(zoneNaam(zz.zid))} <small>${zz.n} sporen in de app · plattegrond: ${String(plant).replace('.', ',')} rijen + spuitsporen = ${zz.pos.length} sporen</small></h4>
-        ${past ? (zz.voor + zz.na ? `<p class="hint">${zz.voor ? `${zz.voor} spoor/sporen aan het begin` : ''}${zz.voor && zz.na ? ' en ' : ''}${zz.na ? `${zz.na} aan het eind` : ''} ${AV.rest === 'kop' ? 'worden kopeinde' : 'blijven leeg'}.</p>` : '')
-          : `<p class="aiOpm" style="background:#fff3e0">⚠️ De plattegrond heeft ${zz.pos.length - zz.n} sporen meer dan de app. Controleer de spoorbreedte of de deelvelden; de laatste vallen er nu af.</p>`}
-        <div class="aiVelden"><span>Eerste blok begint bij spoor</span><input class="veld" type="number" min="1" value="${zz.eerste}" onchange="AV.zones[${zi}].eerste=Math.max(1,+this.value||1);aiVeldVoorbeeld()"></div>
+        ${past ? (zz.voor + zz.na ? `<p class="hint">${zz.voor ? `${zz.voor} spoor/sporen aan het begin` : ''}${zz.voor && zz.na ? ' en ' : ''}${zz.na ? `${zz.na} aan het eind` : ''} ${AV.rest === 'kop' ? 'worden kopeinde' : 'blijven leeg'}.${(() => { const z = alleZones(p).find(x => x.id === zz.zid), b = +(z?.breedte ?? p.breedte) || 0; return z?._vak && zz.voor + zz.na > 2 ? ` Dit deelveld is ongeveer <b>${String(Math.round((zz.voor + zz.na) * b * 10) / 10).replace('.', ',')} m breder</b> dan op de tekening; maak het smaller als dat niet klopt.` : ''; })()}</p>` : '')
+          : `<p class="aiOpm" style="background:#fff3e0">⚠️ Volgens de tekening zijn hier ${zz.pos.length} sporen nodig, de app heeft er ${zz.n}. ${(() => { const z = alleZones(p).find(x => x.id === zz.zid), b = +(z?.breedte ?? p.breedte) || 0; return z?._vak ? `Maak dit deelveld ongeveer <b>${String(Math.round((zz.pos.length - zz.n) * b * 10) / 10).replace('.', ',')} m breder</b> (dwars op de rijen), of controleer de spoorbreedte.` : 'Controleer de spoorbreedte of maak een deelveld kleiner.'; })()} De laatste vallen er nu af.</p>`}
+        <div class="aiVelden"><span>Eerste blok begint bij spoor</span><input class="veld" type="number" min="1" value="${zz.voor + 1}" onchange="AV.zones[${zi}].eerste=Math.max(1,+this.value||1);aiVeldVoorbeeld()"></div>
         ${zz.blokken.map((b, bi) => `<div class="aiBlok ${b.zeker < .5 ? 'twijfel' : ''}"><div class="aiVelden">
           <select class="veld" onchange="AV.zones[${zi}].blokken[${bi}].teelt=this.value;aiVeldVoorbeeld()">${aiTeeltOpties(b.teelt)}</select>
           <input class="veld" type="number" step="0.5" value="${b.rijen}" title="rijen" onchange="AV.zones[${zi}].blokken[${bi}].rijen=+this.value||0;aiVeldVoorbeeld()"><span>rijen</span>
