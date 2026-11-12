@@ -5433,7 +5433,7 @@ function tekenPlattegronden() {
   const zien = new Set();
   if (weergave._plattegrond !== false) S.percelen.forEach(p => {
     const pl = p.plattegrond; if (!pl?.pad || (PG.actief && PG.p?.id === p.id)) return;
-    if (!(p.id === actief || pl.altijd)) return;
+    if (!(p.id === actief || pl.altijd) || pgVerborgen(p.id)) return;
     zien.add(p.id);
     const sleutel = JSON.stringify([pl.pad, pl.hoeken]), oud = pgLagen.get(p.id);
     if (oud?.sleutel === sleutel) { oud.laag?.zetDoorzicht(pl.doorzicht ?? .65); return; }
@@ -5634,6 +5634,12 @@ function pgOvernemen() {
   };
 }
 // opgeslagen plattegrond: aan/uit, doorzicht, opnieuw uitlijnen, verwijderen
+// aan/uit per apparaat: iemand die hem uitzet, zet hem niet uit voor de rest
+function pgVerborgen(id) { try { return (JSON.parse(localStorage.getItem('pg_uit') || '[]')).includes(id); } catch { return false; } }
+function pgAanUit(id, aan) {
+  try { const l = new Set(JSON.parse(localStorage.getItem('pg_uit') || '[]')); aan ? l.delete(id) : l.add(id); localStorage.setItem('pg_uit', JSON.stringify([...l])); } catch {}
+  tekenPlattegronden(); renderPaneel?.();
+}
 function pgZichtbaar(id, altijd) { const p = perceel(id); if (!p?.plattegrond) return; wijzig(id, {plattegrond: {...p.plattegrond, altijd}}); }
 function pgDoorzicht(id, v) { const p = perceel(id); if (!p?.plattegrond) return; p.plattegrond.doorzicht = v; pgLagen.get(id)?.laag?.zetDoorzicht(v); clearTimeout(pgDoorzicht._t); pgDoorzicht._t = setTimeout(() => wijzig(id, {plattegrond: {...p.plattegrond}}), 600); }
 async function pgVerwijder(id) {
@@ -5647,8 +5653,9 @@ function htmlPlattegrond(p) {
   if (!pl && !beh) return '';
   return `<section class="kaartje infoblok"><h4>🗺️ Plattegrond</h4>
     ${pl ? `<div class="inforij"><span>Ingeladen</span><b>${pl.datum ? new Date(pl.datum).toLocaleDateString('nl-NL') : 'ja'}</b></div>
-      <div class="pgRij"><span>Doorzicht</span><input type="range" min="15" max="100" value="${Math.round((pl.doorzicht ?? .65) * 100)}" oninput="pgDoorzicht('${p.id}', this.value/100)"></div>
-      ${beh ? `<label class="vinkje"><input type="checkbox" ${pl.altijd ? 'checked' : ''} onchange="pgZichtbaar('${p.id}', this.checked)"> Ook tonen als het perceel niet open staat</label>` : ''}` : ''}
+      <label class="vinkje"><input type="checkbox" ${pgVerborgen(p.id) ? '' : 'checked'} onchange="pgAanUit('${p.id}', this.checked)"> Plattegrond tonen op de kaart</label>
+      ${pgVerborgen(p.id) ? '' : `<div class="pgRij"><span>Doorzicht</span><input type="range" min="15" max="100" value="${Math.round((pl.doorzicht ?? .65) * 100)}" oninput="pgDoorzicht('${p.id}', this.value/100)"></div>
+      ${beh ? `<label class="vinkje"><input type="checkbox" ${pl.altijd ? 'checked' : ''} onchange="pgZichtbaar('${p.id}', this.checked)"> Ook tonen als het perceel niet open staat</label>` : ''}`}` : ''}
     ${beh ? `<div class="rij" style="margin-top:8px"><button class="knop licht" onclick="pgKiesBestand()">📥 ${pl ? 'Nieuwe plattegrond inladen' : 'Plattegrond inladen'}</button>
       ${pl ? `<button class="knop licht" onclick="pgOpnieuwUitlijnen('${p.id}')">✋ Opnieuw uitlijnen</button><button class="knop licht rood" onclick="pgVerwijder('${p.id}')">Verwijderen</button>` : ''}</div>
       <p class="hint">Tip: op de computer kun je de afbeelding ook gewoon op de kaart slepen.</p>` : ''}
