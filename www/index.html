@@ -955,7 +955,8 @@ const PC_RECHTEN = new Set(['percelen_aanpassen', 'percelen_tekenen', 'percelen_
   'uren_beheren', 'uren_mailen', 'middelen_beheren', 'partijen_beheren', 'machines_beheren', 'plattegrond_beheren', 'ai_gebruiken', 'film_beheren', 'team_beheren', 'instellingen_beheren']);
 function eenvoudig() {
   let k = null; try { k = localStorage.getItem('weergave_eenvoudig'); } catch {}
-  return k === '1' || (k !== '0' && matchMedia('(max-width:760px)').matches);
+  // telefoon = korte kant van het scherm kleiner dan 600 px; zo verandert de weergave niet als je een tablet draait
+  return k === '1' || (k !== '0' && Math.min(screen.width || innerWidth, screen.height || innerHeight) < 600);
 }
 function zetEenvoudig(aan) {
   try { localStorage.setItem('weergave_eenvoudig', aan ? '1' : '0'); } catch {}
@@ -4219,7 +4220,8 @@ function htmlTeam() {
       <label>E-mail (hiermee logt hij in)</label><input class="veld" id="tMail" type="email" placeholder="jan@voorbeeld.nl" autocomplete="off">
       <label>Wachtwoord (minimaal 6 tekens)</label><input class="veld" id="tWw" type="text" placeholder="bijv. Trekker2026" autocomplete="off">
       ${isBeheerder() ? `<label>Rol</label><select class="veld" id="tRol" onchange="document.getElementById('tRechten').style.display=this.value==='beheerder'?'none':''"><option value="medewerker">Medewerker</option><option value="beheerder">Beheerder</option></select>` : '<input type="hidden" id="tRol" value="medewerker">'}
-      <div id="tRechten"><label>Wat mag deze medewerker?</label>${rechtenLijst(k => STANDAARD[k] && (isBeheerder() || recht(k)), k => `data-recht="${k}" ${isBeheerder() || recht(k) ? '' : 'disabled title="Dit recht heb je zelf niet"'}`)}</div>
+      <div id="tRechten"><label>Wat mag deze medewerker?</label>
+        <div class="rij" style="flex-wrap:wrap;margin-bottom:6px">${Object.entries(RECHT_SJABLONEN).map(([k, x]) => `<button class="knop klein licht" style="flex:0 0 auto;width:auto" onclick="sjabloonKiezen('${k}')">${x.naam}</button>`).join('')}</div>${rechtenLijst(k => STANDAARD[k] && (isBeheerder() || recht(k)), k => `data-recht="${k}" ${isBeheerder() || recht(k) ? '' : 'disabled title="Dit recht heb je zelf niet"'}`)}</div>
       <button class="knop" id="tKnop" onclick="maakMedewerker()">Account aanmaken</button>
       <p class="hint">Geef de medewerker zijn e-mail en wachtwoord door. Hij kan het wachtwoord daarna zelf wijzigen met 🔑.</p>
     </section>
@@ -4232,7 +4234,8 @@ function htmlTeam() {
         ${u.id !== me.id && isBeheerder() ? `<button class="icoon" title="Rol wisselen" onclick="teamRol('${u.id}')">⭐</button>` : ''}
         ${u.id !== me.id && (isBeheerder() || u.rol !== 'beheerder') ? `<button class="weg" title="Account verwijderen" onclick="teamVerwijder('${u.id}')">×</button>` : ''}
       </div>
-      ${openRechten === u.id && u.rol !== 'beheerder' ? `<div class="rechten"><b>Wat mag ${esc(u.naam)}?</b>${rechtenLijst(k => ({...STANDAARD, ...(u.rechten || {})})[k],
+      ${openRechten === u.id && u.rol !== 'beheerder' ? `<div class="rechten"><b>Wat mag ${esc(u.naam)}?</b>
+        <div class="rij" style="flex-wrap:wrap;margin:6px 0">${Object.entries(RECHT_SJABLONEN).map(([k, x]) => `<button class="knop klein licht" style="flex:0 0 auto;width:auto" onclick="sjabloonVoor('${u.id}','${k}')">${x.naam}</button>`).join('')}</div>${rechtenLijst(k => ({...STANDAARD, ...(u.rechten || {})})[k],
         k => `onchange="zetRecht('${u.id}','${k}',this.checked)" ${isBeheerder() || recht(k) ? '' : 'disabled title="Dit recht heb je zelf niet"'}`)}
         <p class="hint">Wijzigingen gelden meteen.</p></div>` : ''}`).join('')}
       <p class="hint">✏️ naam · 🔑 nieuw wachtwoord · 🛡️ rechten${isBeheerder() ? ' · ⭐ beheerder/medewerker' : ''} · × verwijderen. Beheerders mogen alles.${isBeheerder() ? '' : ' Je kunt alleen rechten geven die je zelf hebt, en geen beheerders aanpassen.'}</p>
@@ -4253,6 +4256,25 @@ async function maakMedewerker() {
   if (error) { toast(foutTekst(error), 1); return; }
   toast(`Account voor ${naam} aangemaakt`);
   await laadTeam();
+}
+// snel de rechten instellen voor een soort account
+const RECHT_SJABLONEN = {
+  trekker: {naam: '🚜 Trekker-tablet', aan: ['taken_afvinken', 'werk_registreren', 'markeringen_maken', 'weer_bekijken', 'tractor_rijden', 'tractoren_volgen', 'film_bekijken']},
+  kijken: {naam: '👀 Alleen kijken', aan: ['weer_bekijken', 'historie_bekijken', 'film_bekijken', 'oogst_bekijken', 'voorraad_bekijken', 'tractoren_volgen']},
+  standaard: {naam: '📋 Standaard medewerker', standaard: true}};
+const sjabloonRechten = k => { const x = RECHT_SJABLONEN[k]; return Object.fromEntries(RECHTEN.map(([r]) => [r, x.standaard ? !!STANDAARD[r] : x.aan.includes(r)])); };
+function sjabloonKiezen(k) {
+  const r = sjabloonRechten(k);
+  document.querySelectorAll('#tRechten input[data-recht]').forEach(i => { if (!i.disabled) i.checked = !!r[i.dataset.recht]; });
+  if (k === 'trekker' && !$('#tNaam').value) $('#tNaam').value = 'Trekker ';
+  toast(`${RECHT_SJABLONEN[k].naam}: rechten ingevuld, pas aan waar nodig`);
+}
+async function sjabloonVoor(id, k) {
+  const u = S.profielen.find(x => x.id === id); if (!u) return;
+  const r = Object.fromEntries(Object.entries(sjabloonRechten(k)).map(([key, v]) => [key, v && (isBeheerder() || recht(key))]));
+  u.rechten = {...STANDAARD, ...(u.rechten || {}), ...r};
+  const {error} = await sb.rpc('zet_rechten', {p_id: id, p_rechten: u.rechten});
+  if (error) { toast(foutTekst(error), 1); laadTeam(); } else { toast(`${RECHT_SJABLONEN[k].naam} ingesteld voor ${u.naam}`); render(true); }
 }
 async function zetRecht(id, sleutel, waarde) {
   const u = S.profielen.find(x => x.id === id);
@@ -4392,7 +4414,17 @@ function initPaneel() {
   }, {passive: false});
   const inhEind = e => { if (t0?.stand === 1) { document.body.classList.remove('sleept'); naarStand(t0.h, t0.h - ph); } t0 = null; };
   inh.addEventListener('touchend', inhEind); inh.addEventListener('touchcancel', inhEind);
-  addEventListener('resize', () => { if (isMobiel()) { const s = standen(); zetPh(s.reduce((a, b) => Math.abs(b - ph) < Math.abs(a - ph) ? b : a), false); } kaartPast(); });
+  // draaien of venster groter/kleiner: rustig opnieuw opbouwen (één keer, na het draaien), zodat niets heen en weer springt
+  let wasMobiel = isMobiel(), draaiTimer;
+  const naDraaien = () => { clearTimeout(draaiTimer); draaiTimer = setTimeout(() => {
+    const nu = isMobiel();
+    if (nu) { const s = standen(); zetPh(ph == null ? s[1] : s.reduce((a, b) => Math.abs(b - ph) < Math.abs(a - ph) ? b : a), false); }
+    else document.documentElement.style.removeProperty('--ph');
+    if (nu !== wasMobiel) { wasMobiel = nu; render(true); }
+    try { map.invalidateSize({pan: false}); } catch {} kaartPast();
+    if (typeof TM !== 'undefined' && TM.aan) tmRender();
+  }, 250); };
+  addEventListener('resize', naDraaien); addEventListener('orientationchange', naDraaien);
 }
 /* ============ tractoren ============ */
 const LIVE_MS = 2 * 60 * 1000;
@@ -5840,11 +5872,12 @@ function tmAltijdZet(aan) { try { localStorage.setItem('trekker_start', aan ? '1
 async function trekkerModus(aan = true) {
   TM.aan = aan;
   let el = $('#trekkerScherm');
-  if (!aan) { el?.remove(); if (TM.watch != null) navigator.geolocation?.clearWatch(TM.watch); TM.watch = null; clearInterval(TM.klok); try { TM.wake?.release(); } catch {} TM.wake = null; tekenWaarnemingen(); return; }
+  if (!aan) { try { screen.orientation?.unlock?.(); } catch {} el?.remove(); if (TM.watch != null) navigator.geolocation?.clearWatch(TM.watch); TM.watch = null; clearInterval(TM.klok); try { TM.wake?.release(); } catch {} TM.wake = null; tekenWaarnemingen(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'trekkerScherm'; document.body.appendChild(el); }
   verbergMenu?.();
   TM.scherm = 'start';
   try { TM.wake = await navigator.wakeLock?.request('screen'); } catch {}
+  try { await screen.orientation?.lock?.('landscape'); } catch {}   // lukt alleen in de app/volledig scherm; anders draaien uitzetten op de tablet
   if (navigator.geolocation && TM.watch == null) TM.watch = navigator.geolocation.watchPosition(pos => {
     TM.pos = {type: 'Feature', properties: {acc: pos.coords.accuracy}, geometry: {type: 'Point', coordinates: [pos.coords.longitude, pos.coords.latitude]}};
     if (!TM.handmatig) { const p = perceelOpPunt(TM.pos); if (p && p.id !== TM.pid) TM.pid = p.id; }
