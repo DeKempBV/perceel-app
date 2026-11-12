@@ -6142,7 +6142,7 @@ function aiIndeling(zz) {
     if (padTussen(i) || (!i && zz.padVoor)) tussen.forEach(w => pos.push({w, id: null, blok: w === .5 ? null : -1}));
     // halve rijen naast het spuitspoor horen bij de blokken ernaast
     const zijden = (padTussen(i) || (!i && zz.padVoor) ? 1 : 0) + (padTussen(i + 1) || (i === zz.blokken.length - 1 && zz.padNa) ? 1 : 0), vol = Math.max(0, Math.round(b.rijen - (halfAan ? zijden * .5 : 0)));
-    for (let k = 0; k < vol; k++) pos.push({w: 1, id: b.teelt, blok: i});
+    for (let k = 0; k < vol; k++) pos.push({w: 1, id: b.leeg ? null : b.teelt, blok: i, leeg: !!b.leeg});
   });
   if (zz.padNa && zz.blokken.length) tussen.forEach(w => pos.push({w, id: null, blok: w === .5 ? null : -1}));
   // halve rijen het ras van het blok ernaast geven
@@ -6275,7 +6275,7 @@ function aiVeldVoorbeeld() {
     if (zz.passend == null) zz.passend = false;   // het passend maken gebeurt nu in stap 1
     if (z?._vak && zz.passend && zz.voor + zz.na > 0) { const g = vakPassend(z, zz.voor, pos.length); if (g) L.geoJSON(g, {interactive: false, style: {color: '#ff4081', weight: 3, dashArray: '8 6', fill: false}}).addTo(focusLaag); }
     rijen.forEach((bn, i) => {
-      const q = pos[i - zz.voor], kl = !q ? '#9e9e9e' : q.w === 2 ? '#ff6d00' : teelt(q.id)?.kleur || '#ffeb3b';
+      const q = pos[i - zz.voor], kl = !q ? '#9e9e9e' : q.w === 2 ? '#ff6d00' : q.leeg ? '#ffffff' : teelt(q.id)?.kleur || '#ffeb3b';
       L.geoJSON(bn.geo, {interactive: false, style: {color: '#fff', weight: .6, fillColor: kl, fillOpacity: !q ? .55 : q.w === .5 ? .45 : .8}}).addTo(focusLaag);
     });
   });
@@ -6293,10 +6293,13 @@ function aiVeldVoorbeeld() {
         ${(() => { const z = alleZones(p).find(x => x.id === zz.zid); return z?._vak && zz.voor + zz.na > 0 && mag('deelvelden_bewerken') ? `<label class="vinkje"><input type="checkbox" ${zz.passend ? 'checked' : ''} onchange="AV.zones[${zi}].passend=this.checked;aiVeldVoorbeeld()"> ✂️ Deelveld passend maken: van ${zz.n} naar ${zz.pos.length} sporen (roze gestippeld). De rest wordt weer gewoon hoofdveld.</label>` : ''; })()}
         <div class="aiVelden"><span>Eerste blok begint bij spoor</span><input class="veld" type="number" min="1" value="${zz.voor + 1}" onchange="AV.zones[${zi}].eerste=Math.max(1,+this.value||1);aiVeldVoorbeeld()"></div>
         ${zz.blokken.map((b, bi) => `<div class="aiBlok ${b.zeker < .5 ? 'twijfel' : ''}"><div class="aiVelden">
-          <select class="veld" onchange="AV.zones[${zi}].blokken[${bi}].teelt=this.value;aiVeldVoorbeeld()">${aiTeeltOpties(b.teelt)}</select>
+          <select class="veld" onchange="AV.zones[${zi}].blokken[${bi}].teelt=this.value;AV.zones[${zi}].blokken[${bi}].leeg=!this.value;aiVeldVoorbeeld()">${aiTeeltOpties(b.teelt)}</select>
           <input class="veld" type="number" step="0.5" value="${b.rijen}" title="rijen" onchange="AV.zones[${zi}].blokken[${bi}].rijen=+this.value||0;aiVeldVoorbeeld()"><span>rijen</span>
+          <span>vak</span><input class="veld" style="width:46px" value="${esc(b.vak || '')}" title="Blokken met dezelfde vakletter krijgen geen spuitpad ertussen" onchange="AV.zones[${zi}].blokken[${bi}].vak=this.value.trim().toUpperCase();aiVeldVoorbeeld()">
+          ${bi ? `<button class="icoon klein" title="Eén plek omhoog" onclick="{const l=AV.zones[${zi}].blokken;[l[${bi}-1],l[${bi}]]=[l[${bi}],l[${bi}-1]];aiVeldVoorbeeld()}">▲</button>` : ''}
           <button class="icoon klein" title="Blok weghalen" onclick="AV.zones[${zi}].blokken.splice(${bi},1);aiVeldVoorbeeld()">✕</button></div>
-          <small>${esc(b.ras || '?')}${b.batch ? ' · batch ' + esc(b.batch) : ''}${b.klasse ? ' · ' + esc(b.klasse) : ''}${b.doel ? ' · ' + esc(b.doel) : ''}${b.lengte ? ' · ' + b.lengte + ' m' : ''}${b.plm ? ' · ' + String(b.plm).replace('.', ',') + ' pl/m' : ''}
+          ${b.stukken ? `<small>↔ wisselt halverwege: ${b.stukken.map(st => esc(st.ras || '?') + (st.batch ? ' ' + esc(st.batch) : '') + (st.lengte ? ' (' + st.lengte + ' m)' : '')).join(' | ')}</small><br>` : ''}
+          ${b.leeg ? '<small>⬜ leeg vak</small> · ' : ''}<small>${esc(b.ras || '?')}${b.batch ? ' · batch ' + esc(b.batch) : ''}${b.klasse ? ' · ' + esc(b.klasse) : ''}${b.doel ? ' · ' + esc(b.doel) : ''}${b.lengte ? ' · ' + b.lengte + ' m' : ''}${b.plm ? ' · ' + String(b.plm).replace('.', ',') + ' pl/m' : ''}
             ${b.batch ? (pr.some(y => normTekst(y.batch) === normTekst(b.batch)) ? ' · 🏷️ partij gevonden' : mag('partijen_beheren') ? ' · 🏷️ partij wordt aangemaakt' : '') : ''}</small></div>`).join('')}
       </section>`; }).join('') || '<p class="hint">De AI heeft geen blokken kunnen lezen.</p>'}
     <details class="aiDet"><summary>Wat heeft de AI gezien?</summary><img src="${AV.voorbeeld}" style="width:100%;border-radius:8px;margin-top:6px"></details>
@@ -6476,6 +6479,7 @@ Belangrijk bij de blokken:
 - Splitsingen: liggen er op dezelfde rijen meerdere partijen ACHTER ELKAAR in de lengte van de rij (gescheiden door een dwarse lijn), geef dan één blok met die rijen en zet de partijen in "stukken", van links naar rechts zoals op de tekening, elk met ras, gewas, batch, klasse, doel, lengte_m, m2, pl_per_m en midden. Zet in "grenzen" per dwarse lijn een punt [x,y] op die lijn (pixels van plaatje 1). Geldt de splitsing maar voor een deel van de rijen, maak dan aparte blokken: één met de splitsing en één zonder.
 - "10 rijen lang + 3 rijen kort" zijn gewoon 13 rijen (de korte rijen zijn korter door de vorm van het veld), tenzij er een andere partij naast de korte rijen staat.
 - Elke rij komt maar in één blok voor: tel dezelfde rijen nooit twee keer.
+- LEGE vakken (wit, zonder partij) ook als blok geven, met "leeg": true, de vakletter en het aantal rijen. Staat het aantal rijen er niet bij, schat het dan door de breedte van dat vak te vergelijken met een vak waarvan het aantal rijen wel bekend is (dwars op de rijen gemeten) en zet "geschat": true. Sla nooit een vak over: alle vakken van rand tot rand, in volgorde.
 Gewassen en rassen in de app:
 ${plantTekst}
 Antwoord ALLEEN met JSON:
@@ -6591,6 +6595,22 @@ async function sporenOpScheiding(pid, vakken) {
 }
 /* Twee blokken op dezelfde rijen maar achter elkaar in de lengte (links en rechts van een dwarse lijn op de tekening)
    worden één blok met twee stukken: het spoor wisselt dan halverwege van partij, net als met "halverwege wisselen". */
+/* Volgorde van de blokken dwars op de rijen. De vakletters op de tekening (A, B, C…) zijn betrouwbaarder dan de plek,
+   want de tekening ligt er maar ongeveer over (bij een lang veld scheelt een klein beetje draaien al veel rijen). */
+const vakVan = b => String(b?.vak ?? '').trim().toUpperCase();
+function ordenOpVak(bl, dwars) {
+  const opPlek = [...bl].sort((a, b) => dwars(a) - dwars(b)), letters = [...new Set(bl.map(vakVan).filter(Boolean))];
+  if (letters.length < 2) return opPlek;
+  letters.sort((a, b) => a.localeCompare(b, 'nl', {numeric: true}));
+  const gem = l => { const g = bl.filter(b => vakVan(b) === l && Array.isArray(b.midden)).map(dwars); return g.length ? g.reduce((x, y) => x + y, 0) / g.length : NaN; };
+  const helft = Math.floor(letters.length / 2), m1 = letters.slice(0, helft).map(gem).filter(Number.isFinite), m2 = letters.slice(-helft).map(gem).filter(Number.isFinite);
+  if (m1.length && m2.length && m1.reduce((x, y) => x + y, 0) / m1.length > m2.reduce((x, y) => x + y, 0) / m2.length) letters.reverse();
+  const uit = [];
+  letters.forEach(l => uit.push(...opPlek.filter(b => vakVan(b) === l)));
+  // blokken zonder letter: bij het vak waar ze op de plek het dichtst bij liggen
+  opPlek.filter(b => !vakVan(b)).forEach(b => { const d = dwars(b); let i = uit.findIndex(u => dwars(u) > d); if (i < 0) i = uit.length; uit.splice(i, 0, b); });
+  return uit;
+}
 function naastElkaar(blokken, rijen, meta, dwars) {
   if (!AV.uitlezen || !rijen.length) return blokken;
   const b = rijen[0].b || 1.5, lang = Math.max(...rijen.map(r => r.t1)) - Math.min(...rijen.map(r => r.t0));
@@ -6601,9 +6621,12 @@ function naastElkaar(blokken, rijen, meta, dwars) {
     const c = dwars(blk), h = n(blk) * b / 2, t = langs(blk);
     const buur = Array.isArray(blk.midden) && Number.isFinite(t) && uit.find(u => {
       if (!Array.isArray(u.midden)) return false;
+      if (vakVan(u) && vakVan(blk) && vakVan(u) !== vakVan(blk)) return false;   // alleen binnen hetzelfde vak
       const cu = u._c, hu = u._h, overlap = Math.min(c + h, cu + hu) - Math.max(c - h, cu - hu);
       const tu = u._ts || [u._t];
-      return overlap >= Math.min(h, hu) * .5 && tu.every(x => Math.abs(x - t) > lang * .2);
+      // in hetzelfde vak telt alleen of ze achter elkaar liggen (de plek dwars op de rijen is bij een scheve tekening onbetrouwbaar)
+      const zelfdeVak = vakVan(u) && vakVan(u) === vakVan(blk);
+      return (zelfdeVak || overlap >= Math.min(h, hu) * .5) && tu.every(x => Math.abs(x - t) > lang * .2);
     });
     if (!buur) { uit.push({...blk, _c: c, _h: h, _t: t}); return; }
     // samenvoegen: stukken van links naar rechts op de tekening (de volgorde langs het spoor regelt de app zelf)
@@ -6643,14 +6666,14 @@ async function indelingOvernemen() {
       const z = i === 0 ? zs.find(q => !q._vak) : zs.find(q => q._vak?.id === vakken[i - 1].id); if (!z) return null;
       const rijen = banenVan(z), meta = rijen.meta; if (!meta) return null;
       const dwars = b => { if (!Array.isArray(b.midden)) return 0; const q = meta.naarM(AV.uitlezen ? aiPixelNaarGeo(b.midden) : [0, 0]); return q[0] * meta.n[0] + q[1] * meta.n[1]; };
-      const blokken = naastElkaar([...(x.deel.blokken || [])].sort((a, b) => dwars(a) - dwars(b)), rijen, meta, dwars);
+      const blokken = naastElkaar(ordenOpVak([...(x.deel.blokken || [])], dwars), rijen, meta, dwars);
       // midden van alle blokken samen op de tekening, dwars op de sporen (om ze op de goede plek in het veld te leggen)
       const mt = blokken.filter(b => Array.isArray(b.midden)), br = +AV.breedte || 1.5, nR = b => +String(b.rijen || 0).replace(',', '.').replace(/^(\d+)\s*\+\s*(\d+)$/, (_, a, c) => +a + +c) || 0;
       const doel = mt.length >= 2 ? ((dwars(mt[0]) - nR(mt[0]) * br / 2) + (dwars(mt[mt.length - 1]) + nR(mt[mt.length - 1]) * br / 2)) / 2 : NaN;
       const stukVan = st => ({...aiKoppel(p2, {...st, zone: '', van: 1, tot: 1}), batch: st.batch || '', ras: st.ras || '', klasse: st.klasse || '', doel: st.doel || '', lengte: +st.lengte_m || null, m2: +st.m2 || null,
         plm: +String(st.pl_per_m || '').replace(',', '.') || null, gewas: st.gewas || '', midden: st.midden});
       return {zid: z.id, idx: i, eerste: null, doel, blokken: blokken.map(b => ({...aiKoppel(p2, {...(Array.isArray(b.stukken) && b.stukken.length > 1 ? {...b, ...b.stukken[0], rijen: b.rijen, midden: b.midden} : b), zone: z._vak ? zoneLetter(p2, z) : '', van: 1, tot: 1}),
-        vak: b.vak ?? '', stukken: Array.isArray(b.stukken) && b.stukken.length > 1 ? b.stukken.map(stukVan) : null, grenzen: Array.isArray(b.grenzen) ? b.grenzen.filter(Array.isArray) : [],
+        vak: b.vak ?? '', leeg: !!b.leeg || (!b.ras && !b.batch && !b.gewas && !(Array.isArray(b.stukken) && b.stukken.length)), stukken: Array.isArray(b.stukken) && b.stukken.length > 1 ? b.stukken.map(stukVan) : null, grenzen: Array.isArray(b.grenzen) ? b.grenzen.filter(Array.isArray) : [],
         rijen: +String(b.rijen).replace(',', '.').replace(/^(\d+)\s*\+\s*(\d+)$/, (_, a, c) => +a + +c) || 0, klasse: b.klasse || '', doel: b.doel || '', lengte: +b.lengte_m || null, m2: +b.m2 || null, plm: +String(b.pl_per_m || '').replace(',', '.') || null, gewas: b.gewas || ''}))};
     }).filter(Boolean);
     // spuitpad op de scheiding tussen twee delen (bijv. tussen gier en rechts): bij het grootste deel (niet de gier) aan die kant erbij
