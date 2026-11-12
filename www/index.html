@@ -580,6 +580,18 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 .tmGps{font-size:15px;color:#c8e6c9;margin-top:4px}.tmGps b{color:#fff}
 .trekker3d{background:none;border:0}.trekker3d img{display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35)) grayscale(.75) brightness(.9);opacity:.85}.trekker3d.live img{filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));opacity:1}
 .tmKlein2{display:block;font-size:15px;font-weight:600;color:#c8e6c9;margin-top:2px}.tmTegel.aan{background:#2e7d32;outline:4px solid #ffd54f}.tmMachines{height:auto;grid-auto-rows:150px}.tmMachines img{width:86px;height:64px;object-fit:cover;border-radius:10px}
+.tmVijf{grid-template-columns:repeat(3,1fr)}.tmVijf .tmTegel:nth-child(4),.tmVijf .tmTegel:nth-child(5){grid-column:span 1}
+.tmKeuze{flex:1;border:0;border-radius:14px;background:#24442d;color:#fff;font-size:22px;font-weight:700;padding:14px}.tmKeuze.aan{background:#2e7d32;outline:3px solid #ffd54f}.tmKeuze b{background:#ffd54f;color:#222;border-radius:14px;padding:0 10px;margin-left:6px}
+.tmTaak.bezig{outline:3px solid #ffd54f}.tmTaak>div{cursor:pointer}
+.tmBezig{display:flex;align-items:center;gap:10px;background:#f9a825;color:#222;font-size:20px;font-weight:800;padding:10px 16px;pointer-events:auto;cursor:pointer}.tmBezig span{flex:1}
+.tmPopup{position:fixed;inset:0;z-index:5100;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px;pointer-events:auto}
+.tmPopupIn{background:#1f3d27;color:#fff;border-radius:22px;max-width:900px;width:100%;max-height:92vh;overflow:auto;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.tmPopupIn h2{margin:0 0 10px;font-size:30px}.tmPopupIn .tmRegel{display:flex;gap:10px;font-size:21px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.12)}.tmPopupIn .tmRegel i{font-style:normal;min-width:34px}
+.tmKnoppen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.tmKnoppen button{min-height:80px;border:0;border-radius:16px;font-size:21px;font-weight:800;color:#fff;background:#455a64}.tmKnoppen .groen{background:#2e7d32}.tmKnoppen .geel{background:#f9a825;color:#222}
+@media(max-width:700px){.tmKnoppen{grid-template-columns:repeat(2,1fr)}}
+.tmSporen{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.tmSporen button{min-width:62px;height:56px;border:0;border-radius:12px;background:#455a64;color:#fff;font-size:20px;font-weight:700}.tmSporen button.aan{background:#2e7d32;outline:3px solid #a5d6a7}.tmSporen h4{width:100%;margin:8px 0 0;font-size:18px;color:#c8e6c9}
+.tmInfo{background:rgba(31,61,39,.97);color:#fff;padding:14px 18px;pointer-events:auto;max-height:40vh;overflow:auto;font-size:19px}.tmInfo h3{margin:0 0 6px;font-size:26px;display:flex;justify-content:space-between;gap:10px}.tmInfo h3 button{border:0;background:#455a64;color:#fff;border-radius:10px;font-size:20px;width:46px;height:46px}
+.tmWeer{display:flex;gap:14px;flex-wrap:wrap;background:#24442d;border-radius:14px;padding:10px 14px;margin:8px 0;font-size:20px}.tmWeer b{font-size:24px}
 .tmLeeg{text-align:center;font-size:24px;margin-top:40px;color:#c8e6c9}
 .mIcoon{font-size:34px;width:56px;height:56px;border-radius:16px;background:var(--licht);display:flex;align-items:center;justify-content:center;flex:none}
 .mTekst{display:flex;flex-direction:column;gap:3px}.mTekst b{font-size:18px;color:var(--groen)}.mTekst small{color:var(--grijs);font-size:13px;line-height:1.35}
@@ -4279,7 +4291,7 @@ function htmlTeam() {
     <section class="kaartje"><h4>Team (${lijst.length})</h4>
       ${lijst.map(u => `<div class="soort">
         <div class="t"><b>${esc(u.naam)}</b> ${u.rol === 'beheerder' ? '<span class="badge">Beheerder</span>' : ''}${u.apparaat ? '<span class="badge">📱 Trekker-tablet</span>' : ''}${u.id === me.id ? ' <small>(jij)</small>' : ''}<br><small>${esc(u.email || '')}</small>
-          ${!u.apparaat && (isBeheerder() || (u.rol !== 'beheerder' && u.id !== me.id)) ? `<label class="vinkje klein" style="margin:2px 0 0"><input type="checkbox" ${u.chauffeur ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_chauffeur:this.checked})"> 🚜 Chauffeur (staat op de trekker-tablets)</label>` : ''}
+          ${!u.apparaat && (isBeheerder() || (u.rol !== 'beheerder' && u.id !== me.id)) ? `<label class="vinkje klein" style="margin:2px 0 0"><input type="checkbox" ${u.chauffeur ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_chauffeur:this.checked})"> 🚜 Chauffeur (staat op de trekker-tablets)</label>${u.chauffeur && isBeheerder() && u.id !== me.id ? ` <button class="knop klein licht" onclick="pinInstellen('${u.id}')">🔢 Pincode</button>` : ''}` : ''}
           ${isBeheerder() && u.id !== me.id && u.rol !== 'beheerder' ? `<label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.apparaat ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_apparaat:this.checked})"> 📱 Gedeeld apparaat (trekker-tablet)</label>` : ''}
           ${u.apparaat && isBeheerder() ? `<div class="aiVelden"><span>🚜 Zit in trekker</span><select class="veld" onchange="zetTrekker('${u.id}',this.value)"><option value="">— geen —</option>${S.tractoren.map(t => `<option value="${t.id}" ${u.trekker_id === t.id ? 'selected' : ''}>${esc(t.naam)}</option>`).join('')}</select></div>` : ''}</div>
         ${isBeheerder() || (u.rol !== 'beheerder' && u.id !== me.id) ? `<button class="icoon" title="Naam wijzigen" onclick="teamNaam('${u.id}')">✏️</button>
@@ -4799,7 +4811,7 @@ function htmlMij() {
       <div class="inforij"><span>Naam</span><b>${esc(naamMe())}</b></div>
       <div class="inforij"><span>E-mail</span><b>${esc(me?.email || ik?.email || '–')}</b></div>
       <div class="inforij"><span>Rol</span><b>${isBeheerder() ? 'Beheerder' : 'Medewerker'}</b></div>
-      <div class="rij" style="margin-top:10px"><button class="knop licht" onclick="eigenWachtwoord()">🔑 Wachtwoord wijzigen</button><button class="knop licht" onclick="uitloggen()">🚪 Uitloggen</button></div></section>
+      <div class="rij" style="margin-top:10px"><button class="knop licht" onclick="eigenWachtwoord()">🔑 Wachtwoord wijzigen</button><button class="knop licht" onclick="pinInstellen()">🔢 Pincode trekker</button><button class="knop licht" onclick="uitloggen()">🚪 Uitloggen</button></div></section>
     <section class="kaartje"><h4>📋 Mijn werk</h4>
       ${bezig.length ? bezig.map(t => taakHtml(t, true)).join('') : ''}
       <div class="inforij"><span>Open taken voor mij</span><b>${open.length}</b></div>
@@ -6013,6 +6025,7 @@ function tmTaken() {
 let tmLaatsteRender = 0;
 function tmPositie(pos) {
   TM.pos = {type: 'Feature', properties: {acc: pos.coords.accuracy}, geometry: {type: 'Point', coordinates: [pos.coords.longitude, pos.coords.latitude]}};
+  tmRoutePunt();
   let anders = false;
   if (!TM.handmatig) { const p = perceelOpPunt(TM.pos); if (p && p.id !== TM.pid) { TM.pid = p.id; anders = true; } }
   if (TM.scherm === 'kaart') { tmPlek(); if (anders) { actief = TM.pid; render(true); } }
@@ -6038,7 +6051,7 @@ function tmRender() {
       <button onclick="TM.prikPunten.pop();tmPrikTeken();tmRender()" ${n ? '' : 'disabled'}>↶ Punt terug</button>
       ${TM.pos ? '<button onclick="tmPrikKlik({latlng:{lng:TM.pos.geometry.coordinates[0],lat:TM.pos.geometry.coordinates[1]}})">📍 Punt waar ik sta</button>' : ''}
       <button class="${n >= 3 ? 'aan' : ''}" onclick="tmGebiedKlaar()">✔ Klaar</button></div>`; }
-  else if (TM.scherm === 'kaart') body = (TM.lijst ? `<div class="tmLijst">${tmPerceelLijst().map(({p, km}) => `<button class="${p.id === TM.pid ? 'aan' : ''}" onclick="tmNaarPerceel('${p.id}')">${esc(p.naam)}<small>${km != null ? (km < 1 ? Math.round(km * 1000) + ' m' : getal(km, 1) + ' km') + ' hiervandaan' : ''}${p.bio ? ' · 🌿 bio' : ''}</small></button>`).join('') || '<p style="color:#fff">Geen percelen</p>'}</div>` : '') + `<div class="tmBalk">
+  else if (TM.scherm === 'kaart') body = tmPerceelInfoHtml() + (TM.lijst ? `<div class="tmLijst">${tmPerceelLijst().map(({p, km}) => `<button class="${p.id === TM.pid ? 'aan' : ''}" onclick="tmNaarPerceel('${p.id}')">${esc(p.naam)}<small>${km != null ? (km < 1 ? Math.round(km * 1000) + ' m' : getal(km, 1) + ' km') + ' hiervandaan' : ''}${p.bio ? ' · 🌿 bio' : ''}</small></button>`).join('') || '<p style="color:#fff">Geen percelen</p>'}</div>` : '') + `<div class="tmBalk">
       <button onclick="tmUitKaart()">◀ Terug</button>
       <button class="${TM.volg ? 'aan' : ''}" onclick="TM.volg=!TM.volg;if(TM.volg){TM.lijst=false;TM.handmatig=false;const q=TM.pos&&perceelOpPunt(TM.pos);if(q){TM.pid=q.id;actief=q.id;render(true);}}tmRender();tmPlek()">🎯 ${TM.volg ? 'Volgt mij' : 'Volgen'}</button>
       <button class="${TM.lijst ? 'aan' : ''}" onclick="tmAlles()">🗺️ Alle percelen</button>
@@ -6046,9 +6059,14 @@ function tmRender() {
       ${mag('markeringen_maken') || mag('monsters_beheren') ? '<button onclick="waarnemingFormulier(null,{perceel_id:TM.pid,geo:TM.pos})">🐛 Ziekte hier</button>' : ''}
       <button onclick="tmUitKaart('taken')">📋 Taken</button></div>`;
   else if (TM.scherm === 'wie') body = `<div class="tmVraag">Wie rijdt er?</div><div class="tmTegels">${chauffeursLijst().map(u => `<button class="tmTegel" onclick="tmKiesChauffeur('${u.id}')"><span>👤</span>${esc(u.naam)}</button>`).join('')}</div>`;
-  else if (TM.scherm === 'taken') body = `<button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
-    ${taken.map(t => `<div class="tmTaak"><div><b>${esc(t.tekst)}</b><small>${perceel(t.perceel_id) && !TM.pid ? '📍 ' + esc(perceel(t.perceel_id).naam) + ' · ' : ''}${t.spoor_van ? `sporen ${t.spoor_van}–${t.spoor_tot || t.spoor_van} · ` : ''}${t.product ? esc(t.product) : ''}</small>${machineFotosHtml(t)}</div>
-      ${mag('taken_afvinken') ? `<button class="tmKlein ${t.bezig_door ? 'aan' : ''}" onclick="zetBezig('${t.id}').then(tmRender)">${t.bezig_door ? '⏸' : '▶'}</button><button class="tmKlein groen" onclick="vinkTaak('${t.id}').then(tmRender)">✓ Klaar</button>` : ''}</div>`).join('') || '<p class="tmLeeg">Geen taken voor hier en nu 👍</p>'}`;
+  else if (TM.scherm === 'taken') { const welk = TM.takenKeuze || 'mijn', lijst = tmTakenVan(welk);
+    body = `<div class="rij" style="gap:10px;margin-bottom:12px"><button class="tmTerug" style="margin:0" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
+      <button class="tmKeuze ${welk === 'mijn' ? 'aan' : ''}" onclick="TM.takenKeuze='mijn';tmRender()">👤 ${TM.chauffeur ? esc(TM.chauffeur.naam.split(' ')[0]) + 's' : 'Mijn'} taken <b>${tmTakenVan('mijn').length}</b></button>
+      <button class="tmKeuze ${welk === 'alle' ? 'aan' : ''}" onclick="TM.takenKeuze='alle';tmRender()">📋 Alle taken <b>${tmTakenVan('alle').length}</b></button></div>
+    ${lijst.map(t => { const p = perceel(t.perceel_id), vg = voortgangTekst(t), ikBezig = t.bezig_door && t.bezig_door === naamMe();
+      return `<div class="tmTaak ${ikBezig ? 'bezig' : ''}"><div onclick="tmTaakOpen('${t.id}')"><b>${esc(t.tekst)}</b><small>${p ? '📍 ' + esc(p.naam) + ' · ' : ''}${esc(taakWaar(t))}${t.product ? ' · ' + esc(t.product) : ''}${t.toegewezen_aan && welk === 'alle' ? ' · 👤 ' + esc(S.profielen.find(u => u.id === t.toegewezen_aan)?.naam || '') : ''}</small>
+        ${t.bezig_door ? `<small style="color:#ffd54f">🟡 Bezig: ${esc(t.bezig_door)}</small>` : ''}${vg ? `<small style="color:#a5d6a7">✅ ${vg}</small>` : ''}</div>
+      ${mag('taken_afvinken') ? `${ikBezig ? `<button class="tmKlein aan" onclick="tmTaakOpen('${t.id}')">Open</button>` : `<button class="tmKlein" onclick="tmTaakStart('${t.id}')">▶ Start</button>`}<button class="tmKlein groen" onclick="tmTaakAfronden('${t.id}')">✓ Klaar</button>` : ''}</div>`; }).join('') || `<p class="tmLeeg">${welk === 'mijn' ? 'Geen taken voor jou 👍' : 'Geen open taken 👍'}</p>`}`; }
   else if (TM.scherm === 'machine') { const keuze = TM.keuze || [], ms = (S.machines || []).filter(x => !isTrekkerMachine(x)).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
     const vk = n => keuze.find(k => normTekst(k.naam) === normTekst(n)), tekst = aangekoppeldTekst(keuzeNaarTrekker(keuze));
     body = `<div class="rij" style="gap:10px"><button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button><button class="tmTerug" style="background:#2e7d32;flex:1" onclick="tmWerktuigOpslaan()">✔ Klaar: ${esc(tekst || 'niets aangekoppeld')}</button></div>
@@ -6060,16 +6078,15 @@ function tmRender() {
   else if (TM.scherm === 'perceel') body = `<button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
     <button class="tmRij" onclick="TM.handmatig=false;TM.pid=TM.pos?perceelOpPunt(TM.pos)?.id||null:null;TM.scherm='start';tmRender()">📡 Automatisch (GPS)</button>
     ${S.percelen.filter(x => x.type !== 'pand' && !x.uitgeschakeld).sort((a, b) => a.naam.localeCompare(b.naam, 'nl')).map(x => `<button class="tmRij ${x.id === TM.pid ? 'aan' : ''}" onclick="TM.handmatig=true;TM.pid='${x.id}';TM.scherm='start';tmRender()">${esc(x.naam)}</button>`).join('')}`;
-  else body = `<div class="tmTegels">
-      <button class="tmTegel" onclick="TM.scherm='taken';tmRender()"><span>📋</span>Taken<b>${taken.length}</b></button>
-      ${mag('taken_toevoegen') || mag('werk_registreren') ? `<button class="tmTegel" onclick="tmRegistreren()"><span>🧪</span>Spuiten / bemesten registreren</button>` : ''}
-      ${mag('markeringen_maken') ? `<button class="tmTegel" onclick="tmPrikStart('vlag')"><span>🚩</span>Vlag zetten<small class="tmKlein2">tik op de kaart</small></button><button class="tmTegel" onclick="tmPrikStart('gebied')"><span>✏️</span>Gebied tekenen<small class="tmKlein2">met aantekening</small></button>` : ''}
-      ${mag('markeringen_maken') || mag('monsters_beheren') ? `<button class="tmTegel" onclick="waarnemingFormulier(null,{perceel_id:TM.pid,geo:TM.pos})"><span>🐛</span>Ziekte / plaag hier</button>` : ''}
+  else body = `<div class="tmTegels tmVijf">
+      <button class="tmTegel" onclick="tmKaart()"><span>🗺️</span>Percelen<small class="tmKlein2">kaart · vlaggen · gebieden · info en weer</small></button>
+      <button class="tmTegel" onclick="TM.scherm='taken';tmRender()"><span>📋</span>Taken<b>${tmTakenVan('mijn').length}</b><small class="tmKlein2">mijn taken en alle taken</small></button>
       <button class="tmTegel" onclick="tmMachineOpen()"><span>⚙️</span>Machine<small class="tmKlein2">${esc(aangekoppeldTekst(tmTrekker() || {werktuig: TM.werktuig, werktuig_voor: TM.werktuigVoor}) || 'niets aangekoppeld')}</small></button>
-      <button class="tmTegel" onclick="TM.scherm='perceel';tmRender()"><span>🔀</span>Ander perceel</button>
-      <button class="tmTegel" onclick="tmKaart()"><span>🗺️</span>Kaart</button>
-      <button class="tmTegel" onclick="tmVolledigeApp()"><span>🖥️</span>Volledige app<small class="tmKlein2">zoals op de computer</small></button></div>`;
-  el.innerHTML = kop + `<div class="tmBody">${body}</div>`;
+      ${mag('taken_toevoegen') || mag('werk_registreren') ? `<button class="tmTegel" onclick="tmRegistreren()"><span>🧪</span>Spuiten / bemesten registreren</button>` : ''}
+      <button class="tmTegel" onclick="tmVolledigeAppVraag()"><span>🖥️</span>Volledige app<small class="tmKlein2">${isApparaat() && TM.chauffeur ? 'met de pincode van ' + esc(TM.chauffeur.naam.split(' ')[0]) : 'zoals op de computer'}</small></button></div>`;
+  const sc = [el.querySelector('.tmBody')?.scrollTop || 0, el.querySelector('.tmPopupIn')?.scrollTop || 0, el.querySelector('.tmInfo')?.scrollTop || 0], zelfde = tmRender.vorige === TM.scherm;
+  el.innerHTML = kop + tmBezigBalk() + `<div class="tmBody">${body}</div>` + tmTaakPopupHtml(); tmRender.vorige = TM.scherm;
+  if (zelfde) { const b = el.querySelector('.tmBody'), pp = el.querySelector('.tmPopupIn'), inf = el.querySelector('.tmInfo'); if (b) b.scrollTop = sc[0]; if (pp) pp.scrollTop = sc[1]; if (inf) inf.scrollTop = sc[2]; }
   if (TM.scherm === 'kaart') requestAnimationFrame(tmKaartRuimte);
 }
 function tmRegistreren() { if (!TM.pid) { toast('Kies eerst het perceel', 1); TM.scherm = 'perceel'; tmRender(); return; } actief = TM.pid;
@@ -6175,11 +6192,167 @@ async function tmGebiedKlaar() {
   if (!p) { toast('Teken het gebied op een perceel', 1); return; }
   tmPrikStop(); actief = p.id; await nieuweMarkering('gebied', geo); tmRender(); tmPlek();
 }
+
+/* ============ TREKKER-APP: taken met popup, pauzeren/wisselen met voortgang, perceel-info met weer, pincode ============ */
+const mijnBezig = () => S.taken.find(t => !t.klaar && t.bezig_door && t.bezig_door === naamMe());
+function tmTakenVan(welk) {
+  const ik = TM.chauffeur?.id || me?.id, nuDag = vandaag();
+  const open = S.taken.filter(t => !t.klaar && !isVerplaats(t));
+  const l = welk === 'mijn' ? open.filter(t => t.toegewezen_aan === ik || (t.bezig_door && t.bezig_door === naamMe()))
+    : open.filter(t => !t.gepland || t.gepland <= nuDag || t.bezig_door);
+  return l.sort((a, b) => ((b.bezig_door === naamMe()) - (a.bezig_door === naamMe())) || ((b.perceel_id === TM.pid) - (a.perceel_id === TM.pid)) || (a.gepland || a.deadline || '9').localeCompare(b.gepland || b.deadline || '9'));
+}
+// de sporen die bij een taak horen (alleen het stuk van de taak)
+function taakSporen(t) {
+  const p = perceel(t.perceel_id); if (!p) return [];
+  const uit = [];
+  for (const z of alleZones(p)) { const vakken = spuitvakkenVan(z);
+    for (const bn of banenVan(z)) {
+      if (t.spoor_van && (bn.nr < t.spoor_van || bn.nr > (t.spoor_tot || t.spoor_van))) continue;
+      if (!t.spoor_van && t.gebied) { try { if (!turf.booleanIntersects(bn.geo, t.gebied)) continue; } catch {} }
+      uit.push({key: `${z.id}:${bn.nr}`, nr: bn.nr, groep: z._vak ? z.naam : '', vak: vakken.find(v => v.nrs.includes(bn.nr))?.letter || '', geo: bn.geo});
+    }
+  }
+  return uit;
+}
+const voortgangTekst = t => { const v = t.voortgang; if (!v?.sporen?.length) return ''; const tot = v.totaal || taakSporen(t).length;
+  return `${v.sporen.length}${tot ? ' van ' + tot : ''} sporen klaar${tot ? ` (${Math.round(v.sporen.length / tot * 100)}%)` : ''}`; };
+// GPS-route van de taak waar je mee bezig bent (blijft bewaard als de app herstart)
+function tmRoute() { if (!TM.route) { try { TM.route = JSON.parse(localStorage.getItem('tmRoute') || 'null'); } catch {} } return TM.route; }
+function tmRoutePunt() {
+  const t = mijnBezig(); if (!t || !TM.pos) return;
+  let r = tmRoute(); if (!r || r.id !== t.id) r = TM.route = {id: t.id, pts: []};
+  const [x, y] = TM.pos.geometry.coordinates, l = r.pts[r.pts.length - 1];
+  if (l && Math.abs(l[0] - x) < 3e-5 && Math.abs(l[1] - y) < 2e-5) return;   // ± 2-3 meter niet bewogen
+  r.pts.push([+x.toFixed(6), +y.toFixed(6)]); if (r.pts.length > 6000) r.pts.splice(0, r.pts.length - 6000);
+  if (r.pts.length % 5 === 0) try { localStorage.setItem('tmRoute', JSON.stringify(r)); } catch {}
+}
+function sporenUitRoute(t, kand) {
+  const r = tmRoute(); if (!r || r.id !== t.id || !r.pts.length) return [];
+  const tel = new Map();
+  for (const pt of r.pts) { const g = {type: 'Point', coordinates: pt};
+    for (const k of kand) { try { if (turf.booleanPointInPolygon(g, k.geo)) { tel.set(k.key, (tel.get(k.key) || 0) + 1); break; } } catch {} } }
+  return [...tel].filter(([, n]) => n >= 2).map(([k]) => k);
+}
+function tmTaakOpen(id) { TM.popup = {id, modus: 'info'}; tmRender(); }
+async function tmTaakStart(id) {
+  const t = S.taken.find(x => x.id === id); if (!t) return;
+  if (t.bezig_door && t.bezig_door !== naamMe()) { if (!await bevestig('Iemand is hier al mee bezig', `${t.bezig_door} is met "${t.tekst}" bezig. Wil jij het overnemen?`)) return; await zetBezig(id); }
+  if (!t.bezig_door) await zetBezig(id);
+  TM.route = {id, pts: []}; try { localStorage.setItem('tmRoute', JSON.stringify(TM.route)); } catch {}
+  if (t.perceel_id && perceel(t.perceel_id)) { TM.pid = t.perceel_id; TM.handmatig = false; }
+  TM.popup = {id, modus: 'info'}; tmRender();
+}
+async function tmTaakAfronden(id) {
+  const t = S.taken.find(x => x.id === id); if (!t) return;
+  TM.popup = null; tmRender();
+  if (TM.route?.id === id) { TM.route = null; try { localStorage.removeItem('tmRoute'); } catch {} }
+  await vinkTaak(id); setTimeout(tmRender, 400);
+}
+// pauzeren of wisselen: eerst laten zien welke sporen klaar zijn (uit de GPS-route + wat al klaar was), dan opslaan
+function tmPauze(id, na) {
+  const t = S.taken.find(x => x.id === id); if (!t) return;
+  const kand = taakSporen(t);
+  if (!kand.length) { tmPauzeOpslaan(id, na, null); return; }
+  const auto = sporenUitRoute(t, kand), al = t.voortgang?.sporen || [];
+  TM.popup = {id, modus: 'sporen', na, sel: [...new Set([...al, ...auto])], auto: auto.length};
+  tmRender();
+}
+function tmSpoorWissel(key) { const p = TM.popup; if (!p) return; p.sel = p.sel.includes(key) ? p.sel.filter(k => k !== key) : [...p.sel, key]; tmRender(); }
+async function tmPauzeOpslaan(id, na, sel) {
+  const t = S.taken.find(x => x.id === id); if (!t) return;
+  if (sel) { const tot = taakSporen(t).length, voortgang = {sporen: sel, totaal: tot, bij: new Date().toISOString(), door: naamMe()};
+    t.voortgang = voortgang; const {error} = await sb.from('taken').update({voortgang}).eq('id', id);
+    if (error) toast(/voortgang/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); }
+  if (t.bezig_door === naamMe()) await zetBezig(id);
+  if (TM.route?.id === id) { TM.route = null; try { localStorage.removeItem('tmRoute'); } catch {} }
+  TM.popup = null;
+  if (na === 'wissel') { TM.scherm = 'taken'; toast('⏸ Gepauzeerd · kies de volgende taak'); } else toast(`⏸ Gepauzeerd${sel ? ' · ' + voortgangTekst(t) : ''}`);
+  tmRender();
+}
+function tmBezigBalk() {
+  const t = mijnBezig(); if (!t || TM.popup) return '';
+  return `<div class="tmBezig" onclick="tmTaakOpen('${t.id}')">🟡 <span>Bezig: ${esc(t.tekst)}${t.bezig_sinds ? ' · sinds ' + new Date(t.bezig_sinds).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : ''}</span><b>Open ▸</b></div>`;
+}
+function tmTaakPopupHtml() {
+  const pp = TM.popup; if (!pp) return '';
+  const t = S.taken.find(x => x.id === pp.id); if (!t) { TM.popup = null; return ''; }
+  const p = perceel(t.perceel_id), ikBezig = t.bezig_door === naamMe();
+  if (pp.modus === 'sporen') {
+    const kand = taakSporen(t), groepen = [...new Set(kand.map(k => k.groep))];
+    return `<div class="tmPopup"><div class="tmPopupIn"><h2>${pp.na === 'wissel' ? '🔀 Wisselen' : '⏸ Pauzeren'}: welke sporen zijn klaar?</h2>
+      <p style="font-size:19px;margin:0 0 6px">${pp.auto ? `📡 Uit je GPS-route zijn <b>${pp.auto}</b> sporen herkend.` : 'Uit de GPS-route is (nog) niets herkend.'} Groen = klaar. Tik een spoor aan of uit.</p>
+      <div class="rij" style="gap:8px"><button class="tmKlein" onclick="TM.popup.sel=taakSporen(S.taken.find(x=>x.id==='${t.id}')).map(k=>k.key);tmRender()">Alles</button><button class="tmKlein" onclick="TM.popup.sel=[];tmRender()">Niets</button>
+        <span style="align-self:center;font-size:20px"><b>${pp.sel.length}</b> van ${kand.length} sporen (${kand.length ? Math.round(pp.sel.length / kand.length * 100) : 0}%)</span></div>
+      ${groepen.map(g => `<div class="tmSporen">${g ? `<h4>${esc(g)}</h4>` : ''}${kand.filter(k => k.groep === g).map(k => `<button class="${pp.sel.includes(k.key) ? 'aan' : ''}" onclick="tmSpoorWissel('${k.key}')">${k.nr}${k.vak ? `<small style="display:block;font-size:12px">${k.vak}</small>` : ''}</button>`).join('')}</div>`).join('')}
+      <div class="tmKnoppen"><button onclick="TM.popup={id:'${t.id}',modus:'info'};tmRender()">◀ Terug</button><span></span><span></span>
+        <button class="groen" onclick="tmPauzeOpslaan('${t.id}','${pp.na}',TM.popup.sel)">✔ Opslaan</button></div></div></div>`;
+  }
+  const regel = (i, txt) => txt ? `<div class="tmRegel"><i>${i}</i><div>${txt}</div></div>` : '';
+  const ma = t.toegewezen_aan ? S.profielen.find(u => u.id === t.toegewezen_aan)?.naam : '';
+  return `<div class="tmPopup"><div class="tmPopupIn"><h2>${esc(t.tekst)}</h2>
+    ${regel('🟡', t.bezig_door ? `Bezig: <b>${esc(t.bezig_door)}</b>${t.bezig_sinds ? ' sinds ' + new Date(t.bezig_sinds).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : ''}` : '')}
+    ${regel('📍', p ? `<b>${esc(p.naam)}</b> · ${esc(taakWaar(t))}` : '')}
+    ${regel('✅', voortgangTekst(t))}
+    ${regel('📅', [t.gepland ? 'gepland ' + datumKort(t.gepland.slice(0, 10) + 'T12:00') : '', t.deadline ? 'uiterlijk ' + datumKort(t.deadline.slice(0, 10) + 'T12:00') : ''].filter(Boolean).join(' · '))}
+    ${regel('🧪', t.product ? `${esc(t.product)}${t.dosering != null ? ` · ${getal(t.dosering, 2)} ${esc(t.eenheid || '')}` : ''}` : '')}
+    ${regel('🚜', [t.trekker, t.werktuig].filter(Boolean).map(esc).join(' + '))}
+    ${regel('👤', ma ? 'Voor ' + esc(ma) : '')}
+    ${regel('📝', t.omschrijving ? esc(t.omschrijving).replace(/\n/g, '<br>') : '')}
+    ${machineFotosHtml(t)}
+    <div class="tmKnoppen">${ikBezig ? `<button onclick="TM.popup=null;tmRender()">▾ Wegdrukken</button>
+      <button class="geel" onclick="tmPauze('${t.id}','pauze')">⏸ Pauzeren</button>
+      <button onclick="tmPauze('${t.id}','wissel')">🔀 Wisselen</button>
+      <button class="groen" onclick="tmTaakAfronden('${t.id}')">✓ Taak afronden</button>`
+      : `<button onclick="TM.popup=null;tmRender()">✕ Sluiten</button>${p ? `<button onclick="TM.popup=null;TM.pid='${p.id}';tmKaart()">🗺️ Op de kaart</button>` : '<span></span>'}
+      ${mag('taken_afvinken') ? `<button class="geel" onclick="tmTaakStart('${t.id}')">▶ Start</button><button class="groen" onclick="tmTaakAfronden('${t.id}')">✓ Klaar</button>` : ''}`}</div></div></div>`;
+}
+// perceel aangetikt op de kaart: de info en het weer
+const tmWeerCache = new Map();
+async function tmWeer(pid) {
+  const p = perceel(pid); if (!p?.geo) return; const c = tmWeerCache.get(pid); if (c && Date.now() - c.t < 15 * 60e3) return;
+  tmWeerCache.set(pid, {t: Date.now(), laden: true});
+  try { const [lng, lat] = turf.centroid(p.geo).geometry.coordinates;
+    const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lng.toFixed(3)}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation&hourly=precipitation,precipitation_probability&forecast_hours=6&wind_speed_unit=ms&timezone=Europe%2FAmsterdam`)).json();
+    tmWeerCache.set(pid, {t: Date.now(), w: j.current, regen: (j.hourly?.precipitation || []).reduce((s, x) => s + (+x || 0), 0), kans: Math.max(0, ...(j.hourly?.precipitation_probability || [0]))});
+  } catch { tmWeerCache.set(pid, {t: Date.now() - 14 * 60e3, fout: true}); }
+  if (TM.info === pid) tmRender();
+}
+function tmPerceelInfoHtml() {
+  const p = perceel(TM.info); if (!p || TM.prik) return '';
+  const tl = [...teeltOppervlak(p).entries()].map(([id, v]) => ({t: teelt(id), m2: v.m2})).filter(x => x.t).sort((a, b) => b.m2 - a.m2);
+  const taken = S.taken.filter(t => !t.klaar && betreft(t, p.id)), vlaggen = S.markeringen.filter(m => m.perceel_id === p.id && (m.soort === 'vlag' || m.soort === 'gebied'));
+  const wz = tmWeerCache.get(p.id), w = wz?.w;
+  const weer = w ? `<div class="tmWeer"><span>🌡️ <b>${Math.round(w.temperature_2m)}°</b></span><span>💨 <b>${String(w.wind_speed_10m).replace('.', ',')}</b> m/s ${windRoos(w.wind_direction_10m)}${w.wind_gusts_10m ? ` <small>(vlagen ${String(w.wind_gusts_10m).replace('.', ',')})</small>` : ''}</span><span>💧 ${Math.round(w.relative_humidity_2m)}%</span><span>🌧️ nu ${String(w.precipitation || 0).replace('.', ',')} mm · komende 6 uur ${getal(wz.regen || 0, 1)} mm (${wz.kans || 0}% kans)</span>${w.wind_speed_10m > (+S.inst?.spuit_wind_max || 5) ? '<span style="color:#ffab91"><b>⚠️ te veel wind om te spuiten</b></span>' : ''}</div>`
+    : `<div class="tmWeer">${wz?.fout ? '🌦️ Weer kon niet geladen worden' : '🌦️ Weer laden…'}</div>`;
+  return `<div class="tmInfo"><h3><span>${esc(p.naam)}${isBioPerceel(p) ? ' 🌿' : ''}</span><button onclick="TM.info=null;tmRender();setTimeout(tmKaartRuimte,50)">✕</button></h3>
+    <div>📐 ${ha(turf.area(p.geo))} ha${tl.length ? ' · 🌱 ' + tl.slice(0, 4).map(x => `${esc(x.t.naam)} (${ha(x.m2)} ha)`).join(', ') + (tl.length > 4 ? ` +${tl.length - 4}` : '') : ''}</div>
+    ${weer}
+    <div class="rij" style="gap:8px;flex-wrap:wrap">${taken.length ? `<button class="tmKlein" style="min-width:auto;padding:0 14px" onclick="TM.takenKeuze='alle';TM.scherm='taken';tmUitKaart('taken')">📋 ${taken.length} open ${taken.length === 1 ? 'taak' : 'taken'}</button>` : '<span>📋 geen open taken</span>'}
+      ${vlaggen.length ? `<span style="align-self:center">🚩 ${vlaggen.length} ${vlaggen.length === 1 ? 'markering' : 'markeringen'}: ${vlaggen.slice(0, 3).map(m => esc(m.titel || '')).join(', ')}</span>` : ''}</div></div>`;
+}
+// volledige app op de trekkertablet: met de pincode van de chauffeur die gekozen is
+async function tmVolledigeAppVraag() {
+  if (!isApparaat() || !TM.chauffeur) { tmVolledigeApp(); return; }
+  const pin = await vraag(`🔢 Pincode van ${TM.chauffeur.naam}`, {type: 'password', knop: 'Openen', uitleg: 'Vul je eigen pincode in om de volledige app te openen. Die stel je in op je eigen telefoon of computer bij Persoonlijke gegevens.'});
+  if (!pin) return;
+  const {data, error} = await sb.rpc('controleer_pin', {p_user: TM.chauffeur.id, p_pin: String(pin).trim()});
+  if (error) { toast(/controleer_pin|function/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); return; }
+  if (data === 'ok') tmVolledigeApp();
+  else toast(data === 'geen' ? `${TM.chauffeur.naam} heeft nog geen pincode. Stel die in via je eigen telefoon: Persoonlijke gegevens → Pincode trekker` : data === 'blok' ? 'Te vaak fout. Probeer het over 10 minuten opnieuw.' : 'Pincode klopt niet', 1);
+}
+async function pinInstellen(uid) {
+  const zelf = !uid || uid === me?.id, u = zelf ? null : S.profielen.find(x => x.id === uid);
+  const pin = await vraag(zelf ? '🔢 Pincode voor de trekker-tablet' : `🔢 Pincode van ${u?.naam || ''}`, {type: 'password', knop: 'Opslaan', uitleg: '4 tot 8 cijfers. Hiermee opent de chauffeur op de trekker-tablet de volledige app.'});
+  if (!pin) return;
+  const {error} = await sb.rpc('zet_pin', {p_user: uid || me.id, p_pin: String(pin).trim()});
+  if (error) toast(/zet_pin|function/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); else toast('🔢 Pincode opgeslagen');
+}
 // de kaart precies tussen de kop en de knoppen, zodat er niets (zoals een popup) achter verdwijnt
 function tmKaartRuimte() {
   const el = $('#trekkerScherm'); if (!el || TM.scherm !== 'kaart') return;
   const kop = el.querySelector('.tmKop'), eerste = el.querySelector('.tmBody')?.firstElementChild;
-  const boven = Math.round(kop?.getBoundingClientRect().bottom || 0), onder = Math.round(eerste ? innerHeight - eerste.getBoundingClientRect().top : 0);
+  const boven = Math.round(Math.max(kop?.getBoundingClientRect().bottom || 0, el.querySelector('.tmBezig')?.getBoundingClientRect().bottom || 0)), onder = Math.round(eerste ? innerHeight - eerste.getBoundingClientRect().top : 0);
   const r = document.documentElement.style;
   if (r.getPropertyValue('--tmBoven') === boven + 'px' && r.getPropertyValue('--tmOnder') === onder + 'px') return;
   r.setProperty('--tmBoven', boven + 'px'); r.setProperty('--tmOnder', onder + 'px');
@@ -6200,7 +6373,7 @@ document.addEventListener('pointerdown', () => { TM.aanraking = Date.now(); }, t
 setInterval(() => {   // trekkertablet: na 5 minuten niets doen vanzelf terug naar de trekker-modus
   if (TM.terug && !TM.aan && typeof isApparaat === 'function' && isApparaat() && Date.now() - (TM.aanraking || 0) > 5 * 60e3 && !$('#modal')?.classList.contains('open')) { TM.terug = false; $('#tmTerugKnop')?.remove(); verbergMenu?.(); trekkerModus(true); }
 }, 30e3);
-function tmPerceelKiezen(id) { TM.pid = id; TM.handmatig = true; TM.volg = false; actief = id; tmRender(); render(true); tmPlek(); }
+function tmPerceelKiezen(id) { TM.pid = id; TM.handmatig = true; TM.volg = false; actief = id; if (TM.scherm === 'kaart') { TM.info = id; TM.lijst = false; tmWeer(id); } tmRender(); render(true); tmPlek(); }
 // lijst van alle percelen (dichtstbij eerst); aantikken = er naartoe op de kaart
 function tmPerceelLijst() {
   const [lng, lat] = TM.pos?.geometry?.coordinates || [];
@@ -6211,11 +6384,11 @@ function tmPerceelLijst() {
 }
 function tmNaarPerceel(id) {
   const p = perceel(id); if (!p) return;
-  TM.lijst = false; TM.pid = id; TM.handmatig = true; TM.volg = false; actief = id; tmRender(); render(true);
+  TM.lijst = false; TM.info = id; tmWeer(id); TM.pid = id; TM.handmatig = true; TM.volg = false; actief = id; tmRender(); render(true);
   setTimeout(() => { try { map.fitBounds(L.geoJSON(p.geo).getBounds(), {padding: [40, 40], maxZoom: 19}); } catch {} tmPlek(); }, 80);
 }
 function tmAlles() { TM.lijst = !TM.lijst; TM.volg = false; tmRender(); if (!TM.lijst) return; try { map.fitBounds(L.geoJSON(S.percelen.filter(p => p.geo).map(p => p.geo)).getBounds(), {padding: [30, 30]}); } catch {} }
-function tmUitKaart(naar = 'start') { TM.lijst = false; TM.prik = null; TM.prikPunten = []; map?.getContainer().classList.remove('prikken'); tmTekenLaag?.clearLayers(); TM.scherm = naar; document.body.classList.remove('tmKaart'); tmLaag?.clearLayers(); tmRender(); render(true); }
+function tmUitKaart(naar = 'start') { TM.lijst = false; TM.info = null; TM.prik = null; TM.prikPunten = []; map?.getContainer().classList.remove('prikken'); tmTekenLaag?.clearLayers(); TM.scherm = naar; document.body.classList.remove('tmKaart'); tmLaag?.clearLayers(); tmRender(); render(true); }
 
 /* ============ SPOREN OPSCHUIVEN EN LOSSE SPOREN WEGHALEN ============
    Elk spoor heeft een vaste plek in het raster (k). Bij opschuiven of weghalen verandert de nummering,
@@ -9173,6 +9346,7 @@ function stopFilm(stil) {
   if (!film.aan) return;
   film.aan = false; clearTimeout(film.wacht); clearInterval(film.feit); clearInterval(film.rol); filmMediaStop();
   try { film.slot?.release(); } catch {} film.slot = null;
+  const vak = $('#drieDKaart'); if (vak) vak.style.opacity = 1;
   const el = $('#drieD'); el?.classList.remove('film'); $('#filmKaart')?.remove(); $('#filmInfo')?.remove(); el?.querySelector('.filmStop')?.remove();
   if (!stil && drieD) { drieDVak(); drieD.resize(); }
 }
@@ -9182,10 +9356,16 @@ function filmVolgende() {
   stopOrbit(); clearInterval(film.feit); clearInterval(film.rol); filmMediaStop();
   const kaart = $('#filmKaart'); if (kaart) kaart.classList.remove('zicht'); $('#filmInfo')?.classList.remove('zicht');
   const bb = turf.bbox(p.geo), cam = drieD.cameraForBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {padding: 90});
-  drieD.flyTo({center: cam?.center || turf.centroid(p.geo).geometry.coordinates, zoom: Math.min((cam?.zoom || 16) - .35, isGebouw(p) ? 18.4 : 18), pitch: isGebouw(p) ? 58 : 64, bearing: drieD.getBearing() + 70, duration: film.i === 1 ? 3500 : 7000, curve: 1.3, essential: true});
-  drieD.once('moveend', async () => {
-    if (!film.aan) return;
-    drieDDraai(true, .0035);   // langzaam om het veld heen
+  // Ver weg: niet over alles heen vliegen (dan moet de hele route aan luchtfoto's geladen worden), maar
+  // uitfaden, er direct naartoe springen, wachten tot de luchtfoto's er zijn en weer infaden. Dichtbij: kort vliegen.
+  const doel = {center: cam?.center || turf.centroid(p.geo).geometry.coordinates, zoom: Math.min((cam?.zoom || 16) - .5, isGebouw(p) ? 18 : 17.6), pitch: isGebouw(p) ? 55 : 58, bearing: drieD.getBearing() + 50};
+  const nu = drieD.getCenter(), afst = turf.distance([nu.lng, nu.lat], doel.center);   // km
+  const vak = $('#drieDKaart'), geladen = () => new Promise(ok => { let klaar = false; const k = () => { if (!klaar) { klaar = true; ok(); } };
+    if (drieD.areTilesLoaded?.()) setTimeout(k, 300); drieD.once('idle', k); setTimeout(k, 9000); });
+  const aankomst = async () => {
+    await geladen(); if (!film.aan) return;
+    if (vak) vak.style.opacity = 1;
+    drieDDraai(true, .0022);   // langzaam om het veld heen
     const feiten = await feitenVan(p);
     if (!film.aan) return;
     const duur = Math.max(22000, feiten.length * 4600 + 1500, filmMediaDuur(p) + 3000);
@@ -9196,7 +9376,14 @@ function filmVolgende() {
       setTimeout(() => { el.innerHTML = `<div class="filmNaam">${esc(p.naam)}</div><div class="filmFeit">${feiten[k % feiten.length]}</div><div class="filmStip">${feiten.map((_, j) => `<i class="${j === k % feiten.length ? 'aan' : ''}"></i>`).join('')}</div>`; el.classList.add('zicht'); k++; }, 350); };
     toon(); film.feit = setInterval(toon, 4600);
     film.wacht = setTimeout(filmVolgende, duur);
-  });
+  };
+  if (film.i > 1 && afst > 1.2 && vak) {
+    vak.style.transition = 'opacity .8s'; vak.style.opacity = 0;
+    setTimeout(() => { if (!film.aan || !drieD) return; drieD.jumpTo(doel); aankomst(); }, 850);
+  } else {
+    drieD.flyTo({...doel, duration: film.i === 1 ? 2500 : 4500, curve: 1.2, essential: true});
+    drieD.once('moveend', aankomst);
+  }
 }
 const wanneer = d => { const dg = Math.round((new Date(dKey(new Date())) - new Date(String(d).slice(0, 10))) / 864e5); return dg <= 0 ? 'vandaag' : dg === 1 ? 'gisteren' : dg < 7 ? dg + ' dagen geleden' : dg < 14 ? 'vorige week' : Math.round(dg / 7) + ' weken geleden'; };
 const kleineLetter = s => (s || '').charAt(0).toLowerCase() + (s || '').slice(1);
@@ -10627,7 +10814,8 @@ function baanPunt(b, x) {
 // welke taken laten een rijdende trekker zien: open taken met een machine, laag Taken aan voor dat veld
 function vlootTaken() {
   if (!overal('taken')) return [];
-  return S.taken.filter(t => !t.klaar && !isVerplaats(t) && perceel(t.perceel_id) && zichtbaar(t.perceel_id)?.taken && (t.trekker || t.werktuig || werktuigSoort(t)))
+  // alleen de taak die je aanklikt rijdt als 3D-trekkertje; een echte trekker die het werk doet staat er via GPS al
+  return S.taken.filter(t => t.id === taakFocus && !t.klaar && !isVerplaats(t) && perceel(t.perceel_id) && zichtbaar(t.perceel_id)?.taken && (t.trekker || t.werktuig || werktuigSoort(t)))
     .sort((a, b) => (b.id === taakFocus) - (a.id === taakFocus) || (!!b.bezig_door) - (!!a.bezig_door)).slice(0, 14);
 }
 // een taak met aanhanger (oogsten/afvoeren) op een veld waar ook gerooid wordt, rijdt naast die rooier
@@ -10767,7 +10955,8 @@ function startRijden3d() {
   const c = drieD.getCenter(); V3.A = {lng: c.lng, lat: c.lat};
   if ('WebGLRenderingContext' in window) laadM3D().catch(() => {});
   cancelAnimationFrame(V3.raf);
-  const loop = () => { if (!drieD) return; drieD.triggerRepaint(); V3.raf = requestAnimationFrame(loop); };
+  let nodig = true, check = 0;   // alleen steeds opnieuw tekenen als er een trekkertje rijdt (anders krijgt de kaart de tijd om te laden)
+  const loop = () => { if (!drieD) return; const nu = performance.now(); if (nu - check > 1000) { check = nu; nodig = vlootTaken().length > 0 || (S.tractoren || []).some(isLive); } if (nodig) drieD.triggerRepaint(); V3.raf = requestAnimationFrame(loop); };
   V3.raf = requestAnimationFrame(loop);
 }
 function stopVloot3d() {
