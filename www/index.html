@@ -413,6 +413,13 @@ body.eenvoudig .fab,body.eenvoudig .leaflet-pm-toolbar{display:none !important}
 .aiKop{display:flex;gap:6px;align-items:center;cursor:pointer}.aiZeker{margin-left:auto;font-size:12px;background:#eef;border-radius:8px;padding:1px 7px}
 .aiVelden{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:13px}.aiVelden .veld{margin:0;padding:7px;width:auto;flex:1 1 120px;min-width:0}.aiVelden input[type=number]{flex:0 0 68px}
 .aiBlok small{display:block;color:var(--grijs);margin-top:4px}.aiOpm{background:#eef3ff;border-radius:10px;padding:8px 10px;font-size:13px}.aiDet summary{cursor:pointer;font-size:13px;margin:6px 0}
+#filmMedia{position:absolute;left:16px;top:calc(7vh + 54px);z-index:6;width:min(46vw,760px);max-height:calc(86vh - 190px);border-radius:18px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.45);opacity:0;transform:scale(.96);transition:opacity .5s,transform .5s;background:#000;pointer-events:none}
+#filmMedia.zicht{opacity:1;transform:none}#filmMedia img,#filmMedia video{display:block;width:100%;max-height:calc(86vh - 190px);object-fit:cover}
+#filmMedia.zicht img{animation:kenburns 9s ease-out both}@keyframes kenburns{from{transform:scale(1)}to{transform:scale(1.08)}}
+@media (max-width:760px){#filmMedia{left:12px;right:12px;width:auto;top:auto;bottom:calc(7vh + 130px);max-height:30vh}#filmMedia img,#filmMedia video{max-height:30vh}}
+.fmRaster{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}.fmItem{position:relative;border-radius:10px;overflow:hidden;background:#222;aspect-ratio:4/3}
+.fmItem img,.fmItem video{width:100%;height:100%;object-fit:cover;display:block}.fmSoort{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;border-radius:6px;padding:1px 6px}
+.fmKnoppen{position:absolute;right:4px;top:4px;display:flex;gap:3px}.fmKnoppen button{border:0;border-radius:7px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;padding:3px 7px;cursor:pointer}
 .plSporen{color:#8a6200;background:#fff4d6;border-radius:6px;padding:0 6px;font-size:11.5px}
 .plKop .icoon.klein+.icoon.klein,.plDet .icoon.klein+.icoon.klein{margin-left:4px}
 #pkBalk{position:fixed;right:16px;bottom:16px;z-index:1300;width:min(380px,calc(100vw - 32px));background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:12px 14px;border:3px solid #ffd600}
@@ -1253,7 +1260,7 @@ async function wijzig(id, patch) {
   const {error} = await sb.from('percelen').update({...patch, updated_at: new Date().toISOString()}).eq('id', id);
   if (error) toast('Opslaan mislukt: ' + error.message, 1);
 }
-async function nieuwPerceel(geo, voorstel, uitleg) {
+async function nieuwPerceel(geo, voorstel, uitleg, extra = {}) {
   const n = S.percelen.filter(x => (x.type || 'veld') === nieuwType).length + 1;
   const w = await formulier('Naam en soort', [
     ...(uitleg ? [{k: '_u', label: '', type: 'uitleg', waarde: uitleg}] : []),
@@ -1261,7 +1268,11 @@ async function nieuwPerceel(geo, voorstel, uitleg) {
     {k: 'type', label: 'Wat is het?', type: 'select', waarde: nieuwType, opties: Object.entries(TYPES).map(([k, T]) => [k, `${T.emoji} ${T.naam}`])}], 'Aanmaken');
   if (!w || !w.naam) return;
   const naam = w.naam;
-  const {data, error} = await sb.from('percelen').insert({naam, geo, type: w.type, aangemaakt_door: naamMe()}).select().single();
+  let {data, error} = await sb.from('percelen').insert({naam, geo, type: w.type, aangemaakt_door: naamMe(), ...extra}).select().single();
+  if (error && Object.keys(extra).length && /column|schema cache/i.test(error.message)) {   // oude database: zonder 3D-model
+    toast('Voer het nieuwe beheer.sql uit om het 3D-model te bewaren', 1);
+    ({data, error} = await sb.from('percelen').insert({naam, geo, type: w.type, aangemaakt_door: naamMe()}).select().single());
+  }
   if (error) { toast('Aanmaken mislukt: ' + error.message, 1); return; }
   if (!perceel(data.id)) S.percelen.push(data);
   kies(data.id); toast(`${typeVan(data).naam} "${naam}" aangemaakt`);
@@ -2853,7 +2864,13 @@ function toevoegKeuze() {
     <button class="knop licht" id="mBrp">📥 Perceel ophalen uit de BRP (RVO)</button>
     <button class="knop licht" id="mNee">Annuleren</button></div>`;
   $('#modal').classList.add('open');
-  $('#modal').querySelectorAll('[data-t]').forEach(b => b.onclick = () => { $('#modal').classList.remove('open'); nieuwType = b.dataset.t; tekenModus(true); });
+  $('#modal').querySelectorAll('[data-t]').forEach(b => b.onclick = async () => { $('#modal').classList.remove('open'); nieuwType = b.dataset.t;
+    if (isGebouw({type: nieuwType})) {
+      const k = await keuze(`${TYPES[nieuwType].emoji} ${TYPES[nieuwType].naam} toevoegen`, 'Klik het gebouw aan: de vorm komt uit de BAG en het 3D-model (met daken) uit de 3DBAG.', [['teken', '✏️ Zelf tekenen'], ['bag', '👆 Aanklikken op de kaart']]);
+      if (k === 'bag') gebouwAanklikken(nieuwType); else if (k === 'teken') tekenModus(true);
+      return;
+    }
+    tekenModus(true); });
   $('#mBrp').onclick = () => { $('#modal').classList.remove('open'); brpOphalen(); };
   $('#mNee').onclick = () => $('#modal').classList.remove('open');
 }
@@ -3134,7 +3151,7 @@ function opstaandHtml(p) {
 }
 /* ---- alles over het perceel op één plek ---- */
 function htmlInfo(p) {
-  return verslagenHtml(p.id) + htmlPlattegrond(p) + htmlInfoInhoud(p);
+  return verslagenHtml(p.id) + htmlGebouw(p) + htmlPlattegrond(p) + htmlInfoInhoud(p);
 }
 function htmlInfoInhoud(p) {
   const rij = (k, v) => v === '' || v == null ? '' : `<div class="inforij"><span>${k}</span><b>${v}</b></div>`;
@@ -3295,6 +3312,7 @@ function htmlDetail(p) {
     ['partijen', '🏷️', 'Partijen', p.type !== 'pand' && (partijenVan(p.id).length > 0 || mag('partijen_beheren'))],
     ['oogst', '🌱', 'Oogst', p.type !== 'pand' && (ziet('oogst_bekijken') || ziet('oogst_registreren'))],
     ['historie', '📒', 'Historie', ziet('historie_bekijken')],
+    ['film', '🎬', 'Film', mag('percelen_bewerken') || (p.film_media || []).length > 0],
     ['aanpassen', perceelRecht ? '✏️' : '📝', perceelRecht ? 'Wijzig' : 'Notities', perceelRecht || notitieRecht || mag('percelen_uitschakelen') || mag('percelen_verwijderen')]].filter(t => t[3]);
   if (!tabs.some(t => t[0] === perceelTab)) perceelTab = tabs[0][0];
   const lagen = `<div class="lagen"><span>Lagen</span>
@@ -3309,6 +3327,7 @@ function htmlDetail(p) {
   else if (perceelTab === 'weer') inhoud = htmlWeer(p);
   else if (perceelTab === 'oogst') inhoud = htmlOogst(p);
   else if (perceelTab === 'partijen') inhoud = htmlPerceelPartijenTab(p);
+  else if (perceelTab === 'film') inhoud = htmlFilmTab(p);
   else if (perceelTab === 'taken' && takenWeergave === 'planning') inhoud = weergaveSchakel() + nieuweTaakKnoppen(`{gepland:'${dKey(planDatum)}'}`, p.id) + `<section class="kaartje">${htmlPlanning(p.id)}</section>`;
   else if (perceelTab === 'taken') inhoud = weergaveSchakel() + `<section class="kaartje"><h4>📋 Open taken</h4>
     ${nieuweTaakKnoppen('{}', p.id)}
@@ -7501,7 +7520,7 @@ async function open3D(opt = {}) {
       drieDDraai(true);
     }
     startRijden3d();   // alle trekkers van open taken rijden mee
-    if (opt.film) startFilm();
+    if (opt.film) startFilm(film.modus || 'gebruik');
   });
   drieD.on('render', tekenOverlay3d);
   window.addEventListener('resize', drieDVak);
@@ -7511,7 +7530,7 @@ function drieDData(t) {
   const sporen = [], velden = [], gebouwen = [], gerooid = [], taak = [];
   const f = (geo, props) => ({type: 'Feature', properties: props, geometry: geo.geometry || geo});
   S.percelen.forEach(p => {
-    if (p.type === 'pand' || p.type === 'kas') { gebouwen.push(f(p.geo, {kleur: p.type === 'kas' ? '#d7eef7' : '#bcaaa4', hoogte: p.type === 'kas' ? 5 : 8, naam: p.naam})); return; }
+    if (p.type === 'pand' || p.type === 'kas') { gebouwen.push(f(p.geo, {kleur: p.type === 'kas' ? '#d7eef7' : '#bcaaa4', hoogte: p.model3d?.h || (p.type === 'kas' ? 5 : 8), naam: p.naam, model: !!p.model3d?.f?.length})); return; }
     velden.push(f(p.geo, {kleur: p.uitgeschakeld ? '#9e9e9e' : '#ffffff', naam: p.naam}));
     alleZones(p).forEach(z => {
       if (zoneGewas(z)) { const g = zoneVlak(z), tl = teelt(z.gewas); if (g && tl) sporen.push(f(g, {kleur: tl.kleur || '#8bc34a', hoogte: plantHoogte(tl)})); return; }
@@ -7553,18 +7572,296 @@ function drieDDraai(aan, snel = .006) {
 function stopOrbit() { if (drieDOrbit) cancelAnimationFrame(drieDOrbit); drieDOrbit = null; }
 /* ============ FILM: de camera vliegt langzaam van perceel naar perceel en vertelt wat er speelt ============ */
 const film = {aan: false, lijst: [], i: 0, wacht: 0, feit: 0, slot: null, regen: new Map()};
-function filmPercelen() {   // velden in een logische route (steeds het dichtstbijzijnde volgende veld)
-  const velden = S.percelen.filter(p => p.geo && !['pand', 'kas'].includes(p.type) && !p.uitgeschakeld);
-  if (!velden.length) return [];
-  const mid = p => turf.centroid(p.geo).geometry.coordinates, c = drieD.getCenter(), rest = [...velden], route = [];
+/* ============ GEBOUWEN UIT DE BAG + 3D-MODEL UIT DE 3DBAG ============
+   Pand of kas aanklikken op de kaart → de vorm komt uit de BAG (Kadaster), het 3D-model (daken, nokken, kassen)
+   uit de 3DBAG (TU Delft). Het model wordt bij het pand bewaard en in de 3D-weergave en de film getekend. */
+// Rijksdriehoek (RD/Amersfoort) ↔ WGS84, benadering met de officiële reeksontwikkeling (± 0,25 m)
+function rdNaarWgs(x, y) {
+  const a = (x - 155000) * 1e-5, b = (y - 463000) * 1e-5;
+  const N = 3235.65389 * b - 32.58297 * a * a - .2475 * b * b - .84978 * a * a * b - .0655 * b ** 3 - .01709 * a * a * b * b - .00738 * a + .0053 * a ** 4 - .00039 * a * a * b ** 3 + .00033 * a ** 4 * b - .00012 * a * b;
+  const E = 5260.52916 * a + 105.94684 * a * b + 2.45656 * a * b * b - .81885 * a ** 3 + .05594 * a * b ** 3 - .05607 * a ** 3 * b + .01199 * b - .00256 * a ** 3 * b * b + .00128 * a * b ** 4 + .00022 * b * b - .00022 * a * a + .00026 * a ** 5;
+  return [5.38720621 + E / 3600, 52.15517440 + N / 3600];
+}
+function wgsNaarRd(lng, lat) {
+  const f = .36 * (lat - 52.15517440), l = .36 * (lng - 5.38720621);
+  const X = 190094.945 * l - 11832.228 * f * l - 114.221 * f * f * l - 32.391 * l ** 3 - .705 * f - 2.34 * f ** 3 * l - .608 * f * l ** 3 - .008 * l * l + .148 * f * f * l ** 3;
+  const Y = 309056.544 * f + 3638.893 * l * l + 73.077 * f * f - 157.984 * f * l * l + 59.788 * f ** 3 + .433 * l - 6.439 * f * f * l * l - .032 * f * l + .092 * l ** 4 - .054 * f * l ** 4;
+  return [155000 + X, 463000 + Y];
+}
+// BAG-pand op een punt (PDOK)
+async function bagPandOpPunt(pt) {
+  const [x, y] = pt.geometry.coordinates, d = .0006;
+  const r = await fetch(`https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items?f=json&limit=100&bbox=${(x - d).toFixed(6)},${(y - d).toFixed(6)},${(x + d).toFixed(6)},${(y + d).toFixed(6)}`);
+  if (!r.ok) throw new Error('BAG gaf fout ' + r.status);
+  const lijst = ((await r.json()).features || []).filter(f => f.geometry);
+  const raak = lijst.filter(f => { try { return turf.booleanPointInPolygon(pt, f); } catch { return false; } });
+  if (raak.length) return raak.sort((a, b) => turf.area(a) - turf.area(b))[0];
+  // net ernaast getikt: het dichtstbijzijnde pand binnen 5 m
+  const dichtst = lijst.map(f => ({f, d: Math.min(...turf.coordAll(f).map(c => turf.distance(pt, turf.point(c), {units: 'meters'})))})).sort((a, b) => a.d - b.d)[0];
+  return dichtst && dichtst.d < 5 ? dichtst.f : null;
+}
+// 3D-model van één pand uit de 3DBAG, omgerekend naar meters rond het midden van het pand
+async function model3dVan(bagId, footprint) {
+  const r = await fetch(`https://api.3dbag.nl/collections/pand/items/NL.IMBAG.Pand.${bagId}`);
+  if (!r.ok) throw new Error(r.status === 404 ? 'Dit pand staat (nog) niet in de 3DBAG' : '3DBAG gaf fout ' + r.status);
+  return model3dUitCityJson(await r.json(), footprint);
+}
+function model3dUitCityJson(j, footprint) {
+  const feat = j.feature || j, meta = j.metadata || {}, tr = meta.transform || feat.transform || j.transform || {scale: [1, 1, 1], translate: [0, 0, 0]};
+  const objs = feat.CityObjects || {}, verts = feat.vertices || [];
+  const gebouw = Object.values(objs).find(o => o.type === 'Building') || {}, at = gebouw.attributes || {};
+  const delen = Object.values(objs).filter(o => o.geometry?.length);
+  const RD = i => { const v = verts[i]; return [v[0] * tr.scale[0] + tr.translate[0], v[1] * tr.scale[1] + tr.translate[1], v[2] * tr.scale[2] + tr.translate[2]]; };
+  const kies = o => ['2.2', '1.3', '1.2'].map(l => o.geometry.find(g => String(g.lod) === l)).find(Boolean);
+  const vlakken = [];   // [[soort, [rd-punten]]]
+  let lod = null;
+  delen.forEach(o => {
+    const g = kies(o); if (!g) return; lod = lod || String(g.lod);
+    const srt = g.semantics?.surfaces || [], waarden = g.semantics?.values;
+    const soort = s => /Roof/i.test(s?.type) ? 2 : /Ground/i.test(s?.type) ? 0 : 1;
+    const shells = g.type === 'Solid' ? g.boundaries : g.type === 'MultiSolid' || g.type === 'CompositeSolid' ? g.boundaries.flat() : [g.boundaries];
+    shells.forEach((sh, si) => sh.forEach((vl, vi) => {
+      const w = g.type === 'Solid' ? waarden?.[si]?.[vi] : g.type === 'MultiSurface' || g.type === 'CompositeSurface' ? waarden?.[vi] : null;
+      vlakken.push([w != null ? soort(srt[w]) : null, vl[0].map(RD)]);
+    }));
+  });
+  if (!vlakken.length) throw new Error('Geen 3D-vorm gevonden in de 3DBAG');
+  const alleZ = vlakken.flatMap(([, ps]) => ps.map(p => p[2]));
+  const maaiveld = Number.isFinite(+at.b3_h_maaiveld) ? +at.b3_h_maaiveld : Math.min(...alleZ);
+  // zonder semantiek: plat vlak bovenin = dak, onderin = grond, rest = muur
+  vlakken.forEach(v => { if (v[0] != null) return; const zs = v[1].map(p => p[2]), dz = Math.max(...zs) - Math.min(...zs); v[0] = dz < .3 ? (Math.min(...zs) - maaiveld < .3 ? 0 : 2) : 1; });
+  const o = footprint ? turf.centroid(footprint).geometry.coordinates : rdNaarWgs(...vlakken[0][1][0]);
+  const K = 111320, cl = Math.cos(o[1] * Math.PI / 180), idx = new Map(), v = [], f = [];
+  vlakken.forEach(([soort, ps]) => {
+    if (soort === 0) return;   // de vloer zie je toch niet
+    const ring = ps.map(([x, y, z]) => {
+      const [lng, lat] = rdNaarWgs(x, y), q = [Math.round((lng - o[0]) * K * cl * 100), Math.round((lat - o[1]) * K * 100), Math.round((z - maaiveld) * 100)], k = q.join();
+      if (!idx.has(k)) { idx.set(k, v.length / 3); v.push(...q); } return idx.get(k);
+    });
+    if (ring.length >= 3) f.push([soort, ...ring]);
+  });
+  const h = Math.max(...alleZ) - maaiveld;
+  return {o: o.map(x => +x.toFixed(7)), v, f, lod, h: +h.toFixed(1), dak: at.b3_dak_type || null, bouwjaar: +at.oorspronkelijkbouwjaar || null, bron: '3DBAG'};
+}
+// eenvoudig blokmodel als de 3DBAG niets heeft (vorm uit de BAG, standaard hoogte)
+function blokModel(geo, hoogte) {
+  const o = turf.centroid(geo).geometry.coordinates, K = 111320, cl = Math.cos(o[1] * Math.PI / 180);
+  const ring = turf.getCoords(geo.geometry?.type === 'MultiPolygon' ? turf.polygon(geo.geometry.coordinates[0]) : geo)[0].slice(0, -1).map(([lng, lat]) => [Math.round((lng - o[0]) * K * cl * 100), Math.round((lat - o[1]) * K * 100)]);
+  const v = [], f = [], n = ring.length, H = Math.round(hoogte * 100);
+  ring.forEach(([x, y]) => v.push(x, y, 0)); ring.forEach(([x, y]) => v.push(x, y, H));
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n; f.push([1, i, j, n + j, n + i]); }
+  f.push([2, ...ring.map((_, i) => n + i)]);
+  return {o, v, f, lod: 'blok', h: hoogte, bron: 'BAG'};
+}
+// pand/kas aanklikken en toevoegen
+async function gebouwAanklikken(type) {
+  if (!mag('percelen_tekenen')) { toast('Je mag geen percelen toevoegen', 1); return; }
+  nieuwType = type;
+  const pt = await wijsPuntAan(`Tik op ${type === 'kas' ? 'de kas' : 'het gebouw'} op de kaart`); if (!pt) return;
+  banner('<b>🏗️ Gebouw opzoeken in de BAG…</b>');
+  let f;
+  try { f = await bagPandOpPunt(pt); } catch (e) { banner(null); toast('Opzoeken in de BAG lukte niet: ' + (e.message || e), 1); return; }
+  if (!f) { banner(null); toast('Daar staat geen gebouw in de BAG. Teken het zelf, of tik precies op het dak.', 1); return; }
+  const geo = {type: 'Feature', properties: {}, geometry: f.geometry.type === 'MultiPolygon' ? {type: 'Polygon', coordinates: f.geometry.coordinates[0]} : f.geometry};
+  focusLaag.clearLayers(); L.geoJSON(geo, {interactive: false, style: {color: '#00e5ff', weight: 3, fillOpacity: .2}}).addTo(focusLaag);
+  banner('<b>🧊 3D-model ophalen…</b>');
+  let model = null;
+  try { model = await model3dVan(f.properties.identificatie, geo); } catch (e) { console.warn(e); }
+  banner(null);
+  const pr = f.properties || {}, bag = {id: pr.identificatie, bouwjaar: +pr.bouwjaar || null, gebruiksdoel: pr.gebruiksdoel || null, status: pr.status || null, m2: Math.round(turf.area(geo))};
+  const doel = (pr.gebruiksdoel || '').split(',')[0].trim();
+  await nieuwPerceel(geo, `${type === 'kas' ? 'Kas' : doel ? doel.charAt(0).toUpperCase() + doel.slice(1).replace('functie', '') : 'Pand'}${bag.bouwjaar ? ' ' + bag.bouwjaar : ''}`.trim(),
+    `Gevonden in de BAG: ${bag.m2.toLocaleString('nl-NL')} m²${bag.bouwjaar ? ', gebouwd in ' + bag.bouwjaar : ''}${model ? `. 3D-model: ${model.lod === '2.2' ? 'met echte daken' : 'blokvorm'}, ${String(model.h).replace('.', ',')} m hoog` : '. Geen 3D-model gevonden, ik maak een eenvoudig blok'}.`,
+    {model3d: model || blokModel(geo, type === 'kas' ? 6 : 8), bag});
+  focusLaag.clearLayers();
+}
+async function model3dVernieuwen(id) {
+  const p = perceel(id); if (!p || !mag('percelen_bewerken')) return;
+  toast('🧊 3D-model ophalen…');
+  try {
+    let bagId = p.bag?.id;
+    if (!bagId) { const f = await bagPandOpPunt(turf.pointOnFeature(p.geo)); if (!f) throw new Error('Geen BAG-pand gevonden op deze plek'); bagId = f.properties.identificatie; }
+    const model = await model3dVan(bagId, p.geo);
+    await wijzig(id, {model3d: model, bag: {...(p.bag || {}), id: bagId}}); toast(`🧊 3D-model opgehaald (${String(model.h).replace('.', ',')} m hoog)`);
+  } catch (e) { toast('3D-model ophalen lukte niet: ' + (e.message || e), 1); }
+}
+function htmlGebouw(p) {
+  if (!['pand', 'kas'].includes(p.type)) return '';
+  const m = p.model3d, b = p.bag || {}, beh = mag('percelen_bewerken');
+  const dak = {slanted: 'schuin dak', 'multiple horizontal': 'platte daken op verschillende hoogtes', horizontal: 'plat dak', 'single horizontal': 'plat dak'}[m?.dak] || m?.dak;
+  return `<section class="kaartje infoblok"><h4>🏗️ Gebouw</h4>
+    ${b.id ? `<div class="inforij"><span>BAG-nummer</span><b>${esc(b.id)}</b></div>` : ''}
+    ${b.bouwjaar || m?.bouwjaar ? `<div class="inforij"><span>Bouwjaar</span><b>${b.bouwjaar || m.bouwjaar}</b></div>` : ''}
+    ${b.gebruiksdoel ? `<div class="inforij"><span>Gebruik volgens BAG</span><b>${esc(b.gebruiksdoel)}</b></div>` : ''}
+    <div class="inforij"><span>Oppervlakte</span><b>${Math.round(turf.area(p.geo)).toLocaleString('nl-NL')} m²</b></div>
+    ${m ? `<div class="inforij"><span>Hoogte</span><b>${String(m.h).replace('.', ',')} m</b></div>${dak ? `<div class="inforij"><span>Dak</span><b>${esc(dak)}</b></div>` : ''}
+      <div class="inforij"><span>3D-model</span><b>${m.lod === '2.2' ? 'echte vorm (3DBAG)' : m.lod === 'blok' ? 'eenvoudig blok' : 'blokvorm (3DBAG)'}</b></div>` : '<p class="hint">Nog geen 3D-model.</p>'}
+    <div class="rij" style="margin-top:8px"><button class="knop licht" onclick="open3D({perceel:'${p.id}'})">🧊 Bekijk in 3D</button>
+      ${beh ? `<button class="knop licht" onclick="model3dVernieuwen('${p.id}')">${m ? '🔄 Opnieuw uit de BAG' : '🧊 3D-model ophalen'}</button>` : ''}</div>
+  </section>`;
+}
+// --- tekenen in de 3D-weergave (three.js, zelfde scène als de trekkers) ---
+function gebouwen3d(T) {
+  const lijst = S.percelen.filter(p => p.model3d?.v?.length && p.model3d?.f?.length);
+  const sleutel = lijst.map(p => p.id + ':' + p.model3d.v.length + ':' + p.model3d.f.length + ':' + p.type).join('|') + '@' + V3.A.lng.toFixed(5);
+  if (V3.gebSleutel === sleutel) return;
+  V3.gebSleutel = sleutel;
+  if (V3.geb) { V3.sc.remove(V3.geb); V3.geb.traverse(o => { o.geometry?.dispose?.(); }); }
+  const groep = V3.geb = new T.Group(), K = 111320, clA = Math.cos(V3.A.lat * Math.PI / 180);
+  const mat = {
+    muur: new T.MeshStandardMaterial({color: 0xe8e0d6, roughness: .85, side: T.DoubleSide}),
+    dak: new T.MeshStandardMaterial({color: 0x6d5a50, roughness: .7, side: T.DoubleSide}),
+    glas: new T.MeshPhysicalMaterial({color: 0xe6f4ff, roughness: .08, metalness: 0, transmission: .6, transparent: true, opacity: .42, side: T.DoubleSide, depthWrite: false}),
+    rand: new T.LineBasicMaterial({color: 0x37474f, transparent: true, opacity: .55}), kasrand: new T.LineBasicMaterial({color: 0xffffff, transparent: true, opacity: .8})};
+  lijst.forEach(p => {
+    const m = p.model3d, kas = p.type === 'kas', ox = (m.o[0] - V3.A.lng) * K * clA, oz = -(m.o[1] - V3.A.lat) * K;
+    const P = i => [ox + m.v[i * 3] / 100, m.v[i * 3 + 2] / 100, oz - m.v[i * 3 + 1] / 100];
+    const bak = {1: [], 2: []}, lijnen = [];
+    m.f.forEach(([soort, ...ring]) => {
+      const pts = ring.map(P);
+      // vlak naar 2D (grootste component van de normaal weglaten) en in driehoeken knippen
+      let nx = 0, ny = 0, nz = 0;
+      pts.forEach((a, i) => { const b = pts[(i + 1) % pts.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); });
+      const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz), [u, w] = ax >= ay && ax >= az ? [1, 2] : ay >= az ? [0, 2] : [0, 1];
+      let drie;
+      try { drie = T.ShapeUtils.triangulateShape(pts.map(q => new T.Vector2(q[u], q[w])), []); } catch { drie = null; }
+      if (!drie?.length) drie = pts.slice(2).map((_, i) => [0, i + 1, i + 2]);
+      drie.forEach(t => t.forEach(i => bak[soort === 2 ? 2 : 1].push(...pts[i])));
+      pts.forEach((a, i) => lijnen.push(...a, ...pts[(i + 1) % pts.length]));
+    });
+    [[1, kas ? mat.glas : mat.muur], [2, kas ? mat.glas : mat.dak]].forEach(([k, mt]) => {
+      if (!bak[k].length) return;
+      const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(bak[k], 3)); g.computeVertexNormals();
+      const mesh = new T.Mesh(g, mt); mesh.castShadow = !kas; mesh.receiveShadow = true; mesh.renderOrder = kas ? 2 : 0; groep.add(mesh);
+    });
+    if (lijnen.length) { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(lijnen, 3)); groep.add(new T.LineSegments(g, kas ? mat.kasrand : mat.rand)); }
+  });
+  V3.sc.add(groep);
+  // de platte "blokken" van MapLibre weglaten voor gebouwen met een echt model
+  try { drieD.setFilter('gebouwen', ['!=', ['get', 'model'], true]); } catch {}
+}
+
+/* ============ FILM: KEUZE WELKE PLEKKEN + FOTO'S EN VIDEO'S PER PERCEEL/PAND ============ */
+const isGebouw = p => ['pand', 'kas'].includes(p?.type);
+function inGebruik(p) {
+  if (p.uitgeschakeld) return false;
+  const beplant = [...teeltOppervlak(p).keys()].some(id => { const t = teelt(id); return t && !vanTeelt(t); });
+  return beplant || S.taken.some(t => !t.klaar && betreft(t, p.id)) || (p.film_media || []).length > 0;
+}
+async function filmKiezen() {
+  let vorige = null; try { vorige = localStorage.getItem('film_modus'); } catch {}
+  const k = await keuze('🎬 Film: wat wil je zien?', 'De film vliegt langs de plekken en laat per plek info, foto\'s en video\'s zien.',
+    [['alles', '🌍 Alle percelen, bedrijfspanden en kassen'], ['gebruik', `🌱 Alleen percelen in gebruik + bedrijfspanden en kassen${vorige === 'gebruik' || !vorige ? ' (vorige keer)' : ''}`]]);
+  if (k) try { localStorage.setItem('film_modus', k); } catch {}
+  return k;
+}
+function filmPercelenVan(modus) {
+  const plekken = S.percelen.filter(p => p.geo && (isGebouw(p) || (modus === 'alles' ? true : inGebruik(p))));
+  if (!plekken.length) return [];
+  const mid = p => turf.centroid(p.geo).geometry.coordinates, c = drieD.getCenter(), rest = [...plekken], route = [];
   let hier = [c.lng, c.lat];
   while (rest.length) { rest.sort((a, b) => Math.hypot(mid(a)[0] - hier[0], mid(a)[1] - hier[1]) - Math.hypot(mid(b)[0] - hier[0], mid(b)[1] - hier[1])); const p = rest.shift(); route.push(p); hier = mid(p); }
   return route;
 }
-async function startFilm() {
-  if (!drieD) { open3D({film: true}); return; }
+// --- opslag: eigen map "film" (foto's én video's) ---
+const filmCache = new Map();
+async function filmUrl(pad) {
+  const c = filmCache.get(pad); if (c && c.tot > Date.now() + 60000) return c.url;
+  const {data} = await sb.storage.from('film').createSignedUrls([pad], 7200); const url = data?.[0]?.signedUrl;
+  if (url) filmCache.set(pad, {url, tot: Date.now() + 7100000}); return url;
+}
+async function filmMediaToevoegen(id) {
+  const p = perceel(id); if (!p || !mag('percelen_bewerken')) return;
+  const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*,video/*'; i.multiple = true;
+  i.onchange = async () => {
+    const lijst = [...i.files]; if (!lijst.length) return;
+    const nieuw = [];
+    for (const [n, f] of lijst.entries()) {
+      const video = f.type.startsWith('video/');
+      if (video && f.size > 50 * 1048576) { toast(`${f.name} is te groot (${Math.round(f.size / 1048576)} MB, max 50 MB). Maak een korter filmpje.`, 1); continue; }
+      toast(`⬆️ ${video ? 'Video' : 'Foto'} ${n + 1} van ${lijst.length} uploaden…`);
+      try {
+        let blob = f, ext = (f.name.split('.').pop() || (video ? 'mp4' : 'jpg')).toLowerCase(), type = f.type;
+        if (!video) { blob = await verkleinFoto(f, 2400); ext = 'jpg'; type = 'image/jpeg'; }
+        const pad = `${id}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
+        const {error} = await sb.storage.from('film').upload(pad, blob, {contentType: type, upsert: false});
+        if (error) throw error;
+        filmCache.set(pad, {url: URL.createObjectURL(blob), tot: Infinity});
+        nieuw.push({pad, soort: video ? 'video' : 'foto', naam: f.name.slice(0, 80), datum: dKey(new Date())});
+      } catch (e) { toast('Uploaden mislukt: ' + (/bucket/i.test(e.message || '') ? 'voer eerst het nieuwe beheer.sql uit' : e.message || e), 1); }
+    }
+    if (nieuw.length) { await wijzig(id, {film_media: [...(perceel(id).film_media || []), ...nieuw]}); toast(`🎬 ${nieuw.length} toegevoegd aan de film`); }
+  };
+  i.click();
+}
+function verkleinFoto(f, max) {
+  return new Promise((ok, nee) => { const img = new Image(); img.onload = () => {
+    const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    c.toBlob(b => b ? ok(b) : nee(new Error('Foto verkleinen lukte niet')), 'image/jpeg', .86); URL.revokeObjectURL(img.src); };
+    img.onerror = () => nee(new Error('Dit bestand is geen foto die ik kan lezen')); img.src = URL.createObjectURL(f); });
+}
+async function filmMediaWeg(id, pad) {
+  const p = perceel(id); if (!p || !await bevestig('Uit de film halen?', 'De foto of video wordt verwijderd.')) return;
+  await wijzig(id, {film_media: (p.film_media || []).filter(m => m.pad !== pad)});
+  sb.storage.from('film').remove([pad]);
+}
+function filmMediaSchuif(id, pad, r) {
+  const p = perceel(id), l = [...(p.film_media || [])], i = l.findIndex(m => m.pad === pad), j = i + r; if (i < 0 || j < 0 || j >= l.length) return;
+  [l[i], l[j]] = [l[j], l[i]]; wijzig(id, {film_media: l});
+}
+function htmlFilmTab(p) {
+  const l = p.film_media || [], beh = mag('percelen_bewerken');
+  setTimeout(() => document.querySelectorAll('.fmItem[data-pad]').forEach(async el => {
+    const url = await filmUrl(el.dataset.pad); if (!url) return; const m = el.querySelector('img,video'); if (m && !m.src) m.src = url + (m.tagName === 'VIDEO' ? '#t=0.5' : '');
+  }), 0);
+  return `<section class="kaartje"><h4>🎬 Film</h4>
+    <p class="hint" style="margin-top:0">Foto's en video's die de film laat zien als hij bij ${isGebouw(p) ? 'dit gebouw' : 'dit perceel'} is. Video's spelen een stukje af (zonder geluid).</p>
+    ${l.length ? `<div class="fmRaster">${l.map((m, i) => `<div class="fmItem" data-pad="${esc(m.pad)}">
+        ${m.soort === 'video' ? '<video muted playsinline preload="metadata"></video><span class="fmSoort">▶ video</span>' : '<img alt="">'}
+        ${beh ? `<div class="fmKnoppen">${i ? `<button title="Eerder" onclick="filmMediaSchuif('${p.id}','${esc(m.pad)}',-1)">◀</button>` : ''}${i < l.length - 1 ? `<button title="Later" onclick="filmMediaSchuif('${p.id}','${esc(m.pad)}',1)">▶</button>` : ''}<button title="Weghalen" onclick="filmMediaWeg('${p.id}','${esc(m.pad)}')">✕</button></div>` : ''}
+      </div>`).join('')}</div>` : '<p class="hint">Nog geen foto\'s of video\'s.</p>'}
+    ${beh ? `<button class="knop" style="margin-top:8px" onclick="filmMediaToevoegen('${p.id}')">📷 Foto's of video's toevoegen</button>
+      <p class="hint">Video's tot 50 MB. Tip: neem korte stukjes van 10 tot 20 seconden op.</p>` : ''}
+    <button class="knop licht" style="margin-top:6px" onclick="filmAlleen('${p.id}')">▶️ Film van alleen deze plek bekijken</button>
+  </section>`;
+}
+function filmAlleen(id) { film.vast = id; startFilm('alleen'); }
+// --- tijdens de film: foto's en video's laten zien ---
+function filmMediaDuur(p) { const n = Math.min(3, (p.film_media || []).length); return n ? 3000 + n * 8500 : 0; }
+async function filmMediaSpelen(p) {
+  const l = p.film_media || []; if (!l.length) return;
+  film.mediaStart = film.mediaStart || new Map();
+  const start = film.mediaStart.get(p.id) || 0, keus = Array.from({length: Math.min(3, l.length)}, (_, i) => l[(start + i) % l.length]);
+  film.mediaStart.set(p.id, (start + keus.length) % l.length);   // volgende keer de volgende
+  let el = $('#filmMedia'); if (!el) { el = document.createElement('div'); el.id = 'filmMedia'; $('#drieD')?.appendChild(el); }
+  const mijn = film.mediaRun = {};
+  await new Promise(r => setTimeout(r, 2500));
+  for (const m of keus) {
+    if (!film.aan || film.mediaRun !== mijn) return;
+    const url = await filmUrl(m.pad); if (!url) continue;
+    el.innerHTML = m.soort === 'video' ? `<video muted playsinline autoplay src="${esc(url)}"></video>` : `<img src="${esc(url)}" alt="">`;
+    el.classList.add('zicht');
+    if (m.soort === 'video') {
+      const v = el.querySelector('video');
+      await new Promise(r => { v.onloadedmetadata = () => { if (v.duration > 14) v.currentTime = Math.min(v.duration * .2, v.duration - 9); v.play().catch(() => {}); r(); }; v.onerror = r; setTimeout(r, 4000); });
+    }
+    await new Promise(r => setTimeout(r, 8000));
+    if (film.mediaRun !== mijn) return;
+    el.classList.remove('zicht'); await new Promise(r => setTimeout(r, 500));
+    el.querySelector('video')?.pause();
+  }
+}
+function filmMediaStop() { film.mediaRun = null; const el = $('#filmMedia'); if (el) { el.querySelector('video')?.pause(); el.remove(); } }
+
+async function startFilm(modus) {
   if (film.aan) return;
-  film.lijst = filmPercelen(); if (!film.lijst.length) { toast('Er zijn nog geen velden om te laten zien', 1); return; }
+  if (!modus) { modus = await filmKiezen(); if (!modus) return; }
+  if (modus !== 'alleen') film.vast = null;
+  film.modus = modus;
+  if (!drieD) { open3D({film: true}); return; }
+  film.lijst = modus === 'alleen' ? [perceel(film.vast)].filter(Boolean) : filmPercelenVan(modus);
+  if (!film.lijst.length) { toast(modus === 'gebruik' ? 'Er zijn geen percelen in gebruik of gebouwen om te laten zien' : 'Er zijn nog geen plekken om te laten zien', 1); return; }
   film.aan = true; film.i = 0; drieDVak(); drieD.resize();
   const el = $('#drieD'); el.classList.add('film');
   el.insertAdjacentHTML('beforeend', `<div class="filmKaart" id="filmKaart"></div><div class="filmInfo" id="filmInfo"></div><button class="filmStop" onclick="stopFilm()">✕ Stop film</button>`);
@@ -7573,7 +7870,7 @@ async function startFilm() {
 }
 function stopFilm(stil) {
   if (!film.aan) return;
-  film.aan = false; clearTimeout(film.wacht); clearInterval(film.feit); clearInterval(film.rol);
+  film.aan = false; clearTimeout(film.wacht); clearInterval(film.feit); clearInterval(film.rol); filmMediaStop();
   try { film.slot?.release(); } catch {} film.slot = null;
   const el = $('#drieD'); el?.classList.remove('film'); $('#filmKaart')?.remove(); $('#filmInfo')?.remove(); el?.querySelector('.filmStop')?.remove();
   if (!stil && drieD) { drieDVak(); drieD.resize(); }
@@ -7581,16 +7878,17 @@ function stopFilm(stil) {
 function filmVolgende() {
   if (!film.aan || !drieD) return;
   const p = film.lijst[film.i % film.lijst.length]; film.i++;
-  stopOrbit(); clearInterval(film.feit); clearInterval(film.rol);
+  stopOrbit(); clearInterval(film.feit); clearInterval(film.rol); filmMediaStop();
   const kaart = $('#filmKaart'); if (kaart) kaart.classList.remove('zicht'); $('#filmInfo')?.classList.remove('zicht');
   const bb = turf.bbox(p.geo), cam = drieD.cameraForBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {padding: 90});
-  drieD.flyTo({center: cam?.center || turf.centroid(p.geo).geometry.coordinates, zoom: (cam?.zoom || 16) - .35, pitch: 64, bearing: drieD.getBearing() + 70, duration: film.i === 1 ? 3500 : 7000, curve: 1.3, essential: true});
+  drieD.flyTo({center: cam?.center || turf.centroid(p.geo).geometry.coordinates, zoom: Math.min((cam?.zoom || 16) - .35, isGebouw(p) ? 18.4 : 18), pitch: isGebouw(p) ? 58 : 64, bearing: drieD.getBearing() + 70, duration: film.i === 1 ? 3500 : 7000, curve: 1.3, essential: true});
   drieD.once('moveend', async () => {
     if (!film.aan) return;
     drieDDraai(true, .0035);   // langzaam om het veld heen
     const feiten = await feitenVan(p);
     if (!film.aan) return;
-    const duur = Math.max(22000, feiten.length * 4600 + 1500);
+    const duur = Math.max(22000, feiten.length * 4600 + 1500, filmMediaDuur(p) + 3000);
+    filmMediaSpelen(p);
     const info = $('#filmInfo'); if (info) { try { info.innerHTML = filmInfo(p); info.scrollTop = 0; info.classList.add('zicht'); filmScroll(info, duur); } catch (e) { console.warn(e); } }
     let k = 0;
     const toon = () => { const el = $('#filmKaart'); if (!el) return; el.classList.remove('zicht');
@@ -7605,7 +7903,8 @@ async function feitenVan(p) {
   const f = [], nu = Date.now(), dag = 864e5;
   const tl = [...teeltOppervlak(p).entries()].map(([id, v]) => ({t: teelt(id), m2: v.m2})).filter(x => x.t).sort((a, b) => b.m2 - a.m2);
   const opp = turf.area(p.geo);
-  f.push(tl.length ? `🌱 Hier staat ${tl.slice(0, 2).map(x => `<b>${esc(x.t.naam)}</b> (${ha(x.m2)} ha)`).join(' en ')}${tl.length > 2 ? ` en nog ${tl.length - 2} andere` : ''}` : `📐 Dit veld is <b>${ha(opp)} ha</b> groot`);
+  if (isGebouw(p)) f.push(`${p.type === 'kas' ? '🏡 Deze kas' : '🏭 Dit gebouw'} is <b>${Math.round(opp).toLocaleString('nl-NL')} m²</b>${p.model3d?.h ? ` en <b>${String(p.model3d.h).replace('.', ',')} m</b> hoog` : ''}${p.bag?.bouwjaar ? `, gebouwd in ${p.bag.bouwjaar}` : ''}`);
+  if (!isGebouw(p) || tl.length) f.push(tl.length ? `🌱 Hier staat ${tl.slice(0, 2).map(x => `<b>${esc(x.t.naam)}</b> (${ha(x.m2)} ha)`).join(' en ')}${tl.length > 2 ? ` en nog ${tl.length - 2} andere` : ''}` : `📐 Dit veld is <b>${ha(opp)} ha</b> groot`);
   // werk dat nu gebeurt of gepland staat
   S.taken.filter(t => !t.klaar && betreft(t, p.id)).forEach(t => {
     if (t.bezig_door) f.push(`👷 <b>${esc(t.bezig_door)}</b> is hier bezig met ${esc(kleineLetter(t.tekst))}${t.trekker ? ` <small>(${esc(t.trekker)})</small>` : ''}`);
@@ -7650,7 +7949,7 @@ function filmInfo(p) {
   const beplant = tl.filter(x => !vanTeelt(x.t)).reduce((s, x) => s + x.m2, 0);
   const open = S.taken.filter(t => !t.klaar && betreft(t, p.id)), klaar = S.taken.filter(t => t.klaar && betreft(t, p.id) && t.klaar_op).sort((a, b) => b.klaar_op.localeCompare(a.klaar_op));
   const cijfer = (w, l) => `<div><b>${w}</b><small>${l}</small></div>`;
-  let h = `<h4>📐 Het veld</h4><div class="fiCijfers">${cijfer(ha(opp), 'hectare')}${cijfer(sporen ? getal(sporen) : '–', 'sporen')}${cijfer(p.banen_aan && +p.breedte ? String(p.breedte).replace('.', ',') + ' m' : '–', 'spoorbreedte')}
+  let h = isGebouw(p) ? `<h4>🏗️ Het gebouw</h4><div class="fiCijfers">${cijfer(Math.round(opp).toLocaleString('nl-NL'), 'm²')}${cijfer(p.model3d?.h ? String(p.model3d.h).replace('.', ',') + ' m' : '–', 'hoog')}${cijfer(p.bag?.bouwjaar || p.model3d?.bouwjaar || '–', 'bouwjaar')}${cijfer(open.length, open.length === 1 ? 'open taak' : 'open taken')}${cijfer((p.film_media || []).length || '–', 'foto\'s/video\'s')}${cijfer(tl.length || '–', tl.length === 1 ? 'teelt' : 'teelten')}</div>` : `<h4>📐 Het veld</h4><div class="fiCijfers">${cijfer(ha(opp), 'hectare')}${cijfer(sporen ? getal(sporen) : '–', 'sporen')}${cijfer(p.banen_aan && +p.breedte ? String(p.breedte).replace('.', ',') + ' m' : '–', 'spoorbreedte')}
     ${cijfer(beplant ? Math.min(100, Math.round(beplant / opp * 100)) + '%' : '–', 'beplant')}${cijfer(tl.length || '–', tl.length === 1 ? 'teelt' : 'teelten')}${cijfer(open.length, open.length === 1 ? 'open taak' : 'open taken')}</div>`;
   if (tl.length) {
     h += `<h4>🌱 Wat staat er</h4>` + tl.slice(0, 4).map(x => {
@@ -9155,7 +9454,7 @@ function startRijden3d() {
 function stopVloot3d() {
   cancelAnimationFrame(V3.raf); V3.raf = 0;
   if (M3D) V3.items.forEach(it => { if (it.m) { M3D.opruimen(it.m.combo); if (it.m.aan) M3D.opruimen(it.m.aan); } });
-  V3.items.clear(); try { V3.r?.dispose(); } catch {} V3.r = null; V3.A = null;
+  V3.items.clear(); try { V3.r?.dispose(); } catch {} V3.r = null; V3.A = null; V3.gebSleutel = null; V3.geb = null;
 }
 function schaal3d(b) { return Math.min(5, Math.max(1, (b?.span || 50) / 55)); }   // groter dan echt, zodat je ze goed ziet
 function tekenOverlay3d() {
@@ -9175,8 +9474,9 @@ function tekenOverlay3d() {
       V3.sc = new T.Scene(); V3.sc.environment = M3D.omgeving(V3.r); V3.zon = vlootLicht(T, V3.sc);
       V3.zon.castShadow = true; V3.zon.shadow.mapSize.set(2048, 2048); V3.zon.shadow.bias = -.0004;
       V3.vang = new T.Mesh(new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new T.ShadowMaterial({opacity: .32})); V3.vang.receiveShadow = true; V3.sc.add(V3.vang);
-      V3.cam = new T.Camera(); V3.W = 0;
+      V3.cam = new T.Camera(); V3.W = 0; V3.gebSleutel = null; V3.geb = null;
     }
+    try { gebouwen3d(T); } catch (e) { console.warn('gebouwen 3D', e); }
     if (V3.W !== B || V3.H !== H) { V3.W = B; V3.H = H; V3.r.setSize(B, H); }
     M3D.schaduwSterkte(.3);
     if (doek) doek.getContext('2d').clearRect(0, 0, doek.width, doek.height);
