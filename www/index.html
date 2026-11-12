@@ -6110,7 +6110,7 @@ function aiVeldAanpassen() {
     const z = alleZones(p).find(x => x.id === zz.zid); if (!z?._vak) return;
     const rijen = banenVan(z), L = aiIndeling(zz).length, n = rijen.length;
     if (L === n || !L) return;
-    if (L < n) { const st = besteVenster(rijen, L), g = vakPassend(z, st, L); if (g) AV.aanpassing.push({vakId: z._vak.id, naam: z.naam, van: n, naar: L, geo: g, aan: true, soort: 'smaller', m: (n - L) * (rijen[0]?.b || 0)}); }
+    if (L < n) { const st = besteVenster(rijen, L, zz.doel), g = vakPassend(z, st, L); if (g) AV.aanpassing.push({vakId: z._vak.id, naam: z.naam, van: n, naar: L, geo: g, aan: true, soort: 'smaller', m: (n - L) * (rijen[0]?.b || 0)}); }
     else { const g = vakUitbreiden(p, z, L - n); AV.aanpassing.push({vakId: z._vak.id, naam: z.naam, van: n, naar: L, geo: g, aan: !!g, soort: 'breder', m: (L - n) * (rijen[0]?.b || 0)}); }
   });
   if (!AV.aanpassing.length || !mag('deelvelden_bewerken')) { if (AV.aanpassing.length) toast('Je mag geen deelvelden aanpassen; ik ga meteen naar het invullen', 1); return aiVeldVoorbeeld(); }
@@ -6142,13 +6142,22 @@ async function aiVeldAanpassenOvernemen() {
   aiVeldVoorbeeld();
 }
 // waar de blokken het best passen: het stuk met de langste (volle) sporen; bij gelijke stand in het midden
-function besteVenster(rijen, L) {
+function besteVenster(rijen, L, doel) {
   const n = rijen.length; if (L >= n) return 0;
   const lengte = rijen.map(bn => bn.t1 - bn.t0), score = [];
   let som = lengte.slice(0, L).reduce((a, b) => a + b, 0); score.push(som);
   for (let i = 1; i + L <= n; i++) { som += lengte[i + L - 1] - lengte[i - 1]; score.push(som); }
-  const max = Math.max(...score), mid = (n - L) / 2;
-  return score.map((v, i) => ({v, i})).filter(x => x.v >= max * .99).sort((a, b) => Math.abs(a.i - mid) - Math.abs(b.i - mid))[0].i;
+  const max = Math.max(...score), mid = (n - L) / 2, goed = score.map((v, i) => ({v, i})).filter(x => x.v >= max * .99);
+  // waar de blokken op de tekening liggen (midden van alle blokken, dwars op de sporen); anders in het midden
+  if (Number.isFinite(doel)) {
+    const b = rijen[0].b || 1, midA = i => (rijen[i].a + rijen[i + L - 1].a + b) / 2;
+    let i = goed.sort((x, y) => Math.abs(midA(x.i) - doel) - Math.abs(midA(y.i) - doel))[0].i;
+    // de tekening ligt er maar ongeveer over: ligt het er vlak tegenaan, dan echt tegen de rand
+    const kan = new Set(goed.map(x => x.i));
+    if (i <= 4 && kan.has(0)) i = 0; else if (n - L - i <= 4 && kan.has(n - L)) i = n - L;
+    return i;
+  }
+  return goed.sort((a, b) => Math.abs(a.i - mid) - Math.abs(b.i - mid))[0].i;
 }
 // nieuwe vorm voor een deelveld: alleen de L sporen vanaf spoor (start+1), langs de sporenraster-lijnen afgeknipt
 function vakPassend(z, start, L) {
@@ -6168,7 +6177,7 @@ function aiVeldVoorbeeld() {
   AV.zones.forEach(zz => {
     const z = alleZones(p).find(x => x.id === zz.zid), rijen = banenVan(z), pos = aiIndeling(zz), n = rijen.length;
     // de tekening valt meestal niet precies over het perceel: de blokken op de volle (lange) sporen leggen, niet op de stompjes
-    const voor = Math.max(0, Math.min(n - pos.length, zz.eerste ? zz.eerste - 1 : besteVenster(rijen, pos.length)));
+    const voor = Math.max(0, Math.min(n - pos.length, zz.eerste ? zz.eerste - 1 : besteVenster(rijen, pos.length, zz.doel)));
     zz.n = n; zz.pos = pos; zz.voor = Math.max(0, voor); zz.na = Math.max(0, n - pos.length - zz.voor); zz.aStart = rijen[zz.voor]?.a;
     if (zz.passend == null) zz.passend = false;   // het passend maken gebeurt nu in stap 1
     if (z?._vak && zz.passend && zz.voor + zz.na > 0) { const g = vakPassend(z, zz.voor, pos.length); if (g) L.geoJSON(g, {interactive: false, style: {color: '#ff4081', weight: 3, dashArray: '8 6', fill: false}}).addTo(focusLaag); }
@@ -6212,7 +6221,7 @@ async function aiVeldOvernemen() {
     AV.zones.forEach(zz => { const z = alleZones(p).find(x => x.id === zz.zid); if (!z?._vak || !zz.passend || !(zz.voor + zz.na)) return;
       const g = vakPassend(z, zz.voor, zz.pos.length); if (!g) return; const v = nieuweVakken.find(x => x.id === z._vak.id); v.geo = g; v.banen = []; geknipt++; zz.eerste = null; zz.aStart = null; });
     if (geknipt) { await wijzig(p.id, {vakken: nieuweVakken}); AV.zones.forEach(zz => { const z = alleZones(perceel(AV.pid)).find(x => x.id === zz.zid); const rijen = banenVan(z); zz.n = rijen.length;
-        const v = Math.max(0, Math.min(zz.n - zz.pos.length, besteVenster(rijen, zz.pos.length))); zz.voor = v; zz.na = Math.max(0, zz.n - zz.pos.length - v); zz.aStart = rijen[v]?.a; }); }
+        const v = Math.max(0, Math.min(zz.n - zz.pos.length, besteVenster(rijen, zz.pos.length, zz.doel))); zz.voor = v; zz.na = Math.max(0, zz.n - zz.pos.length - v); zz.aStart = rijen[v]?.a; }); }
     // 1. sporen die overblijven → kopeinde (vlakken precies over die sporen)
     const restVlakken = [];
     if (AV.rest === 'kop' && mag('kopeinden_bewerken')) AV.zones.forEach(zz => {
@@ -6377,7 +6386,10 @@ async function indelingOvernemen() {
       const rijen = banenVan(z), meta = rijen.meta; if (!meta) return null;
       const dwars = b => { if (!Array.isArray(b.midden)) return 0; const q = meta.naarM(AV.uitlezen ? aiPixelNaarGeo(b.midden) : [0, 0]); return q[0] * meta.n[0] + q[1] * meta.n[1]; };
       const blokken = [...(x.deel.blokken || [])].sort((a, b) => dwars(a) - dwars(b));
-      return {zid: z.id, eerste: null, blokken: blokken.map(b => ({...aiKoppel(p2, {...b, zone: z._vak ? zoneLetter(p2, z) : '', van: 1, tot: 1}),
+      // midden van alle blokken samen op de tekening, dwars op de sporen (om ze op de goede plek in het veld te leggen)
+      const mt = blokken.filter(b => Array.isArray(b.midden)), br = +AV.breedte || 1.5, nR = b => +String(b.rijen || 0).replace(',', '.').replace(/^(\d+)\s*\+\s*(\d+)$/, (_, a, c) => +a + +c) || 0;
+      const doel = mt.length >= 2 ? ((dwars(mt[0]) - nR(mt[0]) * br / 2) + (dwars(mt[mt.length - 1]) + nR(mt[mt.length - 1]) * br / 2)) / 2 : NaN;
+      return {zid: z.id, eerste: null, doel, blokken: blokken.map(b => ({...aiKoppel(p2, {...b, zone: z._vak ? zoneLetter(p2, z) : '', van: 1, tot: 1}),
         rijen: +String(b.rijen).replace(',', '.').replace(/^(\d+)\s*\+\s*(\d+)$/, (_, a, c) => +a + +c) || 0, klasse: b.klasse || '', doel: b.doel || '', lengte: +b.lengte_m || null, m2: +b.m2 || null, plm: +String(b.pl_per_m || '').replace(',', '.') || null, gewas: b.gewas || ''}))};
     }).filter(Boolean);
     banner(null);
