@@ -575,7 +575,8 @@ details.szblok summary h4{margin:6px 0}
 .tmPrikUitleg{background:#fb8c00;color:#fff;font-size:20px;font-weight:700;padding:10px 14px;text-align:center;pointer-events:auto}
 .tmBalk{display:flex;gap:10px;padding:12px;background:rgba(20,38,26,.94);pointer-events:auto}.tmBalk button{flex:1;min-height:76px;border:0;border-radius:16px;background:#2e5e3a;color:#fff;font-size:20px;font-weight:700}.tmBalk button.aan{background:#1e88e5}
 #trekkerScherm.kaart{background:transparent;pointer-events:none}#trekkerScherm.kaart .tmKop{pointer-events:auto;background:rgba(31,61,39,.94)}#trekkerScherm.kaart .tmBody{display:flex;flex-direction:column;justify-content:flex-end;padding:0;overflow:visible}
-body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.tmKaart #kaartUI,body.tmKaart #paneelKnop,body.tmKaart #rijBalk{display:none!important}body.tmKaart #map{left:0!important;top:0!important;bottom:0!important;right:0!important}
+body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.tmKaart #kaartUI,body.tmKaart #paneelKnop,body.tmKaart #rijBalk{display:none!important}body.tmKaart #map{left:0!important;top:var(--tmBoven,0px)!important;bottom:var(--tmOnder,0px)!important;right:0!important}
+#tmTerugKnop{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:4900;border:0;border-radius:18px;background:#2e7d32;color:#fff;font-size:22px;font-weight:800;padding:16px 26px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
 .tmGps{font-size:15px;color:#c8e6c9;margin-top:4px}.tmGps b{color:#fff}
 .trekker3d{background:none;border:0}.trekker3d img{display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35)) grayscale(.75) brightness(.9);opacity:.85}.trekker3d.live img{filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));opacity:1}
 .tmKlein2{display:block;font-size:15px;font-weight:600;color:#c8e6c9;margin-top:2px}.tmTegel.aan{background:#2e7d32;outline:4px solid #ffd54f}.tmMachines{height:auto;grid-auto-rows:150px}.tmMachines img{width:86px;height:64px;object-fit:cover;border-radius:10px}
@@ -4535,8 +4536,10 @@ function trekkerBeeld(t, px) {
   tekenModel3d(ctx, {id: 'gps:' + t.id, trekker: t.naam, werktuig: wt, tekst: wt}, 0, naarScherm, naarWereld, null, extra ? {extra} : {});
   const url = cv.toDataURL(); if (trekkerBeeldCache.size > 300) trekkerBeeldCache.clear(); trekkerBeeldCache.set(key, url); return url;
 }
+// grootte op de kaart: krimpt en groeit mee met in- en uitzoomen (zelfde grootte als vroeger op zoom 18, het perceel-zoomniveau), maar nooit onzichtbaar klein
+const trekkerPx = () => { const z = map?.getZoom?.() ?? 18, px = 64 * trekkerGrootte() * Math.pow(2, z - 18); return Math.max(14, Math.min(480, Math.round(px / 2) * 2)); };
 function tractorIcoon(t) {
-  const px = Math.round(64 * trekkerGrootte());
+  const px = trekkerPx();
   try {
     const url = trekkerBeeld(t, px);
     return L.divIcon({className: 'trekker3d' + (isLive(t) ? ' live' : ''), iconSize: [px, px], iconAnchor: [px / 2, px * .58], html: `<img src="${url}" width="${px}" height="${px}" alt="">`});
@@ -4548,6 +4551,7 @@ function tractorIcoon(t) {
 }
 function tekenTractoren() {
   if (!tractorLaag) return;
+  if (!tekenTractoren.zoom && map) { tekenTractoren.zoom = true; let vorige = trekkerPx(); map.on('zoomend', () => { const n = trekkerPx(); if (n !== vorige) { vorige = n; tekenTractoren(); } }); }
   tractorLaag.clearLayers();
   if (weergave._tractoren === false || !ziet('tractoren_volgen')) return;
   if (volgId && routes[volgId]?.length > 1)
@@ -4756,7 +4760,7 @@ function toonMenu() {
   el.innerHTML = `<div class="mBinnen">
     <div class="mKop"><div><div class="mLogo">🌾 Perceel App</div><h1>${groet}, ${esc((naamMe() || '').split(' ')[0])}</h1>
       <p>${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})} · seizoen ${esc(seizoenNaam(bekeken))}</p></div>
-      <button class="mUit" title="Uitloggen" onclick="uitloggen()">🚪</button></div>
+      <button class="mUit" title="Uitloggen" onclick="${isApparaat() ? 'tmUitloggen()' : 'uitloggen()'}">🚪</button></div>
     <div class="mTegels">
       ${tegel('spuiten', 'Spuiten', 'Spuitregister, middelen en het weer bij het spuiten', `${S.taken.filter(t => !t.klaar && isSpuitTaak(t)).length} gepland`)}
       ${tegel('kunstmest', 'Kunstmest', 'Bemesting per perceel en de gebruiksnormen', '')}
@@ -4767,7 +4771,7 @@ function toonMenu() {
       ${isApparaat() ? '' : tegel('persoonlijk', 'Persoonlijke gegevens', 'Je gegevens, je uren, je agenda en je wachtwoord', '')}
       ${magBeheer() && !isApparaat() ? tegel('beheer', 'Gegevens aanpassen', 'Bedrijf, bio-dossier, machines, planten, seizoenen en het team', 'voor beheerders') : ''}
     </div>
-    <div class="mSnel"><button onclick="trekkerModus(true)">🚜 Trekker-modus</button><button onclick="verbergMenu();openAgenda()">📆 Agenda</button><button onclick="verbergMenu();openMeldingen()">🔔 Meldingen</button><button onclick="verbergMenu();startFilm()">🎬 Film</button></div>
+    <div class="mSnel"><button onclick="trekkerModus(true)">🚜 Trekker-modus</button><button onclick="verbergMenu();openAgenda()">📆 Agenda</button><button onclick="verbergMenu();openMeldingen()">🔔 Meldingen</button>${isApparaat() ? '' : '<button onclick="verbergMenu();startFilm()">🎬 Film</button>'}</div>
   </div>`;
   el.classList.add('open'); document.body.classList.add('menuOpen');
 }
@@ -6063,8 +6067,10 @@ function tmRender() {
       ${mag('markeringen_maken') || mag('monsters_beheren') ? `<button class="tmTegel" onclick="waarnemingFormulier(null,{perceel_id:TM.pid,geo:TM.pos})"><span>🐛</span>Ziekte / plaag hier</button>` : ''}
       <button class="tmTegel" onclick="tmMachineOpen()"><span>⚙️</span>Machine<small class="tmKlein2">${esc(aangekoppeldTekst(tmTrekker() || {werktuig: TM.werktuig, werktuig_voor: TM.werktuigVoor}) || 'niets aangekoppeld')}</small></button>
       <button class="tmTegel" onclick="TM.scherm='perceel';tmRender()"><span>🔀</span>Ander perceel</button>
-      <button class="tmTegel" onclick="tmKaart()"><span>🗺️</span>Kaart</button></div>`;
+      <button class="tmTegel" onclick="tmKaart()"><span>🗺️</span>Kaart</button>
+      <button class="tmTegel" onclick="tmVolledigeApp()"><span>🖥️</span>Volledige app<small class="tmKlein2">zoals op de computer</small></button></div>`;
   el.innerHTML = kop + `<div class="tmBody">${body}</div>`;
+  if (TM.scherm === 'kaart') requestAnimationFrame(tmKaartRuimte);
 }
 function tmRegistreren() { if (!TM.pid) { toast('Kies eerst het perceel', 1); TM.scherm = 'perceel'; tmRender(); return; } actief = TM.pid;
   const tr = tmTrekker(), wt = [tr?.werktuig_voor || TM.werktuigVoor, tr?.werktuig || TM.werktuig].filter(Boolean).join(' + ');
@@ -6169,6 +6175,31 @@ async function tmGebiedKlaar() {
   if (!p) { toast('Teken het gebied op een perceel', 1); return; }
   tmPrikStop(); actief = p.id; await nieuweMarkering('gebied', geo); tmRender(); tmPlek();
 }
+// de kaart precies tussen de kop en de knoppen, zodat er niets (zoals een popup) achter verdwijnt
+function tmKaartRuimte() {
+  const el = $('#trekkerScherm'); if (!el || TM.scherm !== 'kaart') return;
+  const kop = el.querySelector('.tmKop'), eerste = el.querySelector('.tmBody')?.firstElementChild;
+  const boven = Math.round(kop?.getBoundingClientRect().bottom || 0), onder = Math.round(eerste ? innerHeight - eerste.getBoundingClientRect().top : 0);
+  const r = document.documentElement.style;
+  if (r.getPropertyValue('--tmBoven') === boven + 'px' && r.getPropertyValue('--tmOnder') === onder + 'px') return;
+  r.setProperty('--tmBoven', boven + 'px'); r.setProperty('--tmOnder', onder + 'px');
+  try { map.invalidateSize({pan: false}); } catch {}
+}
+addEventListener('resize', () => { if (TM.aan && TM.scherm === 'kaart') setTimeout(tmKaartRuimte, 200); });
+// even naar de gewone app (zoals op de computer); de chauffeur blijft gekozen en met één knop terug
+function tmVolledigeApp() {
+  TM.terug = true; TM.aanraking = Date.now(); trekkerModus(false); toonMenu?.(); tmTerugKnop();
+}
+function tmTerugKnop() {
+  let k = $('#tmTerugKnop');
+  if (!TM.terug || TM.aan) { k?.remove(); return; }
+  if (!k) { k = document.createElement('button'); k.id = 'tmTerugKnop'; k.onclick = () => { TM.terug = false; k.remove(); verbergMenu?.(); trekkerModus(true); }; document.body.appendChild(k); }
+  k.textContent = `🚜 Terug naar trekker-modus${TM.chauffeur ? ' · ' + TM.chauffeur.naam : ''}`;
+}
+document.addEventListener('pointerdown', () => { TM.aanraking = Date.now(); }, true);
+setInterval(() => {   // trekkertablet: na 5 minuten niets doen vanzelf terug naar de trekker-modus
+  if (TM.terug && !TM.aan && typeof isApparaat === 'function' && isApparaat() && Date.now() - (TM.aanraking || 0) > 5 * 60e3 && !$('#modal')?.classList.contains('open')) { TM.terug = false; $('#tmTerugKnop')?.remove(); verbergMenu?.(); trekkerModus(true); }
+}, 30e3);
 function tmPerceelKiezen(id) { TM.pid = id; TM.handmatig = true; TM.volg = false; actief = id; tmRender(); render(true); tmPlek(); }
 // lijst van alle percelen (dichtstbij eerst); aantikken = er naartoe op de kaart
 function tmPerceelLijst() {
