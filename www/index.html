@@ -6081,11 +6081,12 @@ function aiTussen() {
 function aiIndeling(zz) {
   const tussen = aiTussen(), halfAan = tussen.filter(x => x === .5).length, pos = [];
   zz.blokken.forEach((b, i) => {
-    if (i) tussen.forEach(w => pos.push({w, id: w === .5 ? null : null, blok: w === .5 ? null : -1}));
+    if (i || zz.padVoor) tussen.forEach(w => pos.push({w, id: null, blok: w === .5 ? null : -1}));
     // halve rijen naast het spuitspoor horen bij de blokken ernaast
-    const zijden = (i ? 1 : 0) + (i < zz.blokken.length - 1 ? 1 : 0), vol = Math.max(0, Math.round(b.rijen - (halfAan ? zijden * .5 : 0)));
+    const zijden = (i || zz.padVoor ? 1 : 0) + (i < zz.blokken.length - 1 || zz.padNa ? 1 : 0), vol = Math.max(0, Math.round(b.rijen - (halfAan ? zijden * .5 : 0)));
     for (let k = 0; k < vol; k++) pos.push({w: 1, id: b.teelt, blok: i});
   });
+  if (zz.padNa && zz.blokken.length) tussen.forEach(w => pos.push({w, id: null, blok: w === .5 ? null : -1}));
   // halve rijen het ras van het blok ernaast geven
   pos.forEach((q, i) => { if (q.w === .5) { const nb = pos[i - 1]?.w === 1 ? pos[i - 1] : pos[i + 1]; q.id = nb?.id || null; q.blok = nb?.blok ?? -1; } });
   return pos;
@@ -6110,7 +6111,7 @@ function aiVeldAanpassen() {
     const z = alleZones(p).find(x => x.id === zz.zid); if (!z?._vak) return;
     const rijen = banenVan(z), L = aiIndeling(zz).length, n = rijen.length;
     if (L === n || !L) return;
-    if (L < n) { const st = besteVenster(rijen, L, zz.doel), g = vakPassend(z, st, L); if (g) AV.aanpassing.push({vakId: z._vak.id, naam: z.naam, van: n, naar: L, geo: g, aan: true, soort: 'smaller', m: (n - L) * (rijen[0]?.b || 0)}); }
+    if (L < n) { const st = zoneVenster(zz, rijen, L), g = vakPassend(z, st, L); if (g) AV.aanpassing.push({vakId: z._vak.id, naam: z.naam, van: n, naar: L, geo: g, aan: true, soort: 'smaller', m: (n - L) * (rijen[0]?.b || 0)}); }
     else { const g = vakUitbreiden(p, z, L - n); AV.aanpassing.push({vakId: z._vak.id, naam: z.naam, van: n, naar: L, geo: g, aan: !!g, soort: 'breder', m: (L - n) * (rijen[0]?.b || 0)}); }
   });
   if (!AV.aanpassing.length || !mag('deelvelden_bewerken')) { if (AV.aanpassing.length) toast('Je mag geen deelvelden aanpassen; ik ga meteen naar het invullen', 1); return aiVeldVoorbeeld(); }
@@ -6120,7 +6121,7 @@ function aiVeldAanpassen() {
     if (a.geo) L.geoJSON(a.geo, {interactive: false, style: {color: '#ff4081', weight: 3, dashArray: '8 6', fillColor: '#ff4081', fillOpacity: .18}}).addTo(focusLaag); });
   const hoofd = AV.zones.find(zz => !alleZones(p).find(x => x.id === zz.zid)?._vak);
   $('#modal').innerHTML = `<div class="dialoog breed"><h3>🤖 Stap 1 van 2: veld kloppend maken</h3>
-    <p class="hint" style="margin-top:0">Volgens de tekening kloppen deze deelvelden niet met het aantal rijen. Wit is je deelveld nu, roze gestippeld de nieuwe vorm: precies langs de sporen, op de volle (lange) sporen. Rijrichting en spoorbreedte blijven zoals jij ze hebt ingesteld. Wat eraf gaat hoort weer bij het hoofdveld.</p>
+    <p class="hint" style="margin-top:0">Volgens de tekening kloppen deze deelvelden niet met het aantal rijen. Wit is je deelveld nu, roze gestippeld de nieuwe vorm: precies langs de sporen, op de volle (lange) sporen. Rijrichting en spoorbreedte blijven zoals jij ze hebt ingesteld. ${AV.indelingFlow ? 'Wat eraf gaat hoort bij het deel ernaast (bijv. van de gier naar rechts); grenst het alleen aan het hoofdveld, dan blijft het bij het deel en wordt het kopeinde.' : 'Wat eraf gaat hoort weer bij het hoofdveld.'}</p>
     ${AV.aanpassing.map((a, i) => `<div class="aiBlok ${a.geo ? '' : 'twijfel'}"><label class="aiKop"><input type="checkbox" ${a.aan ? 'checked' : ''} ${a.geo ? '' : 'disabled'} onchange="AV.aanpassing[${i}].aan=this.checked">
       <b>${esc(a.naam)}</b>: ${a.van} → ${a.naar} sporen <span class="aiZeker">${a.soort} (±${String(Math.round(a.m * 10) / 10).replace('.', ',')} m)</span></label>
       ${a.geo ? '' : '<small>Breder maken lukt hier niet automatisch (geen ruimte in het perceel ernaast). Pas het deelveld met de hand aan.</small>'}</div>`).join('')}
@@ -6130,11 +6131,33 @@ function aiVeldAanpassen() {
     <button class="knop licht" onclick="$('#modal').classList.remove('open');focusLaag.clearLayers()">Stoppen</button></div>`;
   $('#modal').classList.add('open');
 }
+// bij het indelen vanaf de plattegrond: wat van een deel af gaat, hoort bij het deel ernaast (bijv. gier → rechts).
+// Grenst het alleen aan het hoofdveld, dan blijft het bij het eigen deel (de sporen daar worden later kopeinde).
+function restNaarBuren(p, nieuw) {
+  try {
+    const oud = new Map((p.vakken || []).map(v => [v.id, v.geo]));
+    const uit = nieuw.map(v => ({...v}));
+    nieuw.forEach(v => {
+      const o = oud.get(v.id); if (!o || o === v.geo) return;
+      let weg; try { weg = turf.difference(o, v.geo); } catch { return; } if (!weg) return;
+      const stukjes = weg.geometry.type === 'MultiPolygon' ? weg.geometry.coordinates.map(c => turf.polygon(c)) : [weg];
+      stukjes.filter(st => turf.area(st) > 1).forEach(st => {
+        const rand = turf.buffer(st, 2, {units: 'meters'}), raak = g => { try { const x = g && turf.intersect(rand, g); return x ? turf.area(x) : 0; } catch { return 0; } };
+        const buren = uit.filter(u => u.id !== v.id).map(u => ({u, m2: raak(oud.get(u.id) || u.geo)})).sort((x, y) => y.m2 - x.m2);
+        const zelf = uit.find(u => u.id === v.id), naar = buren[0]?.m2 > 1 ? buren[0].u : zelf;
+        try { const u = grootsteDeel(turf.union(naar.geo, st)); if (u) naar.geo = {type: 'Feature', properties: {}, geometry: u.geometry}; } catch {}
+        naar.banen = [];
+      });
+    });
+    return uit;
+  } catch (e) { console.warn('rest naar buren', e); return nieuw; }
+}
 async function aiVeldAanpassenOvernemen() {
   const p = perceel(AV.pid), lijst = AV.aanpassing.filter(a => a.aan && a.geo);
   $('#modal').classList.remove('open'); focusLaag.clearLayers();
   if (lijst.length) {
-    const vakken = (p.vakken || []).map(v => { const a = lijst.find(x => x.vakId === v.id); return a ? {...v, geo: a.geo, banen: []} : v; });
+    let vakken = (p.vakken || []).map(v => { const a = lijst.find(x => x.vakId === v.id); return a ? {...v, geo: a.geo, banen: []} : v; });
+    if (AV.indelingFlow) vakken = restNaarBuren(p, vakken);
     await wijzig(p.id, {vakken});
     AV.zones.forEach(zz => { zz.eerste = null; zz.aStart = null; });
     toast(`✂️ ${lijst.length} deelveld${lijst.length === 1 ? '' : 'en'} aangepast. Nu het invullen controleren.`);
@@ -6142,6 +6165,8 @@ async function aiVeldAanpassenOvernemen() {
   aiVeldVoorbeeld();
 }
 // waar de blokken het best passen: het stuk met de langste (volle) sporen; bij gelijke stand in het midden
+// ligt er een spuitpad op de scheiding, dan moeten de blokken (met dat pad) tegen die kant aan liggen
+const zoneVenster = (zz, rijen, L) => zz.padVoor ? 0 : zz.padNa ? Math.max(0, rijen.length - L) : besteVenster(rijen, L, zz.doel);
 function besteVenster(rijen, L, doel) {
   const n = rijen.length; if (L >= n) return 0;
   const lengte = rijen.map(bn => bn.t1 - bn.t0), score = [];
@@ -6177,7 +6202,7 @@ function aiVeldVoorbeeld() {
   AV.zones.forEach(zz => {
     const z = alleZones(p).find(x => x.id === zz.zid), rijen = banenVan(z), pos = aiIndeling(zz), n = rijen.length;
     // de tekening valt meestal niet precies over het perceel: de blokken op de volle (lange) sporen leggen, niet op de stompjes
-    const voor = Math.max(0, Math.min(n - pos.length, zz.eerste ? zz.eerste - 1 : besteVenster(rijen, pos.length, zz.doel)));
+    const voor = Math.max(0, Math.min(n - pos.length, zz.eerste ? zz.eerste - 1 : zoneVenster(zz, rijen, pos.length)));
     zz.n = n; zz.pos = pos; zz.voor = Math.max(0, voor); zz.na = Math.max(0, n - pos.length - zz.voor); zz.aStart = rijen[zz.voor]?.a;
     if (zz.passend == null) zz.passend = false;   // het passend maken gebeurt nu in stap 1
     if (z?._vak && zz.passend && zz.voor + zz.na > 0) { const g = vakPassend(z, zz.voor, pos.length); if (g) L.geoJSON(g, {interactive: false, style: {color: '#ff4081', weight: 3, dashArray: '8 6', fill: false}}).addTo(focusLaag); }
@@ -6221,7 +6246,7 @@ async function aiVeldOvernemen() {
     AV.zones.forEach(zz => { const z = alleZones(p).find(x => x.id === zz.zid); if (!z?._vak || !zz.passend || !(zz.voor + zz.na)) return;
       const g = vakPassend(z, zz.voor, zz.pos.length); if (!g) return; const v = nieuweVakken.find(x => x.id === z._vak.id); v.geo = g; v.banen = []; geknipt++; zz.eerste = null; zz.aStart = null; });
     if (geknipt) { await wijzig(p.id, {vakken: nieuweVakken}); AV.zones.forEach(zz => { const z = alleZones(perceel(AV.pid)).find(x => x.id === zz.zid); const rijen = banenVan(z); zz.n = rijen.length;
-        const v = Math.max(0, Math.min(zz.n - zz.pos.length, besteVenster(rijen, zz.pos.length, zz.doel))); zz.voor = v; zz.na = Math.max(0, zz.n - zz.pos.length - v); zz.aStart = rijen[v]?.a; }); }
+        const v = Math.max(0, Math.min(zz.n - zz.pos.length, zoneVenster(zz, rijen, zz.pos.length))); zz.voor = v; zz.na = Math.max(0, zz.n - zz.pos.length - v); zz.aStart = rijen[v]?.a; }); }
     // 1. sporen die overblijven → kopeinde (vlakken precies over die sporen)
     const restVlakken = [];
     if (AV.rest === 'kop' && mag('kopeinden_bewerken')) AV.zones.forEach(zz => {
@@ -6290,6 +6315,16 @@ function knipMetLijn(geo, a, b) {
   const deel = h => { try { const g = turf.intersect(geo, h); return g && turf.area(g) > 1 ? grootsteDeel(g) : null; } catch { return null; } };
   return [deel(links), deel(rechts)].filter(Boolean);
 }
+function scheidingRecht(a, b, richtingen) {
+  if (!richtingen.length) return [a, b];
+  const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], K = 111320, cl = Math.cos(m[1] * Math.PI / 180);
+  const dx = (b[0] - a[0]) * K * cl, dy = (b[1] - a[1]) * K, lijn = Math.atan2(dx, dy) * 180 / Math.PI, half = Math.hypot(dx, dy) / 2;
+  const verschil = r => { const v = (((r - lijn) % 180) + 180) % 180; return Math.min(v, 180 - v); };
+  const beste = [...richtingen].sort((x, y) => verschil(x) - verschil(y))[0];
+  if (verschil(beste) > 20) return [a, b];   // duidelijk een dwarse scheiding: laten zoals de tekening zegt
+  const r = beste * Math.PI / 180, ux = Math.sin(r), uy = Math.cos(r);
+  return [[m[0] - ux * half / (K * cl), m[1] - uy * half / K], [m[0] + ux * half / (K * cl), m[1] + uy * half / K]];
+}
 async function plattegrondIndelen(pid) {
   const p = perceel(pid), pl = p?.plattegrond;
   if (!mag('ai_gebruiken') || !mag('percelen_bewerken') || !mag('deelvelden_bewerken') || !mag('soorten_indelen') || !mag('spuitsporen_bewerken')) { toast('Hiervoor moet je de AI mogen gebruiken en percelen, deelvelden, planten en spuitsporen mogen aanpassen', 1); return; }
@@ -6316,12 +6351,12 @@ Het perceel bestaat uit delen: "links", "rechts" en soms "gier" (een smalle schu
 Per deel staat er meestal een GPS-richting, bijvoorbeeld "Richting GPS left 241,845" (= links), "right 62,147" (= rechts), "Gier 74,294" (= gier).
 Geef:
 1. per deel: naam, GPS-richting (getal met punt), de pixelposities van zijn twee hoekmarkeringen in plaatje 1, en ALLE blokken die in dat deel liggen. Per blok: ras, gewas, batch, klasse, doel (bijv. "bio frigo"), rijen (getal; "20+1" = 21), lengte_m, m2, pl_per_m, midden ([x,y] in pixels van plaatje 1) en zekerheid (0-1).
-2. de scheidingslijnen: voor elk paar delen dat tegen elkaar aan ligt twee punten [x,y] in plaatje 1 waartussen een rechte lijn die twee delen scheidt (bij de gier: de schuine lijn waar de gier ophoudt; tussen links en rechts: midden in de strook ertussen).
+2. de scheidingslijnen: voor elk paar delen dat tegen elkaar aan ligt twee punten [x,y] in plaatje 1 waartussen een rechte lijn die twee delen scheidt (bij de gier: de schuine lijn waar de gier ophoudt; tussen links en rechts: midden in de strook ertussen). Zet "pad": true als er op die scheiding een spuitpad ligt (zwarte lijn tussen de twee delen, zoals tussen de blokken), anders false (bijv. een strook gras of een sloot ertussen).
 3. de opstelling van de spuitpaden: "2breed" (spuitpad van 2 banen tussen de blokken), "20+1", "1breed" of "geen".
 Gewassen en rassen in de app:
 ${plantTekst}
 Antwoord ALLEEN met JSON:
-{"delen":[{"naam":"links","gps":241.845,"hoeken":[[x,y],[x,y]],"blokken":[{"ras":"","gewas":"","batch":"","klasse":"","doel":"","rijen":10,"lengte_m":218,"m2":3270,"pl_per_m":3.6,"midden":[x,y],"zekerheid":0.9}]}],"scheidingen":[{"tussen":["gier","rechts"],"punten":[[x,y],[x,y]]}],"opstelling":"2breed","opmerking":""}`);
+{"delen":[{"naam":"links","gps":241.845,"hoeken":[[x,y],[x,y]],"blokken":[{"ras":"","gewas":"","batch":"","klasse":"","doel":"","rijen":10,"lengte_m":218,"m2":3270,"pl_per_m":3.6,"midden":[x,y],"zekerheid":0.9}]}],"scheidingen":[{"tussen":["gier","rechts"],"punten":[[x,y],[x,y]],"pad":true}],"opstelling":"2breed","opmerking":""}`);
     banner(null);
     const delen = (uit.delen || []).filter(d => d && d.naam).map(d => ({...d, naam: String(d.naam).toLowerCase().trim(), gps: parseFloat(String(d.gps ?? '').replace(',', '.'))}));
     if (!delen.length) { toast('🤖 Ik kon geen delen of blokken op de tekening vinden', 1); return; }
@@ -6329,7 +6364,10 @@ Antwoord ALLEEN met JSON:
     // het perceel knippen langs de scheidingslijnen (alleen het stuk waar de lijn doorheen loopt)
     let stukken = [p.geo.geometry?.type === 'MultiPolygon' ? grootsteDeel(p.geo) : p.geo];
     (uit.scheidingen || []).forEach(sc => {
-      const [a, b] = (sc.punten || []).map(naar); if (!a || !b) return;
+      let [a, b] = (sc.punten || []).map(naar); if (!a || !b) return;
+      // de scheiding loopt in het echt evenwijdig aan de rijen: de lijn recht leggen op de rijrichting van een van de twee delen,
+      // anders lopen de rijen langs de scheiding schuin "de muur in" en zijn ze niet volledig
+      [a, b] = scheidingRecht(a, b, (sc.tussen || []).map(n => delen.find(d => d.naam === String(n).toLowerCase().trim())?.gps).filter(Number.isFinite));
       const midden = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
       let i = stukken.findIndex(g => { try { return turf.booleanPointInPolygon(turf.point(midden), g); } catch { return false; } });
       if (i < 0) i = stukken.map((g, k) => ({k, d: turf.distance(turf.centroid(g), turf.point(midden))})).sort((x, y) => x.d - y.d)[0].k;
@@ -6373,11 +6411,11 @@ async function indelingOvernemen() {
   const p = perceel(AV.pid), [hoofd, ...rest] = AV.indeling;
   if (AV.indeling.some(x => !Number.isFinite(x.deel.gps))) { toast('Vul bij elk deel de GPS-richting in', 1); return; }
   $('#modal').classList.remove('open'); focusLaag.clearLayers();
-  banner('<b>🤖 Sporen maken…</b>');
+  banner('<b>🤖 Sporen maken…</b>'); AV.indelingFlow = true;
   try {
     const rond = g => Math.round((((g % 360) + 360) % 360) * 1000) / 1000;
     const vakken = rest.map((x, i) => ({id: Date.now().toString(36) + i + Math.random().toString(36).slice(2, 6), naam: DEEL_NAMEN[x.deel.naam] || x.deel.naam, geo: x.geo, richting: rond(x.deel.gps), breedte: AV.breedte, verschuiving: 0, banen: [], spuit: {}}));
-    await wijzig(p.id, {richting: rond(hoofd.deel.gps), breedte: AV.breedte, verschuiving: 0, aantal: null, banen_aan: true, banen: [], spuit: {}, vakken, gewas: null});
+    await wijzig(p.id, {richting: rond(hoofd.deel.gps), breedte: AV.breedte, verschuiving: 0, aantal: 0, banen_aan: true, banen: [], spuit: {}, vakken, gewas: null});
     render(true);
     // blokken per deel in de volgorde van de sporen (dwars op de rijen, vanaf spoor 1)
     const p2 = perceel(p.id), zs = alleZones(p2);
@@ -6389,9 +6427,19 @@ async function indelingOvernemen() {
       // midden van alle blokken samen op de tekening, dwars op de sporen (om ze op de goede plek in het veld te leggen)
       const mt = blokken.filter(b => Array.isArray(b.midden)), br = +AV.breedte || 1.5, nR = b => +String(b.rijen || 0).replace(',', '.').replace(/^(\d+)\s*\+\s*(\d+)$/, (_, a, c) => +a + +c) || 0;
       const doel = mt.length >= 2 ? ((dwars(mt[0]) - nR(mt[0]) * br / 2) + (dwars(mt[mt.length - 1]) + nR(mt[mt.length - 1]) * br / 2)) / 2 : NaN;
-      return {zid: z.id, eerste: null, doel, blokken: blokken.map(b => ({...aiKoppel(p2, {...b, zone: z._vak ? zoneLetter(p2, z) : '', van: 1, tot: 1}),
+      return {zid: z.id, idx: i, eerste: null, doel, blokken: blokken.map(b => ({...aiKoppel(p2, {...b, zone: z._vak ? zoneLetter(p2, z) : '', van: 1, tot: 1}),
         rijen: +String(b.rijen).replace(',', '.').replace(/^(\d+)\s*\+\s*(\d+)$/, (_, a, c) => +a + +c) || 0, klasse: b.klasse || '', doel: b.doel || '', lengte: +b.lengte_m || null, m2: +b.m2 || null, plm: +String(b.pl_per_m || '').replace(',', '.') || null, gewas: b.gewas || ''}))};
     }).filter(Boolean);
+    // spuitpad op de scheiding tussen twee delen (bijv. tussen gier en rechts): bij het grootste deel (niet de gier) aan die kant erbij
+    (AV.uitlezen?.scheidingen || []).forEach(sc => {
+      const namen = (sc.tussen || []).map(n => String(n).toLowerCase().trim()); if (namen.length !== 2) return;
+      if (sc.pad === false || (sc.pad == null && !namen.includes('gier'))) return;
+      const ii = namen.map(n => AV.indeling.findIndex(x => x.deel.naam === n)); if (ii.some(i => i < 0)) return;
+      const [doelI, buurI] = namen[0] === 'gier' ? [ii[1], ii[0]] : namen[1] === 'gier' ? [ii[0], ii[1]] : turf.area(AV.indeling[ii[0]].geo) >= turf.area(AV.indeling[ii[1]].geo) ? ii : [ii[1], ii[0]];
+      const zz = AV.zones.find(q => q.idx === doelI), z = zz && alleZones(perceel(p.id)).find(q => q.id === zz.zid), rijen = z && banenVan(z), meta = rijen?.meta; if (!meta || !rijen.length) return;
+      const q = meta.naarM(turf.centroid(AV.indeling[buurI].geo).geometry.coordinates), buurA = q[0] * meta.n[0] + q[1] * meta.n[1], midA = (rijen[0].a + rijen[rijen.length - 1].a) / 2;
+      if (buurA > midA) zz.padNa = true; else zz.padVoor = true;
+    });
     banner(null);
     aiVeldAanpassen();   // eventueel deelvelden passend maken op het aantal rijen, daarna het voorbeeld van het invullen
   } catch (e) { banner(null); toast('Indelen mislukt: ' + (e.message || e), 1); }
