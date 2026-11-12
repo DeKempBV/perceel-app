@@ -34,8 +34,8 @@ button{font:inherit;cursor:pointer}
 .kop .logo{font-weight:800;font-size:18px;flex:1;letter-spacing:-.2px;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .kop .wie{font-size:12px;opacity:.85;text-align:right;line-height:1.3}
 .kop .uit{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:8px;padding:6px 9px;font-size:12px}
-.tabs{display:flex;background:var(--groen);padding:0 4px}
-.tabs button{flex:1;min-width:0;background:none;border:0;color:#bcd6bf;padding:6px 0 7px;font-size:10.5px;font-weight:700;border-bottom:3px solid transparent;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs{display:flex;background:var(--groen);padding:0 4px;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:1 0 auto;min-width:52px;padding-left:4px!important;padding-right:4px!important;background:none;border:0;color:#bcd6bf;padding:6px 0 7px;font-size:10.5px;font-weight:700;border-bottom:3px solid transparent;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tabs button .ti{font-size:18px;line-height:1.15;position:relative;filter:saturate(.85)}
 .tabs button.aan{color:#fff;border-color:var(--geel)}
 .tabs button.aan .ti{filter:none}
@@ -58,6 +58,7 @@ label{display:block;font-size:12px;color:var(--grijs);margin:8px 0 4px}
 .rij{display:flex;gap:8px;align-items:center}
 .rij>.knop{flex:1}
 .raster3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.schuifBlok{margin-top:10px}.schuifRij{display:grid!important;grid-template-columns:repeat(3,1fr) 1.4fr repeat(3,1fr);gap:4px;align-items:center}.schuifRij .knop.klein{font-size:12px;padding:7px 2px}.schuifBlok .knop.klein{flex:1 1 auto;width:auto;margin:0;padding:7px 6px}.schuifRij .veld{flex:1 1 80px;margin:0;min-width:70px;text-align:center}
 .hint{font-size:12px;color:var(--grijs);margin-top:8px;line-height:1.45}
 .leeg{text-align:center;color:var(--grijs);padding:36px 12px}
 .leeg .groot{font-size:44px;margin-bottom:8px}
@@ -1443,6 +1444,7 @@ function klikBaan(p, bn, ll) {
   const idx = isGeknipt(v) ? v.k.filter(x => x <= t).length : 0;
   const magIndelen = mag('soorten_indelen');
 
+  if (gereedschap === 'spoorweg') { spoorWeg(p, bn); return; }
   if (gereedschap === 'spuit') {
     if (!mag('spuitsporen_bewerken')) { toast('Je mag geen spuitsporen aanpassen', 1); return; }
     wisselSpuit(p, bn.nr); return;
@@ -2243,7 +2245,7 @@ function vakZone(p, v) {
   }
   return {id: p.id + ':' + v.id, _perceel: p, _vak: v, naam: v.naam, vulgeo: g, binnen, geo: v.geo, type: p.type, banen_aan: !v.zonderSporen, gewas: v.gewas || null,
     richting: +v.richting || 0, breedte: +v.breedte || +p.breedte || 3, aantal: +v.aantal || 0, verschuiving: +v.verschuiving || 0, banen: v.banen || [],
-    ab_punt: v.ab_punt || null, ab_uitlijning: v.ab_uitlijning || 'midden'};
+    ab_punt: v.ab_punt || null, ab_uitlijning: v.ab_uitlijning || 'midden', sporen_weg: v.sporen_weg || []};
 }
 const zoneVlak = z => z._vak ? z.vulgeo : vulGebied(z);            // het stuk dat bij deze zone hoort
 const zoneGewas = z => !banenVan(z).length && teelt(z.gewas) ? z.gewas : null;   // heel vlak één gewas (alleen zonder sporen)
@@ -2272,7 +2274,8 @@ function banenVan(p) {
   if (!p || p.type === 'pand' || !p.banen_aan || !(+p.breedte > 0)) return [];
   const gebied = p._vak ? p.vulgeo : vulGebied(p);   // waar sporen mogen komen
   if (!gebied) return [];
-  const sleutel = JSON.stringify([p.geo, gebied, p.richting, p.breedte, p.aantal, p.verschuiving, p.ab_punt, p.ab_uitlijning]);
+  const weg = new Set(Array.isArray(p.sporen_weg) ? p.sporen_weg : []);   // weggehaalde sporen (plek in het raster)
+  const sleutel = JSON.stringify([p.geo, gebied, p.richting, p.breedte, p.aantal, p.verschuiving, p.ab_punt, p.ab_uitlijning, [...weg]]);
   const c = banenCache.get(p.id); if (c && c.sleutel === sleutel) return c.res;
   const res = [];
   try {
@@ -2284,7 +2287,7 @@ function banenVan(p) {
     const h = (+p.richting || 0) * Math.PI / 180;
     const d = [Math.sin(h), Math.cos(h)];   // rijrichting (0° = noord)
     const n = [Math.cos(h), -Math.sin(h)];  // dwars op de rijrichting
-    res.meta = {naarM, naarG, d, n};
+    res.meta = {naarM, naarG, d, n}; res.weg = [];
     const pts = turf.coordAll(p.geo).map(naarM);   // uitlijning op de buitenrand
     const dwars = pts.map(q => q[0] * n[0] + q[1] * n[1]);
     const lengte = Math.max(...pts.map(q => Math.abs(q[0] * d[0] + q[1] * d[1]))) + 50;
@@ -2303,7 +2306,9 @@ function banenVan(p) {
         const m2 = turf.area(stuk);
         if (m2 > 0.5) {
           const t = turf.coordAll(stuk).map(q => { const z = naarM(q); return z[0] * d[0] + z[1] * d[1]; });
-          res.push({nr: res.length + 1, geo: stuk, m2, a, b, t0: Math.min(...t), t1: Math.max(...t)});
+          const k = Math.round((a - start) / b);   // vaste plek in het raster: blijft hetzelfde bij opschuiven en weghalen
+          if (weg.has(k)) res.weg.push({k, geo: stuk, a, b}); else
+          res.push({nr: res.length + 1, k, geo: stuk, m2, a, b, t0: Math.min(...t), t1: Math.max(...t)});
         }
       }
     }
@@ -3053,6 +3058,8 @@ function halfStuk(p, bn, geo) {
 }
 function tekenZone(p, isA) {
   const metPatroon = !!patroonVan(p);
+  if (isA && gereedschap === 'spoorweg') (banenVan(p).weg || []).forEach(w => geenSnap(L.geoJSON(w.geo, {style: {color: '#e53935', weight: 1.5, dashArray: '5 4', fillColor: '#e53935', fillOpacity: .12}}))
+    .bindTooltip('✂️ Weggehaald spoor · tik om terug te zetten', {sticky: true}).on('click', ev => { L.DomEvent.stopPropagation(ev); spoorTerug(p, w.k); }).addTo(laag));
   banenVan(p).forEach(bn => {
     const stukken = stukkenVan(p, bn), f = metPatroon ? rijFactor(p, bn.nr) : 1;
     stukken.forEach(st => {
@@ -3087,14 +3094,16 @@ document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = f
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
 const VOL_TABS = new Set(['taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
+let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
-  const vol = VOL_TABS.has(tab) && !kaartErbij && !(typeof menuOpen !== 'undefined' && menuOpen);
+  const vol = (VOL_TABS.has(tab) ? !kaartErbij : kaartWeg) && !(typeof menuOpen !== 'undefined' && menuOpen);
   if (document.body.classList.contains('volscherm') === vol) return;
   document.body.classList.toggle('volscherm', vol);
   setTimeout(() => { try { map.invalidateSize(); } catch {} }, 280);
 }
-function kaartTonen(aan) { kaartErbij = aan; volScherm(); }
-function zetTab(t) { if (t === 'uren' && tab !== 'uren') laadUren(); if (t !== tab) kaartErbij = false; tab = t; if (t !== 'percelen') { kwast = undefined; gekozenPlant = undefined; } render(true); $('#inhoud').scrollTop = 0; }
+function kaartTonen(aan) { if (VOL_TABS.has(tab)) kaartErbij = aan; else kaartWeg = !aan; renderPaneel(); }
+const isVol = () => VOL_TABS.has(tab) ? !kaartErbij : kaartWeg;
+function zetTab(t) { if (t === 'uren' && tab !== 'uren') laadUren(); if (t !== tab) { kaartErbij = false; kaartWeg = false; } tab = t; if (t !== 'percelen') { kwast = undefined; gekozenPlant = undefined; } render(true); $('#inhoud').scrollTop = 0; }
 
 function renderPaneel() {
   const open = S.taken.filter(t => !t.klaar).length;
@@ -3111,7 +3120,7 @@ function renderPaneel() {
   const tellers = {taken: [open], tractoren: [live, 'live'], uren: [bezigN, 'live'], bedrijf: [bedrijfLet ? '!' : 0]};
   $('#tabs').innerHTML = `<button class="menuknop" onclick="toonMenu()" title="Hoofdmenu"><span class="ti">🏠</span>Menu</button>` + sectieTabs(sectie).map(([k, i, l]) => [k, i, l, ...(tellers[k] || [])])
     .map(([k, i, l, n, kl]) => `<button class="${tab === k ? 'aan' : ''}" onclick="zetTab('${k}')"><span class="ti">${i}${n ? `<span class="tel ${kl || ''}">${n}</span>` : ''}</span>${l}</button>`).join('')
-    + (VOL_TABS.has(tab) && !isMobiel() ? (kaartErbij ? `<button onclick="kaartTonen(false)" title="Kaart weg, hele scherm"><span class="ti">⛶</span>Volledig</button>` : `<button onclick="kaartTonen(true)" title="De kaart erbij"><span class="ti">🗺️</span>Kaart</button>`) : '');
+    + (!isMobiel() ? (!isVol() ? `<button onclick="kaartTonen(false)" title="Kaart weg, hele scherm"><span class="ti">⛶</span>Volledig</button>` : `<button onclick="kaartTonen(true)" title="De kaart erbij"><span class="ti">🗺️</span>Kaart</button>`) : '');
   let h = '';
   if (tab === 'percelen') h = actief && perceel(actief) ? htmlDetail(perceel(actief)) : htmlLijst();
   else if (tab === 'taken') h = htmlAlleTaken();
@@ -3453,12 +3462,13 @@ function htmlDetail(p) {
     <div class="raster3">
       <div><label>Breedte (m)</label><input class="veld" ${uit} type="number" inputmode="decimal" step="0.01" min="0.1" value="${+p.breedte}" onchange="zetGetal('breedte',this.value)"></div>
       <div><label>Aantal sporen</label><input class="veld" ${uit} type="number" inputmode="numeric" min="0" placeholder="alles" value="${+p.aantal || ''}" onchange="zetGetal('aantal',this.value||0)"></div>
-      <div><label>Verschuif (m)</label><input class="veld" ${uit} type="number" inputmode="decimal" step="0.1" value="${+p.verschuiving || 0}" onchange="zetGetal('verschuiving',this.value)"></div>
-    </div>` : ''}
+    </div>${schuifInvoer(p, uit)}` : ''}
     ${banen.length && mag('spuitsporen_bewerken') ? spuitInvoer(p, true) : ''}
     ${bew ? `<button class="knop ${p.banen_aan ? 'licht' : ''}" onclick="wijzig(actief,{banen_aan:${!p.banen_aan}})">${p.banen_aan ? 'Sporen verbergen' : 'Sporen maken'}</button>` : ''}
     ${mag('spuitsporen_bewerken') && totaalSporen ? `<button class="knop ${gereedschap === 'spuit' ? '' : 'licht'}" onclick="zetGereedschap('spuit')">🚜 ${gereedschap === 'spuit' ? 'Klaar met spuitsporen aanklikken' : 'Spuitsporen aanklikken op de kaart'}</button>
       ${gereedschap === 'spuit' ? '<p class="hint"><b>Tik op een spoor</b> om er een spuitspoor van te maken, of tik op een spuitspoor (oranje streep) om het weg te halen. Werkt ook in deelvelden.</p>' : ''}` : ''}
+    ${bew && totaalSporen ? `<button class="knop ${gereedschap === 'spoorweg' ? '' : 'licht'}" onclick="zetGereedschap('spoorweg')">✂️ ${gereedschap === 'spoorweg' ? 'Klaar met sporen weghalen' : 'Losse sporen weghalen of terugzetten'}</button>
+      ${gereedschap === 'spoorweg' ? '<p class="hint"><b>Tik op een spoor</b> om het weg te halen. Weggehaalde sporen zie je rood gestippeld; tik erop om ze terug te zetten. Werkt ook in deelvelden.</p>' : ''}` : ''}
     ${bew ? abInvoer(p, bew) : ''}
     ${totaalSporen && ziet('exporteren') ? `<button class="knop licht" onclick="exportTrekker('${p.id}')">📤 Exporteren voor de trekker (shapefile)</button>` : ''}
     ${bew ? `<p class="hint">0° = noord, 90° = oost. Gebruik dezelfde hoek als in je GPS. Met een vast A-punt liggen de sporen precies op je GPS-lijnen; "Verschuif" kun je dan op 0 laten. Laat "Aantal" leeg om het hele perceel te vullen.</p>` : ''}
@@ -3515,15 +3525,14 @@ function htmlVakken(p, bew) {
       <div class="raster3">
         <div><label>Breedte (m)</label><input class="veld" type="number" inputmode="decimal" step="0.01" value="${z.breedte}" onchange="zetVak('${v.id}','breedte',this.value)"></div>
         <div><label>Aantal sporen</label><input class="veld" type="number" inputmode="numeric" min="0" placeholder="alles" value="${+v.aantal || ''}" onchange="zetVak('${v.id}','aantal',this.value||0)"></div>
-        <div><label>Verschuif (m)</label><input class="veld" type="number" inputmode="decimal" step="0.1" value="${+v.verschuiving || 0}" onchange="zetVak('${v.id}','verschuiving',this.value)"></div>
-      </div>
+      </div>${schuifInvoer(z, '')}
       ${n && spuit ? spuitInvoer(z, true) : ''}
       ${abInvoer(z, bew)}` : ''}
       <button class="knop ${sporenAan ? 'licht' : ''}" onclick="zetZonderSporen('${v.id}',${sporenAan})">${sporenAan ? 'Sporen verbergen (heel deelveld één gewas)' : 'Sporen maken'}</button>
       ${!sporenAan && indeel ? `<label>🌱 Gewas op het hele deelveld</label>${gewasKeuze(z, true)}` : ''}
       ${sporenAan && spuit && n ? `<button class="knop ${gereedschap === 'spuit' ? '' : 'licht'}" onclick="zetGereedschap('spuit')">🚜 ${gereedschap === 'spuit' ? 'Klaar met spuitsporen aanklikken' : 'Spuitsporen aanklikken op de kaart'}</button>` : ''}
       </div>`; }).join('')}
-    ${bew ? `<button class="knop licht" onclick="tekenVak()">▦ Deelveld tekenen</button>
+    ${bew ? `<div class="rij"><button class="knop licht" onclick="tekenVak()">▦ Deelveld tekenen</button>${mag('deelvelden_bewerken') ? '<button class="knop licht" onclick="gierToevoegen()">🟨 Gier toevoegen</button>' : ''}</div>
       <p class="hint">Een deelveld werkt als een eigen veld binnen het perceel: eigen richting, breedte, aantal sporen, spuitsporen, A-punt en gewas. Het hoofdveld stopt daar automatisch.</p>` : ''}
   </section>`;
 }
@@ -4578,7 +4587,7 @@ function toonMenu() {
 }
 function verbergMenu() { $('#hoofdmenu')?.classList.remove('open'); document.body.classList.remove('menuOpen'); if (!sectie) { sectie = 'werken'; render(true); } }
 function kiesSectie(s) {
-  sectie = s; try { localStorage.setItem('sectie', s); } catch {}
+  sectie = s; kaartErbij = false; kaartWeg = false; try { localStorage.setItem('sectie', s); } catch {}
   const tabs = sectieTabs(s);
   if (s === 'werken' || s === 'percelen') { tab = 'percelen'; } else if (s === 'persoonlijk') tab = 'mij';
   else if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
@@ -5444,8 +5453,8 @@ function waarnemingTaak(id) {
 function waarnemingTonen(id) {
   const x = (S.waarnemingen || []).find(y => y.id === id); if (!x?.geo) { if (x) kies(x.perceel_id); return; }
   const [lng, lat] = x.geo.geometry.coordinates;
-  if (isMobiel()) paneelKlein();
-  map.setView([lat, lng], Math.max(map.getZoom(), 18)); tekenWaarnemingen(id);
+  if (isMobiel()) paneelKlein(); else if (isVol()) kaartTonen(true);
+  setTimeout(() => { map.setView([lat, lng], Math.max(map.getZoom(), 18)); tekenWaarnemingen(id); }, 320);
 }
 let wnLaag = null;
 function tekenWaarnemingen(nadruk) {
@@ -5666,7 +5675,7 @@ function plantplanMaken() {
   });
   ppPercelen.map(perceel).filter(Boolean).forEach(p => vraag.forEach(v => { const j = weerMogelijk(p, v.b.soort_id); if (j && j > nu && !waarsch.some(x => x.includes(p.naam + ':'))) waarsch.push(`🔄 ${esc(p.naam)}: ${esc(soort(v.b.soort_id)?.naam || '')} mag hier pas weer in ${j}, overgeslagen`); }));
   const over = blokken.reduce((s, b) => s + b.vrij.length, 0);
-  ppPlan = {vraag, waarsch, over}; render(true); ppTekenen();
+  ppPlan = {vraag, waarsch, over}; if (!isMobiel() && isVol()) kaartTonen(true); render(true); ppTekenen();
 }
 function ppTekenen() {
   focusLaag.clearLayers(); if (!ppPlan) return;
@@ -5836,6 +5845,144 @@ function tmKaart() {
   const pid = TM.pid; trekkerModus(false);
   if (pid) kies(pid); else if (TM.pos) map.setView([TM.pos.geometry.coordinates[1], TM.pos.geometry.coordinates[0]], 17);
   toast('Terug naar de trekker-modus: 🏠 Menu → 🚜 Trekker-modus');
+}
+
+/* ============ SPOREN OPSCHUIVEN EN LOSSE SPOREN WEGHALEN ============
+   Elk spoor heeft een vaste plek in het raster (k). Bij opschuiven of weghalen verandert de nummering,
+   maar planten, spuitsporen en partijen blijven bij hun eigen spoor. Een spoor dat verdwijnt (van het veld af
+   geschoven of weggehaald) neemt zijn planten mee; een nieuw spoor begint leeg. */
+const zoneVan = (pid, zid) => alleZones(perceel(pid)).find(z => z.id === zid);
+async function zoneZetten(p, z, patch) {
+  if (z._vak) await wijzig(p.id, {vakken: (perceel(p.id).vakken || []).map(v => v.id === z._vak.id ? {...v, ...patch} : v)});
+  else await wijzig(p.id, patch);
+}
+async function sporenOmzetten(pid, zid, patch, melding) {
+  const p = perceel(pid), z = zoneVan(pid, zid); if (!p || !z) return;
+  const oud = banenVan(z), oudBanen = [...(z.banen || [])], sp = spuitVan(z), pp = patroonVan(z), spuitOud = new Set(spuitSet(z));
+  const oudVanK = new Map(oud.map(bn => [bn.k, bn.nr]));
+  const oudWaarde = nr => pp ? rijWaarde(z, nr) : spuitOud.has(nr) ? 2 : 1;
+  // eerst de nieuwe ligging uitrekenen (zonder op te slaan), dan alles in één keer omzetten
+  const proef = {...z, ...patch}; banenCache.delete(z.id);
+  const nieuw = banenVan(proef); banenCache.delete(z.id);
+  const ankers = nieuw.filter(bn => oudVanK.has(bn.k)), anker = ankers[0];
+  const oudNr = bn => oudVanK.get(bn.k) ?? (anker ? oudVanK.get(anker.k) + (bn.k - anker.k) : bn.nr);   // nieuw spoor: waar het in het oude patroon zou vallen
+  const banen = nieuw.map(bn => oudVanK.has(bn.k) ? oudBanen[oudVanK.get(bn.k) - 1] ?? null : null);
+  const extraPatch = {...patch, banen};
+  if (pp || spuitOud.size) {
+    if (pp) extraPatch.spuit = {...sp, patroon: nieuw.map(bn => { const w = oudWaarde(oudNr(bn)); return w === .5 ? '0,5' : String(w); }).join(''), patroonStart: 1, extra: [], uit: []};
+    else extraPatch.spuit = {...sp, elke: 0, start: 0, uit: [], extra: nieuw.filter(bn => oudWaarde(oudNr(bn)) === 2).map(bn => bn.nr)};
+  }
+  await zoneZetten(p, z, extraPatch);
+  // partijen op dit deel: zelfde spoor (plek in het raster), nieuw nummer; verdwenen sporen eraf
+  const nieuwVanK = new Map(nieuw.map(bn => [bn.k, bn.nr])), oudNaarNieuw = new Map(oud.map(bn => [bn.nr, nieuwVanK.get(bn.k)]));
+  for (const x of (S.partijen || []).filter(y => y.perceel_id === pid && Array.isArray(y.sporen) && y.sporen.some(s => s.z === zid))) {
+    const sporen = x.sporen.map(s => s.z !== zid ? s : {...s, nrs: (s.nrs || []).map(nr => oudNaarNieuw.get(nr)).filter(Boolean)}).filter(s => s.nrs.length);
+    x.sporen = sporen; const {error} = await sb.from('partijen').update({sporen}).eq('id', x.id); if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1);
+  }
+  spoorPartijMap = null; render(true);
+  const weg = oud.filter(bn => !nieuwVanK.has(bn.k)), bij = nieuw.filter(bn => !oudVanK.has(bn.k));
+  const metPlant = weg.filter(bn => waarden(oudBanen[bn.nr - 1]).some(Boolean)).length;
+  if (melding !== false) toast(`${melding || ''}${weg.length ? ` · ${weg.length} spoor${weg.length > 1 ? 'en' : ''} weg${metPlant ? ` (${metPlant} met planten)` : ''}` : ''}${bij.length ? ` · ${bij.length} nieuw spoor${bij.length > 1 ? 'en' : ''}` : ''}`);
+}
+// opschuiven in meters (ook centimeters)
+function schuifSporen(zid, delta) {
+  const z = zoneVan(actief, zid); if (!z || !mag('percelen_bewerken')) return;
+  zetSchuif(zid, Math.round(((+z.verschuiving || 0) + delta) * 1000) / 1000);
+}
+function zetSchuif(zid, waarde) {
+  const z = zoneVan(actief, zid); if (!z) return;
+  let n = parseFloat(String(waarde).replace(',', '.')); if (isNaN(n)) n = 0; n = Math.round(n * 1000) / 1000;
+  sporenOmzetten(actief, zid, {verschuiving: n}, `↔️ ${z._vak ? z.naam + ': ' : ''}sporen ${n >= 0 ? '+' : ''}${String(n).replace('.', ',')} m verschoven`);
+}
+function schuifInvoer(z, uit) {
+  const zid = z.id, v = +z.verschuiving || 0, w = (z.sporen_weg || []).length;
+  const k = (d, t) => `<button class="knop klein licht" ${uit} onclick="schuifSporen('${zid}',${d})">${t}</button>`;
+  return `<div class="schuifBlok"><label>↔️ Sporen opschuiven <small>(dwars op de rijen)</small></label>
+    <div class="rij schuifRij">${k(-1, '−1 m')}${k(-.1, '−10 cm')}${k(-.01, '−1 cm')}
+      <input class="veld" ${uit} type="number" inputmode="decimal" step="0.01" value="${v}" title="Verschuiving in meters" onchange="zetSchuif('${zid}',this.value)">
+      ${k(.01, '+1 cm')}${k(.1, '+10 cm')}${k(1, '+1 m')}</div>
+    <div class="rij" style="margin-top:6px">${k(-(+z.breedte || 1), '◀ 1 spoor')}${k(+z.breedte || 1, '1 spoor ▶')}</div>
+    ${w ? `<p class="hint">✂️ ${w} spoor${w > 1 ? 'en' : ''} weggehaald · <a href="#" onclick="event.preventDefault();sporenAllesTerug('${zid}')">alles terugzetten</a></p>` : ''}</div>`;
+}
+// losse sporen weghalen en terugzetten
+async function spoorWeg(z, bn) {
+  if (!mag('percelen_bewerken')) { toast('Je mag geen sporen aanpassen', 1); return; }
+  const p = ouder(z), had = waarden((z.banen || [])[bn.nr - 1]).some(Boolean);
+  if (had && !await bevestig(`Spoor ${bn.nr} weghalen?`, 'Er staan planten op dit spoor; die gaan mee weg. Terugzetten kan, maar dan komt het spoor leeg terug.')) return;
+  await sporenOmzetten(p.id, z.id, {sporen_weg: [...new Set([...(z.sporen_weg || []), bn.k])]}, `✂️ Spoor ${bn.nr} weggehaald`);
+}
+async function spoorTerug(z, k) {
+  const p = ouder(z); await sporenOmzetten(p.id, z.id, {sporen_weg: (z.sporen_weg || []).filter(x => x !== k)}, '↩︎ Spoor teruggezet');
+}
+async function sporenAllesTerug(zid) {
+  const z = zoneVan(actief, zid); if (!z) return; await sporenOmzetten(actief, zid, {sporen_weg: []}, '↩︎ Alle sporen teruggezet');
+}
+
+const grootsteDeel = g => !g ? null : g.geometry.type === 'MultiPolygon' ? g.geometry.coordinates.map(c => turf.polygon(c)).sort((a, b) => turf.area(b) - turf.area(a))[0] : g;
+/* ============ GIER TOEVOEGEN ============
+   Een gier is een strook langs één kant van het perceel, met een eigen rijrichting.
+   Je tikt de kant aan, geeft de richting van de rijen en van de scheidingslijn op en hoeveel rijen erin moeten. */
+async function gierToevoegen() {
+  const p = perceel(actief); if (!p?.geo || !mag('deelvelden_bewerken')) { toast('Je mag geen deelvelden maken', 1); return; }
+  const pt = await wijsPuntAan('Tik op de kant van het perceel waar de gier langs loopt'); if (!pt) return;
+  const geo = p.geo.geometry?.type === 'MultiPolygon' ? grootsteDeel(p.geo) : p.geo;
+  const m = turf.centroid(geo).geometry.coordinates, K = 111320, cl = Math.cos(m[1] * Math.PI / 180);
+  const naarM = q => [(q[0] - m[0]) * K * cl, (q[1] - m[1]) * K], naarG = q => [m[0] + q[0] / (K * cl), m[1] + q[1] / K];
+  const ring = turf.getCoords(geo)[0].map(naarM), P = naarM(pt.geometry.coordinates);
+  // dichtstbijzijnde rand
+  let rand = null;
+  for (let i = 0; i + 1 < ring.length; i++) { const A = ring[i], B = ring[i + 1], dx = B[0] - A[0], dy = B[1] - A[1], l2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((P[0] - A[0]) * dx + (P[1] - A[1]) * dy) / l2)), Q = [A[0] + t * dx, A[1] + t * dy], afst = Math.hypot(P[0] - Q[0], P[1] - Q[1]);
+    if (!rand || afst < rand.afst) rand = {A, B, Q, afst}; }
+  if (!rand || rand.afst > 40) { toast('Tik iets dichter bij de rand van het perceel', 1); return; }
+  const randRichting = ((Math.atan2(rand.B[0] - rand.A[0], rand.B[1] - rand.A[1]) * 180 / Math.PI) + 360) % 360;
+  focusLaag.clearLayers(); L.polyline([naarG(rand.A), naarG(rand.B)].map(([x, y]) => [y, x]), {color: '#fbc02d', weight: 6}).addTo(focusLaag);
+  const rond = x => Math.round(x * 1000) / 1000;
+  const w = await formulier('🟨 Gier toevoegen', [
+    {k: '_u', type: 'uitleg', waarde: 'De geel gemarkeerde kant is waar de gier langs loopt. De gier krijgt precies zoveel volle rijen als je opgeeft, gemeten vanaf deze kant.'},
+    {k: 'naam', label: 'Naam', waarde: 'Gier'},
+    {k: 'rijen', label: 'Aantal rijen in de gier', type: 'number', waarde: 5},
+    {k: 'breedte', label: 'Spoorbreedte (m)', type: 'number', waarde: +p.breedte || 1.5},
+    {k: 'richting', label: 'GPS-richting van de gier-rijen (graden)', type: 'number', waarde: rond(randRichting), placeholder: 'bijv. 74,294'},
+    {k: 'scheiding', label: 'De scheidingslijn met het hoofdveld loopt', type: 'select', waarde: 'gier', opties: [['gier', 'evenwijdig aan de gier-rijen'], ['hoofd', `evenwijdig aan de rijen van het hoofdveld (${rond(+p.richting || 0)}°)`], ['eigen', 'in een eigen richting…']]},
+    {k: 'eigen', label: 'Richting scheidingslijn (graden)', type: 'number', waarde: rond(randRichting), als: ['scheiding', 'eigen']},
+    {k: 'pad', label: 'Spuitpad tussen gier en hoofdveld (aantal sporen, 0 = geen)', type: 'number', waarde: 0}], 'Voorbeeld');
+  if (!w) { focusLaag.clearLayers(); return; }
+  const g = (x, d) => { const v = parseFloat(String(x).replace(',', '.')); return isNaN(v) ? d : v; };
+  const N = Math.max(1, Math.round(g(w.rijen, 5))), b = Math.max(.1, g(w.breedte, 1.5)), pad = Math.max(0, Math.round(g(w.pad, 0)));
+  const rg = ((g(w.richting, randRichting) % 360) + 360) % 360, rs = w.scheiding === 'hoofd' ? +p.richting || 0 : w.scheiding === 'eigen' ? g(w.eigen, rg) : rg;
+  // gier-raster: dwars op de gier-rijen, positief het perceel in
+  const h = rg * Math.PI / 180, n = [Math.cos(h), -Math.sin(h)], c0 = [0, 0];
+  const mid = [(rand.A[0] + rand.B[0]) / 2, (rand.A[1] + rand.B[1]) / 2], teken = Math.sign((c0[0] - mid[0]) * n[0] + (c0[1] - mid[1]) * n[1]) || 1;
+  const u = q => ((q[0] * n[0] + q[1] * n[1]) * teken);
+  const s0 = Math.min(u(rand.A), u(rand.B)), breed = (N + pad) * b;
+  // scheidingslijn: door het punt op afstand (rijen + pad) × breedte van de rand, bij de plek waar je tikte; met de gekozen richting
+  const Pq = rand.Q, dU = s0 + breed - u(Pq), S = [Pq[0] + n[0] * teken * dU, Pq[1] + n[1] * teken * dU];
+  const hs = rs * Math.PI / 180, ds = [Math.sin(hs), Math.cos(hs)], ns = [ds[1], -ds[0]], G = 20000;
+  const kantRand = Math.sign((mid[0] - S[0]) * ns[0] + (mid[1] - S[1]) * ns[1]) || 1;
+  const half = [[-G, 0], [G, 0], [G, G], [-G, G], [-G, 0]].map(([a, t]) => naarG([S[0] + ds[0] * a + ns[0] * kantRand * t, S[1] + ds[1] * a + ns[1] * kantRand * t]));
+  let gier = null; try { gier = turf.intersect(geo, turf.polygon([half])); } catch {}
+  for (const v of (p.vakken || [])) { try { if (gier) gier = turf.difference(gier, v.geo); } catch {} }
+  gier = grootsteDeel(gier);
+  if (!gier || turf.area(gier) < 5) { toast('Zo past er geen gier: controleer de richtingen', 1); focusLaag.clearLayers(); return; }
+  focusLaag.clearLayers(); L.geoJSON(gier, {style: {color: '#fbc02d', weight: 3, fillColor: '#fbc02d', fillOpacity: .35}}).addTo(focusLaag);
+  try { map.fitBounds(L.geoJSON(geo).getBounds(), {padding: [40, 40]}); } catch {}
+  if (!await bevestigJa(`🟨 ${esc(w.naam || 'Gier')} zo toevoegen?`, `${N} rijen${pad ? ` + spuitpad van ${pad} sporen` : ''} · ${String(Math.round(breed * 10) / 10).replace('.', ',')} m breed · ${ha(turf.area(gier))} ha. De gier-rijen lopen op ${rond(rg)}°, de scheidingslijn op ${rond(rs)}°.`, 'Ja, toevoegen')) { focusLaag.clearLayers(); return; }
+  focusLaag.clearLayers();
+  const vak = {id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), naam: w.naam || 'Gier', geo: {type: 'Feature', properties: {}, geometry: gier.geometry}, richting: rond(rg), breedte: b, verschuiving: 0, banen: [], spuit: {}};
+  await wijzig(p.id, {vakken: [...(p.vakken || []), vak]});
+  // het raster precies tegen de rand laten beginnen, en het spuitpad aan de kant van het hoofdveld
+  const z = alleZones(perceel(p.id)).find(x => x._vak?.id === vak.id), rijen = z && banenVan(z), meta = rijen?.meta;
+  if (meta && rijen.length) {
+    const randPunt = u(rand.A) <= u(rand.B) ? rand.A : rand.B, q = meta.naarM(naarG(randPunt)), Lr = q[0] * meta.n[0] + q[1] * meta.n[1];
+    const sch = Math.round((((Lr - rijen[0].a) % b) + b) % b * 1000) / 1000;
+    let patch = {verschuiving: sch < .005 || b - sch < .005 ? 0 : sch};
+    await wijzig(p.id, {vakken: perceel(p.id).vakken.map(v => v.id === vak.id ? {...v, ...patch} : v)});
+    if (pad) { const z2 = alleZones(perceel(p.id)).find(x => x._vak?.id === vak.id), r2 = banenVan(z2), kantS = Math.sign(meta.n[0] * n[0] * teken + meta.n[1] * n[1] * teken) || 1;
+      const volg = kantS > 0 ? r2 : [...r2].reverse(), extra = volg.slice(N, N + pad).map(bn => bn.nr);
+      await wijzig(p.id, {vakken: perceel(p.id).vakken.map(v => v.id === vak.id ? {...v, spuit: {elke: 0, start: 0, extra, uit: []}} : v)}); }
+  }
+  render(true); toast(`🟨 ${vak.naam} toegevoegd: ${N} rijen`);
 }
 
 /* ============ BUSSEN EN AUTO'S (FleetGO) ============
