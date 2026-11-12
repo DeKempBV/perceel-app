@@ -5427,7 +5427,7 @@ async function plattegrondInladen(bestand) {
         .sort((x, y) => y.b - x.b).slice(0, 3);
       PG.kand = grof.map(({p}) => ({p, ...pgPasAan(an, p.geo)})).sort((x, y) => y.iou - x.iou);
       pgKies(0);
-      if (PG.kand[0].iou < .6) pgAiUitlijnen();   // vorm past slecht: de AI laten kijken
+      if (mag('ai_gebruiken')) pgAiUitlijnen();   // nauwkeuriger, en kan niet 180° verkeerd om liggen
       return;
     }
   }
@@ -5457,7 +5457,8 @@ function pgToon(bericht) {
     <div class="pgRij knoppen"><button onclick="pgDraai(-.5)" title="Draai linksom">↺</button><button onclick="pgDraai(.5)" title="Draai rechtsom">↻</button>
       <button onclick="pgSchaal(.99)" title="Kleiner">−</button><button onclick="pgSchaal(1.01)" title="Groter">+</button>
       ${PG.kand.length > 1 ? `<button onclick="pgKies((PG.kandI+1)%PG.kand.length)" title="Op een ander perceel leggen">⇄ Ander perceel</button>` : ''}
-      ${PG.kand.length ? `<button onclick="pgKies(PG.kandI)" title="Automatisch opnieuw uitlijnen">🎯 Automatisch</button>` : ''}${mag('ai_gebruiken') ? `<button onclick="pgAiUitlijnen()" title="De AI de hoeken laten aanwijzen en uitlijnen">🤖 AI</button>` : ''}</div>
+      ${mag('ai_gebruiken') ? `<button onclick="pgAiUitlijnen()" title="De AI de hoeken laten aanwijzen en nauwkeurig uitlijnen">🎯 Automatisch</button>${PG.par && PG.p ? `<button onclick="pgAiVerfijnKnop()" title="Vanaf hoe hij nu ligt nog nauwkeuriger maken">🔍 Verfijnen</button>` : ''}`
+        : PG.kand.length ? `<button onclick="pgKies(PG.kandI)" title="Automatisch opnieuw uitlijnen">🎯 Automatisch</button>` : ''}</div>
     <p class="hint" style="margin:6px 0">Sleep het plaatje om het te verschuiven.</p>
     <div class="pgRij"><button class="knop licht" onclick="pgOpslaan(false)">💾 Alleen plattegrond bewaren</button>
       ${n && PG.p && mag('percelen_bewerken') ? `<button class="knop" onclick="pgOvernemen()">✔ Sporen en vakken overnemen</button>` : ''}</div>`;
@@ -6140,10 +6141,61 @@ Antwoord ALLEEN met JSON: {"hoeken":[[x,y],...],"maten":[{"van":0,"tot":1,"m":23
     if (!beste) { toast('🤖 Uitlijnen lukte niet', 1); return; }
     const m = turf.centroid(beste.p.geo).geometry.coordinates;
     PG.p = beste.p; PG.par = {th: Math.atan2(beste.a[1], beste.a[0]), s: Math.hypot(...beste.a), tx: beste.b[0], ty: beste.b[1], m};
-    PG.kand = PG.kand.length ? PG.kand : [];
     if (actief !== beste.p.id) { actief = beste.p.id; render(true); }
-    pgToon(`🤖 Uitgelijnd op <b>${esc(beste.p.naam)}</b> · gemiddeld ${String(Math.round(beste.fout * 10) / 10).replace('.', ',')} m naast de hoeken${beste.rel > .06 ? ' – controleer het even en schuif/draai waar nodig' : ''}${uit.opmerking ? `<br><small>${esc(uit.opmerking)}</small>` : ''}`);
+    pgToon('🤖 Grof uitgelijnd, nu nauwkeuriger maken…');
+    // tweede ronde: de AI ziet waar de app de hoeken nu legt (genummerd) en wijst per nummer de echte plek aan
+    let fijn = null;
+    for (let ronde = 0; ronde < 2; ronde++) { const r = await pgAiVerfijn(); if (!r) break; fijn = r; if (r.fout < 1.5) break; }
+    const f2 = fijn || beste;
+    pgToon(`🤖 Uitgelijnd op <b>${esc(PG.p.naam)}</b> · gemiddeld ${String(Math.round(f2.fout * 10) / 10).replace('.', ',')} m naast de hoeken${f2.fout / Math.sqrt(turf.area(PG.p.geo)) > .03 ? ' – controleer het even en schuif/draai waar nodig' : ''}${uit.opmerking ? `<br><small>${esc(uit.opmerking)}</small>` : ''}`);
   } catch (e) { banner(null); toast('🤖 ' + (e.message || e), 1); }
+}
+// gelijkvormige afbeelding met bekende paren (punt i hoort bij punt i)
+function fitVast(Z, W) {
+  const n = Z.length, zm = [0, 1].map(k => Z.reduce((t, q) => t + q[k], 0) / n), wm = [0, 1].map(k => W.reduce((t, q) => t + q[k], 0) / n);
+  let re = 0, im = 0, nn = 0;
+  Z.forEach((q, i) => { const zx = q[0] - zm[0], zy = q[1] - zm[1], wx = W[i][0] - wm[0], wy = W[i][1] - wm[1]; re += wx * zx + wy * zy; im += wy * zx - wx * zy; nn += zx * zx + zy * zy; });
+  const a = [re / nn, im / nn], b = [wm[0] - (a[0] * zm[0] - a[1] * zm[1]), wm[1] - (a[0] * zm[1] + a[1] * zm[0])];
+  const res = Z.map((q, i) => Math.hypot(a[0] * q[0] - a[1] * q[1] + b[0] - W[i][0], a[0] * q[1] + a[1] * q[0] + b[1] - W[i][1]));
+  return {a, b, fout: Math.sqrt(res.reduce((t, r) => t + r * r, 0) / n), res};
+}
+// [lng,lat] → pixel van het plaatje met de huidige uitlijning
+function pgNaarPixelPar(an, par, [lng, lat]) {
+  const K = 111320, cl = Math.cos(par.m[1] * Math.PI / 180), E = (lng - par.m[0]) * K * cl - par.tx, N = (lat - par.m[1]) * K - par.ty;
+  const c = Math.cos(-par.th), sn = Math.sin(-par.th), qx = c * E - sn * N, qy = sn * E + c * N;
+  return [an.cx + qx / par.s, an.cy - qy / par.s];
+}
+async function pgAiVerfijnKnop() {
+  if (!mag('ai_gebruiken')) return;
+  try { const r = await pgAiVerfijn(); if (r) pgToon(`🤖 Verfijnd · gemiddeld ${String(Math.round(r.fout * 10) / 10).replace('.', ',')} m naast de hoeken`); }
+  catch (e) { banner(null); toast('🤖 ' + (e.message || e), 1); }
+}
+async function pgAiVerfijn() {
+  const p = PG.p, an = PG.an, img = PG.img; if (!p || !PG.par) return null;
+  const W = img.naturalWidth, H = img.naturalHeight, f = Math.min(1, 1568 / Math.max(W, H)), c = document.createElement('canvas');
+  c.width = Math.round(W * f); c.height = Math.round(H * f); const g = c.getContext('2d'); g.drawImage(img, 0, 0, c.width, c.height);
+  // duidelijkste hoeken van het perceel (max 8), in geo
+  const m = turf.centroid(p.geo).geometry.coordinates, K = 111320, cl = Math.cos(m[1] * Math.PI / 180);
+  const alle = perceelHoeken(p.geo), hk = scherpsteHoeken(alle, Math.min(8, alle.length)), geo = hk.map(([x, y]) => [m[0] + x / (K * cl), m[1] + y / K]);
+  const px = geo.map(ll => pgNaarPixelPar(an, PG.par, ll).map(v => v * f));
+  g.lineWidth = 3; g.strokeStyle = '#ff1744'; g.beginPath(); px.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke();
+  g.font = 'bold 22px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  px.forEach(([x, y], i) => { g.fillStyle = '#ff1744'; g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); g.fillStyle = '#fff'; g.fillText(String(i + 1), x, y); });
+  banner('<b>🤖 Nauwkeuriger uitlijnen…</b>');
+  const uit = await aiVraag([c.toDataURL('image/jpeg', .88).split(',')[1]], `Op deze perceelplattegrond (${c.width}×${c.height} pixels) staat een rode lijn met rode genummerde punten 1 t/m ${px.length}. Dat is waar onze app nu de hoeken van het perceel legt. Die ligt er nog net (of flink) naast: verschoven, iets gedraaid of iets te groot/klein.
+Het echte perceel is het vlak met de gekleurde plantblokken, inclusief de witte rand (kopeinde) eromheen. Kijk naar de vorm van de rode lijn om te zien welke echte hoek bij welk nummer hoort (de volgorde langs de rand blijft hetzelfde).
+Geef voor ELK nummer de pixelpositie van de echte hoek op de plattegrond, zo precies mogelijk (op de buitenkant van de witte rand).
+Antwoord ALLEEN met JSON: {"punten":[{"nr":1,"x":0,"y":0}],"opmerking":""}`);
+  banner(null);
+  const paren = (uit.punten || []).map(q => ({i: (+q.nr || 0) - 1, x: +q.x / f, y: +q.y / f})).filter(q => q.i >= 0 && q.i < hk.length && Number.isFinite(q.x) && Number.isFinite(q.y));
+  if (paren.length < 3) return null;
+  const Z = paren.map(q => [q.x - an.cx, -(q.y - an.cy)]), Wm = paren.map(q => hk[q.i]);
+  let r = fitVast(Z, Wm);
+  // een punt dat duidelijk niet klopt weglaten en opnieuw passen
+  if (paren.length > 4) { const slecht = r.res.indexOf(Math.max(...r.res)); if (r.res[slecht] > 3 * r.fout) { const Z2 = Z.filter((_, i) => i !== slecht), W2 = Wm.filter((_, i) => i !== slecht); r = fitVast(Z2, W2); } }
+  PG.par = {th: Math.atan2(r.a[1], r.a[0]), s: Math.hypot(...r.a), tx: r.b[0], ty: r.b[1], m};
+  pgToon();
+  return r;
 }
 
 // slepen en loslaten op het scherm
