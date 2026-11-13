@@ -38,16 +38,27 @@ jobs:
       - name: Locatie-toestemming en versienummer
         run: |
           sed -i 's#</manifest>#    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
+          mkdir -p android/app/src/main/res/values
+          cat > android/app/src/main/res/values/background_geolocation.xml <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="capacitor_background_geolocation_notification_channel_name">Locatie delen</string>
+              <string name="capacitor_background_geolocation_notification_icon">mipmap/ic_launcher</string>
+              <color name="capacitor_background_geolocation_notification_color">#1f4d2b</color>
+          </resources>
+          XML
+          sed -i 's/^          //' android/app/src/main/res/values/background_geolocation.xml
           sed -i 's/versionCode [0-9]*/versionCode ${{ github.run_number }}/; s/versionName "[^"]*"/versionName "1.0.${{ github.run_number }}"/' android/app/build.gradle
 
-      - name: Vaste sleutel gebruiken
+      - name: Vaste sleutel gebruiken (zodat updates over de oude versie heen installeren)
         run: mkdir -p ~/.android && cp signing/debug.keystore ~/.android/debug.keystore
 
-      - name: App laten opstarten vanaf de eigen website
+      - name: App laten opstarten vanaf de eigen website (automatische updates)
         run: |
           EIGENAAR="${GITHUB_REPOSITORY_OWNER,,}"
           REPO="${GITHUB_REPOSITORY#*/}"
           URL="https://${EIGENAAR}.github.io/${REPO}/"
+          # Staat er een eigen adres in app-adres.txt (bijv. je Netlify-link)? Dan dat gebruiken.
           EIGEN="$(tr -d '[:space:]' < app-adres.txt 2>/dev/null || true)"
           if [ -n "$EIGEN" ]; then URL="${EIGEN%/}/"; fi
           echo "De app laadt: $URL"
@@ -65,20 +76,31 @@ jobs:
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk PerceelApp.apk
           gh release delete nieuwste -y --cleanup-tag || true
-          gh release create nieuwste PerceelApp.apk --title "Perceel App (installatiebestand)" --notes "Installeer PerceelApp.apk op je Android-telefoon."
+          gh release create nieuwste PerceelApp.apk --title "Perceel App (installatiebestand)" --notes "Installeer PerceelApp.apk één keer op je Android-telefoon. Daarna werkt de app zichzelf automatisch bij via de website."
 
   website:
     name: Computerversie (website)
     runs-on: ubuntu-latest
     continue-on-error: true
+    # nooit twee keer tegelijk naar de website zetten (bij snel achter elkaar uploaden ging dat mis)
+    concurrency:
+      group: website
+      cancel-in-progress: true
     environment:
       name: github-pages
+      url: ${{ steps.zet.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Versienummer toevoegen
         run: echo "{\"versie\":\"${{ github.run_number }}\"}" > www/version.json
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - name: Website inpakken
+        uses: actions/upload-pages-artifact@v4
         with:
           path: www
-      - uses: actions/deploy-pages@v4
+      - name: Op de website zetten
+        id: zet
+        uses: actions/deploy-pages@v4
+      - name: Nog een keer proberen (als GitHub even haperde)
+        if: failure()
+        uses: actions/deploy-pages@v4
