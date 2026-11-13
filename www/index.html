@@ -599,6 +599,7 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 .tmZij .dtOmschr{background:#24442d;border-radius:12px;padding:10px 12px;font-size:19px;margin:6px 0}.tmZij .bezigregel,.tmZij .dtKlaar,.tmZij .vgtbalk,.tmZij .dtWeer{font-size:17px;margin:4px 0}.tmZij small{color:#c8e6c9}
 .tmZij .tmGroot{display:block;width:100%;min-height:72px;border:0;border-radius:16px;background:#2e7d32;color:#fff;font-size:22px;font-weight:800;margin:8px 0}
 .tmZij .tmVg{height:16px;background:#455a64;border-radius:8px;overflow:hidden;margin:6px 0}.tmZij .tmVg i{display:block;height:100%;background:#66bb6a}
+.tmKlaarChip{border:0;border-radius:12px;background:#1b5e20;color:#c8e6c9;font-size:17px;font-weight:700;padding:10px 14px;text-align:left}.tmKlaarChip small{color:#a5d6a7;margin-left:6px}
 .tmBezigRij{background:#ffeb3b;color:#222;border-radius:12px;padding:10px 12px;font-size:20px;margin:8px 0 0}.tmRooiVg{display:flex;flex-direction:column;gap:8px;margin:10px 0;font-size:18px}.tmRooiVg small{display:block}
 .tmRol{display:inline-block;background:#7e57c2;color:#fff;border-radius:10px;padding:1px 10px;font-size:.8em;margin-right:4px}.tmTaak.rol{border-left:6px solid #7e57c2}
 .badge.rol{background:#ede7f6;color:#4527a0}
@@ -1783,7 +1784,8 @@ async function rondAf(id) {
   Object.assign(patch, middelPatch({...t, ...patch}));
   Object.assign(t, patch); render(true);
   const {error} = await sb.from('taken').update(patch).eq('id', id);
-  if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1); else { toast('Taak afgerond'); fotosOpruimen(oud, patch.fotos); naWerkKlaar(t); spuitWeerVastleggen(t); }
+  if (error) toast('Opslaan mislukt: ' + foutTekst(error), 1); else { toast('Taak afgerond'); fotosOpruimen(oud, patch.fotos); await naWerkKlaar(t); spuitWeerVastleggen(t);
+    if (typeof TM !== 'undefined' && TM.aan) { TM.afgerond = {id, t: Date.now()}; TM.paneel = false; tmRender(); } }
 }
 /* ============ WERK DAT PLANTEN WEGHAALT (rooien / frezen) + LOGBOEK MET ONGEDAAN MAKEN ============
    Alleen rooien en frezen halen echt planten weg: de sporen gaan dan op braak. Al het andere werk
@@ -6893,6 +6895,9 @@ async function tmPauzeOpslaan(id, na, sel) {
   tmRender();
 }
 function tmBezigBalk() {
+  const af = TM.afgerond && S.taken.find(x => x.id === TM.afgerond.id);
+  if (af?.klaar && Date.now() - TM.afgerond.t < 15 * 60e3 && !TM.popup)
+    return `<div class="tmBezig" style="background:#2e7d32;color:#fff"><span>✓ "${esc(af.tekst)}" is afgerond</span><button class="tmKlein" style="min-width:auto;padding:0 14px;background:#6d4c41;color:#fff" onclick="event.stopPropagation();tmAfrondenTerug('${af.id}')">↶ Eén stap terug</button><button class="tmKlein" style="min-width:auto;padding:0 12px" onclick="event.stopPropagation();TM.afgerond=null;tmRender()">✕</button></div>`;
   const t = mijnBezig(); if (!t || TM.popup) return '';
   return `<div class="tmBezig" onclick="tmPaneelOpen()">🟡 <span>Bezig: ${esc(t.tekst)}${t.bezig_sinds ? ' · sinds ' + new Date(t.bezig_sinds).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : ''}</span><b>Open ▸</b></div>`;
 }
@@ -6958,8 +6963,11 @@ function tmZijHtml(t) {
       ${tmRooiVoortgang(t, klaar)}
       ${hierIn && !klaar.has(hierKey) ? `<button class="tmGroot" onclick="tmSporenKlaar('${t.id}',['${hierKey}'])">✓ Spoor ${hier.spoor} (waar ik nu rij) is klaar</button>` : ''}
       ${gps.length ? `<button class="tmGroot" style="background:#1e88e5" onclick="tmSporenKlaar('${t.id}',${esc(JSON.stringify(gps.map(k => k.key)))})">📡 Volgens GPS ook gereden: spoor ${gps.map(k => k.nr).join(', ')} → klaar</button>` : ''}
-      ${vakken.length > 1 || (vakken.length === 1 && kand.length > 1) ? `<div class="tmVakKn">${vakken.map(x => { const ks = kand.filter(k => k.groep === x.g && k.vak === x.v), af = ks.every(k => klaar.has(k.key));
-        return `<button class="${af ? 'aan' : ''}" ${af ? 'disabled' : ''} onclick="tmSporenKlaar('${t.id}',${esc(JSON.stringify(ks.map(k => k.key)))})">${af ? '✓' : '▢'} Vak ${esc(x.v)}${x.g ? ' <small>' + esc(x.g) + '</small>' : ''} <small>(${ks.filter(k => klaar.has(k.key)).length}/${ks.length})</small></button>`; }).join('')}</div>` : ''}
+      ${vakken.length > 1 || (vakken.length === 1 && kand.length > 1) ? (() => { const vk = vakken.map(x => ({...x, ks: kand.filter(k => k.groep === x.g && k.vak === x.v)})).map(x => ({...x, af: x.ks.every(k => klaar.has(k.key))}));
+        const klaarV = vk.filter(x => x.af), toon = TM.toonKlaarVak;
+        return `<div class="tmVakKn">${vk.filter(x => !x.af || toon).map(x => { const ks = x.ks, af = x.af;
+        return `<button class="${af ? 'aan' : ''}" ${af ? 'disabled' : ''} onclick="tmSporenKlaar('${t.id}',${esc(JSON.stringify(ks.map(k => k.key)))})">${af ? '✓' : '▢'} Vak ${esc(x.v)}${x.g ? ' <small>' + esc(x.g) + '</small>' : ''} <small>(${ks.filter(k => klaar.has(k.key)).length}/${ks.length})</small></button>`; }).join('')}
+        ${klaarV.length ? `<button class="tmKlaarChip" onclick="TM.toonKlaarVak=!TM.toonKlaarVak;tmRender()">✓ ${klaarV.length} ${klaarV.length === 1 ? 'vak' : 'vakken'} klaar: ${klaarV.map(x => esc(x.v)).join(', ')} <small>${toon ? '▴ verbergen' : '▾ tonen'}</small></button>` : ''}</div>`; })() : ''}
       ${laatste?.keys?.length ? `<button class="tmGroot" style="background:#6d4c41;min-height:58px;font-size:19px" onclick="tmStapTerug('${t.id}')">↶ Laatste stap terug (${laatste.keys.length === 1 ? 'spoor ' + laatste.keys[0].split(':')[1] : laatste.keys.length + ' sporen'})</button>` : '<small style="display:block;margin:6px 0">↶ Eén stap terugzetten kan hier; meer terugzetten via de computer.</small>'}` : ''}
     <div class="tmKnoppen"><button class="geel" onclick="tmPauze('${t.id}','pauze')">⏸ Pauzeren</button><button onclick="tmPauze('${t.id}','wissel')">🔀 Wisselen</button>
       ${n < kand.length ? `<button style="grid-column:span 2;opacity:.55" onclick="tmTaakAfronden('${t.id}')">🔒 Afronden kan als alles klaar is (nog ${kand.length - n})</button>` : `<button class="groen" style="grid-column:span 2" onclick="tmTaakAfronden('${t.id}')">✓ Hele taak afronden</button>`}</div>
@@ -7022,6 +7030,17 @@ async function tmSporenKlaar(id, keys) {
   const kand = taakSporen(t), nrs = kand.filter(k => r.erbij.includes(k.key)).map(k => k.nr);
   toast(`✅ ${nrs.length === 1 ? 'Spoor ' + nrs[0] : nrs.length + ' sporen'} klaar${r.snap ? ' · braak' : ''} · ${voortgangTekst(t)}`);
   tmTaakTeken.sleutel = ''; tmRender();
+}
+// afronden terugdraaien (één keer, kort na het afronden): de taak weer open, jij weer bezig, de laatste braak weer terug
+async function tmAfrondenTerug(id) {
+  const t = S.taken.find(x => x.id === id); if (!t?.klaar) { TM.afgerond = null; tmRender(); return; }
+  if (!await bevestig('Afronden terugdraaien?', `"${t.tekst}" gaat weer open en jij staat weer als bezig. Wat bij het afronden braak werd, komt terug.`)) return;
+  if (t.braak) { try { await plantenTerug(t.braak); } catch {} t.braak = null; }
+  const patch = {klaar: false, klaar_door: null, klaar_op: null, braak: null, bezig_door: naamMe(), bezig_sinds: new Date().toISOString()};
+  const {error} = await sb.from('taken').update(patch).eq('id', id);
+  if (error) { toast(foutTekst(error), 1); return; }
+  Object.assign(t, patch); TM.afgerond = null; render(true);
+  toast('↶ Afronden teruggedraaid. De taak staat weer open.'); tmPaneelOpen();
 }
 async function tmRijBezig(id, key) {   // "met deze rij ben ik nu bezig"
   const t = S.taken.find(x => x.id === id); if (!t) return;
