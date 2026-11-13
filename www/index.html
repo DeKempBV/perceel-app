@@ -600,6 +600,8 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 .tmZij .tmGroot{display:block;width:100%;min-height:72px;border:0;border-radius:16px;background:#2e7d32;color:#fff;font-size:22px;font-weight:800;margin:8px 0}
 .tmZij .tmVg{height:16px;background:#455a64;border-radius:8px;overflow:hidden;margin:6px 0}.tmZij .tmVg i{display:block;height:100%;background:#66bb6a}
 .tmBezigRij{background:#ffeb3b;color:#222;border-radius:12px;padding:10px 12px;font-size:20px;margin:8px 0 0}.tmRooiVg{display:flex;flex-direction:column;gap:8px;margin:10px 0;font-size:18px}.tmRooiVg small{display:block}
+.tmRol{display:inline-block;background:#7e57c2;color:#fff;border-radius:10px;padding:1px 10px;font-size:.8em;margin-right:4px}.tmTaak.rol{border-left:6px solid #7e57c2}
+.badge.rol{background:#ede7f6;color:#4527a0}
 .tmVakKn{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}.tmVakKn button{border:0;border-radius:12px;background:#455a64;color:#fff;font-size:19px;font-weight:700;padding:12px 14px}.tmVakKn button.aan{background:#2e7d32}
 .tmZij .tmKnoppen{grid-template-columns:repeat(2,1fr)}.tmZij .dtKnoppen{display:none}
 .tmZijAan #trekkerScherm.kaart .tmBody{margin-left:var(--tmLinks,0px)}body.tmKaart.tmZijAan #map{left:var(--tmLinks,0px)!important}
@@ -2224,8 +2226,14 @@ async function slaTaakOp(w, gebied, id) {
   if (!w.direct && (res.data.trekker || res.data.werktuig)) setTimeout(() => { if (taakFocus === res.data.id) open3D({taak: S.taken.find(x => x.id === res.data.id)}); }, 450);
   toast(w.direct ? 'Werk geregistreerd' : id ? 'Taak opgeslagen' : 'Taak toegevoegd');
 }
+// meewerk-taak (bijrijder/bakkenist): hoort bij een hoofdtaak, alleen "bezig", klaar als de hoofdtaak klaar is
+const isRolTaak = t => !!t?.hoofd_taak;
+const rolNaam = t => ({bijrijder: 'Bijrijder', bakkenist: 'Bakkenist'})[String(t?.rol || '').split('|')[0]] || 'Meewerken';
+const hoofdVan = t => S.taken.find(x => x.id === t?.hoofd_taak) || null;
+const hoofdChauffeur = h => h ? (h.bezig_door || S.profielen.find(u => u.id === h.toegewezen_aan)?.naam || 'de chauffeur') : 'de chauffeur';
 async function vinkTaak(id) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
+  if (isRolTaak(t) && !t.klaar) { toast(`Deze taak is vanzelf klaar als ${hoofdChauffeur(hoofdVan(t))} "${hoofdVan(t)?.tekst || 'de hoofdtaak'}" afsluit. Je kunt alleen aangeven dat je er (niet meer) mee bezig bent.`, 1); return; }
   if (!t.klaar && isVerplaats(t)) {
     const patch = {klaar: true, klaar_door: naamMe(), klaar_op: new Date().toISOString(), bezig_door: null, bezig_sinds: null};
     Object.assign(t, patch); render(true);
@@ -3804,7 +3812,7 @@ function taakHtml(t, metPerceel) {
     ? `✓ Gedaan door <b>${esc(t.klaar_door || '?')}</b> · ${datumKort(t.klaar_op)}${isVerplaats(t) ? ' · 🚚 ' + verplaatsTekst(t) : ''}${t.product ? ' · ' + esc(t.product) : ''}${t.dosering != null ? ' · ' + (+t.dosering).toLocaleString('nl-NL') + ' ' + esc(t.eenheid || '') : ''}`
     : `${wie ? `👤 <b>${esc(wie.naam)}</b> · ` : '👤 nog niemand · '}${t.gepland ? `🗓️ ${datumKort(t.gepland)} · ` : ''}${t.deadline ? `<span class="${telaat ? 'telaat' : ''}">📅 ${datumKort(t.deadline)}${telaat ? ' (te laat)' : ''}</span> · ` : ''}${isVerplaats(t) ? '🚚 ' + verplaatsTekst(t) : '📐 ' + taakWaar(t)}`;
   return `<div class="taak ${t.klaar ? 'klaar' : ''} ${t.bezig_door && !t.klaar ? 'bezig' : ''} ${taakFocus === t.id ? 'focus' : ''}">${mag('taken_afvinken') ? `<button class="vink" onclick="vinkTaak('${t.id}')">${t.klaar ? '✓' : ''}</button>` : `<span class="vink stil">${t.klaar ? '✓' : ''}</span>`}
-    <div class="t" onclick="focusTaak('${t.id}')" style="cursor:pointer"><span>${esc(t.tekst)}</span>
+    <div class="t" onclick="focusTaak('${t.id}')" style="cursor:pointer"><span>${isRolTaak(t) ? `<span class="badge rol">👥 ${rolNaam(t)}</span> ` : ''}${esc(t.tekst)}</span>
       ${t.omschrijving ? `<div class="omschr">${esc(t.omschrijving).replace(/\n/g, '<br>')}</div>` : ''}
       ${fotoRij(t.fotos)}
       ${!t.klaar ? machineFotosHtml(t) : ''}
@@ -6306,7 +6314,27 @@ async function rooiTaakBij(r, gek, p) {
   const res = bestaat ? await sb.from('taken').update(rij).eq('id', bestaat.id).select().single() : await sb.from('taken').insert({...rij, aangemaakt_door: naamMe()}).select().single();
   if (res.error) { toast('Taak opslaan mislukt: ' + foutTekst(res.error), 1); return bestaat?.id || null; }
   const i = S.taken.findIndex(x => x.id === res.data.id); if (i >= 0) S.taken[i] = res.data; else S.taken.push(res.data);
+  await rooiRolTaken(r, res.data, wat);
   return res.data.id;
+}
+// per bijrijder en bakkenist een eigen meewerk-taak onder de rooitaak
+async function rooiRolTaken(r, hoofd, wat) {
+  const chauf = rpChauf(r) ? naamVan(rpChauf(r)) : 'de chauffeur';
+  const wens = [...(r.bijrijders || []).map(id => ['bijrijder', id]), ...(r.bakkenisten || []).map(id => ['bakkenist', id])];
+  const bestaand = S.taken.filter(x => x.hoofd_taak === hoofd.id);
+  for (const [rol, id] of wens) {
+    const sleutel = `${rol}|${id}`, oud = bestaand.find(x => x.rol === sleutel), naam = rol === 'bijrijder' ? 'Bijrijder' : 'Bakkenist';
+    const rij = {perceel_id: hoofd.perceel_id, tekst: `${naam} bij rooien${wat ? ': ' + wat : ''}${String(id).startsWith('~') ? ' (' + id.slice(1) + ')' : ''}`,
+      omschrijving: `${rol === 'bijrijder' ? 'Je rijdt mee met' : 'Je staat achterop de wagen bij'} ${chauf}.\nDeze taak is klaar zodra ${chauf} het rooien afsluit.`,
+      toegewezen_aan: String(id).startsWith('~') ? null : id, gepland: hoofd.gepland, gebied: hoofd.gebied, spoor_van: hoofd.spoor_van, spoor_tot: hoofd.spoor_tot,
+      hoofd_taak: hoofd.id, rol: sleutel};
+    if (oud?.klaar) continue;
+    const res = oud ? await sb.from('taken').update(rij).eq('id', oud.id).select().single() : await sb.from('taken').insert({...rij, aangemaakt_door: naamMe()}).select().single();
+    if (res.error) { toast(/hoofd_taak|rol/i.test(res.error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : 'Meewerk-taak opslaan mislukt: ' + foutTekst(res.error), 1); return; }
+    const i = S.taken.findIndex(x => x.id === res.data.id); if (i >= 0) S.taken[i] = res.data; else S.taken.push(res.data);
+  }
+  for (const x of bestaand.filter(x => !x.klaar && !wens.some(([rol, id]) => x.rol === `${rol}|${id}`))) {   // niet meer ingepland: weg
+    await sb.from('taken').delete().eq('id', x.id); S.taken = S.taken.filter(y => y.id !== x.id); }
 }
 // hoeveel meter van een partij staat er nog op de gekozen rijen (braak/gerooid telt niet mee); per rij
 function partijRijMeters(x, keys) {
@@ -6507,6 +6535,10 @@ function tmRender() {
       <button class="tmKeuze ${welk === 'mijn' ? 'aan' : ''}" onclick="TM.takenKeuze='mijn';tmRender()">👤 ${TM.chauffeur ? esc(TM.chauffeur.naam.split(' ')[0]) + 's' : 'Mijn'} taken <b>${tmTakenVan('mijn').length}</b></button>
       <button class="tmKeuze ${welk === 'alle' ? 'aan' : ''}" onclick="TM.takenKeuze='alle';tmRender()">📋 Alle taken <b>${tmTakenVan('alle').length}</b></button></div>
     ${lijst.map(t => { const p = perceel(t.perceel_id), vg = voortgangTekst(t), ikBezig = t.bezig_door && t.bezig_door === naamMe();
+      if (isRolTaak(t)) { const h = hoofdVan(t);
+        return `<div class="tmTaak rol ${ikBezig ? 'bezig' : ''}"><div onclick="tmTaakOpen('${t.id}')"><b><span class="tmRol">👥 ${rolNaam(t)}</span> ${esc(t.tekst)}</b><small>${p ? '📍 ' + esc(p.naam) + ' · ' : ''}${esc(taakWaar(t))} · met ${esc(hoofdChauffeur(h))}${t.toegewezen_aan && welk === 'alle' ? ' · 👤 ' + esc(S.profielen.find(u => u.id === t.toegewezen_aan)?.naam || '') : ''}</small>
+          ${t.bezig_door ? `<small style="color:#ffd54f">🟡 Bezig: ${esc(t.bezig_door)}</small>` : '<small>Niemand is er nu mee bezig</small>'}${h && voortgangTekst(h) ? `<small style="color:#a5d6a7">✅ Rooien: ${voortgangTekst(h)}</small>` : ''}</div>
+          ${mag('taken_afvinken') ? (ikBezig ? `<button class="tmKlein" onclick="tmRolBezig('${t.id}')">⏸ Niet meer bezig</button>` : `<button class="tmKlein aan" onclick="tmRolBezig('${t.id}')">▶ ${t.bezig_door ? 'Overnemen' : 'Ik ben bezig'}</button>`) : ''}</div>`; }
       return `<div class="tmTaak ${ikBezig ? 'bezig' : ''}"><div onclick="tmTaakOpen('${t.id}')"><b>${esc(t.tekst)}</b><small>${p ? '📍 ' + esc(p.naam) + ' · ' : ''}${esc(taakWaar(t))}${t.product ? ' · ' + esc(t.product) : ''}${t.toegewezen_aan && welk === 'alle' ? ' · 👤 ' + esc(S.profielen.find(u => u.id === t.toegewezen_aan)?.naam || '') : ''}</small>
         ${t.bezig_door ? `<small style="color:#ffd54f">🟡 Bezig: ${esc(t.bezig_door)}</small>` : ''}${vg ? `<small style="color:#a5d6a7">✅ ${vg}</small>` : ''}</div>
       ${mag('taken_afvinken') ? `${ikBezig ? `<button class="tmKlein aan" onclick="tmTaakOpen('${t.id}')">Open</button>` : `<button class="tmKlein" onclick="tmTaakStart('${t.id}')">▶ Start</button>`}<button class="tmKlein groen" onclick="tmTaakAfronden('${t.id}')">✓ Klaar</button>` : ''}</div>`; }).join('') || `<p class="tmLeeg">${welk === 'mijn' ? 'Geen taken voor jou 👍' : 'Geen open taken 👍'}</p>`}`; }
@@ -6528,7 +6560,7 @@ function tmRender() {
       ${mag('taken_toevoegen') || mag('werk_registreren') ? `<button class="tmTegel" onclick="tmRegistreren()"><span>🧪</span>Spuiten / bemesten registreren</button>` : ''}
       <button class="tmTegel" onclick="tmVolledigeAppVraag()"><span>🖥️</span>Volledige app<small class="tmKlein2">${isApparaat() && TM.chauffeur ? 'met de pincode van ' + esc(TM.chauffeur.naam.split(' ')[0]) : 'zoals op de computer'}</small></button></div>`;
   const sc = [el.querySelector('.tmBody')?.scrollTop || 0, el.querySelector('.tmPopupIn')?.scrollTop || 0, el.querySelector('.tmInfo')?.scrollTop || 0], zelfde = tmRender.vorige === TM.scherm;
-  const zij = TM.scherm === 'kaart' && TM.paneel && mijnBezig() && !TM.prik ? tmZijHtml(mijnBezig()) : '';
+  const zij = TM.scherm === 'kaart' && TM.paneel && mijnBezig() && !isRolTaak(mijnBezig()) && !TM.prik ? tmZijHtml(mijnBezig()) : '';
   if (!zij) document.body.classList.remove('tmZijAan');
   el.innerHTML = kop + (zij ? '' : tmBezigBalk()) + zij + `<div class="tmBody">${body}</div>` + tmTaakPopupHtml(); tmRender.vorige = TM.scherm;
   if (TM.scherm === 'kaart') tmTaakTeken();
@@ -6646,8 +6678,7 @@ const mijnBezig = () => S.taken.find(t => !t.klaar && t.bezig_door && t.bezig_do
 function tmTakenVan(welk) {
   const ik = TM.chauffeur?.id || me?.id, nuDag = vandaag();
   const open = S.taken.filter(t => !t.klaar && !isVerplaats(t));
-  const crew = new Set((S.rooiplanning || []).filter(r => r.taak_id && rpMensen(r).includes(ik)).map(r => r.taak_id));
-  const l = welk === 'mijn' ? open.filter(t => t.toegewezen_aan === ik || crew.has(t.id) || (t.bezig_door && t.bezig_door === naamMe()))
+  const l = welk === 'mijn' ? open.filter(t => t.toegewezen_aan === ik || (t.bezig_door && t.bezig_door === naamMe()))
     : open.filter(t => !t.gepland || t.gepland <= nuDag || t.bezig_door);
   return l.sort((a, b) => ((b.bezig_door === naamMe()) - (a.bezig_door === naamMe())) || ((b.perceel_id === TM.pid) - (a.perceel_id === TM.pid)) || (a.gepland || a.deadline || '9').localeCompare(b.gepland || b.deadline || '9'));
 }
@@ -6683,9 +6714,18 @@ function sporenUitRoute(t, kand) {
     for (const k of kand) { try { if (turf.booleanPointInPolygon(g, k.geo)) { tel.set(k.key, (tel.get(k.key) || 0) + 1); break; } } catch {} } }
   return [...tel].filter(([, n]) => n >= 2).map(([k]) => k);
 }
-function tmTaakOpen(id) { if (mijnBezig()?.id === id) { tmPaneelOpen(); return; } TM.popup = {id, modus: 'info'}; tmRender(); }
+// bezig / niet meer bezig met een meewerk-taak (ook overnemen van iemand anders)
+async function tmRolBezig(id) {
+  const t = S.taken.find(x => x.id === id); if (!t || t.klaar) return;
+  if (t.bezig_door && t.bezig_door !== naamMe()) await zetBezig(id);   // de ander stopt (zijn uren worden afgesloten)
+  await zetBezig(id);
+  toast(t.bezig_door ? `🟡 Je bent nu bezig als ${rolNaam(t).toLowerCase()}` : `⏸ Je bent niet meer bezig als ${rolNaam(t).toLowerCase()}. Iemand anders kan het onder "Alle taken" overnemen.`);
+  TM.popup = t.bezig_door ? {id, modus: 'info'} : null; tmRender();
+}
+function tmTaakOpen(id) { if (mijnBezig()?.id === id && !isRolTaak(mijnBezig())) { tmPaneelOpen(); return; } TM.popup = {id, modus: 'info'}; tmRender(); }
 async function tmTaakStart(id) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
+  if (isRolTaak(t)) { if (t.bezig_door !== naamMe()) await tmRolBezig(id); else tmTaakOpen(id); return; }
   if (t.bezig_door && t.bezig_door !== naamMe()) { if (!await bevestig('Iemand is hier al mee bezig', `${t.bezig_door} is met "${t.tekst}" bezig. Wil jij het overnemen?`)) return; await zetBezig(id); }
   if (!t.bezig_door) await zetBezig(id);
   TM.route = {id, pts: []}; try { localStorage.setItem('tmRoute', JSON.stringify(TM.route)); } catch {}
@@ -6694,13 +6734,15 @@ async function tmTaakStart(id) {
 }
 // de taak waar je mee bezig bent blijft links open staan, met de kaart ernaast om sporen af te vinken
 function tmPaneelOpen() {
-  const t = mijnBezig(); TM.popup = null; TM.paneel = true; TM.zijScroll = 0;
+  const t = mijnBezig(); if (isRolTaak(t)) { TM.popup = {id: t.id, modus: 'info'}; tmRender(); return; }
+  TM.popup = null; TM.paneel = true; TM.zijScroll = 0;
   if (t?.perceel_id && perceel(t.perceel_id)) { TM.pid = t.perceel_id; actief = t.perceel_id; }
   if (TM.scherm !== 'kaart') tmKaart(); else tmRender();
   setTimeout(() => { tmKaartRuimte(); try { const g = t && taakGebied(t); if (g?.length) map.fitBounds(L.geoJSON({type: 'FeatureCollection', features: g.map(x => x.type === 'Feature' ? x : {type: 'Feature', properties: {}, geometry: x})}).getBounds(), {padding: [30, 30], maxZoom: 19}); } catch {} TM.volg = false; tmRender(); }, 350);
 }
 async function tmTaakAfronden(id) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
+  if (isRolTaak(t)) { vinkTaak(id); return; }
   const nog = tmNogTeDoen(t);
   if (nog) { toast(`Nog ${nog} ${nog === 1 ? 'spoor' : 'sporen'} te gaan. Tik eerst alles af wat klaar is, dan kun je afronden.`, 1); return; }
   TM.popup = null; TM.paneel = false; tmRender();
@@ -6710,6 +6752,7 @@ async function tmTaakAfronden(id) {
 // pauzeren of wisselen: eerst laten zien welke sporen klaar zijn (uit de GPS-route + wat al klaar was), dan opslaan
 function tmPauze(id, na) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
+  if (isRolTaak(t)) { tmRolBezig(id).then(() => { if (na === 'wissel') { TM.scherm = 'taken'; tmRender(); } }); return; }
   TM.paneel = false; tmPauzeOpslaan(id, na, null); return;
   const kand = taakSporen(t);
   const auto = sporenUitRoute(t, kand), al = t.voortgang?.sporen || [];
@@ -6747,6 +6790,16 @@ function tmTaakPopupHtml() {
         <button class="groen" onclick="tmPauzeOpslaan('${t.id}','${pp.na}',TM.popup.sel)">✔ Opslaan</button></div></div></div>`;
   }
   const regel = (i, txt) => txt ? `<div class="tmRegel"><i>${i}</i><div>${txt}</div></div>` : '';
+  if (isRolTaak(t)) { const h = hoofdVan(t), ikB = t.bezig_door === naamMe();
+    return `<div class="tmPopup"><div class="tmPopupIn"><h2><span class="tmRol">👥 ${rolNaam(t)}</span> ${esc(t.tekst)}</h2>
+      ${regel('🚜', `Je bent <b>${rolNaam(t).toLowerCase()}</b> bij <b>${esc(h?.tekst || 'de hoofdtaak')}</b> met <b>${esc(hoofdChauffeur(h))}</b>`)}
+      ${regel('🟡', t.bezig_door ? `Bezig: <b>${esc(t.bezig_door)}</b>${t.bezig_sinds ? ' sinds ' + new Date(t.bezig_sinds).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : ''}` : 'Niemand is er nu mee bezig')}
+      ${regel('📍', p ? `<b>${esc(p.naam)}</b> · ${esc(taakWaar(t))}` : '')}
+      ${regel('✅', h && voortgangTekst(h) ? 'Rooien: ' + voortgangTekst(h) : '')}
+      ${h ? tmRooiVoortgang(h, new Set(h.voortgang?.sporen || [])) : ''}
+      ${regel('ℹ️', `Deze taak is <b>vanzelf klaar</b> zodra ${esc(hoofdChauffeur(h))} het rooien afsluit. Wissel je met iemand? Tik dan op "Niet meer bezig"; die ander kan het onder "Alle taken" overnemen.`)}
+      <div class="tmKnoppen">${ikB ? `<button onclick="TM.popup=null;tmRender()">▾ Wegdrukken</button><button class="geel" style="grid-column:span 2" onclick="tmRolBezig('${t.id}')">⏸ Niet meer bezig</button><span></span>`
+        : `<button onclick="TM.popup=null;tmRender()">✕ Sluiten</button>${mag('taken_afvinken') ? `<button class="groen" style="grid-column:span 2" onclick="tmRolBezig('${t.id}')">▶ ${t.bezig_door ? 'Overnemen' : 'Ik ben bezig als ' + rolNaam(t).toLowerCase()}</button>` : ''}<span></span>`}</div></div></div>`; }
   const ma = t.toegewezen_aan ? S.profielen.find(u => u.id === t.toegewezen_aan)?.naam : '';
   return `<div class="tmPopup"><div class="tmPopupIn"><h2>${esc(t.tekst)}</h2>
     ${regel('🟡', t.bezig_door ? `Bezig: <b>${esc(t.bezig_door)}</b>${t.bezig_sinds ? ' sinds ' + new Date(t.bezig_sinds).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : ''}` : '')}
