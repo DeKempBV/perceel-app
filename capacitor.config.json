@@ -2,7 +2,7 @@
   "appId": "nl.perceelapp.app",
   "appName": "Perceel App",
   "webDir": "www",
-  "backgroundColor": "#1f4d2b",
+  "backgroundColor": "#bfe0b0",
   "android": {
     "useLegacyBridge": true
   }
