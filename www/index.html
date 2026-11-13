@@ -929,6 +929,9 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .partijKeuze{margin-top:8px;background:#f6faf3;border:1px solid #dfe7dc;border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:5px}
 .pkKies{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:1px solid #dfe7dc;background:#fff;border-radius:10px;padding:7px 10px;cursor:pointer;font:inherit}
 .pkKies small{color:#6b7a6d;font-size:12px}.pkKies.aan{background:var(--groen);color:#fff;border-color:var(--groen)}.pkKies.aan small{color:#dcebd8}.pkKies.nieuw{align-items:center;font-weight:700;color:var(--groen);border-style:dashed}
+.plRas{border:1px solid #e4ebe1;border-radius:12px;margin:6px 0;background:#fff;overflow:hidden}.plRas.open{border-color:#c5d8bf}
+.plRasKop{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;padding:10px 12px;font:inherit;text-align:left;cursor:pointer}.plRasKop:hover{background:#f6faf3}
+.plRasKop .plAantal{margin-left:auto;color:#6b7a6d;font-size:12.5px}.plPijl{color:#6b7a6d}.plRasIn{border-top:1px solid #eef2ec;padding:2px 12px 8px}
 </style>
 </head>
 <body>
@@ -1558,6 +1561,34 @@ async function hernoem() {
   const p = perceel(actief);
   const naam = await vraag('Nieuwe naam', {waarde: p.naam});
   if (naam) wijzig(p.id, {naam});
+}
+// alles van het perceel leeg, behalve de vorm, de richting/breedte van de sporen (en A-B-lijn) en de deelvelden
+let perceelResetTerug = null;
+async function perceelReset() {
+  const p = perceel(actief); if (!p || !mag('soorten_indelen')) return;
+  const w = await formulier(`♻️ ${p.naam} resetten`, [{type: 'uitleg', waarde: `<b>Dit gaat weg</b> (ook in de deelvelden): de indeling van alle sporen (rassen en wissels), de partijen op de sporen, spuitsporen en rijpatroon, weggehaalde sporen en de beplanting.<br>
+      <b>Dit blijft staan:</b> de vorm van het perceel, de richting en breedte van de sporen, de A-B-lijn en de deelvelden. Taken, vlaggen, monsters en de historie blijven ook.<br>Typ de naam van het perceel om te bevestigen.`},
+    {k: 'naam', label: 'Naam van het perceel', waarde: '', placeholder: p.naam}], 'Resetten');
+  if (!w) return; if (normTekst(w.naam) !== normTekst(p.naam)) { toast('De naam klopt niet; er is niets gereset', 1); return; }
+  const zones = new Set(alleZones(p).map(z => z.id));
+  const oud = JSON.parse(JSON.stringify({banen: p.banen ?? [], gewas: p.gewas ?? null, beplanting: p.beplanting ?? {}, spuit: p.spuit ?? null, sporen_weg: p.sporen_weg ?? [], vakken: p.vakken ?? []}));
+  const pOud = (S.partijen || []).filter(x => x.perceel_id === p.id || (x.sporen || []).some(q => zones.has(q.z))).map(x => ({id: x.id, perceel_id: x.perceel_id ?? null, sporen: x.sporen ?? null}));
+  const vakken = (p.vakken || []).map(v => { const {banen, gewas, spuit, sporen_weg, beplanting, ...rest} = v; return {...rest, banen: []}; });
+  kwast = undefined; kwastPartij = null; gereedschap = undefined;
+  await wijzig(p.id, {banen: [], gewas: null, beplanting: {}, spuit: null, sporen_weg: [], vakken});
+  for (const o of pOud) { const x = S.partijen.find(y => y.id === o.id); if (!x) continue;
+    const sp = (x.sporen || []).filter(q => !zones.has(q.z)), patch = {sporen: sp.length ? sp : null, perceel_id: x.perceel_id === p.id ? null : x.perceel_id};
+    Object.assign(x, patch); const {error} = await sb.from('partijen').update(patch).eq('id', x.id); if (error) { toast('Partij bijwerken mislukt: ' + error.message, 1); break; } }
+  spoorPartijMap = null; banenCache.clear?.(); perceelResetTerug = {pid: p.id, oud, pOud, t: Date.now()};
+  sb.rpc('gebeurtenis', {p_soort: 'perceel', p_tekst: `♻️ Perceel gereset: ${p.naam}`, p_ref: p.id}).then(() => {}, () => {});
+  render(true); toast(`♻️ ${p.naam} is gereset · ongedaan maken kan nog 30 minuten (knop bij Beheer)`);
+}
+async function perceelResetOngedaan() {
+  const r = perceelResetTerug, p = r && perceel(r.pid); if (!p) return;
+  await wijzig(p.id, r.oud);
+  for (const o of r.pOud) { const x = S.partijen.find(y => y.id === o.id); if (!x) continue; Object.assign(x, {perceel_id: o.perceel_id, sporen: o.sporen});
+    await sb.from('partijen').update({perceel_id: o.perceel_id, sporen: o.sporen}).eq('id', o.id); }
+  perceelResetTerug = null; spoorPartijMap = null; banenCache.clear?.(); render(true); toast(`↶ ${p.naam} staat weer zoals voor de reset`);
 }
 async function verwijderPerceel() {
   const p = perceel(actief);
@@ -3849,7 +3880,9 @@ function htmlDetail(p) {
   ${p.type !== 'pand' && mag('soorten_indelen') ? beplantingHtml(p) : ''}
   ${htmlMarkeringen(p, 'grond')}
   ${htmlMarkeringen(p, 'vlag')}
-  ${mag('percelen_uitschakelen') || mag('percelen_verwijderen') ? `<section class="kaartje"><h4>Beheer</h4>
+  ${mag('percelen_uitschakelen') || mag('percelen_verwijderen') || (mag('soorten_indelen') && p.type !== 'pand') ? `<section class="kaartje"><h4>Beheer</h4>
+    ${mag('soorten_indelen') && p.type !== 'pand' ? (perceelResetTerug?.pid === p.id && Date.now() - perceelResetTerug.t < 30 * 60e3
+      ? '<button class="knop licht" onclick="perceelResetOngedaan()">↶ Reset ongedaan maken</button>' : '<button class="knop licht" onclick="perceelReset()">♻️ Perceel resetten (indeling leeg, richting en deelvelden blijven)</button>') : ''}
     ${mag('percelen_uitschakelen') ? `<button class="knop licht" onclick="schakelPerceel()">${p.uitgeschakeld ? '▶️ Weer in gebruik nemen' : '⏸️ Uitschakelen (niet in gebruik dit seizoen)'}</button>` : ''}
     ${mag('percelen_bewerken') && mag('percelen_verwijderen') && p.type !== 'pand' ? '<button class="knop licht" onclick="samenvoegenStart()">🔗 Samenvoegen met een perceel ernaast</button>' : ''}
     ${mag('percelen_verwijderen') ? '<button class="knop rood" onclick="verwijderPerceel()">🗑️ Perceel verwijderen</button>' : ''}</section>` : ''}
@@ -5530,6 +5563,30 @@ function partijLijst(lijst, {metPerceel = false, metGewas = false, erbij = null}
       ${g.map(y => `<div class="plSub"><div class="plDet">${det(y)}${knop(y)}</div>${perc(y)}</div>`).join('')}${nogEen ? `<div class="plSub">${nogEen}</div>` : ''}</details>`;
   }).join('')}</div>`;
 }
+// per ras een kopje; open = de batches. Waar hij staat volgt uit de sporen (wat getekend is).
+let partijRasOpen = new Set();
+function partijLijstPerRas(lijst, allesOpen) {
+  const beh = mag('partijen_beheren'), perGewas = new Map();
+  lijst.forEach(x => { const g = x.soort_id || '', r = x.ras_id || 't:' + normTekst(partijRas(x));
+    if (!perGewas.has(g)) perGewas.set(g, new Map()); const m = perGewas.get(g); if (!m.has(r)) m.set(r, []); m.get(r).push(x); });
+  const waar = x => { const n = partijSporen(x), p = perceel(x.perceel_id);
+    return n.length && p ? `<a href="#" class="plPerc" onclick="event.preventDefault();kies('${p.id}');render(true)">📍 ${esc(p.naam)} · ${n.length === 1 ? 'spoor' : 'sporen'} ${reeksTekst(n)}</a>`
+      : `<span class="plPerc grijs">nog niet op het veld${x.perceel_tekst ? ` <small>(Excel: ${esc(x.perceel_tekst)})</small>` : ''}</span>`; };
+  const det = x => [x.batch ? `<span>batch <b>${esc(x.batch)}</b></span>` : '', x.nak && x.nak !== x.batch ? `<span>NAK <b>${esc(x.nak)}</b></span>` : '', x.klasse ? `<span>klasse <b>${esc(x.klasse)}</b></span>` : '',
+    x.teeltdoel ? `<span>${esc(x.teeltdoel)}</span>` : '', x.doel ? `<span>${esc(x.doel)}</span>` : '', x.bio ? '<span class="badge bio">BIO</span>' : ''].filter(Boolean).join('');
+  const knop = x => (mag('voorraad_beheren') ? `<button class="icoon klein" title="Koelcel / levering boeken" onclick="event.stopPropagation();mutatieFormulier('${x.id}','in')">📦</button>` : '')
+    + (beh ? `<button class="icoon klein" title="Aanpassen" onclick="event.stopPropagation();partijBewerk('${x.id}')">✏️</button>` : '');
+  return [...perGewas.entries()].sort((a, b) => (soort(a[0])?.naam || '~').localeCompare(soort(b[0])?.naam || '~', 'nl')).map(([g, rassen]) => {
+    const pl = soort(g);
+    return `<div class="plGroep"><div class="plGroepKop">${pl ? icoonHtml(plantIcoon(pl)) + ' ' + esc(pl.naam) : 'Onbekend gewas'} <small>${[...rassen.values()].reduce((a, l) => a + l.length, 0)}</small></div>
+      ${[...rassen.entries()].sort((a, b) => partijRas(a[1][0]).localeCompare(partijRas(b[1][0]), 'nl')).map(([rk, l]) => { const x0 = l[0], r = x0.ras_id && ras(x0.ras_id), open = allesOpen || partijRasOpen.has(g + '|' + rk);
+        const opVeld = l.filter(y => partijSporen(y).length).length, kleur = r?.kleur || pl?.kleur || '#9e9e9e';
+        return `<div class="plRas ${open ? 'open' : ''}"><button class="plRasKop" onclick="partijRasOpen.has('${g}|${rk}')?partijRasOpen.delete('${g}|${rk}'):partijRasOpen.add('${g}|${rk}');render(true)">
+            <i class="kl" style="background:${esc(kleur)}"></i><b>${esc(partijRas(x0) || pl?.naam || '?')}</b>${l.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}
+            <span class="plAantal">${l.length} ${l.length === 1 ? 'partij' : 'partijen'}${opVeld ? ` · ${opVeld} op het veld` : ''}</span><span class="plPijl">${open ? '▴' : '▾'}</span></button>
+          ${open ? `<div class="plRasIn">${l.sort((a, b) => String(a.batch || a.nak || '').localeCompare(String(b.batch || b.nak || ''), 'nl', {numeric: true})).map(y => `<div class="plSub"><div class="plDet">${det(y)}${knop(y)}</div>${waar(y)}</div>`).join('')}
+            ${beh ? `<div class="plSub"><button class="link klein" onclick="partijBewerk(null,null,{soort_id:'${x0.soort_id || ''}',ras:${esc(JSON.stringify(partijRas(x0) || ''))}})">➕ Nieuwe partij ${esc(partijRas(x0) || '')}</button></div>` : ''}</div>` : ''}</div>`; }).join('')}</div>`; }).join('');
+}
 // per perceel een kopje met daaronder de partijen
 function partijLijstPerPerceel(lijst) {
   const per = new Map(); lijst.forEach(x => { const k = x.perceel_id && perceel(x.perceel_id) ? x.perceel_id : '~' + (x.perceel_tekst || ''); if (!per.has(k)) per.set(k, []); per.get(k).push(x); });
@@ -5557,8 +5614,8 @@ function htmlPartijen() {
       <p class="hint">Een Excel-lijst met per perceel de partijen (ras, batch, NAK-nummer, klasse, doel). Elk tabblad is een gewas. Je kunt het bestand ook gewoon op de app slepen. Opnieuw inladen werkt de gegevens bij.</p>` : ''}
     ${alle.length ? `<input class="veld" placeholder="🔎 Zoek perceel, ras, batch of NAK-nummer…" value="${esc(partijZoek)}" oninput="partijZoek=this.value;clearTimeout(window._pz);window._pz=setTimeout(()=>{render();const z=document.querySelector('#partijZoekVeld');if(z){z.focus();z.setSelectionRange(z.value.length,z.value.length)}},300)" id="partijZoekVeld">
       <div class="lagen" style="margin:8px 0"><button class="chip ${!partijSoort ? 'aan' : ''}" onclick="partijSoort='';render()">Alles (${alle.length})</button>${soorten.map(s => `<button class="chip ${partijSoort === s.id ? 'aan' : ''}" onclick="partijSoort='${s.id}';render()">${icoonHtml(s.icoon)} ${esc(s.naam)} (${alle.filter(x => x.soort_id === s.id).length})</button>`).join('')}</div>
-      ${zonder ? `<p class="hint">⚠️ ${zonder} partijen zijn nog niet aan een perceel gekoppeld (grijs). Laad het bestand opnieuw in om ze te koppelen.</p>` : ''}
-      ${partijLijstPerPerceel(lijst)}` : '<p class="hint">Nog geen partijen ingeladen.</p>'}
+      <p class="hint">Per ras een kopje; tik erop voor de batches. Een partij staat op een perceel zodra je hem bij het indelen op de sporen zet (▾ bij het ras).</p>
+      ${partijLijstPerRas(lijst, !!zoek)}` : '<p class="hint">Nog geen partijen ingeladen.</p>'}
   </section>`;
 }
 const partijenVan = pid => (S.partijen || []).filter(x => x.perceel_id === pid);
