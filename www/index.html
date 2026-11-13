@@ -920,6 +920,9 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .subKeuze button{flex:1;border:0;background:none;border-radius:9px;padding:9px 10px;font:inherit;font-weight:700;color:#3b4a3d;cursor:pointer}.subKeuze button.aan{background:#fff;color:var(--groen);box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .pkLijst{max-height:52vh;overflow:auto;border:1px solid #e4ebe1;border-radius:10px;padding:4px 8px;margin:8px 0}
 .pkRegel{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid #f0f3ee;margin:0}.pkRegel small{color:#6b7a6d}
+.aiKop span{display:flex;gap:4px}.aiKop small{font-size:10px;margin-left:2px}
+.aiGeheugen{padding:8px 12px;background:#f6faf3;border-bottom:1px solid #e4ebe1;display:flex;flex-direction:column;gap:4px;max-height:35vh;overflow:auto}.aiGeheugen>small{color:#6b7a6d}
+.aiGh{display:flex;gap:6px;align-items:flex-start;background:#fff;border:1px solid #e4ebe1;border-radius:8px;padding:5px 8px;font-size:13px}.aiGh span{flex:1}.aiGh small{display:block;color:#8a978c;font-size:11px}
 </style>
 </head>
 <body>
@@ -6118,9 +6121,10 @@ function partijMeters(x) {
 function teeltMeters(p) {
   const uit = new Map(); if (!p || p.type === 'pand') return uit;
   alleZones(p).forEach(z => { let vk = []; try { vk = spuitvakkenVan(z); } catch {}
-    banenVan(z).forEach(bn => { const f = rijFactor(z, bn.nr) || 1, vak = vk.find(v => v.nrs.includes(bn.nr))?.letter;
+    let rijen = []; try { rijen = banenVan(z); } catch { return; }
+    rijen.forEach(bn => { try { const f = rijFactor(z, bn.nr) || 1, vak = vk.find(v => v.nrs.includes(bn.nr))?.letter;
       stukkenVan(z, bn).forEach(st => { const t = teelt(st.id); if (!t) return; const m = (st.tot - st.van) * f; if (m < .05) return;
-        const x = uit.get(t.id) || {m: 0, sporen: new Set(), vakken: new Set()}; x.m += m; x.sporen.add(z.id + ':' + bn.nr); if (vak) x.vakken.add(vak); uit.set(t.id, x); }); }); });
+        const x = uit.get(t.id) || {m: 0, sporen: new Set(), vakken: new Set()}; x.m += m; x.sporen.add(z.id + ':' + bn.nr); if (vak) x.vakken.add(vak); uit.set(t.id, x); }); } catch {} }); });
   return uit;
 }
 // meters van een partij: eerst wat precies op de sporen is aangewezen; anders de sporen met dat ras op het perceel (als het de enige partij van dat ras daar is)
@@ -7150,13 +7154,18 @@ function aiKnop() {
   if (!magAI() || (typeof TM !== 'undefined' && TM.aan)) { b?.remove(); return; }
   if (!b) { b = document.createElement('button'); b.id = 'aiKnop'; b.title = 'Vraag het de app (typen of praten)'; b.innerHTML = '💬<span>Vraag het</span>'; b.onclick = () => aiOpen(true); document.body.appendChild(b); }
 }
-function aiOpen(aan) { AI.open = aan; document.body.classList.toggle('aiOpen', aan); aiTeken(); if (aan) setTimeout(() => $('#aiTekst')?.focus(), 60); }
+async function aiGeheugenLaden() { try { const {data} = await sb.from('ai_geheugen').select('*').order('created_at'); if (data) S.ai_geheugen = data; } catch {} if (AI.open) aiTeken(); }
+async function aiGeheugenWeg(id) { const {error} = await sb.from('ai_geheugen').delete().eq('id', id); if (error) { toast(foutTekst(error), 1); return; } S.ai_geheugen = (S.ai_geheugen || []).filter(g => g.id !== id); aiTeken(); toast('Vergeten'); }
+function aiOpen(aan) { if (aan && !S.ai_geheugen) aiGeheugenLaden(); AI.open = aan; document.body.classList.toggle('aiOpen', aan); aiTeken(); if (aan) setTimeout(() => $('#aiTekst')?.focus(), 60); }
 function aiTeken() {
   let el = $('#aiPaneel'); if (!AI.open) { el?.remove(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'aiPaneel'; document.body.appendChild(el); }
   const tekstNu = $('#aiTekst')?.value || '';
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  el.innerHTML = `<div class="aiKop"><b>💬 Vraag het de app</b><button class="icoon" onclick="aiOpen(false)" title="Sluiten">✕</button></div>
+  const gh = S.ai_geheugen || [];
+  el.innerHTML = `<div class="aiKop"><b>💬 Vraag het de app</b><span><button class="icoon" onclick="AI.toonGeheugen=!AI.toonGeheugen;aiTeken()" title="Wat de AI onthoudt">🧠${gh.length ? `<small>${gh.length}</small>` : ''}</button><button class="icoon" onclick="aiOpen(false)" title="Sluiten">✕</button></span></div>
+    ${AI.toonGeheugen ? `<div class="aiGeheugen"><b>🧠 Dit onthoudt de AI</b><small>Zeg "onthoud: …" of verbeter hem; als je het bevestigt, krijgt hij het bij elke vraag mee.</small>
+      ${gh.length ? gh.map(g => `<div class="aiGh"><span>${esc(g.tekst)}<small>${esc(g.door || '')} · ${datumKort(g.created_at)}</small></span>${isBeheerder() || g.user_id === me?.id ? `<button class="icoon" title="Vergeten" onclick="aiGeheugenWeg('${g.id}')">✕</button>` : ''}</div>`).join('') : '<small><i>Nog niets.</i></small>'}</div>` : ''}
     <div class="aiBerichten" id="aiBerichten">${AI.berichten.length ? AI.berichten.map(aiBerichtHtml).join('') : `<div class="aiLeeg"><b>Typ of praat gewoon.</b> Bijvoorbeeld:
       ${['Hoe staat het rooien ervoor vandaag?', 'Vak B van de Cadenza is gerooid, 40 bakken', 'Welke partijen wijken meer dan 10% af van de prognose?', 'Zet de regenvrije tijd na spuiten op anderhalf uur', 'Een A+ kistje aardbei gaat 250 planten in']
         .map(v => `<button onclick="$('#aiTekst').value=${esc(JSON.stringify(v))};aiVerstuur()">${esc(v)}</button>`).join('')}</div>`}
@@ -7168,7 +7177,7 @@ function aiTeken() {
         <button class="knop" style="margin:0;width:auto" onclick="aiVerstuur()" ${AI.bezig ? 'disabled' : ''}>➤</button></div></div>`;
   const b = $('#aiBerichten'); if (b) b.scrollTop = b.scrollHeight;
 }
-const AI_ACTIE_ICOON = {rooiplanning: '🚜', resultaat: '📊', taak: '📋', instelling: '⚙️', kistinhoud: '📦', wens: '💡'};
+const AI_ACTIE_ICOON = {onthoud: '🧠', rooiplanning: '🚜', resultaat: '📊', taak: '📋', instelling: '⚙️', kistinhoud: '📦', wens: '💡'};
 function aiBerichtHtml(m, mi) {
   if (m.rol === 'user') return `<div class="aiBericht jij">${esc(m.tekst)}${m.bijlage ? `<small>📎 ${esc(m.bijlage)}</small>` : ''}</div>`;
   const ac = m.acties || [], open = ac.filter(a => a.status === 'open').length;
@@ -7206,7 +7215,7 @@ function aiContext() {
       ...(c ? {totale_meters: opP ? Math.round(c.totM) || null : 0, gerooid_m: Math.round(c.gerM), bakken_gerooid: c.gerB, bakken_gekiept: c.kiepB, gesorteerd_planten: Math.round(c.gesorteerd), planten_per_m: c.plm != null ? +c.plm.toFixed(1) : null,
         planten_per_bak: c.plPerBak != null ? Math.round(c.plPerBak) : null, verwacht: c.verwacht != null ? Math.round(c.verwacht) : null, prognose: c.progTot || null, afwijking_pct: c.afwijking != null ? Math.round(c.afwijking * 100) : null, waarschuwingen: c.let_op.map(l => l.t)} : {})}; });
   const pn = id => S.profielen.find(u => u.id === id)?.naam || null;
-  return {vandaag: vandaag(), tijd: tijdKort(new Date()), gebruiker: naamMe(), beheerder: isBeheerder(), seizoen: seizoenNaam(bekeken),
+  return {app_versie: '2026-11-13c', geheugen: (S.ai_geheugen || []).map(g => g.tekst), vandaag: vandaag(), tijd: tijdKort(new Date()), gebruiker: naamMe(), beheerder: isBeheerder(), seizoen: seizoenNaam(bekeken),
     rechten: {resultaten_invoeren: mag('resultaten_invoeren'), resultaten_beheren: mag('resultaten_beheren'), taken_toevoegen: mag('taken_toevoegen'), instellingen: isBeheerder() || mag('instellingen_beheren')},
     partijen, percelen: S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).map(p => p.naam),
     in_het_veld: S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).flatMap(p => { let tm; try { tm = teeltMeters(p); } catch { return []; }
@@ -7264,6 +7273,11 @@ async function aiUitvoeren(mi, ai) {
       a.status = 'klaar'; aiTeken(); aiOpen(false);
       await taakFormulier(null, false, {tekst: a.tekst || '', ...(p ? {perceel_id: p.id} : {}), ...(a.gepland ? {gepland: a.gepland} : {}), ...(u ? {toegewezen_aan: u.id} : {}), ...(a.categorie ? {categorie: a.categorie} : {})});
       return;
+    } else if (a.type === 'onthoud') {
+      const t = String(a.tekst || a.omschrijving || '').trim(); if (!t) throw new Error('Niets om te onthouden');
+      const {data, error} = await sb.from('ai_geheugen').insert({tekst: t, door: naamMe()}).select().single();
+      if (error) throw new Error(/ai_geheugen/.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error));
+      (S.ai_geheugen ||= []).push(data);
     } else if (a.type === 'rooiplanning') {
       const p = S.percelen.find(q => normTekst(q.naam) === normTekst(a.perceel));
       a.status = 'klaar'; aiTeken(); aiOpen(false);
