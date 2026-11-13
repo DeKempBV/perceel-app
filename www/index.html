@@ -607,6 +607,10 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 .rpKop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}.rpRij{display:flex;gap:8px;padding:3px 0;font-size:14px}.rpRij>span{width:22px;flex:0 0 22px}
 .rpNaam{display:inline-block;background:#e8f5e9;border-radius:10px;padding:1px 8px;margin:1px 2px 1px 0}.rpNaam.chauf{background:#c8e6c9;font-weight:700}.rpNaam.dubbel{background:#ffe0b2;outline:2px solid #fb8c00}
 .rpLet{background:#fff3e0;border-radius:8px;padding:6px 8px;font-size:13px;margin-top:4px}.rpDag.vandaag{outline:3px solid #f9a825}
+.veldSchets{background:#faf8f3;border:1px solid #e0dccf;border-radius:12px;padding:8px;margin:4px 0}.veldSchets svg{width:100%;height:auto;max-height:360px;display:block}
+.vsVak path{fill:transparent;stroke:transparent;stroke-width:.6;cursor:pointer}.vsVak:hover path{fill:rgba(255,193,7,.18)}.vsVak.aan path{fill:rgba(255,160,0,.45);stroke:#e65100}
+.vsVak text{font:700 15px Arial;fill:#fff;stroke:#333;stroke-width:3px;paint-order:stroke;text-anchor:middle;dominant-baseline:middle;pointer-events:none}.vsVak.aan text{fill:#ffe082}
+.vsLeg{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;margin-top:6px}.vsLeg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-2px}
 .vinkjesVeld{display:flex;flex-wrap:wrap;gap:6px}.vinkjesVeld .vinkje{display:flex;align-items:center;gap:6px;background:#f1f6ef;border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer}
 .mTegel.rooi{background:#efebe9}
 .tmLeeg{text-align:center;font-size:24px;margin-top:40px;color:#c8e6c9}
@@ -1039,6 +1043,7 @@ function formulier(titel, velden, knop = 'Opslaan') {
       const w = esc(v.waarde ?? '');
       if (v.type === 'fotos') return fotoVeldHtml(v);
       if (v.type === 'uitleg') return `<p class="hint" style="margin:0">${v.waarde}</p>`;
+      if (v.type === 'html') return `<div class="fHtml">${v.waarde}</div>`;
       if (v.type === 'textarea') return `<textarea class="veld" data-k="${v.k}" rows="3" placeholder="${esc(v.placeholder || '')}">${w}</textarea>`;
       if (v.type === 'select') return `<select class="veld" data-k="${v.k}">${v.opties.map(([o, l]) => `<option value="${esc(o)}" ${String(o) === String(v.waarde ?? '') ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
       if (v.type === 'vinkjes') return `<div class="vinkjesVeld">${v.opties.map(([o, l]) => `<label class="vinkje"><input type="checkbox" data-vk="${v.k}" value="${esc(o)}" ${(v.waarde || []).map(String).includes(String(o)) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div>`;
@@ -2117,6 +2122,7 @@ async function taakFormulier(id, direct, voor = {}) {
     {k: 'deadline', label: 'Uiterlijk op', type: 'date', waarde: t.deadline || ''},
     {k: 'waar', label: 'Waar op het veld?', type: 'select', waarde: waar,
       opties: [['heel', 'Hele perceel'], ...(vakken.length ? [['vak', 'Een of meer vakken (tussen spuitpaden)']] : []), ...(aantal ? [['sporen', 'Bepaalde sporen']] : []), ['tekenen', t.gebied ? 'Getekend stuk (opnieuw tekenen)' : 'Zelf een stuk tekenen']]},
+    {type: 'html', waarde: veldSchets(p, vakkenGekozen), als: ['waar', 'vak']},
     {k: 'vakken', label: 'Welke vakken? (meerdere aanvinken kan)', type: 'vinkjes', waarde: vakkenGekozen.length ? vakkenGekozen : [0],
       opties: vakken.map((v, i) => [i, `Vak ${v.letter}${v.z._vak ? ' (' + v.z.naam + ')' : ''} · ${v.rijen ?? v.nrs.length} rijen${v.m2 ? ' · ' + Math.round(v.m2).toLocaleString('nl-NL') + ' m²' : ''}`]), als: ['waar', 'vak']},
     {k: 'spoor_van', label: `Van spoor (1–${aantal})`, type: 'number', waarde: t.spoor_van || 1, als: ['waar', 'sporen']},
@@ -2479,6 +2485,7 @@ function alleLagen() {
     ${rij('kwOmtrek', '⬜ Omtrekken van velden', aan('_omtrek'))}
     ${rij('kwTrekkers', '🚜 Tractoren', aan('_tractoren'))}
     <div class="aiVelden" style="margin:0 0 6px 28px"><span>Grootte trekkers</span><input type="range" id="kwTrGrootte" min="0.5" max="3" step="0.25" value="${trekkerGrootte()}" style="flex:1"><b id="kwTrG">${Math.round(trekkerGrootte() * 100)}%</b></div>
+    ${typeof TM !== 'undefined' && TM.aan ? rij('kwZiektes', '🐛 Ziektes en plagen', aan('_ziektes')) + rij('kwTmVol', '🗺️ Alle velden met alle info (uit = alleen het veld waar je nu bent, de rest alleen de omtrek; lichter voor de tablet)', aan('_tmVol')) : ''}
     ${ziet('voertuigen_zien') ? rij('kwVoertuigen', '🚐 Bussen en auto\'s (FleetGO)', aan('_voertuigen')) : ''}
     <div class="rij" style="margin-top:12px"><button class="knop licht" id="kwAlles">Alles aan</button><button class="knop licht" id="kwNiets">Alles uit</button></div>
     <p class="hint">Per veld kun je lagen ook apart aan- en uitzetten bij het veld zelf.</p>
@@ -2486,7 +2493,7 @@ function alleLagen() {
   const m = $('#modal'); m.classList.add('open');
   const toepassen = () => {
     weergave._g = Object.fromEntries(LAAG.map(k => [k, $('#kw_' + k).checked]));
-    weergave._namen = $('#kwNamen').checked; weergave._gewasIcoon = $('#kwGewas').checked; weergave._omtrek = $('#kwOmtrek').checked; weergave._tractoren = $('#kwTrekkers').checked; if ($('#kwVoertuigen')) weergave._voertuigen = $('#kwVoertuigen').checked;
+    weergave._namen = $('#kwNamen').checked; weergave._gewasIcoon = $('#kwGewas').checked; weergave._omtrek = $('#kwOmtrek').checked; weergave._tractoren = $('#kwTrekkers').checked; if ($('#kwZiektes')) { weergave._ziektes = $('#kwZiektes').checked; weergave._tmVol = $('#kwTmVol').checked; try { tekenWaarnemingen(); } catch {} } if ($('#kwVoertuigen')) weergave._voertuigen = $('#kwVoertuigen').checked;
     bewaarWeergave(); render(true);
   };
   m.querySelectorAll('input[type=checkbox]').forEach(i => i.onchange = toepassen);
@@ -3086,7 +3093,7 @@ function renderKaart() {
   laag.clearLayers(); pijlLaag.clearLayers(); tractorLaag.clearLayers();
   const toonNamen = weergave._namen !== false, toonOmtrek = weergave._omtrek !== false, toonGewas = weergave._gewasIcoon !== false;
   S.percelen.forEach(p => { if (!p?.geo) return;
-    const licht = tmAan && p.id !== TM.pid;   // trekker-kaart: van de andere percelen alleen de omtrek en de naam (scheelt geheugen)
+    const licht = tmAan && p.id !== TM.pid && weergave._tmVol === false;   // trekker-kaart: via 🗂️ Lagen in te stellen   // trekker-kaart: van de andere percelen alleen de omtrek en de naam (scheelt geheugen)
     try {
     const isA = p.id === actief;
     const T = typeVan(p);
@@ -4554,7 +4561,9 @@ function initPaneel() {
 }
 /* ============ tractoren ============ */
 const LIVE_MS = 2 * 60 * 1000;
-const isLive = t => t.bijgewerkt && Date.now() - new Date(t.bijgewerkt).getTime() < LIVE_MS;
+const isEchtLive = t => !!t.bijgewerkt && Date.now() - new Date(t.bijgewerkt).getTime() < LIVE_MS;   // echte GPS
+const isLive = t => isEchtLive(t) || !!t.nep_live;   // nep-live: door een beheerder aangezet om te laten zien
+let trSlepen = false;   // beheerder: trekkers op de kaart verslepen
 let volgId = null, routes = {}, rijdt = null, watchId = null, wakeLock = null, laatste = {t: 0}, laatstVerstuurd = 0;
 function geleden(d) {
   if (!d) return 'nog nooit gezien';
@@ -4605,11 +4614,40 @@ function tekenTractoren() {
   S.tractoren.forEach(t => {
     if (t.lat == null || t.lng == null) return;
     const info = `<b>${esc(t.naam)}</b>${aangekoppeldTekst(t) ? `<br><small>⚙️ ${esc(aangekoppeldTekst(t))}</small>` : ''}<br>${isLive(t) ? `🟢 live${t.snelheid != null ? ' · ' + Math.round(t.snelheid) + ' km/u' : ''}` : '⚪ ' + geleden(t.bijgewerkt)}${t.bestuurder && isLive(t) ? '<br>👤 ' + esc(t.bestuurder) : ''}`;
-    L.marker([t.lat, t.lng], {icon: tractorIcoon(t), zIndexOffset: 1000})
-      .bindTooltip(esc(t.naam), {permanent: weergave._namen !== false, direction: 'bottom', offset: [0, 18], className: 'tractor-label'})
-      .bindPopup(info + `<div class="rij" style="margin-top:8px"><button class="knop klein" onclick="volgTractor('${t.id}')">${volgId === t.id ? 'Stop volgen' : 'Volgen'}</button></div>`)
+    const beh = mag('tractoren_beheren'), sleep = beh && trSlepen && !isEchtLive(t);
+    const mk = L.marker([t.lat, t.lng], {icon: tractorIcoon(t), zIndexOffset: 1000, draggable: sleep, autoPan: true})
+      .bindTooltip(esc(t.naam) + (sleep ? ' ✋' : ''), {permanent: weergave._namen !== false, direction: 'bottom', offset: [0, 18], className: 'tractor-label'})
+      .bindPopup(info + `${t.nep_live && beh ? '<br><small>🎭 nep-live (door een beheerder aangezet)</small>' : ''}<div class="rij" style="margin-top:8px;flex-wrap:wrap"><button class="knop klein" onclick="volgTractor('${t.id}')">${volgId === t.id ? 'Stop volgen' : 'Volgen'}</button>
+        ${beh ? `<button class="knop klein licht" onclick="nepLive('${t.id}')">${t.nep_live ? '🎭 Nep-live uit' : '🎭 Nep-live aan'}</button>${isEchtLive(t) ? '<small class="hint">Echte live locatie: niet te verslepen</small>' : `<button class="knop klein licht" onclick="map.closePopup();zetTrSlepen(${!trSlepen})">${trSlepen ? '✋ Klaar met slepen' : '✋ Verslepen'}</button>`}` : ''}</div>`)
       .addTo(tractorLaag);
+    if (sleep) mk.on('dragend', () => { const ll = mk.getLatLng(); trekkerVerplaatst(t.id, ll.lat, ll.lng); });
   });
+}
+// ---- beheerder: trekkers op de kaart zetten, verslepen en nep-live ----
+function zetTrSlepen(aan) { trSlepen = aan; tekenTractoren(); render(); toast(aan ? '✋ Sleep de trekkers naar hun plek (trekkers met een echte live locatie kun je niet verslepen)' : 'Klaar met slepen'); }
+async function trekkerVerplaatst(id, lat, lng) {
+  const t = S.tractoren.find(x => x.id === id); if (!t) return;
+  if (isEchtLive(t)) { toast('Deze trekker heeft een echte live locatie, die kun je niet verplaatsen', 1); tekenTractoren(); return; }
+  const {error} = await sb.from('tractoren').update({lat, lng}).eq('id', id);
+  if (error) { toast(foutTekst(error), 1); tekenTractoren(); return; }
+  t.lat = lat; t.lng = lng; tekenTractoren(); toast(`📍 ${t.naam} verplaatst`);
+}
+async function nepLive(id) {
+  const t = S.tractoren.find(x => x.id === id); if (!t) return;
+  const nep_live = !t.nep_live, patch = {nep_live};
+  if (nep_live && t.lat == null && map) { const c = map.getCenter(); patch.lat = c.lat; patch.lng = c.lng; }
+  const {error} = await sb.from('tractoren').update(patch).eq('id', id);
+  if (error) { toast(/nep_live/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); return; }
+  Object.assign(t, patch); map?.closePopup(); tekenTractoren(); render(); toast(nep_live ? `🎭 ${t.naam} staat nu (nep) live` : `${t.naam} niet meer nep-live`);
+}
+async function trekkersOpKaart() {   // alle trekkers zonder plek in een rijtje in het midden van de kaart zetten
+  if (!map) return; const zonder = S.tractoren.filter(t => t.lat == null || t.lng == null);
+  if (!zonder.length) { zetTrSlepen(true); return; }
+  const c = map.getCenter(), b = map.getBounds(), stap = (b.getEast() - b.getWest()) / (zonder.length + 3);
+  for (const [i, t] of zonder.entries()) { const lat = c.lat, lng = c.lng + (i - (zonder.length - 1) / 2) * stap;
+    const {error} = await sb.from('tractoren').update({lat, lng}).eq('id', t.id); if (error) { toast(foutTekst(error), 1); return; } t.lat = lat; t.lng = lng; }
+  weergave._tractoren = true; bewaarWeergave(); zetTrSlepen(true);
+  toast(`📍 ${zonder.length} trekker${zonder.length > 1 ? 's' : ''} op de kaart gezet – sleep ze naar hun plek`);
 }
 function tractorBewogen(t) {
   if (t.lat == null) return;
@@ -4749,19 +4787,21 @@ function htmlTractoren() {
       <span class="trstip ${isLive(t) ? 'live' : ''}">🚜</span>
       ${(() => { const m = (S.machines || []).find(x => x.tractor_id === t.id); return m && (m.fotos || []).length ? `<img class="mFoto" data-foto="${esc(m.fotos[0])}" alt="" onclick="fotoBekijk(${esc(JSON.stringify(m.fotos))},0)">` : ''; })()}
       <div class="t" style="cursor:pointer" onclick="${t.lat != null ? `volgTractor('${t.id}')` : ''}"><b>${esc(t.naam)}</b>${volgId === t.id ? ' <span class="badge">volgen</span>' : ''}<br>
-        <small>${isLive(t) ? `🟢 live${t.snelheid != null ? ' · ' + Math.round(t.snelheid) + ' km/u' : ''}${t.bestuurder ? ' · 👤 ' + esc(t.bestuurder) : ''}` : '⚪ ' + geleden(t.bijgewerkt)}</small>
+        <small>${t.nep_live && !isEchtLive(t) ? '🎭 ' : ''}${isLive(t) ? `🟢 live${t.snelheid != null ? ' · ' + Math.round(t.snelheid) + ' km/u' : ''}${t.bestuurder ? ' · 👤 ' + esc(t.bestuurder) : ''}` : '⚪ ' + geleden(t.bijgewerkt)}</small>
         ${(() => { const m = (S.machines || []).find(x => x.tractor_id === t.id); if (!m) return ''; const st = machineStatus(m);
           return `<small>${[m.kenteken ? esc(m.kenteken) : '', m.draaiuren != null ? '⏱️ ' + getal(m.draaiuren) + ' u' : '', m.stoffen ? {mest: '🌾 mest', spuit: '🧪 spuit', beide: '🌾🧪'}[m.stoffen] : ''].filter(Boolean).join(' · ')}</small>${st.map(x => `<small class="mst ${x.niveau}">${x.tekst}</small>`).join('')}`; })()}</div>
       ${t.lat != null ? `<button class="icoon" title="${volgId === t.id ? 'Stop volgen' : 'Volgen op de kaart'}" onclick="volgTractor('${t.id}')">${volgId === t.id ? '⏹️' : '🎯'}</button>` : ''}
+      ${beh ? `<button class="icoon ${t.nep_live ? 'aan' : ''}" title="${t.nep_live ? 'Nep-live uitzetten' : 'Nep-live aanzetten (om te laten zien)'}" onclick="nepLive('${t.id}')">🎭</button>` : ''}
       ${mag('tractor_rijden') && rijdt !== t.id && !isApparaat() ? `<button class="icoon" title="Ik rijd met deze tractor" onclick="startRijden('${t.id}')">📱</button>` : ''}
       ${mag('machines_beheren') || mag('tractor_rijden') ? (() => { const m = (S.machines || []).find(x => x.tractor_id === t.id); return m ? `<button class="icoon" title="Draaiuren of onderhoud noteren" onclick="machineNoteren('${m.id}')">📝</button>` : ''; })() : ''}
       ${beh ? `<button class="icoon" title="Gegevens" onclick="${mag('machines_beheren') ? `trekkerFormulier('${t.id}')` : `tractorNaam('${t.id}')`}">✏️</button>
         <button class="icoon" title="Geheime sleutel (voor later)" onclick="tractorSleutel('${t.id}')">🔐</button>
         <button class="weg" title="Verwijderen" onclick="tractorWeg('${t.id}')">×</button>` : ''}
     </div>`).join('') || '<p class="hint">Nog geen tractoren.</p>'}
+    ${beh ? `<div class="rij" style="margin-top:8px;flex-wrap:wrap"><button class="knop licht" onclick="trekkersOpKaart()">📍 Alle trekkers op de kaart</button><button class="knop licht ${trSlepen ? 'aan' : ''}" onclick="zetTrSlepen(${!trSlepen})">${trSlepen ? '✋ Klaar met slepen' : '✋ Trekkers verslepen'}</button></div>` : ''}
     ${beh ? (mag('machines_beheren') ? `<button class="knop" style="margin-top:8px" onclick="trekkerFormulier()">＋ Trekker toevoegen</button>` : `<label>Nieuwe tractor</label><div class="rij"><input id="trNaam" class="veld" placeholder="bijv. Fendt 724" onkeydown="if(event.key==='Enter')tractorErbij()">
       <button class="knop klein" onclick="tractorErbij()">Toevoegen</button></div>`) : ''}
-    <p class="hint">🎯 volgen op de kaart (met de route van vandaag) · 📱 deze telefoon gebruiken als GPS in de tractor${beh ? ' · 🔐 sleutel voor een GPS-kastje later' : ''}</p>
+    <p class="hint">🎯 volgen op de kaart (met de route van vandaag) · 📱 deze telefoon gebruiken als GPS in de tractor${beh ? ' · 🎭 nep-live (laten zien alsof hij rijdt) · ✋ verslepen (niet bij een echte live locatie) · 🔐 sleutel voor een GPS-kastje later' : ''}</p>
     </section>${htmlVoertuigen()}`;
 }
 
@@ -5704,7 +5744,7 @@ function tekenWaarnemingen(nadruk) {
   if (!map) return;
   if (!wnLaag) wnLaag = L.layerGroup().addTo(map);
   wnLaag.clearLayers();
-  if (!(tab === 'waarnemingen' || nadruk || TM.aan)) return;
+  if (!(tab === 'waarnemingen' || nadruk || (TM.aan && weergave._ziektes !== false))) return;
   (S.waarnemingen || []).filter(x => x.geo && (x.status !== 'behandeld' || x.id === nadruk) && (!wnPerceel || x.perceel_id === wnPerceel)).forEach(x => {
     const [lng, lat] = x.geo.geometry.coordinates, kl = ['#fbc02d', '#fb8c00', '#e53935'][(+x.ernst || 1) - 1];
     L.circleMarker([lat, lng], {radius: x.id === nadruk ? 13 : 9, color: '#fff', weight: 2, fillColor: kl, fillOpacity: .95})
@@ -5990,6 +6030,41 @@ function htmlWeekplanning() {
 }
 
 
+
+/* ---- plattegrond van een veld in een formulier: wat staat waar, vakken aantikken ---- */
+function veldSchets(p, gekozen = []) {
+  if (!p?.geo) return '';
+  try {
+    const [x0, y0, x1, y1] = turf.bbox(p.geo), kx = Math.cos((y0 + y1) / 2 * Math.PI / 180), W = 400;
+    const sc = W / Math.max(1e-9, (x1 - x0) * kx), H = Math.max(60, Math.min(520, (y1 - y0) * sc));
+    const sy = H / Math.max(1e-9, (y1 - y0)), pt = ([x, y]) => `${((x - x0) * kx * sc).toFixed(1)} ${((y1 - y) * sy).toFixed(1)}`;
+    const pad = g => { const geo = g.geometry || g, ps = geo.type === 'Polygon' ? [geo.coordinates] : geo.type === 'MultiPolygon' ? geo.coordinates : [];
+      return ps.map(poly => poly.map(r => 'M' + r.map(pt).join('L') + 'Z').join('')).join(''); };
+    let sporen = '', legenda = new Map(), vakSvg = '';
+    for (const z of alleZones(p)) for (const bn of banenVan(z)) {
+      const st = stukkenVan(z, bn).map(x => ({x, t: teelt(x.id)})).filter(y => y.t);
+      if (!st.length) sporen += `<path d="${pad(bn.geo)}" fill="#f3efe6" stroke="#cfc6b4" stroke-width=".4"/>`;
+      st.forEach(({x, t}) => { legenda.set(t.id, t); sporen += `<path d="${pad(x.geo)}" fill="${esc(t.kleur || '#8bc34a')}" stroke="rgba(0,0,0,.25)" stroke-width=".3"><title>spoor ${bn.nr}: ${esc(t.naam)}</title></path>`; });
+    }
+    perceelVakken(p).forEach((v, i) => {
+      const bs = banenVan(v.z).filter(b => v.nrs.includes(b.nr)); if (!bs.length) return;
+      const wat = [...new Set(bs.flatMap(b => stukkenVan(v.z, b).map(x => teelt(x.id)?.naam).filter(Boolean)))].join(', ');
+      const m = bs[Math.floor(bs.length / 2)], c = turf.centroid(m.geo).geometry.coordinates, [cx, cy] = pt(c).split(' ');
+      vakSvg += `<g class="vsVak vs-${i} ${gekozen.includes(i) ? 'aan' : ''}" onclick="veldSchetsKlik(${i})"><title>Vak ${esc(v.letter)}${wat ? ': ' + esc(wat) : ''}</title>${bs.map(b => `<path d="${pad(b.geo)}"/>`).join('')}
+        <text x="${cx}" y="${cy}">${esc(v.letter)}</text></g>`;
+    });
+    return `<div class="veldSchets"><svg viewBox="-4 -4 ${W + 8} ${H.toFixed(0) * 1 + 8}" preserveAspectRatio="xMidYMid meet">
+      <path d="${pad(p.geo)}" fill="#e8e3d8" stroke="#555" stroke-width="1.2"/>${sporen}${vakSvg}</svg>
+      ${legenda.size ? `<div class="vsLeg">${[...legenda.values()].map(t => `<span><i style="background:${esc(t.kleur || '#8bc34a')}"></i>${esc(t.naam)}</span>`).join('')}<span><i style="background:#f3efe6;border:1px solid #cfc6b4"></i>leeg</span></div>` : ''}
+      ${perceelVakken(p).length ? '<small class="hint">Tik een vak aan op de tekening om het te kiezen.</small>' : ''}</div>`;
+  } catch (e) { return ''; }
+}
+function veldSchetsKlik(i) {
+  const c = document.querySelector(`#modal [data-vk="vakken"][value="${i}"]`); if (!c) return;
+  c.checked = !c.checked; document.querySelectorAll(`#modal .vs-${i}`).forEach(g => g.classList.toggle('aan', c.checked));
+}
+document.addEventListener('change', e => { const c = e.target; if (c?.dataset?.vk === 'vakken') document.querySelectorAll(`#modal .vs-${c.value}`).forEach(g => g.classList.toggle('aan', c.checked)); });
+
 /* ============ ROOIPLANNING ============
    Per rooi-opdracht: dag, perceel (+ vakken), wat (partij of in woorden), hoeveel, rooier, chauffeur, bijrijders en bakkenisten.
    Er hoort automatisch een taak "Rooien" bij (voor de chauffeur op de trekker), die meeverandert. Per dag af te drukken. */
@@ -6053,8 +6128,9 @@ async function rooiFormulier(id, voor = {}) {
   const rooiers = (S.machines || []).filter(m => /rooi/i.test(`${m.naam} ${m.soort || ''}`)).map(m => m.naam);
   const watKeuze = r.partij_id ? r.partij_id : r.wat ? 'anders' : (partijen[0]?.id || 'anders');
   const w = await formulier(oud ? '✏️ Rooi-opdracht aanpassen' : '🚜 Rooien plannen', [
-    {type: 'uitleg', waarde: `📍 ${p?.naam || '?'}${oud ? '' : ''}`},
+    {type: 'uitleg', waarde: `📍 ${esc(p?.naam || '?')}`},
     {k: 'datum', label: 'Welke dag?', type: 'date', waarde: r.datum},
+    ...(p ? [{type: 'html', waarde: veldSchets(p, pv.map((v, i) => (r.vakken || []).includes(v.letter) ? i : -1).filter(i => i >= 0))}] : []),
     ...(oud ? [{k: 'perceel_id', label: 'Perceel', type: 'select', waarde: r.perceel_id, opties: velden.map(x => [x.id, x.naam])}] : []),
     ...(pv.length ? [{k: 'vakken', label: 'Welke vakken? (niets aanvinken = het hele perceel)', type: 'vinkjes', waarde: pv.map((v, i) => (r.vakken || []).includes(v.letter) ? i : -1).filter(i => i >= 0),
       opties: pv.map((v, i) => [i, `Vak ${v.letter}${v.z._vak ? ' (' + v.z.naam + ')' : ''} · ${v.rijen ?? v.nrs.length} rijen`])}] : []),
@@ -6248,6 +6324,7 @@ function tmRender() {
       <button onclick="tmUitKaart()">◀ Terug</button>
       <button class="${TM.volg ? 'aan' : ''}" onclick="TM.volg=!TM.volg;if(TM.volg){TM.lijst=false;TM.handmatig=false;const q=TM.pos&&perceelOpPunt(TM.pos);if(q){TM.pid=q.id;actief=q.id;render(true);}}tmRender();tmPlek()">🎯 ${TM.volg ? 'Volgt mij' : 'Volgen'}</button>
       <button class="${TM.lijst ? 'aan' : ''}" onclick="tmAlles()">🗺️ Alle percelen</button>
+      <button onclick="alleLagen()">🗂️ Lagen</button>
       ${mag('markeringen_maken') ? '<button onclick="tmPrikStart(\'vlag\')">🚩 Vlag</button><button onclick="tmPrikStart(\'gebied\')">✏️ Gebied</button>' : ''}
       ${mag('markeringen_maken') || mag('monsters_beheren') ? '<button onclick="waarnemingFormulier(null,{perceel_id:TM.pid,geo:TM.pos})">🐛 Ziekte hier</button>' : ''}
       <button onclick="tmUitKaart('taken')">📋 Taken</button></div>`;
