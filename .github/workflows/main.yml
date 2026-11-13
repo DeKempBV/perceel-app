@@ -94,13 +94,19 @@ jobs:
       - name: Versienummer toevoegen
         run: echo "{\"versie\":\"${{ github.run_number }}\"}" > www/version.json
       - uses: actions/configure-pages@v5
+      # elke poging een eigen naam, zodat "Re-run" niet struikelt over het pakketje van de vorige poging
       - name: Website inpakken
         uses: actions/upload-pages-artifact@v4
         with:
           path: www
+          name: website-${{ github.run_attempt }}
       - name: Op de website zetten
         id: zet
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: website-${{ github.run_attempt }}
       - name: Nog een keer proberen (als GitHub even haperde)
         if: failure()
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: website-${{ github.run_attempt }}
