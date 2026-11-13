@@ -923,6 +923,12 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .aiKop span{display:flex;gap:4px}.aiKop small{font-size:10px;margin-left:2px}
 .aiGeheugen{padding:8px 12px;background:#f6faf3;border-bottom:1px solid #e4ebe1;display:flex;flex-direction:column;gap:4px;max-height:35vh;overflow:auto}.aiGeheugen>small{color:#6b7a6d}
 .aiGh{display:flex;gap:6px;align-items:flex-start;background:#fff;border:1px solid #e4ebe1;border-radius:8px;padding:5px 8px;font-size:13px}.aiGh span{flex:1}.aiGh small{display:block;color:#8a978c;font-size:11px}
+.rasChip{display:inline-flex;gap:0;margin:0 4px 4px 0}.rasChip .chip{margin:0}.rasChip .chip:first-child{border-top-right-radius:0;border-bottom-right-radius:0}
+.rasChip .chip.pijl{border-top-left-radius:0;border-bottom-left-radius:0;border-left:1px solid rgba(0,0,0,.08);padding-left:7px;padding-right:7px}.rasChip .chip.pijl small{font-size:10px;margin-left:2px;opacity:.75}
+.chip.half{outline:2px dashed var(--groen)}
+.partijKeuze{margin-top:8px;background:#f6faf3;border:1px solid #dfe7dc;border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:5px}
+.pkKies{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:1px solid #dfe7dc;background:#fff;border-radius:10px;padding:7px 10px;cursor:pointer;font:inherit}
+.pkKies small{color:#6b7a6d;font-size:12px}.pkKies.aan{background:var(--groen);color:#fff;border-color:var(--groen)}.pkKies.aan small{color:#dcebd8}.pkKies.nieuw{align-items:center;font-weight:700;color:var(--groen);border-style:dashed}
 </style>
 </head>
 <body>
@@ -1651,7 +1657,21 @@ function kiesPlant(id) {
   else { gekozenPlant = id; kwast = id; }
   render(true);
 }
-function zetKwast(id) { gereedschap = undefined; kwast = (kwast === id) ? undefined : id; if (id === null) gekozenPlant = undefined; render(true); }
+function zetKwast(id) { gereedschap = undefined; kwast = (kwast === id) ? undefined : id; if (id === null) gekozenPlant = undefined; if (kwast === undefined || kwast === null) kwastPartij = null; render(true); }
+// partij als kwast: tik op een spoor = ras én partij op dat spoor
+let kwastPartij = null, rasOpen = null;
+const rasPartijen = rid => (S.partijen || []).filter(x => x.ras_id === rid && (!bekeken || !x.seizoen_id || x.seizoen_id === bekeken))
+  .sort((a, b) => String(a.batch || a.nak || '').localeCompare(String(b.batch || b.nak || ''), 'nl', {numeric: true}));
+function kiesPartijKwast(id) {
+  const x = (S.partijen || []).find(y => y.id === id); if (!x) return;
+  if (kwastPartij === id) { kwastPartij = null; render(true); return; }
+  kwastPartij = id; gereedschap = undefined; kwast = x.ras_id || x.soort_id; render(true);
+  toast(`🏷️ ${partijKort(x)}: tik nu op de sporen waar deze partij staat`);
+}
+function nieuwePartijVoorRas(rid) {
+  const r = ras(rid); if (!r) return;
+  partijBewerk(null, null, {soort_id: r.soort_id, ras: r.naam, naOpslaan: x => { if (x?.ras_id === rid) { rasOpen = rid; kiesPartijKwast(x.id); } }});
+}
 function zetGereedschap(g) { gereedschap = gereedschap === g ? undefined : g; kwast = undefined; gekozenPlant = undefined; render(true); }
 
 function klikBaan(p, bn, ll) {
@@ -1678,6 +1698,14 @@ function klikBaan(p, bn, ll) {
     if (!isGeknipt(v)) { toast('Dit spoor is niet geknipt'); return; }
     arr[bn.nr - 1] = v.s[0] ?? null; zetBanen(p, arr); toast(`Wissels van spoor ${bn.nr} weggehaald`);
   } else if (kwast !== undefined && magIndelen) {
+    const xp = kwastPartij && (S.partijen || []).find(y => y.id === kwastPartij);
+    if (xp && !isGeknipt(v) && mag('partijen_beheren')) {   // ras + partij in één tik (nog eens tikken = partij eraf)
+      if (isSpuitRij(p, bn.nr)) { toast('Dat is een spuitspoor, daar staat geen partij op', 1); return; }
+      const al = partijOpSpoor(p, bn.nr) === xp; partijZetSporen(xp, p, [bn.nr], !al);
+      if (!al && !xp.ras_id && arr[bn.nr - 1] !== kwast) { arr[bn.nr - 1] = kwast; zetBanen(p, arr); }
+      return;
+    }
+    if (kwast === null) { const op = partijOpSpoor(p, bn.nr); if (op && mag('partijen_beheren')) partijZetSporen(op, p, [bn.nr], false); }
     if (isGeknipt(v)) { const n = {k: [...v.k], s: [...v.s]}; n.s[idx] = kwast; arr[bn.nr - 1] = n; }
     else arr[bn.nr - 1] = kwast;
     zetBanen(p, arr);
@@ -1702,7 +1730,10 @@ function vulBereik() {
   while (arr.length < tot) arr.push(null);
   for (let i = van; i <= tot; i++) arr[i - 1] = kwast;
   zetBanen(p, arr);
-  toast(`Spoor ${van} t/m ${tot} ingesteld`);
+  const xp = kwastPartij && (S.partijen || []).find(y => y.id === kwastPartij), nrs = Array.from({length: tot - van + 1}, (_, i) => van + i);
+  if (kwast === null) (S.partijen || []).filter(y => partijSporen(y, p.id).some(n => nrs.includes(n))).forEach(y => partijZetSporen(y, p, nrs.filter(n => partijSporen(y, p.id).includes(n)), false));
+  if (xp && mag('partijen_beheren')) setTimeout(() => partijZetSporen(xp, p, nrs, true), 50);
+  toast(`Spoor ${van} t/m ${tot} ingesteld${xp ? ' · partij ' + partijKort(xp) : ''}`);
 }
 function knipBereik() {
   const p = bereikZone(), banen = banenVan(p);
@@ -3713,7 +3744,11 @@ function htmlDetail(p) {
           <button class="chip ${gereedschap === 'ontknip' ? 'aan' : ''}" onclick="zetGereedschap('ontknip')">↩️ Wissel weghalen</button></div>
         ${pl ? `<div class="subchips"><div class="subkop">Soorten ${esc(pl.naam)}</div><div class="chips">
             <button class="chip ${kwast === pl.id ? 'aan' : ''}" onclick="zetKwast('${pl.id}')"><i style="background:${esc(pl.kleur)}"></i>Alle ${esc(pl.naam.toLowerCase())}</button>
-            ${rs.map(r => `<button class="chip ${kwast === r.id ? 'aan' : ''}" onclick="zetKwast('${r.id}')"><i style="background:${esc(r.kleur || pl.kleur)}"></i>${esc(r.naam)}</button>`).join('')}</div>
+            ${rs.map(r => { const n = rasPartijen(r.id).length; return `<span class="rasChip"><button class="chip ${kwast === r.id && !kwastPartij ? 'aan' : kwast === r.id ? 'half' : ''}" onclick="kwastPartij=null;zetKwast('${r.id}')"><i style="background:${esc(r.kleur || pl.kleur)}"></i>${esc(r.naam)}</button><button class="chip pijl ${rasOpen === r.id ? 'aan' : ''}" title="Partijen (batches) van ${esc(r.naam)}" onclick="rasOpen=rasOpen==='${r.id}'?null:'${r.id}';render(true)">▾${n ? `<small>${n}</small>` : ''}</button></span>`; }).join('')}</div>
+            ${rasOpen && rs.some(r => r.id === rasOpen) ? (() => { const r = ras(rasOpen), l = rasPartijen(rasOpen);
+              return `<div class="partijKeuze"><div class="subkop">Partijen ${esc(r.naam)} <small>tik er een aan en tik dan op de sporen</small></div>
+                ${l.map(x => `<button class="pkKies ${kwastPartij === x.id ? 'aan' : ''}" onclick="kiesPartijKwast('${x.id}')"><b>${esc(x.batch || x.nak || 'zonder nummer')}</b><small>${esc([x.nak && x.batch ? 'NAK ' + x.nak : '', x.klasse, x.teeltdoel, x.bio ? 'BIO' : '', x.perceel_id && perceel(x.perceel_id) ? '📍 ' + perceel(x.perceel_id).naam : 'nog nergens'].filter(Boolean).join(' · '))}</small></button>`).join('') || '<p class="hint" style="margin:4px 0">Nog geen partijen van dit ras.</p>'}
+                ${mag('partijen_beheren') ? `<button class="pkKies nieuw" onclick="nieuwePartijVoorRas('${r.id}')">＋ Nieuwe partij ${esc(r.naam)}</button>` : ''}</div>`; })() : ''}
             ${mag('soorten_beheren') ? `<div class="rij" style="margin-top:8px"><input id="snelRas" class="veld" placeholder="Nieuwe soort ${esc(pl.naam.toLowerCase())}, bijv. Bintje" onkeydown="if(event.key==='Enter')rasErbij('${pl.id}','snelRas')"><button class="knop klein" onclick="rasErbij('${pl.id}','snelRas')">＋</button></div>` : ''}
             ${!rs.length && !mag('soorten_beheren') ? '<p class="hint">Deze plant heeft nog geen soorten.</p>' : ''}
           </div>` : ''}
@@ -5270,8 +5305,9 @@ async function partijZetSporen(x, z, nrs, aan) {
     nrs.forEach(nr => { while (arr.length < nr) arr.push(null); const v = arr[nr - 1]; if (!isGeknipt(v) && v !== x.ras_id) { arr[nr - 1] = x.ras_id; anders = true; } });
     if (anders) zetBanen(z, arr);
   }
+  const pidZ = ouder(z).id; if (aan && x.perceel_id !== pidZ) { x.perceel_id = pidZ; wijzigingen.set(x.id, x); }
   spoorPartijMap = null; render(true); partijKwastBalk();
-  for (const y of wijzigingen.values()) { const {error} = await sb.from('partijen').update({sporen: y.sporen}).eq('id', y.id); if (error) { toast('Opslaan mislukt: ' + error.message, 1); break; } }
+  for (const y of wijzigingen.values()) { const {error} = await sb.from('partijen').update({sporen: y.sporen, ...(y.id === x.id ? {perceel_id: x.perceel_id} : {})}).eq('id', y.id); if (error) { toast('Opslaan mislukt: ' + error.message, 1); break; } }
 }
 function partijKlikSpoor(z, bn) {
   const x = (S.partijen || []).find(y => y.id === partijKwast?.id); if (!x) return false;
@@ -5587,7 +5623,7 @@ function partijBewerk(id, pid, vooraf = {}) {
   const rasLijst = sid => rassenVan(sid).map(r => `<option value="${esc(r.naam)}">`).join('');
   const kl = [...new Set((S.partijen || []).map(y => y.klasse).filter(Boolean))].sort(), dl = [...new Set((S.partijen || []).map(y => y.doel).filter(Boolean))].sort(), td = [...new Set((S.partijen || []).map(y => y.teeltdoel).filter(Boolean))].sort();
   $('#modal').innerHTML = `<div class="dialoog"><h3>${id ? '✏️ Partij aanpassen' : '➕ Partij toevoegen'}</h3>
-    <label>Perceel</label><select class="veld" id="pbP"><option value="">— niet gekoppeld${x.perceel_tekst ? ' (' + esc(x.perceel_tekst) + ')' : ''} —</option>${pOpt}</select>
+    <label>Perceel</label><select class="veld" id="pbP"><option value="">— nog geen perceel (komt vanzelf als je hem op sporen zet) —</option>${pOpt}</select>
     <div class="rij"><div style="flex:1"><label>Gewas</label><select class="veld" id="pbS">${sOpt}</select></div>
       <div style="flex:1"><label>Teeltdoel</label><input class="veld" id="pbT" list="pbTL" value="${esc(x.teeltdoel || '')}" placeholder="bijv. vermeerdering"><datalist id="pbTL">${td.map(v => `<option value="${esc(v)}">`).join('')}</datalist></div></div>
     <label>Ras</label><input class="veld" id="pbR" list="pbRL" value="${esc(partijRas(x))}" placeholder="Kies of typ een ras"><datalist id="pbRL">${rasLijst(x.soort_id)}</datalist>
@@ -5616,7 +5652,7 @@ function partijBewerk(id, pid, vooraf = {}) {
     if (error) { toast('Opslaan mislukt: ' + error.message, 1); return; }
     const nieuw = data || {...x, ...patch, id: id || 'nieuw' + Date.now()};
     const i = (S.partijen || []).findIndex(y => y.id === (id || nieuw.id)); if (i >= 0) S.partijen[i] = nieuw; else S.partijen.push(nieuw);
-    render(true); toast(id ? 'Partij opgeslagen' : 'Partij toegevoegd');
+    render(true); toast(id ? 'Partij opgeslagen' : 'Partij toegevoegd'); vooraf.naOpslaan?.(nieuw);
   };
   if (id) $('#pbWeg').onclick = async () => {
     if (!confirm('Deze partij verwijderen?')) return; m.classList.remove('open');
@@ -6135,6 +6171,21 @@ function partijMetersKaart(x) {
     const anderen = pr.filter(y => y.id !== x.id), al = anderen.reduce((a, y) => a + partijMeters(y), 0), zonder = anderen.filter(y => !(partijMeters(y) > 0));
     if (!zonder.length) return Math.max(0, v.m - al); }
   return 0;
+}
+// staat een partij op sporen van een perceel, dan staat hij op dat perceel (wat je tekent is wat er is)
+function partijPerceelUitSporen(x) {
+  const l = Array.isArray(x.sporen) ? x.sporen : []; if (!l.some(s => (s.nrs || []).length)) return null;
+  const zones = partijPerceelUitSporen.zones && partijPerceelUitSporen.van === S.percelen ? partijPerceelUitSporen.zones
+    : (partijPerceelUitSporen.van = S.percelen, partijPerceelUitSporen.zones = new Map(S.percelen.flatMap(p => alleZones(p).map(z => [z.id, p.id]))));
+  for (const s of l) if ((s.nrs || []).length && zones.get(s.z)) return zones.get(s.z);
+  return null;
+}
+function partijenVanSporen() {
+  const fix = [];
+  (S.partijen || []).forEach(x => { const pid = partijPerceelUitSporen(x); if (pid && x.perceel_id !== pid) { x.perceel_id = pid; fix.push(x); } });
+  if (fix.length && !archief && mag('partijen_beheren'))   // ook in de database rechtzetten
+    fix.forEach(x => sb.from('partijen').update({perceel_id: x.perceel_id}).eq('id', x.id).then(() => {}, () => {}));
+  return fix.length;
 }
 const partijPlm = x => +String(x.extra?.pl_per_m ?? '').replace(',', '.') || +soort(x.soort_id)?.pl_per_m || prPlm;
 function prognoseRijen() {
@@ -8835,7 +8886,7 @@ async function laadBedrijf() {
     q('plantbehoefte', x => x.order('created_at')),
     q('rooiplanning', x => x.gte('datum', new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10)).order('datum'))]);
   S.rooiplanning = rp || []; laadKlok(); laadResultaten().then(() => { if (/^res|gebeurtenissen|uren|mij/.test(tab)) render(true); }); setTimeout(() => rooiSyncRollen().catch(() => {}), 1500);
-  S.partijen = pa || []; S.monsters = mo || []; S.partij_mutaties = pm || []; S.waarnemingen = wn || []; S.plantbehoefte = pb || [];
+  S.partijen = pa || []; partijenVanSporen(); S.monsters = mo || []; S.partij_mutaties = pm || []; S.waarnemingen = wn || []; S.plantbehoefte = pb || [];
   S.middelen = md || []; S.oogst = oo || []; S.machines = ma || []; S.machine_log = ml || []; S.kosten = ko || []; S.meldingen = me2 || [];
   bedrijfGeladen = !!md;
 }
