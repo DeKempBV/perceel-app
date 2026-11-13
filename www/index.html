@@ -607,10 +607,12 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 .rpKop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}.rpRij{display:flex;gap:8px;padding:3px 0;font-size:14px}.rpRij>span{width:22px;flex:0 0 22px}
 .rpNaam{display:inline-block;background:#e8f5e9;border-radius:10px;padding:1px 8px;margin:1px 2px 1px 0}.rpNaam.chauf{background:#c8e6c9;font-weight:700}.rpNaam.dubbel{background:#ffe0b2;outline:2px solid #fb8c00}
 .rpLet{background:#fff3e0;border-radius:8px;padding:6px 8px;font-size:13px;margin-top:4px}.rpDag.vandaag{outline:3px solid #f9a825}
-.veldSchets{background:#faf8f3;border:1px solid #e0dccf;border-radius:12px;padding:8px;margin:4px 0}.veldSchets svg{width:100%;height:auto;max-height:360px;display:block}
+.veldSchets{position:relative;background:#faf8f3;border:1px solid #e0dccf;border-radius:12px;padding:8px;margin:4px 0}.veldSchets svg{width:100%;height:auto;max-height:360px;display:block}
 .vsVak path{fill:transparent;stroke:transparent;stroke-width:.6;cursor:pointer}.vsVak:hover path{fill:rgba(255,193,7,.18)}.vsVak.aan path{fill:rgba(255,160,0,.45);stroke:#e65100}
 .vsVak text{font:700 15px Arial;fill:#fff;stroke:#333;stroke-width:3px;paint-order:stroke;text-anchor:middle;dominant-baseline:middle;pointer-events:none}.vsVak.aan text{fill:#ffe082}
 .vsLeg{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;margin-top:6px}.vsLeg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-2px}
+.ctgbKeuze{display:block;width:100%;text-align:left;border:1px solid #dfe7dc;background:#f7faf5;border-radius:10px;padding:8px 10px;margin:4px 0;cursor:pointer;font:inherit}.ctgbKeuze:hover{background:#e8f5e9}
+.vsTip{position:absolute;pointer-events:none;background:rgba(27,36,29,.95);color:#fff;border-radius:10px;padding:8px 10px;font-size:13px;max-width:280px;z-index:5;display:none;box-shadow:0 4px 14px rgba(0,0,0,.3)}.vsTip b{color:#ffe082}
 .vinkjesVeld{display:flex;flex-wrap:wrap;gap:6px}.vinkjesVeld .vinkje{display:flex;align-items:center;gap:6px;background:#f1f6ef;border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer}
 .mTegel.rooi{background:#efebe9}
 .tmLeeg{text-align:center;font-size:24px;margin-top:40px;color:#c8e6c9}
@@ -1713,13 +1715,18 @@ function uitvoeringVelden(t = {}, stoffen = true) {
     {k: 'dosering', label: 'Hoeveel?', type: 'number', waarde: t.dosering ?? '', placeholder: 'bijv. 300'},
     {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: t.eenheid || 'kg/ha', opties: EENHEDEN},
     {k: 'klaar_datum', label: 'Uitgevoerd op', type: 'date', waarde: (t.klaar_op || new Date().toISOString()).slice(0, 10)},
+    {k: 'klaar_tijd', label: 'Hoe laat? (begin)', type: 'time', waarde: t.klaar_op && !/T1[01]:00:00/.test(t.klaar_op) ? new Date(t.klaar_op).toTimeString().slice(0, 5) : new Date().toTimeString().slice(0, 5)},
+    {k: 'behandeld_ha', label: 'Behandeld oppervlak (ha)', type: 'number', waarde: t.behandeld_ha ?? (() => { try { const m2 = t.perceel_id ? taakM2(t) : 0; return m2 ? Math.round(m2 / 100) / 100 : ''; } catch { return ''; } })()},
+    {k: 'bbch', label: 'Groeistadium BBCH (alleen nodig als het etiket het vraagt)', waarde: t.bbch || '', placeholder: 'bijv. 61'},
     {k: 'uitvoering', label: 'Opmerking (optioneel)', type: 'textarea', waarde: t.uitvoering || '', placeholder: 'bijv. weersomstandigheden, machine, bijzonderheden'}];
 }
 function uitvoeringPatch(w) {
   const dos = parseFloat(String(w.dosering).replace(',', '.'));
-  const r = {klaar: true, klaar_door: naamMe(), klaar_op: new Date((w.klaar_datum || new Date().toISOString().slice(0, 10)) + 'T12:00:00').toISOString(),
+  const r = {klaar: true, klaar_door: naamMe(), klaar_op: new Date((w.klaar_datum || new Date().toISOString().slice(0, 10)) + 'T' + (/^\d\d:\d\d$/.test(w.klaar_tijd || '') ? w.klaar_tijd + ':00' : '12:00:00')).toISOString(),
     product: w.product || null, dosering: isNaN(dos) ? null : dos, eenheid: isNaN(dos) ? null : w.eenheid, uitvoering: w.uitvoering || null,
     bezig_door: null, bezig_sinds: null};
+  if ('bbch' in w) r.bbch = (w.bbch || '').trim() || null;
+  if ('behandeld_ha' in w) { const h = parseFloat(String(w.behandeld_ha).replace(',', '.')); r.behandeld_ha = isNaN(h) ? null : h; }
   if (!('product' in w)) { delete r.product; delete r.dosering; delete r.eenheid; }   // geen spuit/mest-werk: niets aan het middel veranderen
   return r;
 }
@@ -4928,7 +4935,7 @@ function taakInfo3d(t) {
     ${rij('📍', p ? `<b>${esc(p.naam)}</b> · ${isVerplaats(t) ? verplaatsTekst(t) : taakWaar(t)}${(() => { try { const m2 = taakM2(t); return m2 ? ` · ${ha(m2)} ha` : ''; } catch { return ''; } })()}` : '')}
     ${rij('👤', wie ? esc(wie.naam) : 'nog niemand toegewezen')}
     ${rij('🗓️', [t.gepland ? 'gepland ' + datumKort(t.gepland) : '', t.deadline ? `<span class="${telaat ? 'telaat' : ''}">klaar vóór ${datumKort(t.deadline)}${telaat ? ' (te laat)' : ''}</span>` : '', t.herhaal ? herhaalTekst(t) : ''].filter(Boolean).join(' · '))}
-    ${(() => { const r = (S.rooiplanning || []).find(x => x.taak_id === t.id); return r ? rij('👥', `Op de rooier: <b>${esc(r.chauffeur_id ? naamVan(r.chauffeur_id) : '?')}</b>${r.bijrijders?.length ? ' · bijrijders: ' + r.bijrijders.map(naamVan).map(esc).join(', ') : ''}${r.bakkenisten?.length ? ' · bakkenist: ' + r.bakkenisten.map(naamVan).map(esc).join(', ') : ''}${rpAantal(r) ? ' · ' + esc(rpAantal(r)) : ''}`) : ''; })()}
+    ${(() => { const r = (S.rooiplanning || []).find(x => x.taak_id === t.id); return r ? rij('👥', `Op de rooier: <b>${esc(rpChauf(r) ? naamVan(rpChauf(r)) : '?')}</b>${r.bijrijders?.length ? ' · bijrijders: ' + r.bijrijders.map(naamVan).map(esc).join(', ') : ''}${r.bakkenisten?.length ? ' · bakkenist: ' + r.bakkenisten.map(naamVan).map(esc).join(', ') : ''}${rpAantal(r) ? ' · ' + esc(rpAantal(r)) : ''}`) : ''; })()}
     ${rij('✅', voortgangTekst(t) ? `${voortgangTekst(t)}${!TM.aan && mag('taken_afvinken') ? ` <button class="link klein" onclick="voortgangAanpassen('${t.id}')">✏️ aanpassen</button>` : ''}` : (!t.klaar && !TM.aan && mag('taken_afvinken') && t.perceel_id ? `<button class="link klein" onclick="voortgangAanpassen('${t.id}')">sporen afvinken</button>` : ''))}
     ${rij('🚜', [t.trekker, t.werktuig].filter(Boolean).map(esc).join(' + '))}
     ${rij('🧪', t.product || m ? `<b>${esc(t.product || m.naam)}</b>${t.dosering != null ? ` · ${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}` : ''}${verbruik ? ` · totaal ± <b>${getal(verbruik, 1)} ${esc(m?.voorraad_eenheid || '')}</b>` : ''}` : '')}
@@ -6049,16 +6056,31 @@ function veldSchets(p, gekozen = []) {
     perceelVakken(p).forEach((v, i) => {
       const bs = banenVan(v.z).filter(b => v.nrs.includes(b.nr)); if (!bs.length) return;
       const wat = [...new Set(bs.flatMap(b => stukkenVan(v.z, b).map(x => teelt(x.id)?.naam).filter(Boolean)))].join(', ');
+      // welke partijen (ras + batch) staan er precies in dit vak
+      const pt2 = partijenVan(p.id).map(x => ({x, n: (x.sporen || []).filter(e => e.z === v.z.id).flatMap(e => e.nrs || []).filter(n => v.nrs.includes(n)).length})).filter(y => y.n);
+      const tip = `<b>Vak ${esc(v.letter)}</b>${v.z._vak ? ' · ' + esc(v.z.naam) : ''} · ${v.nrs.length} rijen` + (pt2.length
+        ? pt2.map(({x, n}) => `<br>🌱 <b>${esc(partijRas(x) || soort(x.soort_id)?.naam || 'partij')}</b>${x.batch ? ' · batch ' + esc(x.batch) : ''}${x.klasse ? ' · ' + esc(x.klasse) : ''}${x.bio ? ' · BIO' : ''} <small>(${n} ${n === 1 ? 'rij' : 'rijen'})</small>`).join('')
+        : wat ? '<br>🌱 ' + esc(wat) : '<br><small>leeg</small>');
       const m = bs[Math.floor(bs.length / 2)], c = turf.centroid(m.geo).geometry.coordinates, [cx, cy] = pt(c).split(' ');
-      vakSvg += `<g class="vsVak vs-${i} ${gekozen.includes(i) ? 'aan' : ''}" onclick="veldSchetsKlik(${i})"><title>Vak ${esc(v.letter)}${wat ? ': ' + esc(wat) : ''}</title>${bs.map(b => `<path d="${pad(b.geo)}"/>`).join('')}
+      vakSvg += `<g class="vsVak vs-${i} ${gekozen.includes(i) ? 'aan' : ''}" data-tip="${esc(tip)}" onclick="veldSchetsKlik(${i})">${bs.map(b => `<path d="${pad(b.geo)}"/>`).join('')}
         <text x="${cx}" y="${cy}">${esc(v.letter)}</text></g>`;
     });
-    return `<div class="veldSchets"><svg viewBox="-4 -4 ${W + 8} ${H.toFixed(0) * 1 + 8}" preserveAspectRatio="xMidYMid meet">
+    return `<div class="veldSchets"><div class="vsTip"></div><svg viewBox="-4 -4 ${W + 8} ${H.toFixed(0) * 1 + 8}" preserveAspectRatio="xMidYMid meet">
       <path d="${pad(p.geo)}" fill="#e8e3d8" stroke="#555" stroke-width="1.2"/>${sporen}${vakSvg}</svg>
       ${legenda.size ? `<div class="vsLeg">${[...legenda.values()].map(t => `<span><i style="background:${esc(t.kleur || '#8bc34a')}"></i>${esc(t.naam)}</span>`).join('')}<span><i style="background:#f3efe6;border:1px solid #cfc6b4"></i>leeg</span></div>` : ''}
       ${perceelVakken(p).length ? '<small class="hint">Tik een vak aan op de tekening om het te kiezen.</small>' : ''}</div>`;
   } catch (e) { return ''; }
 }
+// eigen tooltip over een vak: direct zichtbaar, met ras en batch
+function vsTipToon(e) {
+  const g = e.target.closest?.('.vsVak'), box = e.target.closest?.('.veldSchets'), tip = box?.querySelector('.vsTip');
+  document.querySelectorAll('.vsTip').forEach(t => { if (t !== tip) t.style.display = 'none'; });
+  if (!tip) return; if (!g) { tip.style.display = 'none'; return; }
+  tip.innerHTML = g.dataset.tip; tip.style.display = 'block';
+  const r = box.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, w = tip.offsetWidth;
+  tip.style.left = Math.max(4, Math.min(r.width - w - 4, x + 14)) + 'px'; tip.style.top = (y + 16) + 'px';
+}
+document.addEventListener('mousemove', vsTipToon); document.addEventListener('pointerdown', vsTipToon);
 function veldSchetsKlik(i) {
   const c = document.querySelector(`#modal [data-vk="vakken"][value="${i}"]`); if (!c) return;
   c.checked = !c.checked; document.querySelectorAll(`#modal .vs-${i}`).forEach(g => g.classList.toggle('aan', c.checked));
@@ -6069,14 +6091,17 @@ document.addEventListener('change', e => { const c = e.target; if (c?.dataset?.v
    Per rooi-opdracht: dag, perceel (+ vakken), wat (partij of in woorden), hoeveel, rooier, chauffeur, bijrijders en bakkenisten.
    Er hoort automatisch een taak "Rooien" bij (voor de chauffeur op de trekker), die meeverandert. Per dag af te drukken. */
 let rpDatum = new Date();
-const RP_EENHEDEN = ['planten', 'trays', 'kisten', 'fusten', 'bakken', 'rijen', 'meter', 'ha'];
-const naamVan = id => S.profielen.find(u => u.id === id)?.naam || '?';
-const rpMensen = r => [r.chauffeur_id, ...(r.bijrijders || []), ...(r.bakkenisten || [])].filter(Boolean);
+const RP_EENHEDEN = ['planten', 'meters', 'bakken'];
+const plmEcht = x => +String(x?.extra?.pl_per_m ?? '').replace(',', '.') || +soort(x?.soort_id)?.pl_per_m || null;   // alleen wat echt in de veldgegevens staat
+const naamVan = id => String(id || '').startsWith('~') ? String(id).slice(1) : S.profielen.find(u => u.id === id)?.naam || '?';   // ~Henk = iemand zonder account
+const rpChauf = r => r.chauffeur_id || (r.chauffeur_naam ? '~' + r.chauffeur_naam : null);
+const rpMensen = r => [rpChauf(r), ...(r.bijrijders || []), ...(r.bakkenisten || [])].filter(Boolean);
+const rpAndersLees = t => String(t || '').split(/[,;\n]/).map(x => x.trim()).filter(Boolean).map(x => '~' + x);
 function rpWat(r) {
   const x = r.partij_id && (S.partijen || []).find(y => y.id === r.partij_id);
   return x ? `${partijRas(x) || 'partij'}${x.batch ? ' · batch ' + x.batch : ''}${x.klasse ? ' · ' + x.klasse : ''}` : (r.wat || '');
 }
-const rpAantal = r => r.aantal != null ? `${(+r.aantal).toLocaleString('nl-NL')} ${r.eenheid || ''}`.trim() : '';
+const rpAantal = r => r.aantal != null ? `${(+r.aantal).toLocaleString('nl-NL')} ${r.eenheid || ''}`.trim() + (r.eenheid === 'planten' && r.pl_per_m ? ` (${getal(+r.pl_per_m, 1)} pl/m ≈ ${Math.round(r.aantal / r.pl_per_m).toLocaleString('nl-NL')} m)` : '') : '';
 function rpDubbel(r) {   // staat iemand op dezelfde dag ook bij een andere rooi-opdracht?
   const ander = (S.rooiplanning || []).filter(x => x.id !== r.id && x.datum === r.datum).flatMap(rpMensen);
   return rpMensen(r).filter(id => ander.includes(id));
@@ -6088,7 +6113,7 @@ function rpKaart(r) {
     <div class="rpKop"><b>📍 ${esc(p?.naam || 'geen perceel')}${(r.vakken || []).length ? ` · vak ${esc(r.vakken.join(', '))}` : ''}</b>
       ${beh ? `<span><button class="icoon" title="Aanpassen / dingen toevoegen" onclick="rooiFormulier('${r.id}')">✏️</button><button class="icoon" title="Verwijderen" onclick="rooiWeg('${r.id}')">🗑️</button></span>` : ''}</div>
     <div class="rpRij"><span>🌱</span><div><b>${esc(rpWat(r) || '–')}</b>${rpAantal(r) ? ` · <b>${esc(rpAantal(r))}</b>` : ''}</div></div>
-    <div class="rpRij"><span>🚜</span><div>${esc(r.rooier || 'rooier ?')} · op de rooier: ${r.chauffeur_id ? wie([r.chauffeur_id], 'chauf') : '<small class="hint">nog niemand</small>'}</div></div>
+    <div class="rpRij"><span>🚜</span><div>${esc(r.rooier || 'rooier ?')} · op de rooier: ${rpChauf(r) ? wie([rpChauf(r)], 'chauf') : '<small class="hint">nog niemand</small>'}</div></div>
     <div class="rpRij"><span>👥</span><div>Bijrijders: ${wie(r.bijrijders)}</div></div>
     <div class="rpRij"><span>🧺</span><div>Bakkenist (achterop): ${wie(r.bakkenisten)}</div></div>
     ${r.notitie ? `<div class="rpRij"><span>📝</span><div>${esc(r.notitie).replace(/\n/g, '<br>')}</div></div>` : ''}
@@ -6116,7 +6141,7 @@ function htmlRooiplanning() {
 async function rooiFormulier(id, voor = {}) {
   if (!mag('taken_toevoegen')) { toast('Je mag geen rooiplanning maken', 1); return; }
   const oud = id ? (S.rooiplanning || []).find(r => r.id === id) : null, van = voor.van && (S.rooiplanning || []).find(r => r.id === voor.van);
-  const r = oud ? {...oud} : {datum: voor.datum || vandaag(), ...(van ? {rooier: van.rooier, chauffeur_id: van.chauffeur_id, bijrijders: van.bijrijders, bakkenisten: van.bakkenisten, perceel_id: van.perceel_id} : {})};
+  const r = oud ? {...oud} : {datum: voor.datum || vandaag(), ...(van ? {rooier: van.rooier, chauffeur_id: van.chauffeur_id, chauffeur_naam: van.chauffeur_naam, bijrijders: van.bijrijders, bakkenisten: van.bakkenisten, perceel_id: van.perceel_id} : {})};
   const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).sort((a, b) => a.naam.localeCompare(b.naam, 'nl', {numeric: true}));
   // stap 1: perceel (de vakken en partijen hangen ervan af)
   if (!oud && !r.perceel_id) {
@@ -6127,7 +6152,7 @@ async function rooiFormulier(id, voor = {}) {
   const mensen = [...S.profielen].filter(u => u.actief !== false && !u.apparaat).sort((a, b) => ((b.chauffeur ? 1 : 0) - (a.chauffeur ? 1 : 0)) || (a.naam || '').localeCompare(b.naam || '', 'nl'));
   const rooiers = (S.machines || []).filter(m => /rooi/i.test(`${m.naam} ${m.soort || ''}`)).map(m => m.naam);
   const watKeuze = r.partij_id ? r.partij_id : r.wat ? 'anders' : (partijen[0]?.id || 'anders');
-  const w = await formulier(oud ? '✏️ Rooi-opdracht aanpassen' : '🚜 Rooien plannen', [
+  const wP = formulier(oud ? '✏️ Rooi-opdracht aanpassen' : '🚜 Rooien plannen', [
     {type: 'uitleg', waarde: `📍 ${esc(p?.naam || '?')}`},
     {k: 'datum', label: 'Welke dag?', type: 'date', waarde: r.datum},
     ...(p ? [{type: 'html', waarde: veldSchets(p, pv.map((v, i) => (r.vakken || []).includes(v.letter) ? i : -1).filter(i => i >= 0))}] : []),
@@ -6137,20 +6162,30 @@ async function rooiFormulier(id, voor = {}) {
     {k: 'wat', label: 'Wat moet er gerooid worden?', type: 'select', waarde: watKeuze, opties: [...partijen.map(x => [x.id, `${partijRas(x) || 'partij'}${x.batch ? ' · batch ' + x.batch : ''}${x.klasse ? ' · ' + x.klasse : ''}`]), ['anders', '✏️ Zelf invullen']]},
     {k: 'wat_tekst', label: 'Wat (in woorden)', waarde: r.partij_id ? '' : (r.wat || ''), placeholder: 'bijv. Falco moederplanten', als: ['wat', 'anders']},
     {k: 'aantal', label: 'Hoeveel?', type: 'number', waarde: r.aantal ?? '', placeholder: 'bijv. 12000'},
-    {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: r.eenheid || 'planten', opties: RP_EENHEDEN.map(e => [e, e])},
+    {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: RP_EENHEDEN.includes(r.eenheid) ? r.eenheid : 'planten', opties: RP_EENHEDEN.map(e => [e, e])},
+    {k: 'pl_per_m', label: 'Hoeveel planten per meter?', type: 'number', waarde: r.pl_per_m ?? plmEcht(partijen.find(x => x.id === watKeuze)) ?? '', placeholder: 'bijv. 6', als: ['eenheid', 'planten']},
     {k: 'rooier', label: 'Welke rooier?', waarde: r.rooier || rooiers[0] || '', lijst: [...rooiers, ...(S.machines || []).map(m => m.naam).filter(n => !rooiers.includes(n))]},
-    {k: 'chauffeur_id', label: 'Wie zit er op de rooier?', type: 'select', waarde: r.chauffeur_id || '', opties: [['', '– nog niet bekend –'], ...mensen.map(u => [u.id, `${u.naam}${u.chauffeur ? ' 🚜' : ''}`])]},
+    {k: 'chauffeur_id', label: 'Wie zit er op de rooier?', type: 'select', waarde: r.chauffeur_id || (r.chauffeur_naam ? '__anders' : ''), opties: [['', '– nog niet bekend –'], ...mensen.map(u => [u.id, `${u.naam}${u.chauffeur ? ' 🚜' : ''}`]), ['__anders', '✏️ Anders (iemand zonder account)']]},
+    {k: 'chauffeur_naam', label: 'Naam', waarde: r.chauffeur_naam || '', placeholder: 'bijv. Henk', als: ['chauffeur_id', '__anders']},
     {k: 'bijrijders', label: '👥 Bijrijders', type: 'vinkjes', waarde: r.bijrijders || [], opties: mensen.map(u => [u.id, u.naam])},
+    {k: 'bijrijders_anders', label: '👥 Anders (zonder account, namen met komma ertussen)', waarde: (r.bijrijders || []).filter(x => String(x).startsWith('~')).map(x => x.slice(1)).join(', '), placeholder: 'bijv. Henk, Marco'},
     {k: 'bakkenisten', label: '🧺 Bakkenist (staat achterop de wagen)', type: 'vinkjes', waarde: r.bakkenisten || [], opties: mensen.map(u => [u.id, u.naam])},
+    {k: 'bakkenisten_anders', label: '🧺 Anders (zonder account, namen met komma ertussen)', waarde: (r.bakkenisten || []).filter(x => String(x).startsWith('~')).map(x => x.slice(1)).join(', '), placeholder: 'bijv. Henk'},
     {k: 'notitie', label: 'Notitie (optioneel)', type: 'textarea', waarde: r.notitie || '', placeholder: 'bijv. beginnen bij de sloot, kisten staan bij de schuur'},
     {k: 'taak', label: 'Taak voor de chauffeur', type: 'select', waarde: oud && !oud.taak_id ? 'nee' : 'ja', opties: [['ja', '📋 Ja, maak/houd een taak "Rooien" bij (komt op de trekker)'], ['nee', 'Nee, alleen in de planning']]}
   ], oud ? 'Opslaan' : 'Inplannen');
+  setTimeout(() => {   // andere partij gekozen: planten per meter uit de veldgegevens overnemen
+    const sel = $('#modal [data-k="wat"]'), inv = $('#modal [data-k="pl_per_m"]'); if (!sel || !inv) return;
+    sel.addEventListener('change', () => { const v = plmEcht(partijen.find(x => x.id === sel.value)); if (v) inv.value = v; });
+  }, 30);
+  const w = await wP;
   if (!w) return;
   const anderPerceel = oud && w.perceel_id && w.perceel_id !== oud.perceel_id;
   const pid = w.perceel_id || r.perceel_id, gek = anderPerceel ? [] : (w.vakken || []).map(i => pv[+i]).filter(Boolean);
   const rij = {datum: w.datum || r.datum, perceel_id: pid, partij_id: w.wat && w.wat !== 'anders' && !anderPerceel ? w.wat : null, wat: w.wat === 'anders' || anderPerceel ? (w.wat_tekst || (anderPerceel ? rpWat(r) : '') || null) : null,
     vakken: gek.map(v => v.letter), aantal: w.aantal === '' || w.aantal == null || isNaN(parseFloat(String(w.aantal).replace(',', '.'))) ? null : parseFloat(String(w.aantal).replace(',', '.')),
-    eenheid: w.eenheid || null, rooier: w.rooier || null, chauffeur_id: w.chauffeur_id || null, bijrijders: w.bijrijders || [], bakkenisten: w.bakkenisten || [], notitie: w.notitie || null};
+    eenheid: w.eenheid || null, pl_per_m: w.eenheid === 'planten' && !isNaN(parseFloat(String(w.pl_per_m).replace(',', '.'))) ? parseFloat(String(w.pl_per_m).replace(',', '.')) : null, rooier: w.rooier || null, chauffeur_id: w.chauffeur_id && w.chauffeur_id !== '__anders' ? w.chauffeur_id : null, chauffeur_naam: w.chauffeur_id === '__anders' ? (w.chauffeur_naam || '').trim() || null : null,
+    bijrijders: [...(w.bijrijders || []), ...rpAndersLees(w.bijrijders_anders)], bakkenisten: [...(w.bakkenisten || []), ...rpAndersLees(w.bakkenisten_anders)], notitie: w.notitie || null};
   // de taak erbij
   let taak_id = oud?.taak_id || null;
   if (w.taak === 'ja') taak_id = await rooiTaakBij({...rij, taak_id}, gek);
@@ -6166,7 +6201,7 @@ async function rooiFormulier(id, voor = {}) {
 }
 // de taak "Rooien" bij een rooi-opdracht aanmaken of bijwerken
 async function rooiTaakBij(r, gek) {
-  const wat = rpWat(r), crew = [r.bijrijders?.length ? 'Bijrijders: ' + r.bijrijders.map(naamVan).join(', ') : '', r.bakkenisten?.length ? 'Bakkenist: ' + r.bakkenisten.map(naamVan).join(', ') : ''].filter(Boolean);
+  const wat = rpWat(r), crew = [r.chauffeur_naam && !r.chauffeur_id ? 'Op de rooier: ' + r.chauffeur_naam : '', r.bijrijders?.length ? 'Bijrijders: ' + r.bijrijders.map(naamVan).join(', ') : '', r.bakkenisten?.length ? 'Bakkenist: ' + r.bakkenisten.map(naamVan).join(', ') : ''].filter(Boolean);
   let gebied = null, van = null, tot = null;
   if (gek.length === 1 && !gek[0].z._vak) { van = gek[0].van; tot = gek[0].tot; } else if (gek.length) gebied = vakkenGebied(gek);
   const rij = {perceel_id: r.perceel_id, tekst: `Rooien${wat ? ': ' + wat : ''}${gek.length > 1 ? ` (vak ${gek.map(v => v.letter).join(', ')})` : ''}`,
@@ -6199,7 +6234,7 @@ function rooiPrint(start, dagen) {
     ${rr.map(r => { const p = perceel(r.perceel_id);
       return `<table><tr><th>Perceel</th><td><b>${esc(p?.naam || '–')}</b>${(r.vakken || []).length ? ' · vak ' + esc(r.vakken.join(', ')) : ' · hele perceel'}</td></tr>
         <tr><th>Wat</th><td><b>${esc(rpWat(r) || '–')}</b></td></tr><tr><th>Hoeveel</th><td><b>${esc(rpAantal(r) || '–')}</b></td></tr>
-        <tr><th>Rooier</th><td>${esc(r.rooier || '–')}</td></tr><tr><th>Op de rooier</th><td><b>${r.chauffeur_id ? esc(naamVan(r.chauffeur_id)) : '–'}</b></td></tr>
+        <tr><th>Rooier</th><td>${esc(r.rooier || '–')}</td></tr><tr><th>Op de rooier</th><td><b>${rpChauf(r) ? esc(naamVan(rpChauf(r))) : '–'}</b></td></tr>
         <tr><th>Bijrijders</th><td>${(r.bijrijders || []).map(naamVan).map(esc).join(', ') || '–'}</td></tr>
         <tr><th>Bakkenist</th><td>${(r.bakkenisten || []).map(naamVan).map(esc).join(', ') || '–'}</td></tr>
         ${r.notitie ? `<tr><th>Notitie</th><td>${esc(r.notitie).replace(/\n/g, '<br>')}</td></tr>` : ''}
@@ -7325,6 +7360,8 @@ async function middelControle(t) {
   const m = middelOpNaam(t.product); if (!m) return true;
   if (!await bioControle(t.perceel_id, m.id)) return false;
   const let_op = [];
+  const dag = String(t.klaar_op || new Date().toISOString()).slice(0, 10);
+  if (m.vervaldatum && dag > m.vervaldatum) let_op.push(`De toelating van <b>${esc(m.naam)}</b> is <b>vervallen</b> op ${datumKort(m.vervaldatum + 'T12:00')}. Gebruik is dan niet meer toegestaan.`);
   const d = +t.dosering;
   if (m.max_dosering && d > 0 && (!m.dosering_eenheid || m.dosering_eenheid === t.eenheid) && d > +m.max_dosering)
     let_op.push(`De dosering <b>${getal(d, 2)} ${esc(t.eenheid || '')}</b> is hoger dan het maximum van <b>${getal(m.max_dosering, 2)} ${esc(m.dosering_eenheid || t.eenheid || '')}</b>.`);
@@ -7354,7 +7391,9 @@ async function middelFormulier(id, cat) {
   const w = await formulier(id ? `✏️ ${m.naam}` : cat === 'meststof' ? '＋ Nieuwe meststof' : '＋ Nieuw middel of product', [
     {k: 'naam', label: 'Naam', waarde: m.naam || '', placeholder: 'bijv. Luna Sensation'},
     {k: 'categorie', label: 'Soort', type: 'select', waarde: m.categorie, opties: MID_CAT},
+    {type: 'html', waarde: `<button type="button" class="knop licht" onclick="ctgbInvullen()">🔎 Zoek dit middel bij het Ctgb</button><div id="ctgbRes"></div>`, als: ['categorie', 'gewasbescherming']},
     {k: 'toelatingsnummer', label: 'Toelatingsnummer (Ctgb)', waarde: m.toelatingsnummer || '', placeholder: 'bijv. 14062 N', als: ['categorie', 'gewasbescherming']},
+    {k: 'vervaldatum', label: 'Toegelaten tot (vervaldatum)', type: 'date', waarde: m.vervaldatum || '', als: ['categorie', 'gewasbescherming']},
     {k: 'werkzame_stof', label: 'Werkzame stof', waarde: m.werkzame_stof || '', als: ['categorie', 'gewasbescherming']},
     {k: 'bio_toegestaan', label: 'Toegestaan in de biologische teelt (Skal)?', type: 'select', waarde: m.bio_toegestaan ? 'ja' : 'nee', opties: [['nee', 'Nee / weet ik niet'], ['ja', 'Ja, toegestaan in bio']], als: ['categorie', 'gewasbescherming']},
     {k: 'n_per_eenheid', label: 'kg stikstof (N) per eenheid voorraad (bijv. per kg, ton of m³)', type: 'number', waarde: m.n_per_eenheid ?? '', als: ['categorie', 'meststof']},
@@ -7374,7 +7413,7 @@ async function middelFormulier(id, cat) {
   const rij = {naam: w.naam, categorie: w.categorie, toelatingsnummer: w.toelatingsnummer || null, werkzame_stof: w.werkzame_stof || null,
     max_dosering: n('max_dosering'), dosering_eenheid: w.dosering_eenheid, veiligheidstermijn: n('veiligheidstermijn'), max_keer: n('max_keer'),
     voorraad_eenheid: w.voorraad_eenheid, min_voorraad: n('min_voorraad'), prijs: n('prijs'), notitie: w.notitie || null,
-    bio_toegestaan: w.bio_toegestaan === 'ja', n_per_eenheid: n('n_per_eenheid'), p_per_eenheid: n('p_per_eenheid')};
+    bio_toegestaan: w.bio_toegestaan === 'ja', n_per_eenheid: n('n_per_eenheid'), p_per_eenheid: n('p_per_eenheid'), vervaldatum: w.vervaldatum || null};
   if (!id) rij.voorraad = n('voorraad');
   const res = id ? await sb.from('middelen').update(rij).eq('id', id).select().single() : await sb.from('middelen').insert(rij).select().single();
   if (res.error) { toast('Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
@@ -7494,14 +7533,15 @@ function htmlMiddelen(alleenCat) {
 function teeltNamen(p) { return [...teeltOppervlak(p).keys()].map(id => teelt(id)?.naam).filter(Boolean).join(', '); }
 function spuitlogExcel() {
   const rijen = ((bedrijfTab === 'spuitregister' && tab === 'bedrijf') || tab === 'spuitregister' || tab === 'mestregister' ? spuitRegisterRijen() : S.taken.filter(t => t.klaar && (t.product || t.middel_id))).sort((a, b) => (a.klaar_op || '').localeCompare(b.klaar_op || ''));
-  const kop = ['Datum', 'Tijd', 'Perceel', 'Bio', 'Oppervlakte (ha)', 'Gewas', 'Werk', 'Middel / product', 'Toelatingsnr', 'Werkzame stof', 'Dosering', 'Eenheid', 'Totaal verbruikt', 'Eenheid voorraad', 'Uitgevoerd door', 'Trekker / spuit', 'Wind (m/s)', 'Windrichting', 'Temp (°C)', 'RV (%)', 'Veiligheidstermijn tot', 'Opmerking'].map(v => ({v, s: 1}));
+  const kop = ['Datum', 'Tijd', 'Perceel', 'Bio', 'Behandeld (ha)', 'Gewas', 'EPPO-code', 'BBCH', 'Werk', 'Middel / product', 'Toelatingsnr', 'Werkzame stof', 'Dosering', 'Eenheid', 'Totaal verbruikt', 'Eenheid voorraad', 'Uitgevoerd door', 'Trekker / spuit', 'Wind (m/s)', 'Windrichting', 'Temp (°C)', 'RV (%)', 'Veiligheidstermijn tot', 'Opmerking'].map(v => ({v, s: 1}));
   const data = rijen.map(t => { const p = perceel(t.perceel_id), m = middel(t.middel_id) || middelOpNaam(t.product);
     const w = t.weer || {}, v = vgtTot(t);
-    return [{v: Math.floor(xlDatum(t.klaar_op)), s: 3}, new Date(t.klaar_op).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}), p?.naam || '', isBioPerceel(p) ? 'ja' : '', {v: Math.round(taakM2(t) / 100) / 100, s: 2}, p ? teeltNamen(p) : '', t.tekst, t.product || m?.naam || '',
+    const g = gewasVanTaak(t);
+    return [{v: Math.floor(xlDatum(t.klaar_op)), s: 3}, new Date(t.klaar_op).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}), p?.naam || '', isBioPerceel(p) ? 'ja' : '', {v: behandeldHa(t), s: 2}, g.map(x => x.naam).join(' / ') || (p ? teeltNamen(p) : ''), g.map(x => x.eppo).filter(Boolean).join(' / '), t.bbch || '', t.tekst, t.product || m?.naam || '',
       m?.toelatingsnummer || '', m?.werkzame_stof || '', t.dosering != null ? {v: +t.dosering, s: 2} : '', t.eenheid || '', t.verbruik != null ? {v: +t.verbruik, s: 2} : '', m?.voorraad_eenheid || '',
       t.klaar_door || '', [t.trekker, t.werktuig].filter(Boolean).join(' + '), w.wind != null ? {v: +w.wind, s: 2} : '', windRoos(w.richting), w.temp != null ? {v: +w.temp, s: 2} : '', w.rv != null ? {v: +w.rv, s: 2} : '',
       v ? {v: Math.floor(xlDatum(v.toISOString())), s: 3} : '', t.uitvoering || '']; });
-  bewaarBestand(`Spuitregister ${seizoenNaam(bekeken)}${srPerceel ? ' ' + (perceel(srPerceel)?.naam || '') : ''}.xlsx`, maakXlsx([{naam: 'Spuitregister', breedtes: [12, 7, 18, 5, 10, 24, 18, 22, 13, 18, 9, 8, 12, 10, 16, 18, 9, 9, 8, 7, 14, 30], rijen: [kop, ...data], filter: true}]));
+  bewaarBestand(`Spuitregister ${seizoenNaam(bekeken)}${srPerceel ? ' ' + (perceel(srPerceel)?.naam || '') : ''}.xlsx`, maakXlsx([{naam: 'Spuitregister', breedtes: [12, 7, 18, 5, 10, 24, 11, 7, 18, 22, 13, 18, 9, 8, 12, 10, 16, 18, 9, 9, 8, 7, 14, 30], rijen: [kop, ...data], filter: true}]));
 }
 function bewaarBestand(naam, bytes, type = XLSX_TYPE, direct) {
   if (!direct && window.Capacitor?.isNativePlatform?.()) { geefBestand(naam, bytes, type); return; }
@@ -8153,6 +8193,92 @@ function spuitRegisterRijen() {
   return S.taken.filter(t => t.klaar && (t.product || t.middel_id) && (srSoort === 'alles' || (srSoort === 'spuiten' ? !isBemestTaak(t) : isBemestTaak(t))) && (!srPerceel || betreft(t, srPerceel)))
     .sort((a, b) => (b.klaar_op || '').localeCompare(a.klaar_op || ''));
 }
+
+/* ============ SPUITREGISTRATIE VOLGENS DE EU-REGELS (2023/564) ============
+   Per toepassing: middel + toelatingsnummer, datum en tijd, dosis, behandeld oppervlak, gewas + EPPO-code, BBCH (als het etiket dat vraagt).
+   Ctgb-middelendatabank via de database (functie ctgb). Export als Excel en als CSV (machineleesbaar). */
+const EPPO_STD = [[/aardbei/i, 'FRAAN'], [/aardappel/i, 'SOLTU'], [/tarwe/i, 'TRZAX'], [/ma[iï]s/i, 'ZEAMX'], [/biet/i, 'BEAVA'], [/\bui\b|uien/i, 'ALLCE'], [/gerst/i, 'HORVX'], [/koolzaad/i, 'BRSNN']];
+const eppoVanSoort = s => s ? (s.eppo || EPPO_STD.find(([r]) => r.test(s.naam))?.[1] || '') : '';
+function gewasVanTaak(t) {   // gewassen (soorten) op het stuk van de taak, met EPPO-code
+  const p = perceel(t.perceel_id); if (!p) return [];
+  const ids = new Set(); try { for (const z of alleZones(p)) for (const bn of banenVan(z)) {
+    if (t.spoor_van && (bn.nr < t.spoor_van || bn.nr > (t.spoor_tot || t.spoor_van))) continue;
+    if (!t.spoor_van && t.gebied) { try { if (!turf.booleanIntersects(bn.geo, t.gebied)) continue; } catch {} }
+    stukkenVan(z, bn).forEach(x => { const sid = teelt(x.id)?.plantId; if (sid) ids.add(sid); }); } } catch {}
+  if (!ids.size) [...plantenNu(p)].forEach(id => ids.add(id));
+  return [...ids].map(soort).filter(Boolean).map(s => ({naam: s.naam, eppo: eppoVanSoort(s)}));
+}
+const behandeldHa = t => t.behandeld_ha != null ? +t.behandeld_ha : Math.round(taakM2(t) / 100) / 100;
+// ---- Ctgb ----
+const ctgbZoekDiep = (o, k, diepte = 0) => { if (!o || typeof o !== 'object' || diepte > 6) return undefined; if (k in o) return o[k];
+  for (const v of Object.values(o)) { const r = ctgbZoekDiep(v, k, diepte + 1); if (r !== undefined) return r; } return undefined; };
+function ctgbLees(o) {
+  const a = o.attributes || o, nr = ctgbZoekDiep(a, 'registrationNumber'), stoffen = [];
+  const verzamel = x => { if (!x || typeof x !== 'object') return; if (Array.isArray(x)) return x.forEach(verzamel);
+    if (x.substance?.name && (x.function?.isActiveSubstance ?? true)) stoffen.push(x.substance.name + (x.concentration ? ` ${x.concentration}${x.concentrationUnit?.name || x.concentrationUnit || ''}` : '')); else Object.values(x).forEach(verzamel); };
+  verzamel(ctgbZoekDiep(a, 'substances'));
+  const verv = ctgbZoekDiep(a, 'expirationDate');
+  return {id: String(o.id ?? a.id ?? ''), naam: a.name || ctgbZoekDiep(a, 'middelNaam') || ctgbZoekDiep(a, 'name') || '', nr: (nr && typeof nr === 'object' ? nr.nl || nr.eu : nr) || ctgbZoekDiep(a, 'toelatingNummer') || '',
+    verval: verv ? String(verv).slice(0, 10) : '', stoffen: [...new Set(stoffen)].join(', '), gebruik: (() => { const u = ctgbZoekDiep(a, 'usesSummary'); return Array.isArray(u) ? u.join(', ') : u || ''; })()};
+}
+async function ctgbZoek(tekst) {
+  const q = encodeURIComponent(tekst.trim()), f = k => `filter%5B${k}%5D=${q}`;
+  const {data, error} = await sb.rpc('ctgb', {p_pad: `authorisations?${f('middelNaam')}&${f('toelatingNummer')}&filter%5Blocale%5D=nl&page%5Blimit%5D=8`});
+  if (error) throw error;
+  let l = (data?.data || []).map(ctgbLees);
+  // staan de details er niet in, dan per middel ophalen
+  for (const [i, x] of l.entries()) if ((!x.nr || !x.verval) && /^\d+$/.test(x.id) && i < 5) { try { const d = await sb.rpc('ctgb', {p_pad: 'authorisations/' + x.id}); if (d.data) l[i] = {...x, ...Object.fromEntries(Object.entries(ctgbLees(d.data.data || d.data)).filter(([, v]) => v))}; } catch {} }
+  return l;
+}
+async function ctgbInvullen() {
+  const naam = $('#modal [data-k="naam"]')?.value || $('#modal [data-k="toelatingsnummer"]')?.value, uit = $('#ctgbRes');
+  if (!naam) { toast('Vul eerst de naam of het toelatingsnummer in', 1); return; }
+  uit.innerHTML = '<p class="hint">Zoeken bij het Ctgb…</p>';
+  try {
+    const l = await ctgbZoek(naam); ctgbInvullen.l = l;
+    uit.innerHTML = l.length ? `<p class="hint" style="margin:6px 0 4px">Kies het juiste middel:</p>${l.map((x, i) => `<button type="button" class="ctgbKeuze" onclick="ctgbKies(${i})"><b>${esc(x.naam)}</b> · ${esc(x.nr || '?')}${x.verval ? ` · tot ${esc(x.verval)}${x.verval < vandaag() ? ' <span style="color:#c62828">(vervallen)</span>' : ''}` : ''}<br><small>${esc(x.stoffen)}${x.gebruik ? ' · ' + esc(x.gebruik).slice(0, 120) : ''}</small></button>`).join('')}` : '<p class="hint">Niets gevonden bij het Ctgb. Controleer de naam, of vul het zelf in.</p>';
+  } catch (e) { uit.innerHTML = `<p class="hint">${/ctgb|function/i.test(e.message || '') && /exist|find|schema/i.test(e.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase.' : 'Het Ctgb is nu niet bereikbaar (' + esc(e.message || '') + '). Vul het zelf in.'}</p>`; }
+}
+function ctgbKies(i) {
+  const x = ctgbInvullen.l?.[i]; if (!x) return; const zet = (k, v) => { const e = $(`#modal [data-k="${k}"]`); if (e && v) e.value = v; };
+  zet('naam', x.naam); zet('toelatingsnummer', x.nr); zet('werkzame_stof', x.stoffen); zet('vervaldatum', x.verval);
+  $('#ctgbRes').innerHTML = `<p class="hint">✓ Ingevuld vanuit het Ctgb${x.verval && x.verval < vandaag() ? ' – <b style="color:#c62828">let op: vervallen</b>' : ''}</p>`;
+}
+async function ctgbControleAlles() {   // alle middelen met een toelatingsnummer nalopen: vervaldatum bijwerken
+  const l = (S.middelen || []).filter(m => m.categorie === 'gewasbescherming' && m.toelatingsnummer); if (!l.length) { toast('Geen middelen met een toelatingsnummer', 1); return; }
+  toast(`🔄 ${l.length} middelen controleren bij het Ctgb…`); let bij = 0; const vervallen = [];
+  for (const m of l) { try { const r = (await ctgbZoek(m.toelatingsnummer)).find(x => normTekst(x.nr) === normTekst(m.toelatingsnummer)) ;
+      if (r?.verval && r.verval !== m.vervaldatum) { await sb.from('middelen').update({vervaldatum: r.verval}).eq('id', m.id); m.vervaldatum = r.verval; bij++; }
+      if (m.vervaldatum && m.vervaldatum < vandaag()) vervallen.push(m.naam);
+    } catch (e) { toast('Ctgb niet bereikbaar: ' + (e.message || ''), 1); return; } }
+  render(true); toast(`✓ Gecontroleerd${bij ? ` · ${bij} bijgewerkt` : ''}${vervallen.length ? ` · ⚠️ vervallen: ${vervallen.join(', ')}` : ''}`, vervallen.length ? 1 : 0);
+}
+async function soortEppo(id, v) {
+  const s = soort(id); if (!s) return; s.eppo = (v || '').trim().toUpperCase() || null;
+  const {error} = await sb.from('soorten').update({eppo: s.eppo}).eq('id', id);
+  if (error) toast(/eppo/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1);
+}
+function htmlEppo() {
+  const gebruikt = [...new Set(S.percelen.flatMap(p => { try { return [...plantenNu(p)]; } catch { return []; } }))].map(soort).filter(Boolean);
+  const l = gebruikt.length ? gebruikt : S.soorten;
+  return `<details class="kaartje"><summary><b>🌱 Gewassen en EPPO-codes</b> <small class="hint">(verplicht in de registratie)</small></summary>
+    <p class="hint">De EPPO-code komt automatisch in het spuitregister. Bekende gewassen zijn al ingevuld (aardbei = FRAAN).</p>
+    ${l.map(x => `<div class="aiVelden"><span>${esc(x.naam)}</span><input class="veld" style="max-width:140px;text-transform:uppercase" value="${esc(x.eppo || '')}" placeholder="${esc(eppoVanSoort({naam: x.naam}) || 'bijv. FRAAN')}" ${mag('soorten_beheren') ? '' : 'disabled'} onchange="soortEppo('${x.id}',this.value)"></div>`).join('')}</details>`;
+}
+// wettelijk register: alleen de verplichte velden, als CSV (machineleesbaar)
+function wettelijkeRijen() {
+  return spuitRegisterRijen().filter(t => !isBemestTaak(t)).sort((a, b) => (a.klaar_op || '').localeCompare(b.klaar_op || '')).map(t => {
+    const p = perceel(t.perceel_id), m = middel(t.middel_id) || middelOpNaam(t.product), g = gewasVanTaak(t), d = new Date(t.klaar_op);
+    return {datum: dKey(d), tijd: d.toTimeString().slice(0, 5), middel: t.product || m?.naam || '', toelatingsnummer: m?.toelatingsnummer || '', dosis: t.dosering ?? '', eenheid: t.eenheid || '',
+      oppervlak_ha: behandeldHa(t), gewas: g.map(x => x.naam).join(' / '), eppo: g.map(x => x.eppo).filter(Boolean).join(' / '), bbch: t.bbch || '', perceel: p?.naam || '', toegepast_door: t.klaar_door || '', machine: [t.trekker, t.werktuig].filter(Boolean).join(' + ')};
+  });
+}
+function spuitregisterCsv() {
+  const r = wettelijkeRijen(); if (!r.length) { toast('Geen bespuitingen in deze selectie', 1); return; }
+  const kop = Object.keys(r[0]), q = v => { const x = String(v ?? ''); return /[;"\n]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x; };
+  const tekst = '\ufeff' + [kop.join(';'), ...r.map(o => kop.map(k => q(typeof o[k] === 'number' ? String(o[k]).replace('.', ',') : o[k])).join(';'))].join('\r\n');
+  bewaarBestand(`Spuitregistratie ${seizoenNaam(bekeken)}.csv`, new TextEncoder().encode(tekst), 'text/csv');
+}
 function htmlSpuitregister() {
   const rijen = spuitRegisterRijen(), velden = S.percelen.filter(p => p.type !== 'pand').sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
   const d = x => new Date(x).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'}), tijd = x => new Date(x).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'});
@@ -8160,10 +8286,12 @@ function htmlSpuitregister() {
     <p class="hint" style="margin-top:0">Alle toepassingen met datum en tijd, perceel, gewas, middel, toelatingsnummer, dosering, het weer op dat moment en de veiligheidstermijn. Geschikt voor Skal en GLOBALG.A.P.</p>
     <div class="rij" style="flex-wrap:wrap"><select class="veld" style="flex:1 1 150px;margin:0" onchange="srPerceel=this.value;render(true)"><option value="">Alle percelen</option>${velden.map(p => `<option value="${p.id}" ${srPerceel === p.id ? 'selected' : ''}>${esc(p.naam)}</option>`).join('')}</select>
       <select class="veld" style="flex:1 1 150px;margin:0" onchange="srSoort=this.value;render(true)">${[['spuiten', 'Gewasbescherming'], ['bemesting', 'Bemesting'], ['alles', 'Alles']].map(([k, l]) => `<option value="${k}" ${srSoort === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-    <button class="knop" style="margin-top:8px" onclick="spuitlogExcel()">📊 Als Excel downloaden</button></section>
+    <div class="rij" style="margin-top:8px;flex-wrap:wrap"><button class="knop" onclick="spuitlogExcel()">📊 Excel</button><button class="knop licht" onclick="spuitregisterCsv()">📄 CSV (wettelijk, machineleesbaar)</button>${mag('middelen_beheren') ? '<button class="knop licht" onclick="ctgbControleAlles()">🔄 Middelen controleren bij Ctgb</button>' : ''}</div>
+    ${(() => { const r = srSoort !== 'bemesting' ? wettelijkeRijen() : [], mis = r.filter(x => !x.toelatingsnummer || !x.eppo).length; return mis ? `<p class="hint" style="color:#e65100">⚠️ ${mis} ${mis === 1 ? 'registratie mist' : 'registraties missen'} een toelatingsnummer of EPPO-code. Vul die aan bij de middelen of hieronder bij de gewassen.</p>` : ''; })()}</section>
+    ${srSoort !== 'bemesting' ? htmlEppo() : ''}
   <section class="kaartje">${rijen.map(t => { const p = perceel(t.perceel_id), m = middel(t.middel_id) || middelOpNaam(t.product), v = vgtTot(t), bio = isBioPerceel(p);
     return `<div class="srRij" onclick="focusTaak('${t.id}')"><div class="srDatum"><b>${d(t.klaar_op)}</b><small>${tijd(t.klaar_op)}</small></div>
-      <div class="t"><b>${esc(t.product || m?.naam || t.tekst)}</b>${m?.toelatingsnummer ? ` <small>· ${esc(m.toelatingsnummer)}</small>` : ''}${t.dosering != null ? ` · <b>${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}</b>` : ''}
+      <div class="t"><b>${esc(t.product || m?.naam || t.tekst)}</b>${m?.toelatingsnummer ? ` <small>· ${esc(m.toelatingsnummer)}</small>` : !isBemestTaak(t) ? ' <small style="color:#e65100">· geen toelatingsnr</small>' : ''}${m?.vervaldatum && String(t.klaar_op).slice(0, 10) > m.vervaldatum ? ' <small style="color:#c62828">· toelating was vervallen</small>' : ''}${t.bbch ? ` <small>· BBCH ${esc(t.bbch)}</small>` : ''}${t.dosering != null ? ` · <b>${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}</b>` : ''}
         <small>${esc(p?.naam || '?')} · ${esc(p ? teeltNamen(p) : '')} · ${ha(taakM2(t))} ha · 👤 ${esc(t.klaar_door || '?')}${t.trekker ? ' · 🚜 ' + esc(t.trekker) : ''}</small>
         ${t.weer ? `<small>🌬️ ${weerKort(t.weer)}${t.weer.wind > (+S.inst.spuit_wind_max || 5) ? ' <b style="color:#c62828">te veel wind</b>' : ''}</small>` : isSpuitTaak(t) ? '<small style="color:#999">geen weer vastgelegd</small>' : ''}
         ${v ? `<small>${v > new Date() ? '⛔' : '✓'} veiligheidstermijn tot ${v.toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})}</small>` : ''}
