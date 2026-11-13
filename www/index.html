@@ -609,6 +609,20 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 .rpKaart{border:1px solid #dfe7dc;border-left:5px solid #f9a825;border-radius:12px;padding:10px 12px;margin:8px 0;background:#fffdf6}.rpKaart.klaar{border-left-color:#2e7d32;opacity:.75}
 .rpKop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}.rpRij{display:flex;gap:8px;padding:3px 0;font-size:14px}.rpRij>span{width:22px;flex:0 0 22px}
 .rpNaam{display:inline-block;background:#e8f5e9;border-radius:10px;padding:1px 8px;margin:1px 2px 1px 0}.rpNaam.chauf{background:#c8e6c9;font-weight:700}.rpNaam.dubbel{background:#ffe0b2;outline:2px solid #fb8c00}
+#klokScherm{position:fixed;inset:0;z-index:5000;background:#14261a;color:#fff;overflow:auto;padding:16px calc(16px + env(safe-area-inset-right)) 24px calc(16px + env(safe-area-inset-left));user-select:none}
+body.klokAan #hoofdmenu,body.klokAan #map,body.klokAan #panel{display:none!important}
+.klokKop{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:20px}.klokTijd{font-size:64px;font-weight:800;line-height:1}
+.klokUitleg{font-size:24px;font-weight:700;margin:16px 0 10px;color:#c8e6c9}.klokFout{font-size:22px;padding:30px}
+.klokNamen{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.klokNaam{min-height:110px;border:0;border-radius:18px;background:#24442d;color:#fff;font-size:24px;text-align:left;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;gap:6px;cursor:pointer}
+.klokNaam small{font-size:16px;color:#c8e6c9}.klokNaam.binnen{background:#2e7d32;outline:3px solid #a5d6a7}
+.klokVraag{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:18px;z-index:5100}
+.klokVraagIn{background:#1f3d27;border-radius:24px;padding:26px;max-width:640px;width:100%;text-align:center;font-size:22px}.klokVraagIn h2{font-size:36px;margin:0 0 8px}
+.klokKnoppen{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:18px 0}.klokKnoppen button{min-height:90px;border:0;border-radius:18px;background:#455a64;color:#fff;font-size:24px;font-weight:800}.klokKnoppen .groen{background:#2e7d32}
+.klokAnders{display:flex;gap:10px;align-items:center;margin-bottom:12px}.klokAnders .veld{font-size:26px;margin:0}.klokTerug{border:0;background:none;color:#c8e6c9;font-size:18px;text-decoration:underline;margin-top:6px}
+.klokKlaar{font-size:34px;font-weight:800;padding:40px 26px}.klokKlaar small{font-size:20px;font-weight:500}
+.klokLijst>div{display:grid;grid-template-columns:90px 1fr 110px 110px 60px;gap:6px;font-size:13px;padding:4px 0;border-bottom:1px solid #eef2ec}
+.mKlok{background:#fff3e0;color:#e65100;border-radius:14px;padding:10px 14px;margin:0 0 12px;font-weight:700}
 .rpRegels{display:flex;flex-direction:column;gap:6px;margin:4px 0}.rpRegel{background:#f1f6ef;border-radius:10px;padding:8px 10px}.rpRegel small{display:block;color:#5d6b5f}.rpRegel label{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px}.rpRegel label .veld{margin:0;flex:1}.rpOm{color:#2e7d32;font-weight:700}
 .rpLet{background:#fff3e0;border-radius:8px;padding:6px 8px;font-size:13px;margin-top:4px}.rpDag.vandaag{outline:3px solid #f9a825}
 .veldSchets{position:relative;background:#faf8f3;border:1px solid #e0dccf;border-radius:12px;padding:8px;margin:4px 0}.veldSchets svg{width:100%;height:auto;max-height:360px;display:block}
@@ -901,7 +915,8 @@ let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, voertuigLaag, locatie
 
 const mijnProfiel = () => S.profielen.find(x => x.id === me?.id);
 const naamMe = () => (typeof TM !== 'undefined' && TM.chauffeur ? TM.chauffeur.naam : null) || mijnProfiel()?.naam || me?.user_metadata?.naam || me?.email?.split('@')[0] || 'Onbekend';
-const isApparaat = () => !!mijnProfiel()?.apparaat;   // gedeeld apparaat (trekker-tablet): geen persoonlijke gegevens
+const isApparaat = () => !!mijnProfiel()?.apparaat;
+const isPrikklok = () => !!mijnProfiel()?.prikklok;   // de iPad in de kantine om in en uit te klokken   // gedeeld apparaat (trekker-tablet): geen persoonlijke gegevens
 const isBeheerder = () => mijnProfiel()?.rol === 'beheerder';
 const perceel = id => S.percelen.find(p => p.id === id);
 let wijsAan = false;   // bezig met een punt aanwijzen op de kaart
@@ -1294,7 +1309,7 @@ ${l.map(esc).join('\n')}</pre>
 async function opstarten() {
   stap('start'); scherm(null);
   initKaart(); stap('kaart klaar');
-  if (veilig || /[?&]trekker=1/.test(location.search) || tmAltijd()) TM.aan = true;   // trekker-modus: de kaart niet eerst helemaal tekenen
+  if (veilig || /[?&]trekker=1/.test(location.search) || tmAltijd()) TM.aan = true;   // (prikklok-iPad: zie hieronder)   // trekker-modus: de kaart niet eerst helemaal tekenen
   await laadAlles(); stap('gegevens geladen');
   sb.channel('live').on('postgres_changes', {event: '*', schema: 'public'}, verwerkLive).subscribe();
   if (S.percelen.length) map.fitBounds(L.geoJSON(S.percelen.map(p => p.geo)).getBounds(), {padding: [40, 40], maxZoom: 17});
@@ -1305,7 +1320,7 @@ async function opstarten() {
   pgSleepInit();   // plattegrond op de kaart slepen
   const tmLink = /[?&]trekker=1/.test(location.search);
   if (veilig) { TM.aan = false; toonMenu(); toast('🛟 Veilige start: de kaart wordt pas getekend als je een perceel kiest'); stap('veilige start klaar'); opstartGelukt(); toonVorigeVastloper(); return; }
-  stap('menu of trekker'); if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else toonMenu();
+  stap('menu of trekker'); if (isPrikklok()) { TM.aan = false; await toonKlok(); } else if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else toonMenu();
   stap('gps'); apparaatGPS(); stap('klaar'); opstartGelukt(); toonVorigeVastloper();   // trekker-tablet: locatie van de gekoppelde trekker delen zolang hij aan staat      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
   setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
 }
@@ -1360,6 +1375,8 @@ function verwerkLive(pl) {
     return;
   }
   if (pl.table === 'voertuigen') { voertuigLive(pl); return; }
+  if (pl.table === 'klok') { S.klok = S.klok || []; if (pl.eventType === 'DELETE') S.klok = S.klok.filter(x => x.id !== pl.old.id); else { const i = S.klok.findIndex(x => x.id === pl.new.id); if (i >= 0) S.klok[i] = pl.new; else S.klok.push(pl.new); }
+    if ($('#klokScherm')) toonKlok(true); else if (TM.aan) tmRender(); else if ($('#hoofdmenu.open')) toonMenu(); else if (tab === 'uren') render(); return; }
   const lijst = S[pl.table]; if (!lijst) return;
   if (pl.eventType === 'DELETE') {
     S[pl.table] = lijst.filter(x => x.id !== pl.old.id);
@@ -1739,6 +1756,8 @@ function uitvoeringPatch(w) {
 async function zetBezig(id) {
   const t = S.taken.find(x => x.id === id); if (!t || t.klaar) return;
   if (!mag('taken_afvinken')) { toast('Je mag deze taak niet bijwerken', 1); return; }
+  if (!t.bezig_door && !magWerken()) return;   // stoppen mag altijd, beginnen alleen als je ingeklokt bent
+  if (t.bezig_door && normTekst(t.bezig_door) !== normTekst(naamMe()) && !isBeheerder()) { toast(`${t.bezig_door} is hiermee bezig. Alleen ${t.bezig_door} zelf of een beheerder kan dat stoppen.`, 1); return; }
   const patch = t.bezig_door ? {bezig_door: null, bezig_sinds: null} : {bezig_door: naamMe(), bezig_sinds: new Date().toISOString()};
   // Je kunt maar met één ding tegelijk bezig zijn: je andere taak stopt automatisch
   const andere = patch.bezig_door ? S.taken.filter(x => x.id !== id && !x.klaar && x.bezig_door === naamMe()) : [];
@@ -2233,6 +2252,7 @@ const hoofdVan = t => S.taken.find(x => x.id === t?.hoofd_taak) || null;
 const hoofdChauffeur = h => h ? (h.bezig_door || S.profielen.find(u => u.id === h.toegewezen_aan)?.naam || 'de chauffeur') : 'de chauffeur';
 async function vinkTaak(id) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
+  if (!t.klaar && !isRolTaak(t) && !magWerken()) return;
   if (isRolTaak(t) && !t.klaar) { toast(`Deze taak is vanzelf klaar als ${hoofdChauffeur(hoofdVan(t))} "${hoofdVan(t)?.tekst || 'de hoofdtaak'}" afsluit. Je kunt alleen aangeven dat je er (niet meer) mee bezig bent.`, 1); return; }
   if (!t.klaar && isVerplaats(t)) {
     const patch = {klaar: true, klaar_door: naamMe(), klaar_op: new Date().toISOString(), bezig_door: null, bezig_sinds: null};
@@ -2772,6 +2792,7 @@ async function markFormulier(soort, m = {}, metLijn = true) {
   return formulier(m.id ? 'Markering bewerken' : `${MARK[soort].icoon} Nieuwe ${MARK[soort].naam.toLowerCase()}`, velden);
 }
 async function nieuweMarkering(soort, geo) {
+  if (!isApparaat() && !magWerken()) return;
   const pid = actief;
   const vlak = soort === 'kopeinde' && isVlak(geo);
   const w = await markFormulier(soort, {}, !vlak); if (!w) return;
@@ -4118,7 +4139,8 @@ function urenGroepen(regels) {
   return [...pp.values()].sort((a, b) => a.naam.localeCompare(b.naam, 'nl'))
     .map(p => ({...p, taken: [...p.taken.values()].sort((a, b) => b.ms - a.ms)}));
 }
-function htmlUren() {
+function htmlUren() { return htmlUren0() + htmlKlokOverzicht(); }
+function htmlUren0() {
   const [, , label] = urenPeriode(), alles = ziet('uren_bekijken'), beheer = mag('uren_beheren');
   const regels = urenRegels(), groepen = urenGroepen(regels), totaal = groepen.reduce((s, p) => s + p.ms, 0);
   const lopend = S.uren.filter(r => !r.eind && (alles || r.user_id === me?.id || r.naam === naamMe()));
@@ -4379,9 +4401,10 @@ function htmlTeam() {
     </section>
     <section class="kaartje"><h4>Team (${lijst.length})</h4>
       ${lijst.map(u => `<div class="soort">
-        <div class="t"><b>${esc(u.naam)}</b> ${u.rol === 'beheerder' ? '<span class="badge">Beheerder</span>' : ''}${u.apparaat ? '<span class="badge">📱 Trekker-tablet</span>' : ''}${u.id === me.id ? ' <small>(jij)</small>' : ''}<br><small>${esc(u.email || '')}</small>
+        <div class="t"><b>${esc(u.naam)}</b> ${u.rol === 'beheerder' ? '<span class="badge">Beheerder</span>' : ''}${u.prikklok ? '<span class="badge">⏰ Prikklok</span>' : u.apparaat ? '<span class="badge">📱 Trekker-tablet</span>' : ''}${u.id === me.id ? ' <small>(jij)</small>' : ''}<br><small>${esc(u.email || '')}</small>
           ${!u.apparaat && (isBeheerder() || (u.rol !== 'beheerder' && u.id !== me.id)) ? `<label class="vinkje klein" style="margin:2px 0 0"><input type="checkbox" ${u.chauffeur ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_chauffeur:this.checked})"> 🚜 Chauffeur (staat op de trekker-tablets)</label>${u.chauffeur && isBeheerder() && u.id !== me.id ? ` <button class="knop klein licht" onclick="pinInstellen('${u.id}')">🔢 Pincode</button>` : ''}` : ''}
-          ${isBeheerder() && u.id !== me.id && u.rol !== 'beheerder' ? `<label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.apparaat ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_apparaat:this.checked})"> 📱 Gedeeld apparaat (trekker-tablet)</label>` : ''}
+          ${isBeheerder() && u.id !== me.id && u.rol !== 'beheerder' ? `<label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.apparaat ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_apparaat:this.checked})"> 📱 Gedeeld apparaat (trekker-tablet)</label>
+            <label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.prikklok ? 'checked' : ''} onchange="zetPrikklok('${u.id}',this.checked)"> ⏰ Prikklok (iPad in de kantine om in te klokken)</label>` : ''}
           ${u.apparaat && isBeheerder() ? `<div class="aiVelden"><span>🚜 Zit in trekker</span><select class="veld" onchange="zetTrekker('${u.id}',this.value)"><option value="">— geen —</option>${S.tractoren.map(t => `<option value="${t.id}" ${u.trekker_id === t.id ? 'selected' : ''}>${esc(t.naam)}</option>`).join('')}</select></div>` : ''}</div>
         ${isBeheerder() || (u.rol !== 'beheerder' && u.id !== me.id) ? `<button class="icoon" title="Naam wijzigen" onclick="teamNaam('${u.id}')">✏️</button>
         <button class="icoon" title="Wachtwoord opnieuw instellen" onclick="teamWachtwoord('${u.id}')">🔑</button>` : ''}
@@ -4396,7 +4419,8 @@ function htmlTeam() {
       <p class="hint">✏️ naam · 🔑 nieuw wachtwoord · 🛡️ rechten${isBeheerder() ? ' · ⭐ beheerder/medewerker' : ''} · × verwijderen. Beheerders mogen alles.${isBeheerder() ? '' : ' Je kunt alleen rechten geven die je zelf hebt, en geen beheerders aanpassen.'}</p>
     </section>`;
 }
-const foutTekst = e => (e?.message || String(e)).replace(/^.*?ERROR:\s*/, '');
+const foutTekst = e => { const t = (e?.message || String(e)).replace(/^.*?ERROR:\s*/, ''), k = t.match(/NIET_INGEKLOKT:\s*(.*)/), b = t.match(/BEZIG_ANDER:\s*(.*)/);
+  if (b) return `${b[1]}. Alleen die persoon zelf of een beheerder kan dat stoppen.`; return k ? `⏰ ${k[1].charAt(0).toUpperCase() + k[1].slice(1)}. Klok eerst in op de iPad in de kantine.` : t; };
 async function laadTeam() {
   const {data} = await sb.from('profielen').select('*').order('naam');
   if (data) S.profielen = data; render(true);
@@ -4911,6 +4935,7 @@ function toonMenu() {
     <div class="mKop"><div><div class="mLogo">🌾 Perceel App</div><h1>${groet}, ${esc((naamMe() || '').split(' ')[0])}</h1>
       <p>${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})} · seizoen ${esc(seizoenNaam(bekeken))}</p></div>
       <button class="mUit" title="Uitloggen" onclick="${isApparaat() ? 'tmUitloggen()' : 'uitloggen()'}">🚪</button></div>
+    ${klokplicht() && !isBeheerder() && !isApparaat() && !klokOpen(me?.id, naamMe()) ? '<div class="mKlok">⏰ Je bent vandaag nog niet ingeklokt. Klok in op de iPad in de kantine; dan kun je taken oppakken en afvinken.</div>' : ''}
     <div class="mTegels">
       ${tegel('spuiten', 'Spuiten', 'Spuitregister, middelen en het weer bij het spuiten', `${S.taken.filter(t => !t.klaar && isSpuitTaak(t)).length} gepland`)}
       ${tegel('kunstmest', 'Kunstmest', 'Bemesting per perceel en de gebruiksnormen', '')}
@@ -5750,6 +5775,7 @@ function mijnPlek() {
       () => ok(null), {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000}); });
 }
 async function waarnemingFormulier(id, voor = {}) {
+  if (!id && !isApparaat() && !magWerken()) return;
   const w0 = id ? (S.waarnemingen || []).find(x => x.id === id) : {datum: vandaag(), soort: 'ziekte', ernst: 1, perceel_id: voor.perceel_id || actief || '', geo: voor.geo || null};
   if (!w0) return;
   if (!id && !(mag('markeringen_maken') || mag('monsters_beheren'))) { toast('Je mag geen waarnemingen toevoegen', 1); return; }
@@ -6160,6 +6186,85 @@ function veldSchetsKlik(i) {
 }
 document.addEventListener('change', e => { const c = e.target; if (c?.dataset?.vk === 'vakken') document.querySelectorAll(`#modal .vs-${c.value}`).forEach(g => g.classList.toggle('aan', c.checked)); });
 
+
+/* ============ INKLOKKEN ============
+   Prikklok-account = iPad in de kantine: je naam aantikken om in/uit te klokken (bij uitklokken: pauze).
+   "Inklokken verplicht" (instelling): taken oppakken/afvinken en vlaggen/waarnemingen alleen als je vandaag ingeklokt bent. Beheerder mag alles. */
+const klokplicht = () => S.inst?.klokplicht === 'ja';
+const vandaagBegin = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+async function laadKlok() {
+  const {data, error} = await sb.from('klok').select('*').gte('binnen', new Date(vandaagBegin().getTime() - 6 * 864e5).toISOString()).order('binnen');
+  if (!error) S.klok = data || [];
+}
+const klokVandaag = () => (S.klok || []).filter(k => new Date(k.binnen) >= vandaagBegin());
+const klokOpen = (uid, naam) => klokVandaag().find(k => !k.buiten && ((uid && k.user_id === uid) || (naam && normTekst(k.naam) === normTekst(naam))));
+// mag deze persoon nu werk doen? (bij een trekkertablet: de gekozen chauffeur)
+function magWerken(stil) {
+  if (!klokplicht() || isBeheerder()) return true;
+  const ok = isApparaat() ? !!klokOpen(TM.chauffeur?.id, naamMe()) : !!klokOpen(me?.id, naamMe());
+  if (!ok && !stil) toast(`⏰ ${isApparaat() && TM.chauffeur ? TM.chauffeur.naam + ' is' : 'Je bent'} vandaag nog niet ingeklokt. Klok eerst in op de iPad in de kantine.`, 1);
+  return ok;
+}
+// ---- het kantinescherm ----
+let klokNamen = null, klokBezig = null;
+async function toonKlok(alleenVerversen) {
+  verbergMenu?.(); document.body.classList.add('klokAan');
+  let el = $('#klokScherm'); if (!el) { el = document.createElement('div'); el.id = 'klokScherm'; document.body.appendChild(el); }
+  if (!klokNamen || !alleenVerversen) { const {data, error} = await sb.rpc('klok_namen'); if (error) { el.innerHTML = `<div class="klokFout">${esc(/klok_namen|function/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error))}</div>`; return; } klokNamen = data || []; }
+  if (!alleenVerversen) await laadKlok();
+  const nu = new Date(), tijd = d => new Date(d).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'});
+  const binnen = klokNamen.filter(u => klokOpen(u.id)).length;
+  el.innerHTML = `<div class="klokKop"><div><div class="klokTijd">${tijd(nu)}</div><div>${nu.toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})} · <b>${binnen}</b> ingeklokt</div></div>
+      <button class="tmX" onclick="tmUitloggen()" title="Uitloggen (wachtwoord nodig)">🔒</button></div>
+    <div class="klokUitleg">Tik op je naam om in of uit te klokken</div>
+    <div class="klokNamen">${klokNamen.map(u => { const k = klokOpen(u.id), uit = !k && klokVandaag().filter(x => x.user_id === u.id && x.buiten).pop();
+      return `<button class="klokNaam ${k ? 'binnen' : ''}" onclick="klokTik('${u.id}')"><b>${esc(u.naam)}</b><small>${k ? '🟢 binnen sinds ' + tijd(k.binnen) : uit ? '⚪ uitgeklokt ' + tijd(uit.buiten) : '⚪ niet ingeklokt'}</small></button>`; }).join('')}</div>
+    ${klokBezig ? klokVraagHtml() : ''}`;
+  clearTimeout(toonKlok.t); toonKlok.t = setTimeout(() => toonKlok(true), 30000);
+}
+function klokVraagHtml() {
+  const u = klokNamen.find(x => x.id === klokBezig.id); if (!u) return '';
+  if (klokBezig.klaar) return `<div class="klokVraag"><div class="klokVraagIn klokKlaar">${klokBezig.klaar}</div></div>`;
+  const k = klokOpen(u.id);
+  return `<div class="klokVraag" onclick="if(event.target===this){klokBezig=null;toonKlok(true)}"><div class="klokVraagIn">
+    ${k ? `<h2>Uitklokken, ${esc(u.naam.split(' ')[0])}?</h2><p>Binnen sinds ${new Date(k.binnen).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}. Hoeveel pauze heb je gehad?</p>
+      <div class="klokKnoppen"><button onclick="klokUit(0)">Geen pauze</button><button onclick="klokUit(30)">½ uur</button><button onclick="klokUit(60)">1 uur pauze</button><button onclick="klokAnders()">Anders…</button></div>
+      ${klokBezig.anders ? `<div class="klokAnders"><input id="klokMin" type="number" inputmode="numeric" placeholder="minuten" class="veld"><button class="knop" onclick="klokUit(parseInt($('#klokMin').value)||0)">✔ Uitklokken</button></div>` : ''}`
+      : `<h2>${new Date().getHours() < 12 ? 'Goedemorgen' : new Date().getHours() < 18 ? 'Goedemiddag' : 'Goedenavond'}, ${esc(u.naam.split(' ')[0])}!</h2><p>Wil je inklokken?</p><div class="klokKnoppen"><button class="groen" onclick="klokIn()">✓ Inklokken</button></div>`}
+    <button class="klokTerug" onclick="klokBezig=null;toonKlok(true)">✕ Dat ben ik niet / annuleren</button></div></div>`;
+}
+function klokTik(id) { klokBezig = {id}; toonKlok(true); }
+function klokAnders() { klokBezig.anders = true; toonKlok(true); setTimeout(() => $('#klokMin')?.focus(), 50); }
+async function klokZet(inn, pauze) {
+  const id = klokBezig?.id, u = klokNamen.find(x => x.id === id); if (!u) return;
+  const {data, error} = await sb.rpc('klok_zet', {p_user: id, p_in: inn, p_pauze: pauze ?? null});
+  if (error) { toast(foutTekst(error), 1); return; }
+  await laadKlok();
+  klokBezig = {id, klaar: inn ? (data === 'al' ? `✓ ${esc(u.naam)} was al ingeklokt` : `🟢 ${esc(u.naam)} is ingeklokt.<br><small>Fijne werkdag!</small>`) : `👋 ${esc(u.naam)} is uitgeklokt${pauze ? ` <small>(${pauze} min pauze)</small>` : ''}.<br><small>Tot de volgende keer!</small>`};
+  toonKlok(true); setTimeout(() => { if (klokBezig?.klaar) { klokBezig = null; toonKlok(true); } }, 2500);
+}
+const klokIn = () => klokZet(true), klokUit = m => klokZet(false, Math.max(0, m || 0));
+async function zetPrikklok(id, aan) {
+  const {error} = await sb.rpc('zet_prikklok', {p_id: id, p_aan: aan});
+  if (error) { toast(/zet_prikklok|function/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); return; }
+  const u = S.profielen.find(x => x.id === id); if (u) { u.prikklok = aan; if (aan) u.apparaat = true; } render(true);
+  toast(aan ? '⏰ Dit account is nu de prikklok (iPad in de kantine). Log daarmee in op die iPad.' : 'Geen prikklok meer');
+}
+async function zetKlokplicht(aan) {
+  const {error} = await sb.rpc('zet_instelling', {p_sleutel: 'klokplicht', p_waarde: aan ? 'ja' : 'nee'});
+  if (error) { toast(/klokplicht|Onbekende/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); return; }
+  await laadInstellingen(); render(true); toast(aan ? '⏰ Inklokken is nu verplicht' : 'Inklokken is niet meer verplicht');
+}
+// overzicht in de uren (vandaag + afgelopen week)
+function htmlKlokOverzicht() {
+  const l = (S.klok || []).filter(k => ziet('uren_bekijken') || k.user_id === me?.id).slice().reverse(); if (!l.length && !isBeheerder()) return '';
+  const tijd = d => d ? new Date(d).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : '…';
+  const netto = k => { const ms = (k.buiten ? new Date(k.buiten) : new Date()) - new Date(k.binnen) - (k.pauze_min || 0) * 60000; return Math.max(0, ms) / 36e5; };
+  return `<section class="kaartje"><h4>⏰ In- en uitgeklokt (afgelopen week)</h4>
+    ${isBeheerder() ? `<label class="vinkje"><input type="checkbox" ${klokplicht() ? 'checked' : ''} onchange="zetKlokplicht(this.checked)"> Inklokken verplicht <small class="hint">(pas taken oppakken/afvinken en vlaggen zetten als je ingeklokt bent; beheerders mogen altijd)</small></label>` : ''}
+    ${l.length ? `<div class="klokLijst">${l.slice(0, 80).map(k => `<div><span>${new Date(k.binnen).toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric', month: 'short'})}</span><b>${esc(k.naam)}</b><span>${tijd(k.binnen)}–${tijd(k.buiten)}</span><span>${k.pauze_min ? k.pauze_min + ' min pauze' : k.buiten ? 'geen pauze' : '🟢 binnen'}</span><span>${getal(netto(k), 2)} u</span></div>`).join('')}</div>` : '<p class="hint">Nog niemand ingeklokt. Maak bij Gegevens aanpassen → Team een prikklok-account voor de iPad in de kantine.</p>'}</section>`;
+}
+
 /* ============ ROOIPLANNING ============
    Per rooi-opdracht: dag, perceel (+ vakken), wat (partij of in woorden), hoeveel, rooier, chauffeur, bijrijders en bakkenisten.
    Er hoort automatisch een taak "Rooien" bij (voor de chauffeur op de trekker), die meeverandert. Per dag af te drukken. */
@@ -6190,7 +6295,7 @@ function rpKaart(r) {
       : `<div class="rpRij"><span>🌱</span><div><b>${esc(rpWat(r) || '–')}</b>${rpAantal(r) ? ` · <b>${esc(rpAantal(r))}</b>` : ''}</div></div>`}
     <div class="rpRij"><span>🚜</span><div>${esc(r.rooier || 'rooier ?')} · op de rooier: ${rpChauf(r) ? wie([rpChauf(r)], 'chauf') : '<small class="hint">nog niemand</small>'}</div></div>
     <div class="rpRij"><span>👥</span><div>Bijrijders: ${wie(r.bijrijders)}</div></div>
-    <div class="rpRij"><span>🧺</span><div>Bakkenist (achterop): ${wie(r.bakkenisten)}</div></div>
+    <div class="rpRij"><span>🧺</span><div>Bakkenist (achterop): ${wie(r.bakkenisten)}${(r.bakkenisten || []).length ? ' <small class="hint">· uren lopen mee met de rooier</small>' : ''}</div></div>
     ${r.notitie ? `<div class="rpRij"><span>📝</span><div>${esc(r.notitie).replace(/\n/g, '<br>')}</div></div>` : ''}
     ${dub.length ? `<div class="rpLet">⚠️ ${dub.map(naamVan).map(esc).join(', ')} ${dub.length === 1 ? 'staat' : 'staan'} deze dag ook ergens anders ingepland</div>` : ''}
     ${t ? `<div class="rpRij"><span>📋</span><div><a href="#" onclick="event.preventDefault();focusTaak('${t.id}')">Taak: ${esc(t.tekst)}</a> ${t.klaar ? '· ✅ klaar' : t.bezig_door ? `· 🟡 bezig (${esc(t.bezig_door)})` : ''}${voortgangTekst(t) && !t.klaar ? ' · ' + voortgangTekst(t) : ''}</div></div>` : ''}
@@ -6317,10 +6422,20 @@ async function rooiTaakBij(r, gek, p) {
   await rooiRolTaken(r, res.data, wat);
   return res.data.id;
 }
-// per bijrijder en bakkenist een eigen meewerk-taak onder de rooitaak
+// per bijrijder een eigen meewerk-taak onder de rooitaak
+// bij het laden: ontbrekende bijrijder-taken alsnog aanmaken (bijv. voor een planning van vóór deze versie)
+let rooiSyncGedaan = false;
+async function rooiSyncRollen() {
+  if (rooiSyncGedaan || !mag('taken_toevoegen') || isApparaat()) return; rooiSyncGedaan = true;
+  for (const r of (S.rooiplanning || []).filter(x => x.taak_id)) {
+    const h = S.taken.find(t => t.id === r.taak_id); if (!h || h.klaar) continue;
+    const wens = (r.bijrijders || []).map(id => `bijrijder|${id}`).sort().join(), heb = S.taken.filter(t => t.hoofd_taak === h.id && !t.klaar).map(t => t.rol).sort().join();
+    if (wens !== heb) await rooiRolTaken(r, h, rpWat(r));
+  }
+}
 async function rooiRolTaken(r, hoofd, wat) {
   const chauf = rpChauf(r) ? naamVan(rpChauf(r)) : 'de chauffeur';
-  const wens = [...(r.bijrijders || []).map(id => ['bijrijder', id]), ...(r.bakkenisten || []).map(id => ['bakkenist', id])];
+  const wens = (r.bijrijders || []).map(id => ['bijrijder', id]);   // bakkenisten: geen eigen taak, hun uren lopen mee met de rooier
   const bestaand = S.taken.filter(x => x.hoofd_taak === hoofd.id);
   for (const [rol, id] of wens) {
     const sleutel = `${rol}|${id}`, oud = bestaand.find(x => x.rol === sleutel), naam = rol === 'bijrijder' ? 'Bijrijder' : 'Bakkenist';
@@ -6529,7 +6644,7 @@ function tmRender() {
       ${mag('markeringen_maken') ? '<button onclick="tmPrikStart(\'vlag\')">🚩 Vlag</button><button onclick="tmPrikStart(\'gebied\')">✏️ Gebied</button>' : ''}
       ${mag('markeringen_maken') || mag('monsters_beheren') ? '<button onclick="waarnemingFormulier(null,{perceel_id:TM.pid,geo:TM.pos})">🐛 Ziekte hier</button>' : ''}
       <button onclick="tmUitKaart('taken')">📋 Taken</button></div>`;
-  else if (TM.scherm === 'wie') body = `<div class="tmVraag">Wie rijdt er?</div><div class="tmTegels">${chauffeursLijst().map(u => `<button class="tmTegel" onclick="tmKiesChauffeur('${u.id}')"><span>👤</span>${esc(u.naam)}</button>`).join('')}</div>`;
+  else if (TM.scherm === 'wie') body = `<div class="tmVraag">Wie rijdt er?</div><div class="tmTegels">${chauffeursLijst().map(u => { const k = klokplicht() ? klokOpen(u.id, u.naam) : true; return `<button class="tmTegel" style="${k ? '' : 'opacity:.55'}" onclick="tmKiesChauffeur('${u.id}')"><span>👤</span>${esc(u.naam)}${klokplicht() ? `<small class="tmKlein2">${k ? '🟢 ingeklokt' : '⚪ niet ingeklokt'}</small>` : ''}</button>`; }).join('')}</div>`;
   else if (TM.scherm === 'taken') { const welk = TM.takenKeuze || 'mijn', lijst = tmTakenVan(welk);
     body = `<div class="rij" style="gap:10px;margin-bottom:12px"><button class="tmTerug" style="margin:0" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
       <button class="tmKeuze ${welk === 'mijn' ? 'aan' : ''}" onclick="TM.takenKeuze='mijn';tmRender()">👤 ${TM.chauffeur ? esc(TM.chauffeur.naam.split(' ')[0]) + 's' : 'Mijn'} taken <b>${tmTakenVan('mijn').length}</b></button>
@@ -6538,7 +6653,7 @@ function tmRender() {
       if (isRolTaak(t)) { const h = hoofdVan(t);
         return `<div class="tmTaak rol ${ikBezig ? 'bezig' : ''}"><div onclick="tmTaakOpen('${t.id}')"><b><span class="tmRol">👥 ${rolNaam(t)}</span> ${esc(t.tekst)}</b><small>${p ? '📍 ' + esc(p.naam) + ' · ' : ''}${esc(taakWaar(t))} · met ${esc(hoofdChauffeur(h))}${t.toegewezen_aan && welk === 'alle' ? ' · 👤 ' + esc(S.profielen.find(u => u.id === t.toegewezen_aan)?.naam || '') : ''}</small>
           ${t.bezig_door ? `<small style="color:#ffd54f">🟡 Bezig: ${esc(t.bezig_door)}</small>` : '<small>Niemand is er nu mee bezig</small>'}${h && voortgangTekst(h) ? `<small style="color:#a5d6a7">✅ Rooien: ${voortgangTekst(h)}</small>` : ''}</div>
-          ${mag('taken_afvinken') ? (ikBezig ? `<button class="tmKlein" onclick="tmRolBezig('${t.id}')">⏸ Niet meer bezig</button>` : `<button class="tmKlein aan" onclick="tmRolBezig('${t.id}')">▶ ${t.bezig_door ? 'Overnemen' : 'Ik ben bezig'}</button>`) : ''}</div>`; }
+          ${mag('taken_afvinken') ? (ikBezig ? `<button class="tmKlein" onclick="tmRolBezig('${t.id}')">⏸ Niet meer bezig</button>` : t.bezig_door && !isBeheerder() ? '<button class="tmKlein" disabled style="opacity:.5">🔒 Bezet</button>' : `<button class="tmKlein aan" onclick="tmRolBezig('${t.id}')">▶ ${t.bezig_door ? 'Overnemen' : 'Ik ben bezig'}</button>`) : ''}</div>`; }
       return `<div class="tmTaak ${ikBezig ? 'bezig' : ''}"><div onclick="tmTaakOpen('${t.id}')"><b>${esc(t.tekst)}</b><small>${p ? '📍 ' + esc(p.naam) + ' · ' : ''}${esc(taakWaar(t))}${t.product ? ' · ' + esc(t.product) : ''}${t.toegewezen_aan && welk === 'alle' ? ' · 👤 ' + esc(S.profielen.find(u => u.id === t.toegewezen_aan)?.naam || '') : ''}</small>
         ${t.bezig_door ? `<small style="color:#ffd54f">🟡 Bezig: ${esc(t.bezig_door)}</small>` : ''}${vg ? `<small style="color:#a5d6a7">✅ ${vg}</small>` : ''}</div>
       ${mag('taken_afvinken') ? `${ikBezig ? `<button class="tmKlein aan" onclick="tmTaakOpen('${t.id}')">Open</button>` : `<button class="tmKlein" onclick="tmTaakStart('${t.id}')">▶ Start</button>`}<button class="tmKlein groen" onclick="tmTaakAfronden('${t.id}')">✓ Klaar</button>` : ''}</div>`; }).join('') || `<p class="tmLeeg">${welk === 'mijn' ? 'Geen taken voor jou 👍' : 'Geen open taken 👍'}</p>`}`; }
@@ -6717,7 +6832,10 @@ function sporenUitRoute(t, kand) {
 // bezig / niet meer bezig met een meewerk-taak (ook overnemen van iemand anders)
 async function tmRolBezig(id) {
   const t = S.taken.find(x => x.id === id); if (!t || t.klaar) return;
-  if (t.bezig_door && t.bezig_door !== naamMe()) await zetBezig(id);   // de ander stopt (zijn uren worden afgesloten)
+  if (t.bezig_door && t.bezig_door !== naamMe()) {
+    if (!isBeheerder()) { toast(`${t.bezig_door} is hier nog mee bezig. Die moet eerst op "Niet meer bezig" tikken (of vraag een beheerder).`, 1); return; }
+    await zetBezig(id); }   // beheerder: de ander stopt (zijn uren worden afgesloten)
+  if (!t.bezig_door && !magWerken()) return;
   await zetBezig(id);
   toast(t.bezig_door ? `🟡 Je bent nu bezig als ${rolNaam(t).toLowerCase()}` : `⏸ Je bent niet meer bezig als ${rolNaam(t).toLowerCase()}. Iemand anders kan het onder "Alle taken" overnemen.`);
   TM.popup = t.bezig_door ? {id, modus: 'info'} : null; tmRender();
@@ -6726,7 +6844,10 @@ function tmTaakOpen(id) { if (mijnBezig()?.id === id && !isRolTaak(mijnBezig()))
 async function tmTaakStart(id) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
   if (isRolTaak(t)) { if (t.bezig_door !== naamMe()) await tmRolBezig(id); else tmTaakOpen(id); return; }
-  if (t.bezig_door && t.bezig_door !== naamMe()) { if (!await bevestig('Iemand is hier al mee bezig', `${t.bezig_door} is met "${t.tekst}" bezig. Wil jij het overnemen?`)) return; await zetBezig(id); }
+  if (t.bezig_door && t.bezig_door !== naamMe()) {
+    if (!isBeheerder()) { toast(`${t.bezig_door} is hier al mee bezig. Vraag of die op "Niet meer bezig" tikt, of vraag een beheerder.`, 1); return; }
+    if (!await bevestig('Iemand is hier al mee bezig', `${t.bezig_door} is met "${t.tekst}" bezig. Wil je het overnemen?`)) return; await zetBezig(id); }
+  if (!magWerken()) return;
   if (!t.bezig_door) await zetBezig(id);
   TM.route = {id, pts: []}; try { localStorage.setItem('tmRoute', JSON.stringify(TM.route)); } catch {}
   if (t.perceel_id && perceel(t.perceel_id)) { TM.pid = t.perceel_id; TM.handmatig = false; }
@@ -6797,9 +6918,9 @@ function tmTaakPopupHtml() {
       ${regel('📍', p ? `<b>${esc(p.naam)}</b> · ${esc(taakWaar(t))}` : '')}
       ${regel('✅', h && voortgangTekst(h) ? 'Rooien: ' + voortgangTekst(h) : '')}
       ${h ? tmRooiVoortgang(h, new Set(h.voortgang?.sporen || [])) : ''}
-      ${regel('ℹ️', `Deze taak is <b>vanzelf klaar</b> zodra ${esc(hoofdChauffeur(h))} het rooien afsluit. Wissel je met iemand? Tik dan op "Niet meer bezig"; die ander kan het onder "Alle taken" overnemen.`)}
+      ${regel('ℹ️', `Deze taak is <b>vanzelf klaar</b> zodra ${esc(hoofdChauffeur(h))} het rooien afsluit. Wissel je met iemand? Tik dan op "Niet meer bezig"; dan kan die ander het onder "Alle taken" oppakken.`)}
       <div class="tmKnoppen">${ikB ? `<button onclick="TM.popup=null;tmRender()">▾ Wegdrukken</button><button class="geel" style="grid-column:span 2" onclick="tmRolBezig('${t.id}')">⏸ Niet meer bezig</button><span></span>`
-        : `<button onclick="TM.popup=null;tmRender()">✕ Sluiten</button>${mag('taken_afvinken') ? `<button class="groen" style="grid-column:span 2" onclick="tmRolBezig('${t.id}')">▶ ${t.bezig_door ? 'Overnemen' : 'Ik ben bezig als ' + rolNaam(t).toLowerCase()}</button>` : ''}<span></span>`}</div></div></div>`; }
+        : `<button onclick="TM.popup=null;tmRender()">✕ Sluiten</button>${mag('taken_afvinken') && (!t.bezig_door || isBeheerder()) ? `<button class="groen" style="grid-column:span 2" onclick="tmRolBezig('${t.id}')">▶ ${t.bezig_door ? 'Overnemen' : 'Ik ben bezig als ' + rolNaam(t).toLowerCase()}</button>` : t.bezig_door ? `<span style="grid-column:span 2;align-self:center">🔒 ${esc(t.bezig_door)} is hier nu mee bezig</span>` : ''}<span></span>`}</div></div></div>`; }
   const ma = t.toegewezen_aan ? S.profielen.find(u => u.id === t.toegewezen_aan)?.naam : '';
   return `<div class="tmPopup"><div class="tmPopupIn"><h2>${esc(t.tekst)}</h2>
     ${regel('🟡', t.bezig_door ? `Bezig: <b>${esc(t.bezig_door)}</b>${t.bezig_sinds ? ' sinds ' + new Date(t.bezig_sinds).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : ''}` : '')}
@@ -7536,7 +7657,7 @@ async function laadBedrijf() {
     q('waarnemingen', x => x.order('datum', {ascending: false}).limit(2000)),
     q('plantbehoefte', x => x.order('created_at')),
     q('rooiplanning', x => x.gte('datum', new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10)).order('datum'))]);
-  S.rooiplanning = rp || [];
+  S.rooiplanning = rp || []; laadKlok(); setTimeout(() => rooiSyncRollen().catch(() => {}), 1500);
   S.partijen = pa || []; S.monsters = mo || []; S.partij_mutaties = pm || []; S.waarnemingen = wn || []; S.plantbehoefte = pb || [];
   S.middelen = md || []; S.oogst = oo || []; S.machines = ma || []; S.machine_log = ml || []; S.kosten = ko || []; S.meldingen = me2 || [];
   bedrijfGeladen = !!md;
