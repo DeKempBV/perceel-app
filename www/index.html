@@ -4429,7 +4429,7 @@ async function zetTrekker(id, trekker) {
 async function apparaatGPS() {
   const tid = mijnProfiel()?.trekker_id; if (!isApparaat() || !tid || !S.tractoren.find(t => t.id === tid)) return;
   let accu = null; try { accu = await navigator.getBattery?.(); } catch {}
-  const pas = () => { const aan = !accu || accu.charging;
+  const pas = () => { const aan = (!accu || accu.charging) && !nepTrekker();   // nep-live: geen echte GPS versturen (dat zou de nepplek overschrijven)
     if (aan && rijdt !== tid) { if (TM.watch != null) { navigator.geolocation.clearWatch(TM.watch); TM.watch = null; } startRijden(tid, true); }
     else if (!aan && rijdt === tid) { stopRijden(); if (TM.aan && TM.watch == null && navigator.geolocation) TM.watch = navigator.geolocation.watchPosition(tmPositie, () => {}, {enableHighAccuracy: true, maximumAge: 3000, timeout: 20000}); } };
   if (accu) accu.addEventListener('chargingchange', pas);
@@ -4664,6 +4664,19 @@ function tekenTractoren() {
   });
 }
 // ---- beheerder: trekkers op de kaart zetten, verslepen en nep-live ----
+// elke paar seconden de nepplek doorgeven alsof het GPS is (ook na verslepen door een beheerder)
+let nepWas = false;
+setInterval(() => { const t = nepTrekker();
+  if (nepWas && !t && isApparaat()) { $('#rijBalk')?.remove(); apparaatGPS(); toonRijBalk(); }   // nep-live uit: weer de echte GPS
+  nepWas = !!t; if (!t) return;
+  if (rijdt === t.id && typeof stopRijden === 'function' && isApparaat()) stopRijden();
+  if (typeof TM !== 'undefined' && TM.aan) tmPositie({nep: true, coords: {latitude: +t.lat, longitude: +t.lng, accuracy: 2, speed: 0, heading: t.richting ?? null}});
+  if (isApparaat()) toonNepBalk(t);
+}, 3000);
+function toonNepBalk(t) {
+  let b = document.getElementById('rijBalk'); if (!b) { b = document.createElement('div'); b.id = 'rijBalk'; document.body.appendChild(b); }
+  b.className = 'klein'; b.innerHTML = '📡 Locatie live <small>(nep)</small>';
+}
 function zetTrSlepen(aan) { trSlepen = aan; tekenTractoren(); render(); toast(aan ? '✋ Sleep de trekkers naar hun plek (trekkers met een echte live locatie kun je niet verslepen)' : 'Klaar met slepen'); }
 async function trekkerVerplaatst(id, lat, lng) {
   const t = S.tractoren.find(x => x.id === id); if (!t) return;
@@ -4775,7 +4788,7 @@ async function schermAan() {
 document.addEventListener('visibilitychange', () => { if (rijdt && !document.hidden) schermAan(); });
 function toonRijBalk() {
   let b = document.getElementById('rijBalk');
-  if (!rijdt) { b?.remove(); return; }
+  if (!rijdt) { if (isApparaat() && nepTrekker()) toonNepBalk(nepTrekker()); else b?.remove(); return; }
   if (!b) { b = document.createElement('div'); b.id = 'rijBalk'; document.body.appendChild(b); }
   const t = S.tractoren.find(x => x.id === rijdt);
   // trekkertablet: altijd delen, niet uit te zetten – alleen een klein blokje
@@ -6449,7 +6462,10 @@ function tmTaken() {
     .sort((a, b) => ((b.toegewezen_aan === ik) - (a.toegewezen_aan === ik)) || (a.gepland || a.deadline || '9').localeCompare(b.gepland || b.deadline || '9'));
 }
 let tmLaatsteRender = 0;
+// trekker staat op nep-live: de plek die de beheerder heeft neergezet telt als de echte plek van deze tablet
+const nepTrekker = () => { const t = S.tractoren.find(x => x.id === (mijnProfiel()?.trekker_id || rijdt)); return t?.nep_live && t.lat != null ? t : null; };
 function tmPositie(pos) {
+  if (nepTrekker() && !pos.nep) return;   // echte GPS negeren zolang de trekker nep-live staat
   TM.pos = {type: 'Feature', properties: {acc: pos.coords.accuracy}, geometry: {type: 'Point', coordinates: [pos.coords.longitude, pos.coords.latitude]}};
   tmRoutePunt();
   let anders = false;
