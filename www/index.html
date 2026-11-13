@@ -6114,6 +6114,24 @@ function partijMeters(x) {
       else m += (bn.t1 - bn.t0) * (typeof rijFactor === 'function' ? rijFactor(z, nr) || 1 : 1); }); });
   return m;
 }
+// meters die er nu op de kaart staan, per teelt (ras of plant): de lengte van elk spoor (of stuk spoor) met planten. Gerooid = braak = telt niet mee.
+function teeltMeters(p) {
+  const uit = new Map(); if (!p || p.type === 'pand') return uit;
+  alleZones(p).forEach(z => { let vk = []; try { vk = spuitvakkenVan(z); } catch {}
+    banenVan(z).forEach(bn => { const f = rijFactor(z, bn.nr) || 1, vak = vk.find(v => v.nrs.includes(bn.nr))?.letter;
+      stukkenVan(z, bn).forEach(st => { const t = teelt(st.id); if (!t) return; const m = (st.tot - st.van) * f; if (m < .05) return;
+        const x = uit.get(t.id) || {m: 0, sporen: new Set(), vakken: new Set()}; x.m += m; x.sporen.add(z.id + ':' + bn.nr); if (vak) x.vakken.add(vak); uit.set(t.id, x); }); }); });
+  return uit;
+}
+// meters van een partij: eerst wat precies op de sporen is aangewezen; anders de sporen met dat ras op het perceel (als het de enige partij van dat ras daar is)
+function partijMetersKaart(x) {
+  const m = partijMeters(x); if (m > 0) return m;
+  const p = perceel(x.perceel_id); if (!p) return 0;
+  for (const [tid, v] of teeltMeters(p)) { const pr = partijenVanTeelt(p.id, tid); if (!pr.some(y => y.id === x.id)) continue;
+    const anderen = pr.filter(y => y.id !== x.id), al = anderen.reduce((a, y) => a + partijMeters(y), 0), zonder = anderen.filter(y => !(partijMeters(y) > 0));
+    if (!zonder.length) return Math.max(0, v.m - al); }
+  return 0;
+}
 const partijPlm = x => +String(x.extra?.pl_per_m ?? '').replace(',', '.') || +soort(x.soort_id)?.pl_per_m || prPlm;
 function prognoseRijen() {
   return (S.partijen || []).map(x => {
@@ -6473,7 +6491,7 @@ const pct = v => v == null || isNaN(v) ? '–' : Math.round(v * 100) + '%';
 function totaleMeters(x) {   // totale meters van de partij: ingevuld, of bedden × bedlengte, of uit de kaart
   if (+x.totale_meters) return +x.totale_meters;
   if (+x.bedden && +x.bedlengte) return x.bedden * x.bedlengte;
-  try { return Math.round(partijMeters(x) || 0); } catch { return 0; }
+  try { return Math.round(partijMetersKaart(x) || 0); } catch { return 0; }
 }
 // alle berekeningen per partij (NAK-nummer) – zie verslag A5
 function resCijfers(x) {
@@ -7190,7 +7208,11 @@ function aiContext() {
   const pn = id => S.profielen.find(u => u.id === id)?.naam || null;
   return {vandaag: vandaag(), tijd: tijdKort(new Date()), gebruiker: naamMe(), beheerder: isBeheerder(), seizoen: seizoenNaam(bekeken),
     rechten: {resultaten_invoeren: mag('resultaten_invoeren'), resultaten_beheren: mag('resultaten_beheren'), taken_toevoegen: mag('taken_toevoegen'), instellingen: isBeheerder() || mag('instellingen_beheren')},
-    partijen, percelen: S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).map(p => p.naam), gewassen: (S.soorten || []).map(s => ({gewas: s.naam, rassen: (S.rassen || []).filter(r => r.soort_id === s.id).map(r => r.naam)})),
+    partijen, percelen: S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).map(p => p.naam),
+    in_het_veld: S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).flatMap(p => { let tm; try { tm = teeltMeters(p); } catch { return []; }
+      return [...tm].map(([tid, v]) => { const t = teelt(tid), r = ras(tid), pr = partijenVanTeelt(p.id, tid);
+        return {perceel: p.naam, gewas: r ? soort(r.soort_id)?.naam : t?.naam, ras: r ? r.naam : null, meters_staan: Math.round(v.m), sporen: v.sporen.size, vakken: [...v.vakken].sort().join(', ') || null,
+          partijen: pr.map(y => Object.keys(AI.refs).find(k => AI.refs[k] === y.id)).filter(Boolean)}; }); }), gewassen: (S.soorten || []).map(s => ({gewas: s.naam, rassen: (S.rassen || []).filter(r => r.soort_id === s.id).map(r => r.naam)})),
     mensen: medewerkers().map(u => u.naam),
     taken_open: S.taken.filter(t => !t.klaar).slice(0, 200).map(t => ({tekst: t.tekst, perceel: perceel(t.perceel_id)?.naam || null, gepland: t.gepland || null, wie: pn(t.toegewezen_aan), bezig: t.bezig_door || null, categorie: taakCategorie(t)})),
     ingeklokt: isBeheerder() || ziet('uren_bekijken') ? klokVandaag().filter(k => !k.buiten).map(k => k.naam) : undefined,
