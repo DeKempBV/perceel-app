@@ -7320,20 +7320,23 @@ async function aiBestand() {
 // wat de AI van de app mag weten (alleen wat deze gebruiker zelf ook mag zien)
 function aiContext() {
   AI.refs = {};
+  const kaal0 = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null && v !== '' && v !== false && !(Array.isArray(v) && !v.length)));
   const resMag = S.resKlaar && (ziet('resultaten_bekijken') || mag('resultaten_beheren') || mag('resultaten_invoeren'));
   const partijen = resPartijen().slice(0, 500).map((x, i) => { const ref = 'p' + (i + 1); AI.refs[ref] = x.id; const c = resMag ? resCijfers(x) : null;
     const opP = !!(x.perceel_id && perceel(x.perceel_id)), opSp = opP && Array.isArray(x.sporen) && x.sporen.length > 0;
-    return {ref, op_perceel: opP, op_sporen_ingedeeld: opSp, ras: partijRas(x) || null, batch: x.batch || null, nak: x.nak || null, klasse: x.klasse || null, gewas: soort(x.soort_id)?.naam || null, teelt: partijTeelt(x) || null, perceel: perceel(x.perceel_id)?.naam || null,
+    return kaal0({ref, op_perceel: opP, op_sporen_ingedeeld: opSp, ras: partijRas(x) || null, batch: x.batch || null, nak: x.nak || null, klasse: x.klasse || null, gewas: soort(x.soort_id)?.naam || null, teelt: partijTeelt(x) || null, perceel: perceel(x.perceel_id)?.naam || null,
       ...(c ? {totale_meters: opP ? Math.round(c.totM) || null : 0, gerooid_m: Math.round(c.gerM), bakken_gerooid: c.gerB, bakken_gekiept: c.kiepB, gesorteerd_planten: Math.round(c.gesorteerd), planten_per_m: c.plm != null ? +c.plm.toFixed(1) : null,
-        planten_per_bak: c.plPerBak != null ? Math.round(c.plPerBak) : null, verwacht: c.verwacht != null ? Math.round(c.verwacht) : null, prognose: c.progTot || null, afwijking_pct: c.afwijking != null ? Math.round(c.afwijking * 100) : null, waarschuwingen: c.let_op.map(l => l.t)} : {})}; });
+        planten_per_bak: c.plPerBak != null ? Math.round(c.plPerBak) : null, verwacht: c.verwacht != null ? Math.round(c.verwacht) : null, prognose: c.progTot || null, afwijking_pct: c.afwijking != null ? Math.round(c.afwijking * 100) : null, waarschuwingen: c.let_op.map(l => l.t)} : {})}); });
   const pn = id => S.profielen.find(u => u.id === id)?.naam || null;
-  return {app_versie: '2026-11-13c', geheugen: (S.ai_geheugen || []).map(g => g.tekst), vandaag: vandaag(), tijd: tijdKort(new Date()), gebruiker: naamMe(), beheerder: isBeheerder(), seizoen: seizoenNaam(bekeken),
+  // belangrijkste eerst (in het veld, geheugen); lege velden weglaten zodat alles past
+  const kaal = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null && v !== '' && !(Array.isArray(v) && !v.length)));
+  const veld = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).flatMap(p => { let tm; try { tm = teeltMeters(p); } catch { return []; }
+      return [...tm].map(([tid, v]) => { const t = teelt(tid), r = ras(tid), pr = partijenVanTeelt(p.id, tid);
+        return kaal({perceel: p.naam, gewas: r ? soort(r.soort_id)?.naam : t?.naam, ras: r ? r.naam : null, meters_staan: Math.round(v.m), sporen: v.sporen.size, vakken: [...v.vakken].sort().join(', ') || null,
+          partijen: pr.map(y => Object.keys(AI.refs).find(k => AI.refs[k] === y.id)).filter(Boolean)}); }); });
+  return {app_versie: '2026-11-13d', in_het_veld: veld, geheugen: (S.ai_geheugen || []).map(g => g.tekst), vandaag: vandaag(), tijd: tijdKort(new Date()), gebruiker: naamMe(), beheerder: isBeheerder(), seizoen: seizoenNaam(bekeken),
     rechten: {resultaten_invoeren: mag('resultaten_invoeren'), resultaten_beheren: mag('resultaten_beheren'), taken_toevoegen: mag('taken_toevoegen'), instellingen: isBeheerder() || mag('instellingen_beheren')},
     partijen, percelen: S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).map(p => p.naam),
-    in_het_veld: S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).flatMap(p => { let tm; try { tm = teeltMeters(p); } catch { return []; }
-      return [...tm].map(([tid, v]) => { const t = teelt(tid), r = ras(tid), pr = partijenVanTeelt(p.id, tid);
-        return {perceel: p.naam, gewas: r ? soort(r.soort_id)?.naam : t?.naam, ras: r ? r.naam : null, meters_staan: Math.round(v.m), sporen: v.sporen.size, vakken: [...v.vakken].sort().join(', ') || null,
-          partijen: pr.map(y => Object.keys(AI.refs).find(k => AI.refs[k] === y.id)).filter(Boolean)}; }); }), gewassen: (S.soorten || []).map(s => ({gewas: s.naam, rassen: (S.rassen || []).filter(r => r.soort_id === s.id).map(r => r.naam)})),
     mensen: medewerkers().map(u => u.naam),
     taken_open: S.taken.filter(t => !t.klaar).slice(0, 200).map(t => ({tekst: t.tekst, perceel: perceel(t.perceel_id)?.naam || null, gepland: t.gepland || null, wie: pn(t.toegewezen_aan), bezig: t.bezig_door || null, categorie: taakCategorie(t)})),
     ingeklokt: isBeheerder() || ziet('uren_bekijken') ? klokVandaag().filter(k => !k.buiten).map(k => k.naam) : undefined,
