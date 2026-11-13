@@ -6220,7 +6220,7 @@ function teeltMeters(p) {
     let rijen = []; try { rijen = banenVan(z); } catch { return; }
     rijen.forEach(bn => { try { const f = rijFactor(z, bn.nr) || 1, vak = vk.find(v => v.nrs.includes(bn.nr))?.letter;
       stukkenVan(z, bn).forEach(st => { const t = teelt(st.id); if (!t) return; const m = (st.tot - st.van) * f; if (m < .05) return;
-        const x = uit.get(t.id) || {m: 0, sporen: new Set(), vakken: new Set()}; x.m += m; x.sporen.add(z.id + ':' + bn.nr); if (vak) x.vakken.add(vak); uit.set(t.id, x); }); } catch {} }); });
+        const x = uit.get(t.id) || {m: 0, sporen: new Set(), vakken: new Set(), perVak: {}}; x.m += m; x.sporen.add(z.id + ':' + bn.nr); if (vak) { x.vakken.add(vak); x.perVak[vak] = (x.perVak[vak] || 0) + m; } uit.set(t.id, x); }); } catch {} }); });
   return uit;
 }
 // meters van een partij: eerst wat precies op de sporen is aangewezen; anders de sporen met dat ras op het perceel (als het de enige partij van dat ras daar is)
@@ -7289,13 +7289,13 @@ function aiTeken() {
         <button class="knop" style="margin:0;width:auto" onclick="aiVerstuur()" ${AI.bezig ? 'disabled' : ''}>➤</button></div></div>`;
   const b = $('#aiBerichten'); if (b) b.scrollTop = b.scrollHeight;
 }
-const AI_ACTIE_ICOON = {onthoud: '🧠', rooiplanning: '🚜', resultaat: '📊', taak: '📋', instelling: '⚙️', kistinhoud: '📦', wens: '💡'};
+const AI_ACTIE_ICOON = {braak: '🟫', onthoud: '🧠', rooiplanning: '🚜', resultaat: '📊', taak: '📋', instelling: '⚙️', kistinhoud: '📦', wens: '💡'};
 function aiBerichtHtml(m, mi) {
   if (m.rol === 'user') return `<div class="aiBericht jij">${esc(m.tekst)}${m.bijlage ? `<small>📎 ${esc(m.bijlage)}</small>` : ''}</div>`;
   const ac = m.acties || [], open = ac.filter(a => a.status === 'open').length;
   return `<div class="aiBericht ai">${esc(m.tekst || '').replace(/\n/g, '<br>')}
     ${ac.length ? `<div class="aiActies">${ac.map((a, ai) => `<div class="aiActie ${a.status}"><span>${AI_ACTIE_ICOON[a.type] || '•'}</span><div>${esc(a.omschrijving || a.type)}${a.fout ? `<small class="rood">${esc(a.fout)}</small>` : ''}</div>
-      ${a.status === 'open' ? `<button class="knop klein" onclick="aiUitvoeren(${mi},${ai})">✓ Doen</button><button class="icoon" title="Niet doen" onclick="AI.berichten[${mi}].acties[${ai}].status='nee';aiTeken()">✕</button>` : `<small>${a.status === 'klaar' ? '✓ gedaan' : a.status === 'nee' ? 'niet gedaan' : a.status === 'bezig' ? '…' : '⚠️'}</small>`}</div>`).join('')}
+      ${a.status === 'klaar' && a.type === 'braak' && a.snap && !a.terug ? `<button class="knop klein licht" onclick="aiBraakTerug(${mi},${ai})">↶ Terug</button>` : ''}${a.status === 'open' ? `<button class="knop klein" onclick="aiUitvoeren(${mi},${ai})">✓ Doen</button><button class="icoon" title="Niet doen" onclick="AI.berichten[${mi}].acties[${ai}].status='nee';aiTeken()">✕</button>` : `<small>${a.status === 'klaar' ? '✓ gedaan' : a.status === 'nee' ? 'niet gedaan' : a.status === 'bezig' ? '…' : '⚠️'}</small>`}</div>`).join('')}
       ${open > 1 ? `<button class="knop klein" onclick="aiAllesUitvoeren(${mi})">✓ Alles doen (${open})</button>` : ''}</div>` : ''}</div>`;
 }
 function aiPraat() {
@@ -7333,6 +7333,7 @@ function aiContext() {
   const veld = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).flatMap(p => { let tm; try { tm = teeltMeters(p); } catch { return []; }
       return [...tm].map(([tid, v]) => { const t = teelt(tid), r = ras(tid), pr = partijenVanTeelt(p.id, tid);
         return kaal({perceel: p.naam, gewas: r ? soort(r.soort_id)?.naam : t?.naam, ras: r ? r.naam : null, meters_staan: Math.round(v.m), sporen: v.sporen.size, vakken: [...v.vakken].sort().join(', ') || null,
+          meters_per_vak: Object.keys(v.perVak || {}).length ? Object.fromEntries(Object.entries(v.perVak).sort().map(([k, m]) => [k, Math.round(m)])) : null,
           partijen: pr.map(y => Object.keys(AI.refs).find(k => AI.refs[k] === y.id)).filter(Boolean)}); }); });
   return {app_versie: '2026-11-13d', in_het_veld: veld, geheugen: (S.ai_geheugen || []).map(g => g.tekst), vandaag: vandaag(), tijd: tijdKort(new Date()), gebruiker: naamMe(), beheerder: isBeheerder(), seizoen: seizoenNaam(bekeken),
     rechten: {resultaten_invoeren: mag('resultaten_invoeren'), resultaten_beheren: mag('resultaten_beheren'), taken_toevoegen: mag('taken_toevoegen'), instellingen: isBeheerder() || mag('instellingen_beheren')},
@@ -7388,6 +7389,29 @@ async function aiUitvoeren(mi, ai) {
       a.status = 'klaar'; aiTeken(); aiOpen(false);
       await taakFormulier(null, false, {tekst: a.tekst || '', ...(p ? {perceel_id: p.id} : {}), ...(a.gepland ? {gepland: a.gepland} : {}), ...(u ? {toegewezen_aan: u.id} : {}), ...(a.categorie ? {categorie: a.categorie} : {})});
       return;
+    } else if (a.type === 'braak') {
+      const p = S.percelen.find(q => normTekst(q.naam) === normTekst(a.perceel)); if (!p) throw new Error('Perceel niet gevonden: ' + (a.perceel || '?'));
+      if (!(mag('gerooid_aangeven') || mag('soorten_indelen'))) throw new Error('Je mag niet aangeven dat iets gerooid is');
+      const letters = String(a.vakken || '').toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean), keys = new Set();
+      if (letters.length) perceelVakken(p).filter(v => letters.includes(String(v.letter).toUpperCase())).forEach(v => v.nrs.forEach(nr => keys.add(`${v.z.id}:${nr}`)));
+      String(a.sporen || '').split(/[,;]+/).map(t => t.trim()).filter(Boolean).forEach(t => { const m = t.match(/^(\d+)\s*[-–t\/m]*\s*(\d+)?$/); if (!m) return; const van = +m[1], tot = +(m[2] || m[1]);
+        for (let n = Math.min(van, tot); n <= Math.max(van, tot); n++) keys.add(`${p.id}:${n}`); });
+      if (!letters.length && !a.sporen) alleZones(p).forEach(z => banenVan(z).forEach(bn => keys.add(`${z.id}:${bn.nr}`)));
+      // alleen sporen waar (dit ras) planten op staan; per partij de meters bijhouden voor de resultaten
+      const rasId = a.ras ? (S.rassen || []).find(r => normTekst(r.naam) === normTekst(a.ras))?.id : null;
+      const zones = new Map(alleZones(p).map(z => [z.id, z])), perPartij = {}, echt = [];
+      for (const k of keys) { const z = zones.get(k.slice(0, k.lastIndexOf(':'))), nr = +k.slice(k.lastIndexOf(':') + 1), bn = z && banenVan(z)[nr - 1]; if (!bn) continue;
+        const st = stukkenVan(z, bn).filter(q => teelt(q.id) && (!rasId || teelt(q.id).id === rasId)); if (!st.length) continue; echt.push(k);
+        const m = st.reduce((s2, q) => s2 + (q.tot - q.van), 0) * (rijFactor(z, nr) || 1);
+        const op = partijOpSpoor(z, nr) || (() => { const kand = partijenVanTeelt(p.id, st[0].id); return kand.length === 1 ? kand[0] : null; })();
+        if (op) perPartij[op.id] = (perPartij[op.id] || 0) + m; }
+      if (!echt.length) throw new Error('Op die sporen staan geen planten (meer)');
+      const wat = `Gerooid via AI${letters.length ? ' · vak ' + letters.join(', ') : ''}${a.sporen ? ' · sporen ' + a.sporen : ''}`;
+      const snap = await plantenWegSporen(p.id, echt, wat); if (!snap) throw new Error('Braak maken is niet gelukt');
+      a.snap = snap; let geboekt = 0;
+      if (a.rooien_vastleggen !== false && S.resKlaar) for (const [pid, m] of Object.entries(perPartij)) if (await resOpslaan({soort: 'rooien', partij_id: pid, meters: Math.round(m * 10) / 10, datum: a.datum || vandaag(), vak: letters.length ? 'vak ' + letters.join(', ') : a.sporen ? 'sporen ' + a.sporen : null, bron: 'hand', door: naamMe(), opmerking: 'via AI'}, true)) geboekt += m;
+      a.omschrijving = `${a.omschrijving || 'Braak'} · ${echt.length} sporen braak${geboekt ? ` · ${fmt(geboekt)} m geboekt als gerooid` : ''}`;
+      sb.rpc('gebeurtenis', {p_soort: 'perceel', p_tekst: `🟫 ${p.naam}: ${echt.length} sporen braak (${wat})`, p_ref: p.id}).then(() => {}, () => {});
     } else if (a.type === 'onthoud') {
       const t = String(a.tekst || a.omschrijving || '').trim(); if (!t) throw new Error('Niets om te onthouden');
       const {data, error} = await sb.from('ai_geheugen').insert({tekst: t, door: naamMe()}).select().single();
@@ -7405,6 +7429,10 @@ async function aiUitvoeren(mi, ai) {
     a.status = 'klaar';
   } catch (e) { a.status = 'open'; a.fout = e.message || String(e); }
   aiTeken(); render(true);
+}
+async function aiBraakTerug(mi, ai) {
+  const a = AI.berichten[mi]?.acties?.[ai]; if (!a?.snap) return;
+  const n = await plantenTerug(a.snap); a.terug = true; a.omschrijving += ' · ↶ teruggezet'; toast(n ? `↶ ${n} sporen staan weer zoals ze waren (geboekte meters: corrigeer bij Oogst → Invoer)` : 'Niets teruggezet'); aiTeken(); render(true);
 }
 async function aiAllesUitvoeren(mi) { const l = AI.berichten[mi]?.acties || []; for (let i = 0; i < l.length; i++) if (l[i].status === 'open' && l[i].type !== 'taak') await aiUitvoeren(mi, i); }
 
