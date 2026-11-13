@@ -356,7 +356,7 @@ textarea.veld{resize:vertical;font-family:inherit}
 .fout{color:var(--rood);font-size:13px;margin-top:8px;min-height:18px}
 .link{background:none;border:0;color:var(--groen2);font-weight:600;margin-top:14px;font-size:14px}
 
-#modal{position:fixed;inset:0;background:rgba(10,20,10,.45);z-index:4000;display:none;align-items:center;justify-content:center;padding:20px}
+#modal{position:fixed;inset:0;background:rgba(10,20,10,.45);z-index:5300;display:none;align-items:center;justify-content:center;padding:20px}
 #modal.open{display:flex}
 .dialoog{background:#fff;border-radius:18px;padding:20px;width:100%;max-width:380px}
 .dialoog h3{margin-bottom:10px;font-size:18px}
@@ -459,7 +459,7 @@ body.pgSleept::after{content:'📥 Laat los om de Excel met teeltgegevens in te 
 .tel.live{background:#ff6d00;color:#fff}
 .rijkaart{border-color:#ffb380;background:#fff7f0}
 .rijkaart p{font-size:14px;line-height:1.45}
-#toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,30px);background:#1b241d;color:#fff;padding:11px 16px;border-radius:12px;font-size:14px;opacity:0;transition:.25s;z-index:5000;pointer-events:none;max-width:90%}
+#toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,30px);background:#1b241d;color:#fff;padding:11px 16px;border-radius:12px;font-size:14px;opacity:0;transition:.25s;z-index:6500;pointer-events:none;max-width:90%}
 #toast.toon{opacity:1;transform:translate(-50%,0)}
 #toast.fout{background:var(--rood)}
 
@@ -603,6 +603,12 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 .tmZij .tmKnoppen{grid-template-columns:repeat(2,1fr)}.tmZij .dtKnoppen{display:none}
 .tmZijAan #trekkerScherm.kaart .tmBody{margin-left:var(--tmLinks,0px)}body.tmKaart.tmZijAan #map{left:var(--tmLinks,0px)!important}
 .leaflet-tmTaak-pane>svg{pointer-events:none}
+.rpKaart{border:1px solid #dfe7dc;border-left:5px solid #f9a825;border-radius:12px;padding:10px 12px;margin:8px 0;background:#fffdf6}.rpKaart.klaar{border-left-color:#2e7d32;opacity:.75}
+.rpKop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}.rpRij{display:flex;gap:8px;padding:3px 0;font-size:14px}.rpRij>span{width:22px;flex:0 0 22px}
+.rpNaam{display:inline-block;background:#e8f5e9;border-radius:10px;padding:1px 8px;margin:1px 2px 1px 0}.rpNaam.chauf{background:#c8e6c9;font-weight:700}.rpNaam.dubbel{background:#ffe0b2;outline:2px solid #fb8c00}
+.rpLet{background:#fff3e0;border-radius:8px;padding:6px 8px;font-size:13px;margin-top:4px}.rpDag.vandaag{outline:3px solid #f9a825}
+.vinkjesVeld{display:flex;flex-wrap:wrap;gap:6px}.vinkjesVeld .vinkje{display:flex;align-items:center;gap:6px;background:#f1f6ef;border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer}
+.mTegel.rooi{background:#efebe9}
 .tmLeeg{text-align:center;font-size:24px;margin-top:40px;color:#c8e6c9}
 .mIcoon{font-size:34px;width:56px;height:56px;border-radius:16px;background:var(--licht);display:flex;align-items:center;justify-content:center;flex:none}
 .mTekst{display:flex;flex-direction:column;gap:3px}.mTekst b{font-size:18px;color:var(--groen)}.mTekst small{color:var(--grijs);font-size:13px;line-height:1.35}
@@ -668,7 +674,7 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 .fotorij img{width:58px;height:58px;object-fit:cover;border-radius:8px;cursor:zoom-in;background:#dde4d9}
 .mpop .fotorij img{width:74px;height:74px}
 .agraster .fotorij img{width:64px;height:64px}
-#fotokijker{position:fixed;inset:0;z-index:4500;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center}
+#fotokijker{position:fixed;inset:0;z-index:5450;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center}
 #fotokijker.open{display:flex}
 #fotokijker img{max-width:96vw;max-height:88vh;object-fit:contain;border-radius:6px}
 #fotokijker .fk{position:absolute;border:0;background:rgba(255,255,255,.16);color:#fff;font-size:24px;width:48px;height:48px;border-radius:50%}
@@ -3237,6 +3243,7 @@ function renderPaneel() {
   else if (tab === 'prognose') h = seizoenKnop() + htmlPrognose();
   else if (tab === 'plantplan') h = seizoenKnop() + htmlPlantplan();
   else if (tab === 'weekplanning') h = htmlWeekplanning();
+  else if (tab === 'rooiplanning') h = htmlRooiplanning();
   else if (tab === 'dossier') h = seizoenKnop() + htmlDossier();
   else h = htmlSoorten();
   $('#inhoud').innerHTML = h;
@@ -4784,7 +4791,7 @@ function sectieTabs(s) {
     kunstmest: [['mesttaken', '📋', 'Taken'], ['mestregister', '🌱', 'Bemesting'], ['middelen', '🌾', 'Meststoffen']],
     monsters: [['waarnemingen', '🐛', 'Ziektes & plagen'], ['monsters', '🧪', 'Monsters']],
     opslag: [['voorraad', '❄️', 'Koelcel'], ['middelen', '🧪', 'Middelenvoorraad']],
-    taken: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : []), ['uren', '⏱️', 'Uren']],
+    taken: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['rooiplanning', '🚜', 'Rooiplanning'], ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : []), ['uren', '⏱️', 'Uren']],
     percelen: [['percelen', '🗺️', 'Kaart'], ['partijen', '🏷️', 'Partijen'], ['prognose', '📈', 'Prognose'], ['plantplan', '🧮', 'Plantplan'], ['vruchtwisseling', '🔄', 'Wisseling'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
     persoonlijk: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Mijn uren']],
     beheer: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['dossier', '📁', 'Bio-dossier'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])]
@@ -4809,6 +4816,7 @@ function toonMenu() {
       ${tegel('monsters', 'Monsters en ziektes', 'Ziektes en plagen per spoor, grondmonsters en keuringen', `${(S.waarnemingen || []).filter(x => x.status !== 'behandeld').length} open waarnemingen`)}
       ${tegel('percelen', 'Percelen', 'De kaart, partijen, prognose, plantplan en vruchtwisseling', `${velden.length} velden · ${ha(haTot)} ha${live ? ` · 🚜 ${live} rijden` : ''}`)}
       ${tegel('taken', 'Taken', 'Alle taken, weekplanning en wie wat doet', `${open.length} open${mijn.length ? ` · <b>${mijn.length} voor jou</b>` : ''}${bezig.length ? ` · 🟡 ${bezig.length} bezig` : ''}`)}
+      <button class="mTegel rooi" onclick="kiesSectie('taken');zetTab('rooiplanning')"><span class="mIcoon">🚜</span><span class="mTekst"><b>Rooiplanning</b><small>Welke dag, wat, hoeveel en wie er op de rooier, bijrijdt en achterop staat</small>${(() => { const n = (S.rooiplanning || []).filter(r => r.datum >= vandaag()).length; return n ? `<span class="mInfo">${n} gepland</span>` : ''; })()}</span></button>
       ${ziet('voorraad_bekijken') || mag('voorraad_beheren') ? tegel('opslag', 'Opslag', 'De koelcel: wat er ligt, leveringen en terugzoeken', '') : ''}
       ${isApparaat() ? '' : tegel('persoonlijk', 'Persoonlijke gegevens', 'Je gegevens, je uren, je agenda en je wachtwoord', '')}
       ${magBeheer() && !isApparaat() ? tegel('beheer', 'Gegevens aanpassen', 'Bedrijf, bio-dossier, machines, planten, seizoenen en het team', 'voor beheerders') : ''}
@@ -4880,6 +4888,7 @@ function taakInfo3d(t) {
     ${rij('📍', p ? `<b>${esc(p.naam)}</b> · ${isVerplaats(t) ? verplaatsTekst(t) : taakWaar(t)}${(() => { try { const m2 = taakM2(t); return m2 ? ` · ${ha(m2)} ha` : ''; } catch { return ''; } })()}` : '')}
     ${rij('👤', wie ? esc(wie.naam) : 'nog niemand toegewezen')}
     ${rij('🗓️', [t.gepland ? 'gepland ' + datumKort(t.gepland) : '', t.deadline ? `<span class="${telaat ? 'telaat' : ''}">klaar vóór ${datumKort(t.deadline)}${telaat ? ' (te laat)' : ''}</span>` : '', t.herhaal ? herhaalTekst(t) : ''].filter(Boolean).join(' · '))}
+    ${(() => { const r = (S.rooiplanning || []).find(x => x.taak_id === t.id); return r ? rij('👥', `Op de rooier: <b>${esc(r.chauffeur_id ? naamVan(r.chauffeur_id) : '?')}</b>${r.bijrijders?.length ? ' · bijrijders: ' + r.bijrijders.map(naamVan).map(esc).join(', ') : ''}${r.bakkenisten?.length ? ' · bakkenist: ' + r.bakkenisten.map(naamVan).map(esc).join(', ') : ''}${rpAantal(r) ? ' · ' + esc(rpAantal(r)) : ''}`) : ''; })()}
     ${rij('✅', voortgangTekst(t) ? `${voortgangTekst(t)}${!TM.aan && mag('taken_afvinken') ? ` <button class="link klein" onclick="voortgangAanpassen('${t.id}')">✏️ aanpassen</button>` : ''}` : (!t.klaar && !TM.aan && mag('taken_afvinken') && t.perceel_id ? `<button class="link klein" onclick="voortgangAanpassen('${t.id}')">sporen afvinken</button>` : ''))}
     ${rij('🚜', [t.trekker, t.werktuig].filter(Boolean).map(esc).join(' + '))}
     ${rij('🧪', t.product || m ? `<b>${esc(t.product || m.naam)}</b>${t.dosering != null ? ` · ${(+t.dosering).toLocaleString('nl-NL')} ${esc(t.eenheid || '')}` : ''}${verbruik ? ` · totaal ± <b>${getal(verbruik, 1)} ${esc(m?.voorraad_eenheid || '')}</b>` : ''}` : '')}
@@ -5980,6 +5989,159 @@ function htmlWeekplanning() {
     ${zonder || mag('taken_toevoegen') ? `<tr><th><small>Nog niemand</small></th>${dagen.map(d => cel(null, d)).join('')}</tr>` : ''}</table></div>`;
 }
 
+
+/* ============ ROOIPLANNING ============
+   Per rooi-opdracht: dag, perceel (+ vakken), wat (partij of in woorden), hoeveel, rooier, chauffeur, bijrijders en bakkenisten.
+   Er hoort automatisch een taak "Rooien" bij (voor de chauffeur op de trekker), die meeverandert. Per dag af te drukken. */
+let rpDatum = new Date();
+const RP_EENHEDEN = ['planten', 'trays', 'kisten', 'fusten', 'bakken', 'rijen', 'meter', 'ha'];
+const naamVan = id => S.profielen.find(u => u.id === id)?.naam || '?';
+const rpMensen = r => [r.chauffeur_id, ...(r.bijrijders || []), ...(r.bakkenisten || [])].filter(Boolean);
+function rpWat(r) {
+  const x = r.partij_id && (S.partijen || []).find(y => y.id === r.partij_id);
+  return x ? `${partijRas(x) || 'partij'}${x.batch ? ' · batch ' + x.batch : ''}${x.klasse ? ' · ' + x.klasse : ''}` : (r.wat || '');
+}
+const rpAantal = r => r.aantal != null ? `${(+r.aantal).toLocaleString('nl-NL')} ${r.eenheid || ''}`.trim() : '';
+function rpDubbel(r) {   // staat iemand op dezelfde dag ook bij een andere rooi-opdracht?
+  const ander = (S.rooiplanning || []).filter(x => x.id !== r.id && x.datum === r.datum).flatMap(rpMensen);
+  return rpMensen(r).filter(id => ander.includes(id));
+}
+function rpKaart(r) {
+  const p = perceel(r.perceel_id), t = r.taak_id && S.taken.find(x => x.id === r.taak_id), dub = rpDubbel(r), beh = mag('taken_toevoegen');
+  const wie = (ids, cls) => (ids || []).length ? ids.map(id => `<span class="rpNaam ${dub.includes(id) ? 'dubbel' : ''} ${cls || ''}">${esc(naamVan(id))}</span>`).join(' ') : '<small class="hint">–</small>';
+  return `<div class="rpKaart ${t?.klaar ? 'klaar' : ''}">
+    <div class="rpKop"><b>📍 ${esc(p?.naam || 'geen perceel')}${(r.vakken || []).length ? ` · vak ${esc(r.vakken.join(', '))}` : ''}</b>
+      ${beh ? `<span><button class="icoon" title="Aanpassen / dingen toevoegen" onclick="rooiFormulier('${r.id}')">✏️</button><button class="icoon" title="Verwijderen" onclick="rooiWeg('${r.id}')">🗑️</button></span>` : ''}</div>
+    <div class="rpRij"><span>🌱</span><div><b>${esc(rpWat(r) || '–')}</b>${rpAantal(r) ? ` · <b>${esc(rpAantal(r))}</b>` : ''}</div></div>
+    <div class="rpRij"><span>🚜</span><div>${esc(r.rooier || 'rooier ?')} · op de rooier: ${r.chauffeur_id ? wie([r.chauffeur_id], 'chauf') : '<small class="hint">nog niemand</small>'}</div></div>
+    <div class="rpRij"><span>👥</span><div>Bijrijders: ${wie(r.bijrijders)}</div></div>
+    <div class="rpRij"><span>🧺</span><div>Bakkenist (achterop): ${wie(r.bakkenisten)}</div></div>
+    ${r.notitie ? `<div class="rpRij"><span>📝</span><div>${esc(r.notitie).replace(/\n/g, '<br>')}</div></div>` : ''}
+    ${dub.length ? `<div class="rpLet">⚠️ ${dub.map(naamVan).map(esc).join(', ')} ${dub.length === 1 ? 'staat' : 'staan'} deze dag ook ergens anders ingepland</div>` : ''}
+    ${t ? `<div class="rpRij"><span>📋</span><div><a href="#" onclick="event.preventDefault();focusTaak('${t.id}')">Taak: ${esc(t.tekst)}</a> ${t.klaar ? '· ✅ klaar' : t.bezig_door ? `· 🟡 bezig (${esc(t.bezig_door)})` : ''}${voortgangTekst(t) && !t.klaar ? ' · ' + voortgangTekst(t) : ''}</div></div>` : ''}
+  </div>`;
+}
+function htmlRooiplanning() {
+  const ma = new Date(rpDatum); ma.setHours(0, 0, 0, 0); ma.setDate(ma.getDate() - ((ma.getDay() + 6) % 7));
+  const dagen = Array.from({length: 7}, (_, i) => { const d = new Date(ma); d.setDate(ma.getDate() + i); return d; });
+  const beh = mag('taken_toevoegen');
+  return `<section class="kaartje"><h4>🚜 Rooiplanning</h4>
+    <div class="rij"><button class="knop licht" style="flex:0 0 auto;width:auto" onclick="rpDatum=new Date(rpDatum.getTime()-7*864e5);render(true)">◀</button>
+      <b style="flex:1;text-align:center;align-self:center">Week van ${ma.toLocaleDateString('nl-NL', {day: 'numeric', month: 'long'})}</b>
+      <button class="knop licht" style="flex:0 0 auto;width:auto" onclick="rpDatum=new Date(rpDatum.getTime()+7*864e5);render(true)">▶</button></div>
+    <div class="rij" style="margin-top:8px">${beh ? `<button class="knop" onclick="rooiFormulier()">＋ Rooien plannen</button>` : ''}<button class="knop licht" onclick="rooiPrint('${dKey(ma)}',7)">🖨️ Week afdrukken</button></div>
+    <p class="hint">Bij elke rooi-opdracht hoort een taak "Rooien" voor wie op de rooier zit; die verandert vanzelf mee. Met ✏️ pas je hem aan of voeg je later nog iets toe.</p></section>
+    ${dagen.map(d => { const k = dKey(d), l = (S.rooiplanning || []).filter(r => r.datum === k);
+      const tot = {}; l.forEach(r => { if (r.aantal != null) tot[r.eenheid || ''] = (tot[r.eenheid || ''] || 0) + +r.aantal; });
+      if (!l.length && !beh) return '';
+      return `<section class="kaartje rpDag ${k === vandaag() ? 'vandaag' : ''}"><h4 style="display:flex;gap:8px;align-items:center"><span style="flex:1">${d.toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})}${k === vandaag() ? ' · vandaag' : ''}</span>
+        ${l.length ? `<button class="icoon" title="Rooibrief van deze dag afdrukken" onclick="rooiPrint('${k}',1)">🖨️</button>` : ''}${beh ? `<button class="icoon" title="Nog iets erbij op deze dag" onclick="rooiFormulier(null,{datum:'${k}'${l[0] ? `,van:'${l[l.length - 1].id}'` : ''}})">＋</button>` : ''}</h4>
+        ${l.length ? `${Object.keys(tot).length ? `<p class="hint" style="margin-top:-4px">Totaal: ${Object.entries(tot).map(([e, n]) => `<b>${n.toLocaleString('nl-NL')} ${esc(e)}</b>`).join(' · ')}</p>` : ''}${l.map(rpKaart).join('')}` : '<p class="hint">Niets gepland</p>'}</section>`; }).join('')}`;
+}
+async function rooiFormulier(id, voor = {}) {
+  if (!mag('taken_toevoegen')) { toast('Je mag geen rooiplanning maken', 1); return; }
+  const oud = id ? (S.rooiplanning || []).find(r => r.id === id) : null, van = voor.van && (S.rooiplanning || []).find(r => r.id === voor.van);
+  const r = oud ? {...oud} : {datum: voor.datum || vandaag(), ...(van ? {rooier: van.rooier, chauffeur_id: van.chauffeur_id, bijrijders: van.bijrijders, bakkenisten: van.bakkenisten, perceel_id: van.perceel_id} : {})};
+  const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).sort((a, b) => a.naam.localeCompare(b.naam, 'nl', {numeric: true}));
+  // stap 1: perceel (de vakken en partijen hangen ervan af)
+  if (!oud && !r.perceel_id) {
+    const k = await formulier('🚜 Rooien plannen: welk perceel?', [{k: 'perceel_id', label: 'Perceel', type: 'select', waarde: actief && perceel(actief) ? actief : velden[0]?.id, opties: velden.map(p => [p.id, p.naam])}], 'Verder');
+    if (!k) return; r.perceel_id = k.perceel_id;
+  }
+  const p = perceel(r.perceel_id), pv = p ? perceelVakken(p) : [], partijen = p ? partijenVan(p.id) : [];
+  const mensen = [...S.profielen].filter(u => u.actief !== false && !u.apparaat).sort((a, b) => ((b.chauffeur ? 1 : 0) - (a.chauffeur ? 1 : 0)) || (a.naam || '').localeCompare(b.naam || '', 'nl'));
+  const rooiers = (S.machines || []).filter(m => /rooi/i.test(`${m.naam} ${m.soort || ''}`)).map(m => m.naam);
+  const watKeuze = r.partij_id ? r.partij_id : r.wat ? 'anders' : (partijen[0]?.id || 'anders');
+  const w = await formulier(oud ? '✏️ Rooi-opdracht aanpassen' : '🚜 Rooien plannen', [
+    {type: 'uitleg', waarde: `📍 ${p?.naam || '?'}${oud ? '' : ''}`},
+    {k: 'datum', label: 'Welke dag?', type: 'date', waarde: r.datum},
+    ...(oud ? [{k: 'perceel_id', label: 'Perceel', type: 'select', waarde: r.perceel_id, opties: velden.map(x => [x.id, x.naam])}] : []),
+    ...(pv.length ? [{k: 'vakken', label: 'Welke vakken? (niets aanvinken = het hele perceel)', type: 'vinkjes', waarde: pv.map((v, i) => (r.vakken || []).includes(v.letter) ? i : -1).filter(i => i >= 0),
+      opties: pv.map((v, i) => [i, `Vak ${v.letter}${v.z._vak ? ' (' + v.z.naam + ')' : ''} · ${v.rijen ?? v.nrs.length} rijen`])}] : []),
+    {k: 'wat', label: 'Wat moet er gerooid worden?', type: 'select', waarde: watKeuze, opties: [...partijen.map(x => [x.id, `${partijRas(x) || 'partij'}${x.batch ? ' · batch ' + x.batch : ''}${x.klasse ? ' · ' + x.klasse : ''}`]), ['anders', '✏️ Zelf invullen']]},
+    {k: 'wat_tekst', label: 'Wat (in woorden)', waarde: r.partij_id ? '' : (r.wat || ''), placeholder: 'bijv. Falco moederplanten', als: ['wat', 'anders']},
+    {k: 'aantal', label: 'Hoeveel?', type: 'number', waarde: r.aantal ?? '', placeholder: 'bijv. 12000'},
+    {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: r.eenheid || 'planten', opties: RP_EENHEDEN.map(e => [e, e])},
+    {k: 'rooier', label: 'Welke rooier?', waarde: r.rooier || rooiers[0] || '', lijst: [...rooiers, ...(S.machines || []).map(m => m.naam).filter(n => !rooiers.includes(n))]},
+    {k: 'chauffeur_id', label: 'Wie zit er op de rooier?', type: 'select', waarde: r.chauffeur_id || '', opties: [['', '– nog niet bekend –'], ...mensen.map(u => [u.id, `${u.naam}${u.chauffeur ? ' 🚜' : ''}`])]},
+    {k: 'bijrijders', label: '👥 Bijrijders', type: 'vinkjes', waarde: r.bijrijders || [], opties: mensen.map(u => [u.id, u.naam])},
+    {k: 'bakkenisten', label: '🧺 Bakkenist (staat achterop de wagen)', type: 'vinkjes', waarde: r.bakkenisten || [], opties: mensen.map(u => [u.id, u.naam])},
+    {k: 'notitie', label: 'Notitie (optioneel)', type: 'textarea', waarde: r.notitie || '', placeholder: 'bijv. beginnen bij de sloot, kisten staan bij de schuur'},
+    {k: 'taak', label: 'Taak voor de chauffeur', type: 'select', waarde: oud && !oud.taak_id ? 'nee' : 'ja', opties: [['ja', '📋 Ja, maak/houd een taak "Rooien" bij (komt op de trekker)'], ['nee', 'Nee, alleen in de planning']]}
+  ], oud ? 'Opslaan' : 'Inplannen');
+  if (!w) return;
+  const anderPerceel = oud && w.perceel_id && w.perceel_id !== oud.perceel_id;
+  const pid = w.perceel_id || r.perceel_id, gek = anderPerceel ? [] : (w.vakken || []).map(i => pv[+i]).filter(Boolean);
+  const rij = {datum: w.datum || r.datum, perceel_id: pid, partij_id: w.wat && w.wat !== 'anders' && !anderPerceel ? w.wat : null, wat: w.wat === 'anders' || anderPerceel ? (w.wat_tekst || (anderPerceel ? rpWat(r) : '') || null) : null,
+    vakken: gek.map(v => v.letter), aantal: w.aantal === '' || w.aantal == null || isNaN(parseFloat(String(w.aantal).replace(',', '.'))) ? null : parseFloat(String(w.aantal).replace(',', '.')),
+    eenheid: w.eenheid || null, rooier: w.rooier || null, chauffeur_id: w.chauffeur_id || null, bijrijders: w.bijrijders || [], bakkenisten: w.bakkenisten || [], notitie: w.notitie || null};
+  // de taak erbij
+  let taak_id = oud?.taak_id || null;
+  if (w.taak === 'ja') taak_id = await rooiTaakBij({...rij, taak_id}, gek);
+  else if (taak_id) { const t = S.taken.find(x => x.id === taak_id); if (t && !t.klaar && await bevestig('Taak ook verwijderen?', `De taak "${t.tekst}" hoort bij deze rooi-opdracht.`)) { await sb.from('taken').delete().eq('id', taak_id); S.taken = S.taken.filter(x => x.id !== taak_id); } taak_id = null; }
+  rij.taak_id = taak_id;
+  const res = oud ? await sb.from('rooiplanning').update(rij).eq('id', oud.id).select().single() : await sb.from('rooiplanning').insert(rij).select().single();
+  if (res.error) { toast(/rooiplanning/i.test(res.error.message || '') && /exist|schema/i.test(res.error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : 'Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
+  S.rooiplanning = S.rooiplanning || []; const i = S.rooiplanning.findIndex(x => x.id === res.data.id); if (i >= 0) S.rooiplanning[i] = res.data; else S.rooiplanning.push(res.data);
+  S.rooiplanning.sort((a, b) => a.datum.localeCompare(b.datum));
+  rpDatum = new Date(res.data.datum + 'T12:00'); render(true);
+  const dub = rpDubbel(res.data);
+  toast(dub.length ? `⚠️ Opgeslagen, maar ${dub.map(naamVan).join(', ')} staat die dag ook ergens anders` : oud ? 'Rooi-opdracht opgeslagen' : '🚜 Rooien ingepland');
+}
+// de taak "Rooien" bij een rooi-opdracht aanmaken of bijwerken
+async function rooiTaakBij(r, gek) {
+  const wat = rpWat(r), crew = [r.bijrijders?.length ? 'Bijrijders: ' + r.bijrijders.map(naamVan).join(', ') : '', r.bakkenisten?.length ? 'Bakkenist: ' + r.bakkenisten.map(naamVan).join(', ') : ''].filter(Boolean);
+  let gebied = null, van = null, tot = null;
+  if (gek.length === 1 && !gek[0].z._vak) { van = gek[0].van; tot = gek[0].tot; } else if (gek.length) gebied = vakkenGebied(gek);
+  const rij = {perceel_id: r.perceel_id, tekst: `Rooien${wat ? ': ' + wat : ''}${gek.length > 1 ? ` (vak ${gek.map(v => v.letter).join(', ')})` : ''}`,
+    omschrijving: [rpAantal(r) ? 'Hoeveel: ' + rpAantal(r) : '', ...crew, r.notitie || ''].filter(Boolean).join('\n') || null,
+    toegewezen_aan: r.chauffeur_id || null, gepland: r.datum, werktuig: r.rooier || null, gebied, spoor_van: van, spoor_tot: tot};
+  const bestaat = r.taak_id && S.taken.find(x => x.id === r.taak_id);
+  if (bestaat?.klaar) return bestaat.id;   // afgerond werk niet meer veranderen
+  const res = bestaat ? await sb.from('taken').update(rij).eq('id', bestaat.id).select().single() : await sb.from('taken').insert({...rij, aangemaakt_door: naamMe()}).select().single();
+  if (res.error) { toast('Taak opslaan mislukt: ' + foutTekst(res.error), 1); return bestaat?.id || null; }
+  const i = S.taken.findIndex(x => x.id === res.data.id); if (i >= 0) S.taken[i] = res.data; else S.taken.push(res.data);
+  return res.data.id;
+}
+async function rooiWeg(id) {
+  const r = (S.rooiplanning || []).find(x => x.id === id); if (!r) return;
+  const t = r.taak_id && S.taken.find(x => x.id === r.taak_id);
+  const k = await formulier('Rooi-opdracht verwijderen?', [{type: 'uitleg', waarde: `${rpWat(r) || 'Rooien'} op ${perceel(r.perceel_id)?.naam || '?'} (${datumKort(r.datum + 'T12:00')})`},
+    ...(t && !t.klaar ? [{k: 'taak', label: 'De taak erbij', type: 'select', waarde: 'weg', opties: [['weg', 'Ook verwijderen'], ['laat', 'Laten staan']]}] : [])], 'Verwijderen');
+  if (!k) return;
+  const {error} = await sb.from('rooiplanning').delete().eq('id', id);
+  if (error) { toast(foutTekst(error), 1); return; }
+  if (t && !t.klaar && k.taak === 'weg') { await sb.from('taken').delete().eq('id', t.id); S.taken = S.taken.filter(x => x.id !== t.id); }
+  S.rooiplanning = S.rooiplanning.filter(x => x.id !== id); render(true); toast('Verwijderd');
+}
+// rooibrief afdrukken (een dag of een week)
+function rooiPrint(start, dagen) {
+  const d0 = new Date(start + 'T12:00'), keys = Array.from({length: dagen}, (_, i) => dKey(new Date(d0.getTime() + i * 864e5)));
+  const l = (S.rooiplanning || []).filter(r => keys.includes(r.datum)); if (!l.length) { toast('Niets gepland om af te drukken', 1); return; }
+  const blok = k => { const rr = l.filter(r => r.datum === k); if (!rr.length) return '';
+    return `<h2>${new Date(k + 'T12:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</h2>
+    ${rr.map(r => { const p = perceel(r.perceel_id);
+      return `<table><tr><th>Perceel</th><td><b>${esc(p?.naam || '–')}</b>${(r.vakken || []).length ? ' · vak ' + esc(r.vakken.join(', ')) : ' · hele perceel'}</td></tr>
+        <tr><th>Wat</th><td><b>${esc(rpWat(r) || '–')}</b></td></tr><tr><th>Hoeveel</th><td><b>${esc(rpAantal(r) || '–')}</b></td></tr>
+        <tr><th>Rooier</th><td>${esc(r.rooier || '–')}</td></tr><tr><th>Op de rooier</th><td><b>${r.chauffeur_id ? esc(naamVan(r.chauffeur_id)) : '–'}</b></td></tr>
+        <tr><th>Bijrijders</th><td>${(r.bijrijders || []).map(naamVan).map(esc).join(', ') || '–'}</td></tr>
+        <tr><th>Bakkenist</th><td>${(r.bakkenisten || []).map(naamVan).map(esc).join(', ') || '–'}</td></tr>
+        ${r.notitie ? `<tr><th>Notitie</th><td>${esc(r.notitie).replace(/\n/g, '<br>')}</td></tr>` : ''}
+        <tr><th>Gerooid</th><td class="leeg">&nbsp;</td></tr><tr><th>Opmerking</th><td class="leeg">&nbsp;</td></tr></table>`; }).join('')}`; };
+  const html = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Rooiplanning</title><style>
+    body{font-family:Arial,sans-serif;margin:18mm 14mm;color:#111}h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:18px 0 6px;border-bottom:2px solid #2e7d32;padding-bottom:3px;text-transform:capitalize}
+    table{width:100%;border-collapse:collapse;margin:0 0 12px;page-break-inside:avoid}th,td{border:1px solid #999;padding:6px 8px;text-align:left;font-size:14px;vertical-align:top}th{width:28%;background:#eef4ec}
+    td.leeg{height:26px}.voet{font-size:11px;color:#666;margin-top:10px}@media print{button{display:none}}</style></head><body>
+    <h1>🚜 Rooiplanning${dagen > 1 ? ' – week van ' + d0.toLocaleDateString('nl-NL', {day: 'numeric', month: 'long'}) : ''}</h1>
+    <button onclick="print()" style="font-size:16px;padding:8px 14px;margin:6px 0">🖨️ Afdrukken</button>
+    ${keys.map(blok).join('')}<p class="voet">Afgedrukt ${new Date().toLocaleString('nl-NL')}</p></body></html>`;
+  const win = window.open('', '_blank');
+  if (win) { win.document.write(html); win.document.close(); setTimeout(() => { try { win.focus(); win.print(); } catch {} }, 400); return; }
+  // pop-up geblokkeerd (bijv. in de app): via een verborgen frame afdrukken
+  const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(fr);
+  fr.contentDocument.write(html); fr.contentDocument.close(); setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch {} setTimeout(() => fr.remove(), 2000); }, 400);
+}
+
 /* ============ BIO-DOSSIER (Skal) ============ */
 let dsPerceel = '';
 function dossierGegevens() {
@@ -6234,7 +6396,8 @@ const mijnBezig = () => S.taken.find(t => !t.klaar && t.bezig_door && t.bezig_do
 function tmTakenVan(welk) {
   const ik = TM.chauffeur?.id || me?.id, nuDag = vandaag();
   const open = S.taken.filter(t => !t.klaar && !isVerplaats(t));
-  const l = welk === 'mijn' ? open.filter(t => t.toegewezen_aan === ik || (t.bezig_door && t.bezig_door === naamMe()))
+  const crew = new Set((S.rooiplanning || []).filter(r => r.taak_id && rpMensen(r).includes(ik)).map(r => r.taak_id));
+  const l = welk === 'mijn' ? open.filter(t => t.toegewezen_aan === ik || crew.has(t.id) || (t.bezig_door && t.bezig_door === naamMe()))
     : open.filter(t => !t.gepland || t.gepland <= nuDag || t.bezig_door);
   return l.sort((a, b) => ((b.bezig_door === naamMe()) - (a.bezig_door === naamMe())) || ((b.perceel_id === TM.pid) - (a.perceel_id === TM.pid)) || (a.gepland || a.deadline || '9').localeCompare(b.gepland || b.deadline || '9'));
 }
@@ -7035,7 +7198,7 @@ const seizoenStart = () => { const s = S.seizoenen.find(x => x.id === bekeken); 
 const seizoenEind = () => { const lijst = [...S.seizoenen].sort((a, b) => new Date(a.gestart) - new Date(b.gestart)), i = lijst.findIndex(x => x.id === bekeken); return lijst[i + 1] ? new Date(lijst[i + 1].gestart) : new Date(8.64e15); };
 async function laadBedrijf() {
   const q = (t, f) => f(sb.from(t).select('*')).then(r => r.error ? null : r.data).catch(() => null);
-  const [md, oo, ma, ml, ko, me2, pa, mo, pm, wn, pb] = await Promise.all([
+  const [md, oo, ma, ml, ko, me2, pa, mo, pm, wn, pb, rp] = await Promise.all([
     q('middelen', x => x.order('naam')),
     q('oogst', x => bekeken ? x.eq('seizoen_id', bekeken).order('datum') : x.order('datum')),
     q('machines', x => x.order('naam')),
@@ -7046,7 +7209,9 @@ async function laadBedrijf() {
     q('monsters', x => x.order('datum', {ascending: false})),
     q('partij_mutaties', x => x.order('datum')),
     q('waarnemingen', x => x.order('datum', {ascending: false}).limit(2000)),
-    q('plantbehoefte', x => x.order('created_at'))]);
+    q('plantbehoefte', x => x.order('created_at')),
+    q('rooiplanning', x => x.gte('datum', new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10)).order('datum'))]);
+  S.rooiplanning = rp || [];
   S.partijen = pa || []; S.monsters = mo || []; S.partij_mutaties = pm || []; S.waarnemingen = wn || []; S.plantbehoefte = pb || [];
   S.middelen = md || []; S.oogst = oo || []; S.machines = ma || []; S.machine_log = ml || []; S.kosten = ko || []; S.meldingen = me2 || [];
   bedrijfGeladen = !!md;
@@ -8441,7 +8606,7 @@ window.addEventListener('online', () => { netStatus(); verwerkWachtrij(); });
 window.addEventListener('offline', netStatus);
 setInterval(() => { if (wachtrij.length || fotoWachtrij.length) verwerkWachtrij(); }, 20000);
 // De gegevens op het apparaat bewaren om ook zonder bereik te kunnen starten
-const CACHE_LIJSTEN = ['percelen', 'taken', 'soorten', 'rassen', 'markeringen', 'tractoren', 'profielen', 'seizoenen', 'middelen', 'machines', 'machine_log', 'oogst', 'kosten', 'meldingen', 'inst', 'partijen', 'monsters', 'partij_mutaties', 'waarnemingen', 'plantbehoefte'];
+const CACHE_LIJSTEN = ['percelen', 'taken', 'soorten', 'rassen', 'markeringen', 'tractoren', 'profielen', 'seizoenen', 'middelen', 'machines', 'machine_log', 'oogst', 'kosten', 'meldingen', 'inst', 'partijen', 'monsters', 'partij_mutaties', 'waarnemingen', 'plantbehoefte', 'rooiplanning'];
 let cacheTimer;
 function bewaarCache() {
   if (archief || !S.percelen.length) return;
