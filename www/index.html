@@ -940,7 +940,8 @@ let map, laag, markLaag, focusLaag, pijlLaag, tractorLaag, voertuigLaag, locatie
 const mijnProfiel = () => S.profielen.find(x => x.id === me?.id);
 const naamMe = () => (typeof TM !== 'undefined' && TM.chauffeur ? TM.chauffeur.naam : null) || mijnProfiel()?.naam || me?.user_metadata?.naam || me?.email?.split('@')[0] || 'Onbekend';
 const isApparaat = () => !!mijnProfiel()?.apparaat;
-const isPrikklok = () => !!mijnProfiel()?.prikklok;   // de iPad in de kantine om in en uit te klokken   // gedeeld apparaat (trekker-tablet): geen persoonlijke gegevens
+const isPrikklok = () => !!mijnProfiel()?.prikklok;
+const medewerkers = () => S.profielen.filter(u => !u.apparaat && !u.prikklok);   // echte mensen (geen trekker-tablets of prikklok)   // de iPad in de kantine om in en uit te klokken   // gedeeld apparaat (trekker-tablet): geen persoonlijke gegevens
 const isBeheerder = () => mijnProfiel()?.rol === 'beheerder';
 const perceel = id => S.percelen.find(p => p.id === id);
 let wijsAan = false;   // bezig met een punt aanwijzen op de kaart
@@ -1868,6 +1869,21 @@ async function plantenOpslaan(p, banen, vakken, gewas) {
   return true;
 }
 // Zet terug wat er stond; alleen sporen die nog braak zijn (wat intussen opnieuw is ingeplant blijft staan)
+// precies deze sporen braak maken (sleutels "zone-id:nr"); geeft een terugzet-snapshot zoals plantenWeg
+async function plantenWegSporen(pid, keys, wat) {
+  const p = perceel(pid); if (!p || p.type === 'pand' || !keys?.length) return null;
+  const B = braakSoort()?.id || null;
+  const banen = [...(p.banen || [])], vakken = (p.vakken || []).map(v => ({...v, banen: [...(v.banen || [])]}));
+  const snap = {p: pid, b: B, z: [], g: [], op: new Date().toISOString(), wat: wat || ''};
+  for (const z of alleZones(p)) {
+    const nrs = keys.filter(k => k.slice(0, k.lastIndexOf(':')) === z.id).map(k => +k.slice(k.lastIndexOf(':') + 1)); if (!nrs.length) continue;
+    const arr = z._vak ? vakken.find(v => v.id === z._vak.id).banen : banen, oud = {};
+    nrs.forEach(nr => { while (arr.length < nr) arr.push(null); const v = arr[nr - 1] ?? null; if (v !== B) { oud[nr] = v; arr[nr - 1] = B; } });
+    if (Object.keys(oud).length) snap.z.push({z: z.id, nrs: oud});
+  }
+  if (!snap.z.length) return null;
+  return await plantenOpslaan(p, banen, vakken, p.gewas ?? null) ? snap : null;
+}
 async function plantenTerug(snap) {
   const p = perceel(snap?.p); if (!p) return 0;
   const banen = [...(p.banen || [])], vakken = (p.vakken || []).map(v => ({...v, banen: [...(v.banen || [])]}));
@@ -2110,7 +2126,7 @@ async function verplaatsFormulier(id, voor = {}) {
     {k: 'naar', label: 'Naar', type: 'select', waarde: locWaarde('naar') || (voor.naar_perceel ? 'p:' + voor.naar_perceel : ''), opties: locOpties('naar')},
     {k: 'omschrijving', label: 'Omschrijving', type: 'textarea', waarde: t.omschrijving || '', placeholder: 'bijv. bij de ingang van het veld zetten'},
     {k: 'toegewezen_aan', label: 'Wie doet het?', type: 'select', waarde: t.toegewezen_aan || '',
-      opties: [['', 'Nog niemand'], ...S.profielen.map(u => [u.id, u.naam + (u.id === me.id ? ' (ik)' : '')])]},
+      opties: [['', 'Nog niemand'], ...medewerkers().map(u => [u.id, u.naam + (u.id === me.id ? ' (ik)' : '')])]},
     {k: 'gepland', label: '📅 Gepland op', type: 'date', waarde: t.gepland || ''},
     {k: 'deadline', label: 'Uiterlijk op', type: 'date', waarde: t.deadline || ''}];
   const w = await formulier(id ? '🚚 Verplaatsing bewerken' : '🚚 Iets verplaatsen', velden, id ? 'Opslaan' : 'Toevoegen');
@@ -2201,7 +2217,7 @@ async function taakFormulier(id, direct, voor = {}) {
     {k: 'tekst', label: 'Werkzaamheden', waarde: t.tekst || '', lijst: WERK, placeholder: 'bijv. Spuiten'},
     {k: 'omschrijving', label: 'Omschrijving', type: 'textarea', waarde: t.omschrijving || '', placeholder: 'Wat moet er precies gebeuren? Middel, hoeveelheid, machine…'},
     {k: 'toegewezen_aan', label: 'Wie doet het?', type: 'select', waarde: t.toegewezen_aan || '',
-      opties: [['', 'Nog niemand'], ...S.profielen.map(u => [u.id, u.naam + (u.id === me.id ? ' (ik)' : '')])]},
+      opties: [['', 'Nog niemand'], ...medewerkers().map(u => [u.id, u.naam + (u.id === me.id ? ' (ik)' : '')])]},
     {k: 'gepland', label: '📅 Gepland op', type: 'date', waarde: t.gepland || ''},
     {k: 'deadline', label: 'Uiterlijk op', type: 'date', waarde: t.deadline || ''},
     {k: 'waar', label: 'Waar op het veld?', type: 'select', waarde: waar,
@@ -4060,7 +4076,7 @@ function renderAgenda() {
     ${telaat.length ? `<h5 class="rood">⚠️ Te laat (${telaat.length})</h5>${telaat.map(t => agKaart(t)).join('')}` : ''}
     <h5>📥 Nog niet ingepland (${zonder.length})</h5>${zonder.map(t => agKaart(t)).join('') || '<p class="hint">Alles heeft een datum.</p>'}
     ${mag('taken_toevoegen') && !archief && zonder.length ? '<p class="hint">Sleep een taak naar een dag om hem in te plannen (op de computer).</p>' : ''}`;
-  const namen = [...S.profielen].sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  const namen = [...medewerkers()].sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
   const mijnOpen = S.taken.filter(t => !t.klaar && (t.toegewezen_aan === me?.id || t.bezig_door === naamMe())).length;
   el.innerHTML = `<div class="agkop">
       <div class="agtitel">📆 ${agTab === 'mij' ? 'Mijn agenda' : 'Agenda'}${archief ? ` <small>(seizoen ${esc(seizoenNaam(bekeken))})</small>` : ''}</div>
@@ -4169,7 +4185,7 @@ function htmlUren0() {
   const [, , label] = urenPeriode(), alles = ziet('uren_bekijken'), beheer = mag('uren_beheren');
   const regels = urenRegels(), groepen = urenGroepen(regels), totaal = groepen.reduce((s, p) => s + p.ms, 0);
   const lopend = S.uren.filter(r => !r.eind && (alles || r.user_id === me?.id || r.naam === naamMe()));
-  const namen = [...new Set([...S.profielen.map(p => p.naam), ...S.uren.map(r => r.naam)])].sort((a, b) => a.localeCompare(b, 'nl'));
+  const namen = [...new Set([...medewerkers().map(p => p.naam), ...S.uren.map(r => r.naam)])].sort((a, b) => a.localeCompare(b, 'nl'));
   const [v, t] = urenPeriode(), iso = d => dKey(d);
   let h = `<section class="kaartje"><h4>⏱️ Uren</h4>
     <div class="ptabs" style="grid-template-columns:repeat(3,1fr)">${[['vandaag', 'Vandaag'], ['week', 'Deze week'], ['vorigeweek', 'Vorige week'], ['maand', 'Deze maand'], ['vorigemaand', 'Vorige maand'], ['zelf', 'Zelf kiezen']]
@@ -4202,7 +4218,7 @@ async function urenBewerk(id) {
   if (id && !r) return;
   const s = r ? new Date(r.start) : new Date(new Date().setHours(8, 0, 0, 0)), e = r?.eind ? new Date(r.eind) : r ? null : new Date(s.getTime() + 2 * UUR);
   const hhmm = d => d ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
-  const namen = [...new Set([...S.profielen.map(p => p.naam), ...(r ? [r.naam] : [])])].sort((a, b) => a.localeCompare(b, 'nl'));
+  const namen = [...new Set([...medewerkers().map(p => p.naam), ...(r ? [r.naam] : [])])].sort((a, b) => a.localeCompare(b, 'nl'));
   const takenLijst = [...new Set(S.taken.map(t => t.tekst).filter(Boolean))];
   const w = await formulier(r ? '✏️ Uren aanpassen' : '＋ Uren toevoegen', [
     {k: 'naam', label: 'Wie', type: 'select', waarde: r?.naam || urenWie || naamMe(), opties: namen.map(n => [n, n])},
@@ -6126,7 +6142,7 @@ let wpDatum = new Date();
 function htmlWeekplanning() {
   const ma = new Date(wpDatum); ma.setHours(0, 0, 0, 0); ma.setDate(ma.getDate() - ((ma.getDay() + 6) % 7));
   const dagen = Array.from({length: 7}, (_, i) => { const d = new Date(ma); d.setDate(ma.getDate() + i); return d; });
-  const mensen = [...S.profielen].filter(u => u.actief !== false).sort((a, b) => (a.id === me?.id ? -1 : b.id === me?.id ? 1 : 0) || (a.naam || '').localeCompare(b.naam || '', 'nl'));
+  const mensen = [...medewerkers()].filter(u => u.actief !== false).sort((a, b) => (a.id === me?.id ? -1 : b.id === me?.id ? 1 : 0) || (a.naam || '').localeCompare(b.naam || '', 'nl'));
   const opDag = (uid, d) => S.taken.filter(t => (t.toegewezen_aan || null) === uid && (t.gepland || (!t.klaar && t.deadline)) === dKey(d));
   const cel = (uid, d) => { const l = opDag(uid, d);
     return `<td class="${dKey(d) === vandaag() ? 'vandaag' : ''}">${l.map(t => `<div class="wpTaak ${t.klaar ? 'klaar' : ''}" onclick="focusTaak('${t.id}')" title="${esc(t.tekst)}">${t.klaar ? '✓ ' : ''}${esc(t.tekst.slice(0, 28))}${perceel(t.perceel_id) ? `<small>${esc(perceel(t.perceel_id).naam)}</small>` : ''}</div>`).join('')}
@@ -6354,7 +6370,7 @@ async function rooiFormulier(id, voor = {}) {
     if (!k) return; r.perceel_id = k.perceel_id;
   }
   const p = perceel(r.perceel_id), pv = p ? perceelVakken(p) : [], partijen = p ? partijenVan(p.id) : [];
-  const mensen = [...S.profielen].filter(u => u.actief !== false && !u.apparaat).sort((a, b) => ((b.chauffeur ? 1 : 0) - (a.chauffeur ? 1 : 0)) || (a.naam || '').localeCompare(b.naam || '', 'nl'));
+  const mensen = [...medewerkers()].filter(u => u.actief !== false).sort((a, b) => ((b.chauffeur ? 1 : 0) - (a.chauffeur ? 1 : 0)) || (a.naam || '').localeCompare(b.naam || '', 'nl'));
   const rooiers = (S.machines || []).filter(m => /rooi/i.test(`${m.naam} ${m.soort || ''}`)).map(m => m.naam);
   const watKeuze = r.partij_id ? r.partij_id : r.wat ? 'anders' : (partijen[0]?.id || 'anders');
   rpRegels.eenh = null; rpRegels.start = Object.fromEntries((r.regels || []).map(g => [g.partij_id, {[r.eenheid || 'planten']: g.waarde}]));
@@ -6980,7 +6996,7 @@ function tmZijHtml(t) {
       <button class="tmKlein" style="height:48px;min-width:auto;padding:0 12px;font-size:18px" onclick="TM.paneel=false;tmRender();setTimeout(tmKaartRuimte,50)">◀ Inklappen</button></div>
     <h2>${esc(t.tekst)}</h2>
     ${kand.length ? `<div style="font-size:20px"><b>${n}</b> van ${kand.length} sporen klaar · <b>${pct}%</b></div><div class="tmVg"><i style="width:${pct}%"></i></div>
-      <small>Tik op de kaart een rij aan = daar ben je mee <b>bezig</b> (geel). Nog een keer tikken = <b>klaar</b>${braak ? ' – dan wordt hij meteen <b>braak</b> voor iedereen' : ''}.</small>
+      <small>Tik op de kaart een rij aan = daar ben je mee <b>bezig</b> (geel). Nog een keer tikken = <b>klaar</b>${braak ? ' – dan wordt hij meteen <b>braak</b> voor iedereen' : ''}. Een groene rij of vak aantikken = weer open.</small>
       ${(() => { const bz = t.voortgang?.bezig, k = bz && kand.find(c => c.key === bz); if (!k) return ''; const pp = partijenOpRij(perceel(t.perceel_id), bz.slice(0, bz.lastIndexOf(':')), k.nr);
         return `<div class="tmBezigRij">🟡 Bezig met <b>rij ${k.nr}</b>${pp.length ? ' · ' + esc(pp.map(partijTekst).join(', ')) : ''}</div><button class="tmGroot" style="background:#f9a825;color:#222" onclick="tmSporenKlaar('${t.id}',['${bz}'])">✓ Rij ${k.nr} is klaar</button>`; })()}
       ${tmRooiVoortgang(t, klaar)}
@@ -6989,9 +7005,9 @@ function tmZijHtml(t) {
       ${vakken.length > 1 || (vakken.length === 1 && kand.length > 1) ? (() => { const vk = vakken.map(x => ({...x, ks: kand.filter(k => k.groep === x.g && k.vak === x.v)})).map(x => ({...x, af: x.ks.every(k => klaar.has(k.key))}));
         const klaarV = vk.filter(x => x.af), toon = TM.toonKlaarVak;
         return `<div class="tmVakKn">${vk.filter(x => !x.af || toon).map(x => { const ks = x.ks, af = x.af;
-        return `<button class="${af ? 'aan' : ''}" ${af ? 'disabled' : ''} onclick="tmSporenKlaar('${t.id}',${esc(JSON.stringify(ks.map(k => k.key)))})">${af ? '✓' : '▢'} Vak ${esc(x.v)}${x.g ? ' <small>' + esc(x.g) + '</small>' : ''} <small>(${ks.filter(k => klaar.has(k.key)).length}/${ks.length})</small></button>`; }).join('')}
+        return `<button class="${af ? 'aan' : ''}" onclick="${af ? `tmWeerOpen('${t.id}',${esc(JSON.stringify(ks.map(k => k.key)))},'Vak ${esc(x.v)}')` : `tmSporenKlaar('${t.id}',${esc(JSON.stringify(ks.map(k => k.key)))})`}" title="${af ? 'Tik om weer open te zetten' : 'Tik = hele vak klaar'}">${af ? '✓' : '▢'} Vak ${esc(x.v)}${x.g ? ' <small>' + esc(x.g) + '</small>' : ''} <small>(${ks.filter(k => klaar.has(k.key)).length}/${ks.length})</small></button>`; }).join('')}
         ${klaarV.length ? `<button class="tmKlaarChip" onclick="TM.toonKlaarVak=!TM.toonKlaarVak;tmRender()">✓ ${klaarV.length} ${klaarV.length === 1 ? 'vak' : 'vakken'} klaar: ${klaarV.map(x => esc(x.v)).join(', ')} <small>${toon ? '▴ verbergen' : '▾ tonen'}</small></button>` : ''}</div>`; })() : ''}
-      ${laatste?.keys?.length ? `<button class="tmGroot" style="background:#6d4c41;min-height:58px;font-size:19px" onclick="tmStapTerug('${t.id}')">↶ Laatste stap terug (${laatste.keys.length === 1 ? 'spoor ' + laatste.keys[0].split(':')[1] : laatste.keys.length + ' sporen'})</button>` : '<small style="display:block;margin:6px 0">↶ Eén stap terugzetten kan hier; meer terugzetten via de computer.</small>'}` : ''}
+      ${laatste?.keys?.length ? `<button class="tmGroot" style="background:#6d4c41;min-height:58px;font-size:19px" onclick="tmStapTerug('${t.id}')">↶ Laatste stap terug (${laatste.keys.length === 1 ? 'spoor ' + laatste.keys[0].split(':')[1] : laatste.keys.length + ' sporen'})</button>` : '<small style="display:block;margin:6px 0">↶ Iets per ongeluk klaar gezet? Tik op een groene rij op de kaart, of op een groen vak hierboven, om het weer open te zetten.</small>'}` : ''}
     <div class="tmKnoppen"><button class="geel" onclick="tmPauze('${t.id}','pauze')">⏸ Pauzeren</button><button onclick="tmPauze('${t.id}','wissel')">🔀 Wisselen</button>
       ${n < kand.length ? `<button style="grid-column:span 2;opacity:.55" onclick="tmTaakAfronden('${t.id}')">🔒 Afronden kan als alles klaar is (nog ${kand.length - n})</button>` : `<button class="groen" style="grid-column:span 2" onclick="tmTaakAfronden('${t.id}')">✓ Hele taak afronden</button>`}</div>
     <h3 style="margin:16px 0 4px;font-size:20px">ℹ️ Alles over deze taak</h3>${info}${tmExtraInfo(t)}${machineFotosHtml(t)}</div>`;
@@ -7028,15 +7044,13 @@ async function voortgangWijzig(t, plus, min, stap) {
   v.braak = [...(v.braak || [])];
   let snap = null;
   if (erbij.length && haaltPlantenWeg(t) && t.perceel_id) {
-    const geos = kand.filter(c => erbij.includes(c.key)).map(c => (c.geo.geometry || c.geo));
-    const coords = geos.flatMap(g => g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []);
-    if (coords.length) snap = await plantenWeg(t.perceel_id, {geo: {type: 'Feature', properties: {}, geometry: {type: 'MultiPolygon', coordinates: coords}}}, `${t.tekst}: spoor ${kand.filter(c => erbij.includes(c.key)).map(c => c.nr).join(', ')}`);
+    snap = await plantenWegSporen(t.perceel_id, erbij, `${t.tekst}: spoor ${kand.filter(c => erbij.includes(c.key)).map(c => c.nr).join(', ')}`);
     if (snap) v.braak.push(snap);
   }
-  for (const k of eraf) { const [z, nr] = [k.slice(0, k.lastIndexOf(':')), k.slice(k.lastIndexOf(':') + 1)];   // alleen dit spoor terugzetten
-    for (const sn of v.braak) { const e = (sn.z || []).find(x => x.z === z && nr in x.nrs); if (!e) continue;
-      await plantenTerug({p: sn.p, b: sn.b, z: [{z, nrs: {[nr]: e.nrs[nr]}}], g: []}); delete e.nrs[nr]; }
-  }
+  // alleen deze sporen terugzetten: per bewaarde braak-stap in één keer
+  for (const sn of v.braak) { const deel = [];
+    for (const e of sn.z || []) { const nrs = {}; for (const k of eraf) { const i = k.lastIndexOf(':'), z = k.slice(0, i), nr = k.slice(i + 1); if (z === e.z && nr in e.nrs) { nrs[nr] = e.nrs[nr]; delete e.nrs[nr]; } } if (Object.keys(nrs).length) deel.push({z: e.z, nrs}); }
+    if (deel.length) { try { await plantenTerug({p: sn.p, b: sn.b, z: deel, g: []}); } catch (err) { toast('Planten terugzetten mislukt: ' + foutTekst(err), 1); } } }
   v.braak = v.braak.filter(sn => (sn.z || []).some(x => Object.keys(x.nrs).length) || (sn.g || []).length);
   v.sporen = [...[...al].filter(k => !eraf.includes(k)), ...erbij]; v.totaal = kand.length; v.bij = new Date().toISOString(); v.door = naamMe();
   v.laatste = stap && erbij.length ? {keys: erbij} : null;
@@ -7049,7 +7063,7 @@ async function voortgangWijzig(t, plus, min, stap) {
 async function tmSporenKlaar(id, keys) {
   const t = S.taken.find(x => x.id === id); if (!t) return;
   const r = await voortgangWijzig(t, keys, [], true);
-  if (!r) { toast('Dat is al klaar. Eén stap terug kan met ↶; meer terugzetten via de computer.'); return; }
+  if (!r) { toast('Dat is al klaar. Tik op een groene rij of vak om het weer open te zetten.'); return; }
   const kand = taakSporen(t), nrs = kand.filter(k => r.erbij.includes(k.key)).map(k => k.nr);
   toast(`✅ ${nrs.length === 1 ? 'Spoor ' + nrs[0] : nrs.length + ' sporen'} klaar${r.snap ? ' · braak' : ''} · ${voortgangTekst(t)}`);
   tmTaakTeken.sleutel = ''; tmRender();
@@ -7075,8 +7089,15 @@ async function tmRijBezig(id, key) {   // "met deze rij ben ik nu bezig"
 }
 async function tmStapTerug(id) {
   const t = S.taken.find(x => x.id === id), l = t?.voortgang?.laatste; if (!l?.keys?.length) return;
-  await voortgangWijzig(t, [], l.keys, false);
-  toast('↶ Teruggezet. Nog meer terugzetten kan via de computer.'); tmTaakTeken.sleutel = ''; tmRender();
+  try { await voortgangWijzig(t, [], l.keys, false); } catch (e) { toast('Terugzetten mislukt: ' + foutTekst(e), 1); return; }
+  toast(`↶ Teruggezet · ${voortgangTekst(t) || 'niets meer klaar'}`); tmTaakTeken.sleutel = ''; tmRender();
+}
+// een klaar spoor of vak weer open zetten (bij rooien komen de planten terug)
+async function tmWeerOpen(id, keys, wat) {
+  const t = S.taken.find(x => x.id === id); if (!t) return;
+  if (!await bevestig(`${wat} weer open zetten?`, `${wat} staat dan weer als "nog te doen"${haaltPlantenWeg(t) ? ' en de planten komen terug op de kaart' : ''}.`)) return;
+  try { await voortgangWijzig(t, [], keys, false); } catch (e) { toast('Terugzetten mislukt: ' + foutTekst(e), 1); return; }
+  toast(`↶ ${wat} weer open · ${voortgangTekst(t) || 'niets meer klaar'}`); tmTaakTeken.sleutel = ''; tmRender();
 }
 // de sporen van de taak op de kaart: groen = klaar, oranje = nog te doen; aantikken = klaar
 let tmTaakLaag = null;
@@ -7091,7 +7112,7 @@ function tmTaakTeken() {
   for (const k of taakSporen(t)) {
     const af = klaar.has(k.key), bz = t.voortgang?.bezig === k.key;
     L.geoJSON(k.geo, {pane: 'tmTaak', renderer: tmTaakLaag._r, style: af ? {color: '#1b5e20', weight: 1, fillColor: '#43a047', fillOpacity: .6} : bz ? {color: '#f57f17', weight: 3, fillColor: '#ffeb3b', fillOpacity: .75} : {color: '#fb8c00', weight: 2, fillColor: '#fb8c00', fillOpacity: .12}})
-      .on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); if (af) toast('Rij ' + k.nr + ' is al klaar'); else if (bz) tmSporenKlaar(t.id, [k.key]); else tmRijBezig(t.id, k.key); })
+      .on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); if (af) tmWeerOpen(t.id, [k.key], 'Rij ' + k.nr); else if (bz) tmSporenKlaar(t.id, [k.key]); else tmRijBezig(t.id, k.key); })
       .addTo(tmTaakLaag);
   }
 }
@@ -7366,7 +7387,7 @@ async function werkTaakFormulier(soortW, direct) {
     const pid = actief && perceel(actief)?.type !== 'pand' ? actief : await kiesPerceel(`${W.icoon} Welk perceel?`); if (!pid) return;
     actief = pid; taakFormulier(null, true, {perceel_id: pid, tekst: W.werkwoord}); return;
   }
-  const mensen = [...S.profielen].sort((a, b) => (a.naam || '').localeCompare(b.naam || '', 'nl'));
+  const mensen = [...medewerkers()].sort((a, b) => (a.naam || '').localeCompare(b.naam || '', 'nl'));
   const m = $('#modal');
   m.innerHTML = `<div class="dialoog breed"><h3>${W.icoon} ${W.werkwoord} plannen</h3>
     <label>Welke percelen?</label><div class="wtPercelen">${velden.map(p => { const vk = perceelVakken(p);
@@ -11766,7 +11787,12 @@ const SCHUIN = 58 * Math.PI / 180;   // hoek waaronder we op de 2D-kaart naar de
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let lichtModus = (() => { try { return localStorage.getItem('licht') === '1'; } catch { return false; } })() || isIOS();
 let vorigeVast = false;
-(() => { try { if (localStorage.getItem('opstart_bezig') === '1') { vorigeVast = true; lichtModus = true; localStorage.setItem('vorige_stappen', localStorage.getItem('opstart_stappen') || '[]'); localStorage.setItem('licht', '1'); setTimeout(() => toast('De app liep de vorige keer vast. Hij draait nu in de lichte modus (zonder 3D op de kaart).', 1), 3000); }
+(() => { try {
+  // vals alarm (bijv. meerdere tabbladen tegelijk open, of de pagina binnen 3 s na het laden gesloten): de vorige keer kwam wel tot "klaar"
+  const kwamKlaar = l => /\bklaar"/.test(l || '');
+  if (kwamKlaar(localStorage.getItem('vorige_stappen'))) { localStorage.removeItem('vorige_stappen'); if (!isIOS()) { localStorage.removeItem('licht'); lichtModus = false; } }
+  if (localStorage.getItem('opstart_bezig') === '1' && kwamKlaar(localStorage.getItem('opstart_stappen'))) localStorage.removeItem('opstart_bezig');
+  if (localStorage.getItem('opstart_bezig') === '1') { vorigeVast = true; lichtModus = true; localStorage.setItem('vorige_stappen', localStorage.getItem('opstart_stappen') || '[]'); localStorage.setItem('licht', '1'); setTimeout(() => toast('De app liep de vorige keer vast. Hij draait nu in de lichte modus (zonder 3D op de kaart).', 1), 3000); }
   localStorage.setItem('opstart_stappen', '[]'); localStorage.setItem('opstart_bezig', '1'); } catch {} })();
 const opstartGelukt = () => setTimeout(() => { try { localStorage.removeItem('opstart_bezig'); } catch {} }, 3000);   // 3 s na "klaar" niet meer als vastloper tellen
 function startVloot2d() {
