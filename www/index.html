@@ -889,6 +889,8 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 /* ---------- wagen weg (trekker) ---------- */
 .wagenTypes{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
 .wagenTypes button{min-height:84px;border:0;border-radius:16px;background:#2e5e3a;color:#fff;font-size:20px;font-weight:700}.wagenTypes button b{font-size:34px}.wagenTypes button.aan{background:#1e88e5;outline:3px solid #fff}
+.tmDag{margin:16px 0 8px;font-size:22px;font-weight:800;color:#ffd54f;border-bottom:2px solid rgba(255,213,79,.35);padding-bottom:4px;display:flex;align-items:center;gap:10px}.tmDag b{background:rgba(255,255,255,.15);color:#fff;border-radius:12px;padding:0 10px;font-size:18px}.tmDag.laat{color:#ff8a65;border-color:rgba(255,138,101,.4)}.tmDag.nu{color:#a5d6a7}
+.agDagKop{margin:14px 0 4px;font-weight:800;color:#2e5e3a;border-bottom:2px solid #c8e6c9;padding-bottom:3px;display:flex;gap:8px;align-items:center}.agDagKop b{background:#e8f5e9;border-radius:10px;padding:0 8px;font-size:13px}.agDagKop.laat{color:#d84315;border-color:#ffccbc}.agDagKop.nu{color:#1b5e20}
 .mijnWagens{display:flex;flex-direction:column;gap:8px;margin:0 0 12px}.mijnWagens .mw{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#fff3e0;border:2px solid #fb8c00;border-radius:14px;padding:10px 12px;color:#4e342e}
 .mijnWagens .mw.legen{background:#e3f2fd;border-color:#1e88e5}.mijnWagens .mw small{display:block;color:#6d4c41}.mijnWagens .mw button{border:0;border-radius:12px;background:#fb8c00;color:#fff;font-weight:700;padding:10px 14px;font-size:15px}.mijnWagens .mw button.groen{background:#2e7d32}
 .mijnWagens.groot .mw{font-size:20px;padding:14px 16px}.mijnWagens.groot .mw small{font-size:16px}.mijnWagens.groot .mw button{font-size:20px;padding:14px 18px}
@@ -4213,6 +4215,20 @@ async function alleKopeindesWeg(pid) {
   render(true); toast('Kopeindes weggehaald');
 }
 
+/* ============ taken per dag, als een agenda ============ */
+function dagLabel(k) {
+  if (!k) return '📌 Zonder datum';
+  const nu = vandaag(), d = new Date(k + 'T12:00'), m = new Date(nu + 'T12:00'); m.setDate(m.getDate() + 1);
+  const lang = d.toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'});
+  return k < nu ? '⚠️ Nog open van eerder' : k === nu ? '☀️ Vandaag · ' + lang : k === dKey(m) ? 'Morgen · ' + lang : lang.charAt(0).toUpperCase() + lang.slice(1);
+}
+// groepeert taken per dag (gepland, anders uiterlijk-datum); te laat bovenaan, zonder datum onderaan
+function takenPerDag(groep, lijst, kaart, cls = 'agDagKop') {
+  if (!groep) return lijst.map(kaart).join('');
+  const nu = vandaag(), per = new Map();
+  lijst.forEach(t => { let k = (t.gepland || t.deadline || '').slice(0, 10) || ''; if (k && k < nu) k = '0'; if (t.bezig_door && (!k || k > nu)) k = nu; if (!per.has(k)) per.set(k, []); per.get(k).push(t); });
+  return [...per].sort((a, b) => (a[0] || '9999') .localeCompare(b[0] || '9999')).map(([k, l]) => `<div class="${cls} ${k === nu ? 'nu' : ''} ${k === '0' ? 'laat' : ''}">${k === '0' ? dagLabel('0000-00-00') : dagLabel(k)} <b>${l.length}</b></div>${l.map(kaart).join('')}`).join('');
+}
 /* ============ eigen taken, gezamenlijke taken, doorschuiven en iemand erbij ============ */
 const wieVeld = w => ({toegewezen_aan: w.toegewezen_aan && w.toegewezen_aan !== '__samen' ? w.toegewezen_aan : null, gezamenlijk: w.toegewezen_aan === '__samen',
   meewerkers: (w.meewerkers || []).filter(id => id !== w.toegewezen_aan)});
@@ -4293,6 +4309,7 @@ function htmlAlleTaken() {
     <button class="${takenFilter === 'klaar' ? 'aan' : ''}" onclick="takenFilter='klaar';render(true)">Gedaan</button></div>`;
   if (!lijst.length) return schakel + nieuweTaakKnoppen() + `<div class="leeg"><div class="groot">${takenFilter !== 'klaar' ? '✅' : '📋'}</div>
     <b>${takenFilter === 'vandaag' ? 'Vandaag niets voor jou' : takenFilter === 'mij' ? 'Geen taken voor jou' : takenFilter === 'samen' ? 'Geen gezamenlijke taken' : takenFilter === 'open' ? 'Alles is gedaan!' : 'Nog niets afgerond'}</b>${mag('taken_toevoegen') ? 'Taken voeg je toe bij een perceel.' : ''}</div>`;
+  if (takenFilter === 'mij' || takenFilter === 'samen') return schakel + nieuweTaakKnoppen() + `<div class="kaartje" style="padding:4px 12px">${takenPerDag(true, lijst, t => taakHtml(t, true))}</div>`;
   const groepen = new Map();
   lijst.forEach(t => { const k = t.perceel_id || '_'; if (!groepen.has(k)) groepen.set(k, []); groepen.get(k).push(t); });
   return schakel + nieuweTaakKnoppen() + [...groepen.entries()].map(([pid, ts]) => pid === '_'
@@ -8429,14 +8446,14 @@ function tmRender() {
       <button class="tmKeuze ${welk === 'vandaag' ? 'aan' : ''}" onclick="TM.takenKeuze='vandaag';tmRender()">☀️ Vandaag <b>${tmTakenVan('vandaag').length}</b></button>
       <button class="tmKeuze ${welk === 'mijn' ? 'aan' : ''}" onclick="TM.takenKeuze='mijn';tmRender()">👤 ${TM.chauffeur ? 'Alle van ' + esc(TM.chauffeur.naam.split(' ')[0]) : 'Al mijn taken'} <b>${tmTakenVan('mijn').length}</b></button>
       <button class="tmKeuze ${welk === 'samen' ? 'aan' : ''}" onclick="TM.takenKeuze='samen';tmRender()">👥 Gezamenlijk <b>${tmTakenVan('samen').length}</b></button></div>${mijnWagensHtml(true)}
-    ${lijst.map(t => { const p = perceel(t.perceel_id), vg = voortgangTekst(t), ikBezig = t.bezig_door && t.bezig_door === naamMe();
+    ${takenPerDag(welk === 'vandaag' ? null : lijst, lijst, t => { const p = perceel(t.perceel_id), vg = voortgangTekst(t), ikBezig = t.bezig_door && t.bezig_door === naamMe();
       if (isRolTaak(t)) { const h = hoofdVan(t);
         return `<div class="tmTaak rol ${ikBezig ? 'bezig' : ''}"><div onclick="tmTaakOpen('${t.id}')"><b><span class="tmRol">👥 ${rolNaam(t)}</span> ${esc(t.tekst)}</b><small>${p ? '📍 ' + esc(p.naam) + ' · ' : ''}${esc(taakWaar(t))} · met ${esc(hoofdChauffeur(h))}${t.toegewezen_aan && welk === 'alle' ? ' · 👤 ' + esc(S.profielen.find(u => u.id === t.toegewezen_aan)?.naam || '') : ''}</small>
           ${t.bezig_door ? `<small style="color:#ffd54f">🟡 Bezig: ${esc(t.bezig_door)}</small>` : '<small>Niemand is er nu mee bezig</small>'}${h && voortgangTekst(h) ? `<small style="color:#a5d6a7">✅ Rooien: ${voortgangTekst(h)}</small>` : ''}</div>
           ${mag('taken_afvinken') ? (ikBezig ? `<button class="tmKlein" onclick="tmRolBezig('${t.id}')">⏸ Niet meer bezig</button>` : t.bezig_door && !isBeheerder() ? '<button class="tmKlein" disabled style="opacity:.5">🔒 Bezet</button>' : `<button class="tmKlein aan" onclick="tmRolBezig('${t.id}')">▶ ${t.bezig_door ? 'Overnemen' : 'Ik ben bezig'}</button>`) : ''}</div>`; }
       return `<div class="tmTaak ${ikBezig ? 'bezig' : ''}"><div onclick="tmTaakOpen('${t.id}')"><b>${esc(t.tekst)}</b><small>${p ? '📍 ' + esc(p.naam) + ' · ' : ''}${esc(taakWaar(t))}${t.product ? ' · ' + esc(t.product) : ''}${t.gezamenlijk && !t.toegewezen_aan ? ' · 👥 gezamenlijk' : ''}${(t.meewerkers || []).length ? ' · 👤 ' + esc([t.toegewezen_aan ? naamVan(t.toegewezen_aan) : '', ...t.meewerkers.map(naamVan)].filter(Boolean).join(', ')) : ''}</small>
         ${t.bezig_door ? `<small style="color:#ffd54f">🟡 Bezig: ${esc(t.bezig_door)}</small>` : ''}${vg ? `<small style="color:#a5d6a7">✅ ${vg}</small>` : ''}${taakSchuifKnoppen(t, 'tmMini')}</div>
-      ${isSamenTaak(t) && mag('taken_afvinken') ? `<button class="tmKlein aan" onclick="taakPakken('${t.id}')">✋ Ik pak hem</button>` : mag('taken_afvinken') ? `${ikBezig ? `<button class="tmKlein aan" onclick="tmTaakOpen('${t.id}')">Open</button>` : `<button class="tmKlein" onclick="tmTaakStart('${t.id}')">▶ Start</button>`}<button class="tmKlein groen" onclick="tmTaakAfronden('${t.id}')">✓ Klaar</button>` : ''}</div>`; }).join('') || `<p class="tmLeeg">${welk === 'samen' ? 'Geen gezamenlijke taken 👍' : welk === 'vandaag' ? 'Vandaag niets voor jou 👍' : 'Geen taken voor jou 👍'}</p>`}`; }
+      ${isSamenTaak(t) && mag('taken_afvinken') ? `<button class="tmKlein aan" onclick="taakPakken('${t.id}')">✋ Ik pak hem</button>` : mag('taken_afvinken') ? `${ikBezig ? `<button class="tmKlein aan" onclick="tmTaakOpen('${t.id}')">Open</button>` : `<button class="tmKlein" onclick="tmTaakStart('${t.id}')">▶ Start</button>`}<button class="tmKlein groen" onclick="tmTaakAfronden('${t.id}')">✓ Klaar</button>` : ''}</div>`; }, 'tmDag') || `<p class="tmLeeg">${welk === 'samen' ? 'Geen gezamenlijke taken 👍' : welk === 'vandaag' ? 'Vandaag niets voor jou 👍' : 'Geen taken voor jou 👍'}</p>`}`; }
   else if (TM.scherm === 'machine') { const keuze = TM.keuze || [], ms = (S.machines || []).filter(x => !isTrekkerMachine(x)).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
     const vk = n => keuze.find(k => normTekst(k.naam) === normTekst(n)), tekst = aangekoppeldTekst(keuzeNaarTrekker(keuze));
     body = `<div class="rij" style="gap:10px"><button class="tmTerug" onclick="TM.scherm='start';tmRender()">◀ Terug</button><button class="tmTerug" style="background:#2e7d32;flex:1" onclick="tmWerktuigOpslaan()">✔ Klaar: ${esc(tekst || 'niets aangekoppeld')}</button></div>
