@@ -3460,13 +3460,27 @@ function halfStuk(p, bn, geo) {
   const o0 = hoog ? bn.a + bn.b / 2 : bn.a - .05, o1 = hoog ? bn.a + bn.b + .05 : bn.a + bn.b / 2;
   try { return turf.intersect(geo, rechthoek(meta, o0, o1, bn.t0 - 1, bn.t1 + 1)); } catch { return null; }
 }
+const kopKleur = z => { const ou = ouder(z); return S.markeringen.find(m => m.perceel_id === ou?.id && m.soort === 'kopeinde')?.kleur || braakSoort()?.kleur || '#8d6e63'; };
+// oppervlak kopeinde: getekend kopeinde + restjes + weggehaalde sporen
+function kopOppervlak(p) {
+  let m2 = 0, nWeg = 0;
+  try { kopeindenVan(p).forEach(g => { m2 += turf.area(g); }); } catch {}
+  alleZones(p).forEach(z => { const b = banenVan(z); (b.rest || []).forEach(g => { try { m2 += turf.area(g); } catch {} }); (b.weg || []).forEach(w => { nWeg++; try { m2 += turf.area(w.geo); } catch {} }); });
+  return {m2, nWeg};
+}
 function tekenZone(p, isA) {
   const metPatroon = !!patroonVan(p);
   if (isA && gereedschap === 'spoorweg') (banenVan(p).weg || []).forEach(w => geenSnap(L.geoJSON(w.geo, {style: {color: '#e53935', weight: 1.5, dashArray: '5 4', fillColor: '#e53935', fillOpacity: .12}}))
     .bindTooltip('✂️ Weggehaald spoor · tik om terug te zetten', {sticky: true}).on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); spoorTerug(p, w.k); }).addTo(laag));
-  const rest = banenVan(p).rest || [];
-  if (rest.length) { const ou = ouder(p), kl = S.markeringen.find(m => m.perceel_id === ou?.id && m.soort === 'kopeinde')?.kleur || braakSoort()?.kleur || '#8d6e63';
-    rest.forEach(g => geenSnap(L.geoJSON(g, {style: {stroke: false, fillColor: kl, fillOpacity: .45}})).bindTooltip('🟫 Geen spoor (braak, zoals een kopeinde)', {sticky: true}).addTo(laag)); }
+  // wat geen spoor is (restjes langs de randen en weggehaalde sporen) hoort bij het kopeinde
+  const kl = kopKleur(p);
+  (banenVan(p).rest || []).forEach(g => geenSnap(L.geoJSON(g, {style: {stroke: false, fillColor: kl, fillOpacity: .45}})).bindTooltip('🟫 Kopeinde (geen spoor)', {sticky: true}).addTo(laag));
+  // weggehaalde sporen: kopeinde; met één tik terug te zetten (als je het perceel aan het aanpassen bent)
+  if (!(gereedschap === 'spoorweg' && isA)) { const terug = isA && perceelTab === 'aanpassen' && mag('percelen_bewerken') && !archief;
+    (banenVan(p).weg || []).forEach(w => { const l = geenSnap(L.geoJSON(w.geo, {style: {color: kl, weight: terug ? 1 : 0, dashArray: '4 4', fillColor: kl, fillOpacity: .45}}))
+      .bindTooltip(terug ? '🟫 Kopeinde (weggehaald spoor) · tik om het spoor terug te zetten' : '🟫 Kopeinde (weggehaald spoor)', {sticky: true});
+      if (terug) l.on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); spoorTerug(p, w.k); });
+      l.addTo(laag); }); }
   banenVan(p).forEach(bn => {
     const stukken = stukkenVan(p, bn), f = metPatroon ? rijFactor(p, bn.nr) : 1;
     stukken.forEach(st => {
@@ -3829,6 +3843,8 @@ function htmlDetail(p) {
       return `<tr><td><i style="background:${s ? esc(s.kleur) : '#e0e0e0'}"></i>${s ? icoonHtml(s.icoon) + ' ' + esc(s.naam) : 'Niet ingedeeld'}</td>
         <td>${x.n ? x.n + ' sporen' : ''}${x.n && x.vlak ? ' + ' : ''}${x.vlak ? 'heel vlak' : ''}</td><td>${ha(x.m2)} ha</td><td>${Math.round(x.m2 / opp * 100)}%</td></tr>`;
     }).join('');
+    const ko = zones.length ? kopOppervlak(p) : {m2: 0};
+    const kopRij = ko.m2 > 1 ? `<tr><td><i style="background:${esc(kopKleur(p))}"></i>🟫 Kopeinde (geen spoor)</td><td>${ko.nWeg ? ko.nWeg + ' weggehaald' : ''}</td><td>${ha(ko.m2)} ha</td><td>${Math.round(ko.m2 / opp * 100)}%</td></tr>` : '';
     let indelen = '';
     if (mag('soorten_indelen') && zones.length) {
       const pl = gekozenPlant ? soort(gekozenPlant) : null;
@@ -3869,8 +3885,8 @@ function htmlDetail(p) {
                spuitvakkenVan(z).map((v, i) => `<button class="chip" onclick="vulVak('${z.id}',${i})">${z._vak ? esc(z.naam) + ' · ' : ''}${v.letter}</button>`).join('')).join('')}</div>` : ''}`
           : `<p class="hint">Kies een plant (en eventueel de soort) en tik daarna op de sporen op de kaart. Wisselt de plant halverwege een spoor? Gebruik dan ✂️.</p>`}`;
     }
-    soortenBlok = `<section class="kaartje"><h4>${zones.length ? 'Planten per spoor' : '🌱 Wat staat er'}</h4>${indelen}<table class="verdeling">${rijen}</table></section>`;
-    verdeling = `<section class="kaartje"><h4>🌱 Wat staat er (seizoen ${esc(seizoenNaam(bekeken))})</h4><table class="verdeling">${rijen}</table></section>`;
+    soortenBlok = `<section class="kaartje"><h4>${zones.length ? 'Planten per spoor' : '🌱 Wat staat er'}</h4>${indelen}<table class="verdeling">${rijen}${kopRij}</table></section>`;
+    verdeling = `<section class="kaartje"><h4>🌱 Wat staat er (seizoen ${esc(seizoenNaam(bekeken))})</h4><table class="verdeling">${rijen}${kopRij}</table></section>`;
   }
   const bew = mag('percelen_bewerken'), uit = bew ? '' : 'disabled';
   const perceelRecht = PERCEEL_RECHTEN.some(r => mag(r)), notitieRecht = mag('markeringen_maken') || mag('gerooid_aangeven') || mag('kopeinden_bewerken');
@@ -4074,7 +4090,7 @@ function htmlMarkeringen(p, welke) {
       || `<p class="hint">${leeg}</p>`}
     ${welke !== 'vlag' && !archief && p.type !== 'pand' && mag('percelen_bewerken') && alleZones(p).some(z => banenVan(z).length || (z.sporen_weg || []).length) ? `<div class="rij" style="margin-top:8px;flex-wrap:wrap">
       <button class="knop licht" onclick="legeSporenBraak('${p.id}')">🟫 Lege sporen weghalen (braak)</button>
-      ${alleZones(p).some(z => (z.sporen_weg || []).length) ? `<button class="knop licht" onclick="alleSporenTerug('${p.id}')">↩︎ Weggehaalde sporen terug</button>` : ''}
+      ${alleZones(p).some(z => (z.sporen_weg || []).length) ? `<button class="knop licht" onclick="alleSporenTerug('${p.id}')">↩︎ Alle weggehaalde sporen terug</button><p class="hint" style="flex-basis:100%;margin:2px 0 0">Eén spoor terug? Tik op de kaart op het weggehaalde spoor (kopeinde-kleur).</p>` : ''}
       ${mag('kopeinden_bewerken') && lijst.some(m => m.soort === 'kopeinde') ? `<button class="knop licht rood" onclick="alleKopeindesWeg('${p.id}')">✕ Alle kopeindes weghalen</button>` : ''}</div>` : ''}
   </section>`;
 }
