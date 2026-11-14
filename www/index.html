@@ -934,6 +934,9 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .plRasKop .plAantal{margin-left:auto;color:#6b7a6d;font-size:12.5px}.plPijl{color:#6b7a6d}.plRasIn{border-top:1px solid #eef2ec;padding:2px 12px 8px}
 .wswRegel{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eef2ec}.wswRegel>div{flex:1;min-width:0}.wswRegel small{display:block;color:#6b7a6d;font-size:12.5px}.wswRegel .kl{flex:0 0 12px;height:12px;border-radius:3px;margin-top:4px;display:inline-block}
 .wswM{font-weight:800;white-space:nowrap}h4 .kl{display:inline-block;width:12px;height:12px;border-radius:3px}
+.rpRegel.metVolg{display:flex;gap:8px;align-items:flex-start}.rpRegel .rpExtra label{display:block!important;font-size:12.5px;color:#5d6b5f}.rpRegel .rpExtra input{width:100%!important;margin:2px 0 0!important;flex:none!important}.rpRegel .rpIn{flex:1;min-width:0}
+.rpVolg{display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 46px}.rpVolg button{border:1px solid #cfdccb;background:#fff;border-radius:6px;width:34px;height:26px;cursor:pointer;font-size:13px}.rpVolg button:disabled{opacity:.3;cursor:default}
+.rpVolg b{font-size:14px;line-height:1.1;text-align:center}.rpVolg small{display:block;font-size:10px;color:var(--groen);font-weight:700}
 </style>
 </head>
 <body>
@@ -5683,7 +5686,8 @@ function partijBewerk(id, pid, vooraf = {}) {
   const rasLijst = sid => rassenVan(sid).map(r => `<option value="${esc(r.naam)}">`).join('');
   const kl = [...new Set((S.partijen || []).map(y => y.klasse).filter(Boolean))].sort(), dl = [...new Set((S.partijen || []).map(y => y.doel).filter(Boolean))].sort(), td = [...new Set((S.partijen || []).map(y => y.teeltdoel).filter(Boolean))].sort();
   $('#modal').innerHTML = `<div class="dialoog"><h3>${id ? '✏️ Partij aanpassen' : '➕ Partij toevoegen'}</h3>
-    <label>Perceel</label><select class="veld" id="pbP"><option value="">— nog geen perceel (komt vanzelf als je hem op sporen zet) —</option>${pOpt}</select>
+    ${(() => { const pp = id && perceel(x.perceel_id), n = id ? partijSporen(x) : [];
+      return `<p class="hint" style="margin-top:0">📍 ${pp && n.length ? `Staat op <b>${esc(pp.naam)}</b> · ${n.length === 1 ? 'spoor' : 'sporen'} ${reeksTekst(n)}` : 'Staat nog niet op het veld. Zet hem op de sporen bij het indelen van een perceel (▾ bij het ras).'}</p>`; })()}
     <div class="rij"><div style="flex:1"><label>Gewas</label><select class="veld" id="pbS">${sOpt}</select></div>
       <div style="flex:1"><label>Teeltdoel</label><input class="veld" id="pbT" list="pbTL" value="${esc(x.teeltdoel || '')}" placeholder="bijv. vermeerdering"><datalist id="pbTL">${td.map(v => `<option value="${esc(v)}">`).join('')}</datalist></div></div>
     <label>Ras</label><input class="veld" id="pbR" list="pbRL" value="${esc(partijRas(x))}" placeholder="Kies of typ een ras"><datalist id="pbRL">${rasLijst(x.soort_id)}</datalist>
@@ -5695,27 +5699,36 @@ function partijBewerk(id, pid, vooraf = {}) {
     ${Object.keys(x.extra || {}).length ? `<p class="hint">${Object.entries(x.extra).map(([k, v]) => `${esc(k)}: <b>${esc(v)}</b>`).join(' · ')}</p>` : ''}
     ${x.bron ? `<p class="hint">Uit ${esc(x.bron)}. Laad je dat bestand opnieuw in, dan wordt deze regel weer zoals in het bestand.</p>` : ''}
     <button class="knop" id="mJa">Opslaan</button>
-    <div class="rij">${id ? '<button class="knop licht rood" id="pbWeg">Verwijderen</button>' : ''}<button class="knop licht" id="mNee">Annuleren</button></div></div>`;
+    ${id && perceel(x.perceel_id) && partijSporen(x).length ? `<button class="knop licht" id="pbVan">📍 Van ${esc(perceel(x.perceel_id).naam)} halen <small>(partij blijft bestaan)</small></button>` : ''}
+    <div class="rij">${id ? '<button class="knop licht rood" id="pbWeg">🗑️ Helemaal verwijderen</button>' : ''}<button class="knop licht" id="mNee">Annuleren</button></div></div>`;
   const m = $('#modal'); m.classList.add('open');
   $('#pbS').onchange = () => { $('#pbRL').innerHTML = rasLijst($('#pbS').value); };
   $('#mNee').onclick = () => m.classList.remove('open');
   $('#mJa').onclick = async () => {
     const sid = $('#pbS').value, rn = $('#pbR').value.trim(), r = rassenVan(sid).find(y => y.naam.trim().toLowerCase() === rn.toLowerCase());
     const v = t => $(t).value.trim() || null;
-    const patch = {perceel_id: $('#pbP').value || null, soort_id: sid || null, ras_id: r?.id || null, ras_tekst: rn || null, teeltdoel: v('#pbT'),
+    const patch = {soort_id: sid || null, ras_id: r?.id || null, ras_tekst: rn || null, teeltdoel: v('#pbT'),
       batch: v('#pbB'), nak: v('#pbN'), klasse: v('#pbK'), doel: v('#pbD'), bio: $('#pbBio').checked, updated_at: new Date().toISOString()};
     if (!rn && !patch.batch && !patch.nak) { toast('Vul minstens een ras, batch- of NAK-nummer in', 1); return; }
     m.classList.remove('open');
     const q = id ? sb.from('partijen').update(patch).eq('id', id).select().single()
-      : sb.from('partijen').insert({...patch, seizoen_id: bekeken, sleutel: 'hand|' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), perceel_tekst: perceel(patch.perceel_id)?.naam || null}).select().single();
+      : sb.from('partijen').insert({...patch, seizoen_id: bekeken, perceel_id: null, sleutel: 'hand|' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)}).select().single();
     const {data, error} = await q;
     if (error) { toast('Opslaan mislukt: ' + error.message, 1); return; }
     const nieuw = data || {...x, ...patch, id: id || 'nieuw' + Date.now()};
     const i = (S.partijen || []).findIndex(y => y.id === (id || nieuw.id)); if (i >= 0) S.partijen[i] = nieuw; else S.partijen.push(nieuw);
     render(true); toast(id ? 'Partij opgeslagen' : 'Partij toegevoegd'); vooraf.naOpslaan?.(nieuw);
   };
+  if ($('#pbVan')) $('#pbVan').onclick = async () => {   // alleen van dit perceel af: de sporen leeg, de partij blijft
+    const pp = perceel(x.perceel_id); m.classList.remove('open'); if (!pp) return;
+    const zones = new Set(alleZones(pp).map(z => z.id)), sp = (x.sporen || []).filter(q => !zones.has(q.z)), patch = {sporen: sp.length ? sp : null};
+    Object.assign(x, patch); patch.perceel_id = x.perceel_id = partijPerceelUitSporen(x) || null;
+    const {error} = await sb.from('partijen').update(patch).eq('id', id); if (error) { toast('Opslaan mislukt: ' + error.message, 1); return; }
+    spoorPartijMap = null; render(true); toast(`📍 ${partijKort(x)} staat niet meer op ${pp.naam} (de partij zelf bestaat nog)`);
+  };
   if (id) $('#pbWeg').onclick = async () => {
-    if (!confirm('Deze partij verwijderen?')) return; m.classList.remove('open');
+    m.classList.remove('open');
+    if (!await bevestig('Partij helemaal verwijderen?', `${partijKort(x)} verdwijnt uit de hele app, ook uit de partijenlijst. Wil je hem alleen van een perceel af halen, gebruik dan "Van … halen".`)) return;
     const {error} = await sb.from('partijen').delete().eq('id', id);
     if (error) { toast('Verwijderen mislukt: ' + error.message, 1); return; }
     S.partijen = S.partijen.filter(y => y.id !== id); render(true); toast('Partij verwijderd');
@@ -7586,13 +7599,14 @@ function htmlRooiplanning() {
       const tot = {}; l.forEach(r => { if (r.aantal != null) tot[r.eenheid || ''] = (tot[r.eenheid || ''] || 0) + +r.aantal; });
       if (!l.length && !beh) return '';
       return `<section class="kaartje rpDag ${k === vandaag() ? 'vandaag' : ''}"><h4 style="display:flex;gap:8px;align-items:center"><span style="flex:1">${d.toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})}${k === vandaag() ? ' · vandaag' : ''}</span>
-        ${l.length ? `<button class="icoon" title="Rooibrief van deze dag afdrukken" onclick="rooiPrint('${k}',1)">🖨️</button>` : ''}${beh ? `<button class="icoon" title="Nog iets erbij op deze dag" onclick="rooiFormulier(null,{datum:'${k}'${l[0] ? `,van:'${l[l.length - 1].id}'` : ''}})">＋</button>` : ''}</h4>
+        ${l.length ? `<button class="knop licht klein" style="width:auto;margin:0" title="Rooiplanning van deze dag afdrukken (alles van die dag op één blad)" onclick="rooiPrint('${k}',1)">🖨️ Afdrukken</button>` : ''}${beh ? `<button class="icoon" title="Nog iets erbij op deze dag" onclick="rooiFormulier(null,{datum:'${k}'${l[0] ? `,van:'${l[l.length - 1].id}'` : ''}})">＋</button>` : ''}</h4>
         ${l.length ? `${Object.keys(tot).length ? `<p class="hint" style="margin-top:-4px">Totaal: ${Object.entries(tot).map(([e, n]) => `<b>${n.toLocaleString('nl-NL')} ${esc(e)}</b>`).join(' · ')}</p>` : ''}${l.map(rpKaart).join('')}` : '<p class="hint">Niets gepland</p>'}</section>`; }).join('')}`;
 }
 async function rooiFormulier(id, voor = {}) {
   if (!mag('taken_toevoegen')) { toast('Je mag geen rooiplanning maken', 1); return; }
   const oud = id ? (S.rooiplanning || []).find(r => r.id === id) : null, van = voor.van && (S.rooiplanning || []).find(r => r.id === voor.van);
-  const r = oud ? {...oud} : {datum: voor.datum || vandaag(), ...(voor.perceel_id && perceel(voor.perceel_id) ? {perceel_id: voor.perceel_id} : {}), ...(van ? {rooier: van.rooier, chauffeur_id: van.chauffeur_id, chauffeur_naam: van.chauffeur_naam, bijrijders: van.bijrijders, bakkenisten: van.bakkenisten, perceel_id: van.perceel_id} : {})};
+  const r = oud ? {...oud} : {datum: voor.datum || vandaag(), ...(voor.perceel_id && perceel(voor.perceel_id) ? {perceel_id: voor.perceel_id} : {}), ...(van ? {rooier: van.rooier, chauffeur_id: van.chauffeur_id, chauffeur_naam: van.chauffeur_naam, bijrijders: van.bijrijders, bakkenisten: van.bakkenisten, perceel_id: van.perceel_id,
+      rooiteam: van.rooiteam, starttijd: van.starttijd, tractoren: van.tractoren, wagens: van.wagens, laden: van.laden} : {})};
   const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).sort((a, b) => a.naam.localeCompare(b.naam, 'nl', {numeric: true}));
   // stap 1: perceel (de vakken en partijen hangen ervan af)
   if (!oud && !r.perceel_id) {
@@ -7604,6 +7618,10 @@ async function rooiFormulier(id, voor = {}) {
   const rooiers = (S.machines || []).filter(m => /rooi/i.test(`${m.naam} ${m.soort || ''}`)).map(m => m.naam);
   const watKeuze = r.partij_id ? r.partij_id : r.wat ? 'anders' : (partijen[0]?.id || 'anders');
   rpRegels.eenh = null; rpRegels.start = Object.fromEntries((r.regels || []).map(g => [g.partij_id, {[r.eenheid || 'planten']: g.waarde}]));
+  rpRegels.volgorde = (r.regels || []).map(g => g.partij_id);
+  rpRegels.extra = Object.fromEntries((r.regels || []).map(g => [g.partij_id, {bakken: g.bakken, opmerking: g.opmerking}]));
+  const trekNamen = [...new Set([...(S.tractoren || []).map(t => t.naam), ...(S.rooiplanning || []).flatMap(x => Object.values(x.tractoren || {}))].filter(Boolean))];
+  const teams = [...new Set((S.rooiplanning || []).map(x => x.rooiteam).filter(Boolean))];
   const wP = formulier(oud ? '✏️ Rooi-opdracht aanpassen' : '🚜 Rooien plannen', [
     {type: 'uitleg', waarde: `📍 ${esc(p?.naam || '?')}`},
     {k: 'datum', label: 'Welke dag?', type: 'date', waarde: r.datum},
@@ -7624,7 +7642,17 @@ async function rooiFormulier(id, voor = {}) {
     {k: 'bijrijders_anders', label: '👥 Anders (zonder account, namen met komma ertussen)', waarde: (r.bijrijders || []).filter(x => String(x).startsWith('~')).map(x => x.slice(1)).join(', '), placeholder: 'bijv. Henk, Marco'},
     {k: 'bakkenisten', label: '🧺 Bakkenist (staat achterop de wagen)', type: 'vinkjes', waarde: r.bakkenisten || [], opties: mensen.map(u => [u.id, u.naam])},
     {k: 'bakkenisten_anders', label: '🧺 Anders (zonder account, namen met komma ertussen)', waarde: (r.bakkenisten || []).filter(x => String(x).startsWith('~')).map(x => x.slice(1)).join(', '), placeholder: 'bijv. Henk'},
-    {k: 'notitie', label: 'Notitie (optioneel)', type: 'textarea', waarde: r.notitie || '', placeholder: 'bijv. beginnen bij de sloot, kisten staan bij de schuur'},
+    {k: 'bakken_los', label: 'Hoeveel bakken (boxen)?', type: 'number', waarde: r.bakken ?? '', placeholder: 'bijv. 30', als: ['wat', 'anders']},
+    {type: 'uitleg', waarde: '<b>🖨️ Voor het rooiformulier</b>'},
+    {k: 'rooiteam', label: 'Rooiteam', waarde: r.rooiteam || teams[0] || 'RT 1', lijst: teams.length ? teams : ['RT 1', 'RT 2']},
+    {k: 'starttijd', label: 'Starttijd', waarde: r.starttijd || S.inst?.klok_start || '07:00', placeholder: '07:00'},
+    {k: 'tr_rooier', label: '🚜 Trekker van de rooier', waarde: r.tractoren?.rooier || '', lijst: trekNamen, placeholder: 'bijv. T3 311'},
+    {type: 'html', waarde: '<div id="rpBijr"></div>'},
+    {k: 'laden1_naam', label: '🚚 Laden/lossen', waarde: r.laden?.[0]?.naam || '', lijst: mensen.map(u => u.naam), placeholder: 'naam'},
+    {k: 'laden1_tijd', label: 'Tijd', waarde: r.laden?.[0]?.tijd || '', placeholder: '07:00'},
+    {k: 'laden2_naam', label: '🚚 Laden/lossen (2e)', waarde: r.laden?.[1]?.naam || '', lijst: mensen.map(u => u.naam), placeholder: 'naam'},
+    {k: 'laden2_tijd', label: 'Tijd', waarde: r.laden?.[1]?.tijd || '', placeholder: ''},
+    {k: 'notitie', label: 'Opmerking (optioneel)', type: 'textarea', waarde: r.notitie || '', placeholder: 'bijv. boxen ontsmetten aub!'},
     {k: 'taak', label: 'Taak voor de chauffeur', type: 'select', waarde: oud && !oud.taak_id ? 'nee' : 'ja', opties: [['ja', '📋 Ja, maak/houd een taak "Rooien" bij (komt op de trekker)'], ['nee', 'Nee, alleen in de planning']]}
   ], oud ? 'Opslaan' : 'Inplannen');
   setTimeout(() => {   // andere partij of andere vakken/rijen: wat er staat en planten per meter bijwerken
@@ -7632,19 +7660,32 @@ async function rooiFormulier(id, voor = {}) {
     const bij = () => {
       const lees = k => [...document.querySelectorAll(`#modal [data-vk="${k}"]:checked`)].map(e => e.value);
       const auto = p ? rpAutoPartijen(p, pv, lees('vakken').map(Number), lees('rijen')) : [];
+      const oudeX = Object.fromEntries([...document.querySelectorAll('#modal [data-k^="bk_"],#modal [data-k^="op_"]')].map(e => [e.dataset.k, e.value]));
       const eenh = $('#modal [data-k="eenheid"]')?.value || 'planten', oudeW = Object.fromEntries([...document.querySelectorAll('#modal [data-k^="rg_"]')].filter(e => e.dataset.zelf).map(e => [e.dataset.k, e.value]));   // alleen wat je zelf hebt aangepast blijft staan
       const std = a => eenh === 'meters' ? a.m : eenh === 'planten' && a.plm ? Math.round(a.m * a.plm) : '';
       const hv = $('#modal [data-k="aantal"]')?.closest('.fveld'); if (hv) hv.style.display = sel.value === 'auto' && auto.length ? 'none' : '';
-      if (uit) uit.innerHTML = sel.value !== 'auto' ? '' : auto.length ? `<div class="rpRegels">${auto.map(a => { const k = 'rg_' + a.x.id, zelf = k in oudeW && rpRegels.eenh === eenh, w = zelf ? oudeW[k] : (rpRegels.start?.[a.x.id]?.[eenh] ?? std(a));
-          return `<div class="rpRegel"><div><b>🌱 ${esc(partijTekst(a.x))}</b><small>nog ${a.m.toLocaleString('nl-NL')} m op ${a.n} ${a.n === 1 ? 'rij' : 'rijen'}${a.plm ? ` · ${getal(a.plm, 1)} pl/m ≈ ${Math.round(a.m * a.plm).toLocaleString('nl-NL')} planten` : ' · planten per meter onbekend'}</small></div>
-            <label>Rooien (${esc(eenh)}) <input class="veld" data-k="${k}" type="number" inputmode="decimal" step="any" value="${esc(String(w))}" ${zelf || rpRegels.start?.[a.x.id] ? 'data-zelf="1"' : ''} placeholder="${eenh === 'bakken' ? 'aantal bakken' : ''}" onkeydown="this.dataset.zelf=1" oninput="rpOmreken(this,${a.plm || 0},'${eenh}')"></label><small class="rpOm" data-om="${k}"></small></div>`; }).join('')}</div>`
+      const vlg = rpRegels.volgorde || []; auto.sort((a, b) => ((vlg.indexOf(a.x.id) + 1) || 999) - ((vlg.indexOf(b.x.id) + 1) || 999)); rpRegels.volgorde = auto.map(a => a.x.id);
+      if (uit) uit.innerHTML = sel.value !== 'auto' ? '' : auto.length ? `${auto.length > 1 ? '<p class="hint" style="margin:0 0 4px">Met ▲ ▼ zet je de volgorde: bij de bovenste beginnen ze.</p>' : ''}<input type="hidden" data-k="rg_volgorde" value="${auto.map(a => a.x.id).join(',')}"><div class="rpRegels">${auto.map((a, ai) => { const k = 'rg_' + a.x.id, zelf = k in oudeW && rpRegels.eenh === eenh, w = zelf ? oudeW[k] : (rpRegels.start?.[a.x.id]?.[eenh] ?? std(a));
+          return `<div class="rpRegel ${auto.length > 1 ? 'metVolg' : ''}" data-pid="${a.x.id}">${auto.length > 1 ? `<div class="rpVolg"><button type="button" title="Eerder" onclick="rpVolgorde('${a.x.id}',-1)" ${ai ? '' : 'disabled'}>▲</button><b>${ai + 1}e${ai ? '' : '<small>begin</small>'}</b><button type="button" title="Later" onclick="rpVolgorde('${a.x.id}',1)" ${ai < auto.length - 1 ? '' : 'disabled'}>▼</button></div>` : ''}<div class="rpIn"><div><b>🌱 ${esc(partijTekst(a.x))}</b><small>nog ${a.m.toLocaleString('nl-NL')} m op ${a.n} ${a.n === 1 ? 'rij' : 'rijen'}${a.plm ? ` · ${getal(a.plm, 1)} pl/m ≈ ${Math.round(a.m * a.plm).toLocaleString('nl-NL')} planten` : ' · planten per meter onbekend'}</small></div>
+            <label>Rooien (${esc(eenh)}) <input class="veld" data-k="${k}" type="number" inputmode="decimal" step="any" value="${esc(String(w))}" ${zelf || rpRegels.start?.[a.x.id] ? 'data-zelf="1"' : ''} placeholder="${eenh === 'bakken' ? 'aantal bakken' : ''}" onkeydown="this.dataset.zelf=1" oninput="rpOmreken(this,${a.plm || 0},'${eenh}')"></label><small class="rpOm" data-om="${k}"></small>
+            <div class="rij rpExtra" style="gap:6px;margin-top:4px"><label style="flex:1">Bakken (boxen) <input class="veld" data-k="bk_${a.x.id}" type="number" inputmode="numeric" value="${esc(String(oudeX['bk_' + a.x.id] ?? rpRegels.extra?.[a.x.id]?.bakken ?? ''))}" placeholder="bijv. 30"></label>
+              <label style="flex:2">Opmerking <input class="veld" data-k="op_${a.x.id}" value="${esc(String(oudeX['op_' + a.x.id] ?? rpRegels.extra?.[a.x.id]?.opmerking ?? ''))}" placeholder="bijv. boxen ontsmetten aub!"></label></div></div></div>`; }).join('')}</div>`
         : (lees('vakken').length || lees('rijen').length ? 'In de gekozen vakken/rijen staat geen partij meer. Kies hierboven zelf wat er gerooid wordt.' : 'Op dit perceel staan geen partijen op de sporen. Kies hierboven zelf wat er gerooid wordt.');
       rpRegels.eenh = eenh; rpRegels.auto = auto;
       document.querySelectorAll('#modal [data-k^="rg_"]').forEach(e => e.dispatchEvent(new Event('input')));
       const bron = sel.value === 'auto' ? auto.map(a => a.x) : partijen.filter(x => x.id === sel.value);
       const v = bron.map(plmEcht).find(Boolean); if (inv && v) inv.value = v;
     };
+    rpRegels.opnieuw = bij;
     sel.addEventListener('change', bij); $('#modal').addEventListener('change', e => { if (e.target?.dataset?.vk || e.target?.dataset?.k === 'eenheid') bij(); }); bij();
+    const bijr = () => { const el = $('#rpBijr'); if (!el) return;
+      const nu = Object.fromEntries([...el.querySelectorAll('[data-k]')].map(e => [e.dataset.k, e.value]));
+      const wie = [...[...document.querySelectorAll('#modal [data-vk="bijrijders"]:checked')].map(e => e.value), ...rpAndersLees($('#modal [data-k="bijrijders_anders"]')?.value)];
+      el.innerHTML = wie.length ? `<label>🚜 Trekker en wagen per bijrijder</label>${wie.map(id => `<div class="rij" style="gap:6px;align-items:center;margin-bottom:4px"><b style="flex:1">${esc(naamVan(id))}</b>
+          <input class="veld" style="flex:1;margin:0" data-k="tr_${esc(id)}" list="rpTrL" value="${esc(nu['tr_' + id] ?? r.tractoren?.[id] ?? '')}" placeholder="trekker">
+          <select class="veld" style="flex:1;margin:0" data-k="wg_${esc(id)}"><option value="">wagen…</option>${wagenTypes().map(n => `<option value="${n}" ${String(nu['wg_' + id] ?? r.wagens?.[id] ?? '') === String(n) ? 'selected' : ''}>${n} box</option>`).join('')}</select></div>`).join('')}
+          <datalist id="rpTrL">${trekNamen.map(t => `<option value="${esc(t)}">`).join('')}</datalist>` : ''; };
+    $('#modal').addEventListener('change', e => { if (e.target?.dataset?.vk === 'bijrijders') bijr(); }); $('#modal [data-k="bijrijders_anders"]')?.addEventListener('input', bijr); bijr();
   }, 30);
   const w = await wP;
   if (!w) return;
@@ -7652,8 +7693,10 @@ async function rooiFormulier(id, voor = {}) {
   const pid = w.perceel_id || r.perceel_id, gek = anderPerceel ? [] : (w.vakken || []).map(i => pv[+i]).filter(Boolean), rijKeys = anderPerceel ? [] : (w.rijen || []);
   const auto = w.wat === 'auto' && !anderPerceel && p ? rpAutoPartijen(p, pv, (w.vakken || []).map(Number), rijKeys) : [];
   if (w.wat === 'auto' && !auto.length && !anderPerceel) { toast('Ik kan niet zien wat er in de gekozen vakken/rijen staat. Kies zelf wat er gerooid wordt.', 1); return; }
+  const vlgW = String(w.rg_volgorde || '').split(',').filter(Boolean); auto.sort((a, b) => ((vlgW.indexOf(a.x.id) + 1) || 999) - ((vlgW.indexOf(b.x.id) + 1) || 999));
   const regels = w.wat === 'auto' ? auto.map(a => { const v = parseFloat(String(w['rg_' + a.x.id] ?? '').replace(',', '.'));
-    return {partij_id: a.x.id, naam: partijTekst(a.x), waarde: isNaN(v) ? null : v, plm: a.plm || null, meters_staat: a.m, rijen: a.rijen}; }).filter(g => g.waarde !== 0) : [];
+    const bk = parseFloat(String(w['bk_' + a.x.id] ?? '').replace(',', '.'));
+    return {partij_id: a.x.id, naam: partijTekst(a.x), waarde: isNaN(v) ? null : v, plm: a.plm || null, meters_staat: a.m, rijen: a.rijen, bakken: isNaN(bk) ? null : bk, opmerking: (w['op_' + a.x.id] || '').trim() || null}; }).filter(g => g.waarde !== 0) : [];
   const som = regels.reduce((s, g) => s + (g.waarde || 0), 0);
   const rij = {datum: w.datum || r.datum, perceel_id: pid, regels,
     partij_id: w.wat === 'auto' ? (auto.length === 1 ? auto[0].x.id : null) : w.wat && w.wat !== 'anders' && !anderPerceel ? w.wat : null,
@@ -7661,7 +7704,12 @@ async function rooiFormulier(id, voor = {}) {
     wat_auto: w.wat === 'auto', rijen: rijKeys,
     vakken: gek.map(v => v.letter), aantal: regels.length ? (som || null) : w.aantal === '' || w.aantal == null || isNaN(parseFloat(String(w.aantal).replace(',', '.'))) ? null : parseFloat(String(w.aantal).replace(',', '.')),
     eenheid: w.eenheid || null, pl_per_m: w.eenheid === 'planten' && !isNaN(parseFloat(String(w.pl_per_m).replace(',', '.'))) ? parseFloat(String(w.pl_per_m).replace(',', '.')) : null, rooier: w.rooier || null, chauffeur_id: w.chauffeur_id && w.chauffeur_id !== '__anders' ? w.chauffeur_id : null, chauffeur_naam: w.chauffeur_id === '__anders' ? (w.chauffeur_naam || '').trim() || null : null,
-    bijrijders: [...(w.bijrijders || []), ...rpAndersLees(w.bijrijders_anders)], bakkenisten: [...(w.bakkenisten || []), ...rpAndersLees(w.bakkenisten_anders)], notitie: w.notitie || null};
+    bijrijders: [...(w.bijrijders || []), ...rpAndersLees(w.bijrijders_anders)], bakkenisten: [...(w.bakkenisten || []), ...rpAndersLees(w.bakkenisten_anders)], notitie: w.notitie || null,
+    rooiteam: (w.rooiteam || '').trim() || null, starttijd: (w.starttijd || '').trim() || null,
+    tractoren: Object.fromEntries([['rooier', (w.tr_rooier || '').trim()], ...Object.keys(w).filter(k => k.startsWith('tr_') && k !== 'tr_rooier').map(k => [k.slice(3), (w[k] || '').trim()])].filter(([, v]) => v)),
+    wagens: Object.fromEntries(Object.keys(w).filter(k => k.startsWith('wg_') && w[k]).map(k => [k.slice(3), w[k]])),
+    laden: [[w.laden1_naam, w.laden1_tijd], [w.laden2_naam, w.laden2_tijd]].filter(([n]) => (n || '').trim()).map(([n, t]) => ({naam: n.trim(), tijd: (t || '').trim() || null})),
+    bakken: (() => { const b = parseFloat(String(w.bakken_los ?? '').replace(',', '.')); return isNaN(b) ? null : b; })()};
   // de taak erbij
   let taak_id = oud?.taak_id || null;
   if (w.taak === 'ja') taak_id = await rooiTaakBij({...rij, taak_id}, gek, p);
@@ -7774,33 +7822,87 @@ async function rooiWeg(id) {
   S.rooiplanning = S.rooiplanning.filter(x => x.id !== id); render(true); toast('Verwijderd');
 }
 // rooibrief afdrukken (een dag of een week)
+const KEMP_LOGO = (() => { try { return document.querySelector('.osLogo svg')?.outerHTML || ''; } catch { return ''; } })();
+// per dag één blad (alle opdrachten van die dag samen: 1e, 2e, 3e …); meerdere dagen = meerdere bladen
+// volgorde van de partijen in een rooi-opdracht (waar ze beginnen)
+function rpVolgorde(pid, d) {
+  const v = rpRegels.volgorde || [], i = v.indexOf(pid), j = i + d; if (i < 0 || j < 0 || j >= v.length) return;
+  [v[i], v[j]] = [v[j], v[i]]; rpRegels.volgorde = v;
+  // wat al is ingetypt blijft staan: de waarden zitten in de velden, die worden bij het opnieuw tekenen overgenomen
+  document.querySelectorAll('#modal [data-k^="rg_"]').forEach(e => { if (e.value !== '') e.dataset.zelf = 1; });
+  rpRegels.eenh = $('#modal [data-k="eenheid"]')?.value || rpRegels.eenh; rpRegels.opnieuw?.();
+}
 function rooiPrint(start, dagen) {
   const d0 = new Date(start + 'T12:00'), keys = Array.from({length: dagen}, (_, i) => dKey(new Date(d0.getTime() + i * 864e5)));
-  const l = (S.rooiplanning || []).filter(r => keys.includes(r.datum)); if (!l.length) { toast('Niets gepland om af te drukken', 1); return; }
-  const blok = k => { const rr = l.filter(r => r.datum === k); if (!rr.length) return '';
-    return `<h2>${new Date(k + 'T12:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</h2>
-    ${rr.map(r => { const p = perceel(r.perceel_id);
-      return `<table><tr><th>Perceel</th><td><b>${esc(p?.naam || '–')}</b>${(r.vakken || []).length || (r.rijen || []).length ? [(r.vakken || []).length ? ' · vak ' + esc(r.vakken.join(', ')) : '', (r.rijen || []).length ? ' · ' + esc(rijenLabel(p, r.rijen)) : ''].join('') : ' · hele perceel'}</td></tr>
-        ${(r.regels || []).length ? r.regels.map(g => `<tr><th>Wat · hoeveel</th><td><b>${esc(g.naam)}</b> · ${esc(rpRegelTekst(g, r.eenheid) || '–')}</td></tr>`).join('')
-          : `<tr><th>Wat</th><td><b>${esc(rpWat(r) || '–')}</b></td></tr><tr><th>Hoeveel</th><td><b>${esc(rpAantal(r) || '–')}</b></td></tr>`}
-        <tr><th>Rooier</th><td>${esc(r.rooier || '–')}</td></tr><tr><th>Op de rooier</th><td><b>${rpChauf(r) ? esc(naamVan(rpChauf(r))) : '–'}</b></td></tr>
-        <tr><th>Bijrijders</th><td>${(r.bijrijders || []).map(naamVan).map(esc).join(', ') || '–'}</td></tr>
-        <tr><th>Bakkenist</th><td>${(r.bakkenisten || []).map(naamVan).map(esc).join(', ') || '–'}</td></tr>
-        ${r.notitie ? `<tr><th>Notitie</th><td>${esc(r.notitie).replace(/\n/g, '<br>')}</td></tr>` : ''}
-        <tr><th>Gerooid</th><td class="leeg">&nbsp;</td></tr><tr><th>Opmerking</th><td class="leeg">&nbsp;</td></tr></table>`; }).join('')}`; };
-  const html = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Rooiplanning</title><style>
-    body{font-family:Arial,sans-serif;margin:18mm 14mm;color:#111}h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:18px 0 6px;border-bottom:2px solid #2e7d32;padding-bottom:3px;text-transform:capitalize}
-    table{width:100%;border-collapse:collapse;margin:0 0 12px;page-break-inside:avoid}th,td{border:1px solid #999;padding:6px 8px;text-align:left;font-size:14px;vertical-align:top}th{width:28%;background:#eef4ec}
-    td.leeg{height:26px}.voet{font-size:11px;color:#666;margin-top:10px}@media print{button{display:none}}</style></head><body>
-    <h1>🚜 Rooiplanning${dagen > 1 ? ' – week van ' + d0.toLocaleDateString('nl-NL', {day: 'numeric', month: 'long'}) : ''}</h1>
-    <button onclick="print()" style="font-size:16px;padding:8px 14px;margin:6px 0">🖨️ Afdrukken</button>
-    ${keys.map(blok).join('')}<p class="voet">Afgedrukt ${new Date().toLocaleString('nl-NL')}</p></body></html>`;
+  const alle = (S.rooiplanning || []).filter(r => keys.includes(r.datum)); if (!alle.length) { toast('Niets gepland om af te drukken', 1); return; }
+  const tijd = t => t ? esc(String(t).replace(/^(\d{1,2})[:.\-](\d{2}).*$/, (m, h, mm) => `${+h}:${mm}`)) : '';
+  // per dag, en per persoon op de rooier een eigen blad (zelfde rooier op één dag = samen op één blad)
+  const bladen = k => { const l = alle.filter(r => r.datum === k).sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || ''))), groep = new Map();
+    l.forEach(r => { const g = rpChauf(r) || (r.rooiteam ? 'team:' + r.rooiteam : ''); if (!groep.has(g)) groep.set(g, []); groep.get(g).push(r); });
+    return [...groep.values()].map(gl => blad(k, gl)).join(''); };
+  const blad = (k, l) => {
+    if (!l.length) return '';
+    const eerst = l[0], st = l.map(r => r.starttijd).find(Boolean) || '';
+    const uniek = a => [...new Set(a.filter(Boolean))];
+    const team = uniek(l.map(r => r.rooiteam)).join(' / ');
+    const chauf = uniek(l.map(rpChauf)), bijr = uniek(l.flatMap(r => r.bijrijders || [])), bak = uniek(l.flatMap(r => r.bakkenisten || [])), laden = l.flatMap(r => r.laden || []).filter((x, i, a) => a.findIndex(y => y.naam === x.naam && y.tijd === x.tijd) === i);
+    const tr = (id, rol) => { for (const r of l) { const v = rol ? r.tractoren?.[rol] : r.tractoren?.[id]; if (v) return v; } return ''; };
+    const wg = id => { for (const r of l) if (r.wagens?.[id]) return r.wagens[id] + ' box'; return ''; };
+    // de opdrachten: per partij een blok
+    const blokken = l.flatMap(r => { const p = perceel(r.perceel_id), plek = [(r.vakken || []).length ? 'Vak ' + r.vakken.join('/') : '', (r.rijen || []).length ? rijenLabel(p, r.rijen) : ''].filter(Boolean).join(' · ') || 'hele perceel';
+      const ras = x => x ? [partijRas(x), x.batch || x.nak].filter(Boolean).join(' ') : '';
+      if ((r.regels || []).length) return r.regels.map(g => { const x = (S.partijen || []).find(y => y.id === g.partij_id);
+        const m = g.waarde == null ? null : r.eenheid === 'meters' ? g.waarde : r.eenheid === 'planten' && g.plm ? g.waarde / g.plm : null;
+        const bk = g.bakken ?? (r.eenheid === 'bakken' ? g.waarde : null), extra = r.eenheid === 'planten' && g.waarde != null ? `${(+g.waarde).toLocaleString('nl-NL')} pl` : '';
+        return {perceel: p?.naam || '', plek, meters: m != null ? Math.round(m).toLocaleString('nl-NL') + ' mtr' : '', extra, bakken: bk != null ? fmt(bk) + ' boxen' : '', opm: g.opmerking || r.notitie || '', ras: ras(x) || g.naam || ''}; });
+      const x = r.partij_id && (S.partijen || []).find(y => y.id === r.partij_id);
+      return [{perceel: p?.naam || '', plek, meters: r.eenheid === 'meters' && r.aantal != null ? (+r.aantal).toLocaleString('nl-NL') + ' mtr' : '', extra: r.eenheid && r.eenheid !== 'meters' && r.eenheid !== 'bakken' && r.aantal != null ? `${(+r.aantal).toLocaleString('nl-NL')} ${r.eenheid}` : '',
+        bakken: r.bakken != null ? fmt(r.bakken) + ' boxen' : r.eenheid === 'bakken' && r.aantal != null ? fmt(r.aantal) + ' boxen' : '', opm: r.notitie || '', ras: ras(x) || rpWat(r) || ''}]; });
+    while (blokken.length < 5) blokken.push(null);
+    const rang = i => `${i + 1}e`;
+    const persoon = (label, t, naam, extra, trekker) => `<tr><th>${label}</th><td class="tijd">${tijd(t)}</td><td class="naam">${esc(naam || '')}<span class="box">${esc(extra || '')}</span></td><td class="trek">${esc(trekker || '')}</td></tr>`;
+    return `<section class="blad">
+      <div class="kop"><div class="titel">Rooiplanning</div><div class="logo">${KEMP_LOGO || '<b>de Kemp BV</b>'}</div></div>
+      <div class="kop2"><div><span class="lab">Rooidatum:</span> <span class="lijn">${new Date(k + 'T12:00').toLocaleDateString('nl-NL', {day: '2-digit', month: '2-digit', year: 'numeric'}).replace(/\//g, '-')}</span>
+        <span class="dag">${new Date(k + 'T12:00').toLocaleDateString('nl-NL', {weekday: 'long'})}</span><br><span class="lab">Starttijd:</span> <span class="lijn kort">${tijd(st)}</span></div>
+        <div><span class="lab">Rooiteam:</span> <span class="lijn">${esc(team)}</span></div></div>
+      <table class="team"><tr><th></th><th class="tijd"></th><th class="naam"></th><th class="trek kopje">Tractor:</th></tr>
+        ${persoon('Rooier:', st, chauf.map(naamVan).join(' / '), '', tr(null, 'rooier'))}
+        ${[0, 1, 2].map(i => persoon(`Bijrijder ${i + 1}`, bijr[i] ? st : (i < 2 ? '' : ''), bijr[i] ? naamVan(bijr[i]) : '', bijr[i] ? wg(bijr[i]) : '', bijr[i] ? tr(bijr[i]) : '')).join('')}
+        ${bijr.slice(3).map((b, i) => persoon(`Bijrijder ${i + 4}`, st, naamVan(b), wg(b), tr(b))).join('')}
+        ${persoon('Bakkenist', bak.length ? st : '', bak.map(naamVan).join(' / '), '', '')}</table>
+      <div class="opmKop">Opmerkingen:</div>
+      ${blokken.map((b, i) => `<div class="blok"><div class="rang">${rang(i)}</div>
+        <div class="regel"><span class="lab">Perceel:</span><span class="vak1 lijn">${esc(b?.perceel || '')}</span></div>
+        <div class="regel"><span class="lab">Meters/bakken:</span><span class="vak1 cel"><span>${esc(b?.plek && b.plek !== 'hele perceel' ? b.plek : '')}</span><span>${esc(b?.meters || '')}</span></span><span class="vak2 cel">${esc(b?.bakken || '')}</span><span class="vak3 cel">${esc(b?.opm || '')}</span></div>
+        <div class="regel"><span class="lab">Ras/Batchnummer:</span><span class="vak1 cel"><span>${esc(b?.ras || '')}</span><span>${esc(b?.extra || '')}</span></span><span class="vak2 cel"></span><span class="vak3 cel"></span></div></div>`).join('')}
+      ${[0, 1].map(i => `<div class="regel laden"><span class="lab">laden/Lossen:</span><span class="ltijd lijn">${tijd(laden[i]?.tijd)}</span><span class="lnaam lijn">${esc(laden[i]?.naam || '')}</span></div>`).join('')}
+      <div class="voet">Perceel App · afgedrukt ${new Date().toLocaleString('nl-NL', {day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'})}</div></section>`;
+  };
+  const html = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Rooiplanning ${esc(keys.length > 1 ? 'week ' + d0.toLocaleDateString('nl-NL') : new Date(keys[0] + 'T12:00').toLocaleDateString('nl-NL'))}</title><style>
+    @page{size:A4;margin:12mm 14mm}*{box-sizing:border-box}body{font-family:Calibri,Carlito,Arial,sans-serif;color:#111;margin:0}
+    .blad{width:100%;max-width:182mm;margin:0 auto;page-break-after:always;break-after:page;font-size:14.5px;padding-top:0}.blad:last-of-type{page-break-after:auto;break-after:auto}
+    .kop{display:flex;justify-content:flex-end;align-items:flex-end;gap:16px;height:24mm}.titel{font-size:32px;font-weight:700;margin-right:auto;margin-left:62mm}.logo svg{height:20mm;width:auto}
+    .kop2{display:flex;justify-content:space-between;margin:2mm 0 4mm}.lab{font-weight:700;font-size:17px}.lijn{display:inline-block;min-width:38mm;border-bottom:1.5px solid #222;padding:0 4px}.lijn.kort{min-width:20mm}.dag{color:#666;font-size:12px;margin-left:6px;text-transform:capitalize}
+    table.team{width:100%;border-collapse:collapse;margin-bottom:4mm}table.team th{text-align:left;font-size:16px;width:42mm;border-bottom:1.5px solid #222;padding:3px 0}table.team th.kopje{border:0;font-size:17px;vertical-align:bottom}
+    table.team td{padding:3px 6px;border-bottom:1.5px solid #222}table.team td.tijd,table.team th.tijd{width:18mm;border-bottom-color:#222}table.team td.naam{width:62mm}.box{float:right;margin-left:6px}table.team td.trek{width:52mm}
+    table.team tr:first-child th{border:0}
+    .opmKop{text-align:right;font-weight:700;font-size:17px;margin:-1mm 0 0}
+    .blok{margin:1mm 0 2.5mm;page-break-inside:avoid}.rang{font-weight:700;font-size:17px}.regel{display:flex;align-items:flex-end;min-height:7mm}.regel .lab{width:52mm;flex:0 0 52mm}
+    .cel,.vak1.lijn{border-bottom:1.5px solid #222;padding:1px 6px;min-height:6.5mm;display:flex;justify-content:space-between;gap:8px}.vak1{flex:0 0 55mm}.vak2{flex:0 0 37mm;border-left:1.5px solid #222}.vak3{flex:1;border-left:1.5px solid #222;font-size:13.5px}
+    .regel:nth-child(2) .cel{border-top:1.5px solid #222}.vak1.lijn{flex:1;min-width:0}
+    .laden{margin-top:3mm}.laden .ltijd{min-width:20mm;flex:0 0 20mm;margin-right:20mm}.laden .lnaam{flex:1}
+    .voet{text-align:center;font-size:10px;color:#777;margin-top:3mm}
+    .knoppen{position:sticky;top:0;background:#fff;padding:8px;text-align:center;border-bottom:1px solid #ddd}.knoppen button{font-size:16px;padding:8px 16px}@media print{.knoppen{display:none}}
+    </style></head><body><div class="knoppen"><button onclick="print()">🖨️ Afdrukken</button></div>${keys.map(bladen).join('')}</body></html>`;
+  rooiPrint.html = html; if (rooiPrint.alleenHtml) return;
   const win = window.open('', '_blank');
-  if (win) { win.document.write(html); win.document.close(); setTimeout(() => { try { win.focus(); win.print(); } catch {} }, 400); return; }
+  if (win) { win.document.write(html); win.document.close(); setTimeout(() => { try { win.focus(); win.print(); } catch {} }, 500); return; }
   // pop-up geblokkeerd (bijv. in de app): via een verborgen frame afdrukken
   const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(fr);
-  fr.contentDocument.write(html); fr.contentDocument.close(); setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch {} setTimeout(() => fr.remove(), 2000); }, 400);
+  fr.contentDocument.write(html); fr.contentDocument.close(); setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch {} setTimeout(() => fr.remove(), 2000); }, 500);
 }
+rooiPrint.html = null;
 
 /* ============ BIO-DOSSIER (Skal) ============ */
 let dsPerceel = '';
