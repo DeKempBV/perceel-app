@@ -321,7 +321,11 @@ textarea.veld{resize:vertical;font-family:inherit}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
 .patroonbalk{display:flex;flex-wrap:wrap;gap:2px;margin-top:8px;align-items:center}.patroonbalk .pv{width:9px;height:22px;border-radius:2px;background:#43a047}
-.patroonbalk .pv.w05{background:linear-gradient(90deg,#43a047 50%,#dcedc8 50%)}.patroonbalk .pv.w2{background:#ff6d00}.patroonbalk .pv.w0{background:#cfd8dc}.patroonbalk span{color:var(--grijs);font-size:12px;margin-left:4px}
+.pzItem{border:1px solid #e3e8e1;border-radius:12px;padding:10px 12px;margin:8px 0;background:#fff}.pzItem.geplant{background:#f4faf3}.pzItem small{display:block;color:var(--grijs);margin-top:2px}
+.pzKop{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.pzKop .badge{font-size:11px}.badge.oranje{background:#fff3e0;color:#e65100}.badge.groen{background:#e8f5e9;color:#2e7d32}
+.pzBatch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:14px}.pzBatch .knop{width:auto}.pzKnoppen{gap:6px;margin-top:8px;flex-wrap:wrap}.pzKnoppen .knop{width:auto;flex:0 0 auto}
+.opbouwBlok{margin-top:10px;padding-top:8px;border-top:1px dashed #d7dccf}.opbouwBlok>label:first-child{display:block;font-weight:700;margin-bottom:4px}.opbouwBlok .knop.klein{width:auto}
+.patroonbalk .pv.w3{background:#29b6f6}.patroonbalk .pv.w05{background:linear-gradient(90deg,#43a047 50%,#dcedc8 50%)}.patroonbalk .pv.w2{background:#ff6d00}.patroonbalk .pv.w0{background:#cfd8dc}.patroonbalk span{color:var(--grijs);font-size:12px;margin-left:4px}
 .raster2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .spuitrij small{display:block;color:var(--grijs);font-size:12px;margin-top:6px}
 .spuitrij a{color:var(--groen2)}
@@ -1754,6 +1758,10 @@ function klikBaan(p, bn, ll) {
     if (!mag('spuitsporen_bewerken')) { toast('Je mag geen spuitsporen aanpassen', 1); return; }
     wisselSpuit(p, bn.nr); return;
   }
+  if (gereedschap === 'sproeier') {
+    if (!mag('spuitsporen_bewerken')) { toast('Je mag geen sporen aanpassen', 1); return; }
+    wisselSproeier(p, bn.nr); return;
+  }
   if (gereedschap === 'knip' && magIndelen) {
     if (t < 1 || t > lengte - 1) { toast('Te dicht bij het begin of eind van het spoor', 1); return; }
     const n = voegKnipToe(v, t); if (!n) { toast('Hier zit al een wissel', 1); return; }
@@ -2846,22 +2854,28 @@ function alleLagen() {
 
 /* ============ spuitsporen ============ */
 const spuitVan = z => (z._vak ? z._vak.spuit : z.spuit) || {};
-/* Spoorpatroon: per spoor 1 = vol met planten, 0,5 = half gevuld, 2 = spuitspoor, 0 = leeg.
+/* Spoorpatroon: per spoor 1 = vol met planten, 0,5 = half gevuld, 2 = spuitspoor, 3 = sproeierspoor, 0 = leeg.
    Bijv. "1111 0,5 2 0,5" herhaalt zich over het hele veld. */
 function patroonLees(tekst) {
-  const groepen = String(tekst || '').trim().split(/\s+/).filter(Boolean);
+  const groepen = String(tekst || '').trim().split(/\s+/).filter(g => /[0-3½]/.test(g));   // "......" en andere puntjes tellen niet mee
   // "1111 0,5 2 0,5 1111": de laatste groep is dan alleen het begin van de volgende herhaling
   if (groepen.length > 2 && groepen[0] === groepen[groepen.length - 1]) groepen.pop();
-  return (groepen.join(' ').match(/0[.,]5|½|[0-2]/g) || []).map(t => t === '2' ? 2 : t === '1' ? 1 : t === '0' ? 0 : .5);
+  return (groepen.join(' ').match(/0[.,]5|½|[0-3]/g) || []).map(t => t === '3' ? 3 : t === '2' ? 2 : t === '1' ? 1 : t === '0' ? 0 : .5);
 }
 const patroonVan = z => { const t = spuitVan(z).patroon; if (!t) return null; const pp = patroonLees(t); return pp.length ? pp : null; };
-function rijWaarde(z, nr) {   // 1, 0,5, 0 of 2 (spuitspoor)
+function rijWaarde(z, nr) {   // 1, 0,5, 0, 2 (spuitspoor) of 3 (sproeierspoor)
+  if ((spuitVan(z).sproeier || []).includes(nr)) return 3;
   const pp = patroonVan(z);
   if (pp) { const st = Math.max(1, parseInt(spuitVan(z).patroonStart) || 1), i = (((nr - st) % pp.length) + pp.length) % pp.length; const s = spuitVan(z);
     if ((s.uit || []).includes(nr) && pp[i] === 2) return 1; if ((s.extra || []).includes(nr)) return 2; return pp[i]; }
   return spuitSet(z).has(nr) ? 2 : 1;
 }
-const rijFactor = (z, nr) => { if (!patroonVan(z)) return 1; const w = rijWaarde(z, nr); return w === 2 ? 1 : w; };   // deel van het spoor dat beplant is
+// plantrijtjes per spoor (bijv. asperges: 4 op 1,5 m) en hoeveel daarvan er onder een spuitspoor staan (bijv. 3; 0 = spuitspoor leeg)
+const rijtjesVan = z => Math.max(0, parseInt(spuitVan(z).rijtjes) || 0), spuitRijtjesVan = z => Math.max(0, parseInt(spuitVan(z).spuitRijtjes) || 0);
+const spuitBeplant = z => spuitRijtjesVan(z) > 0;
+const rijFactor = (z, nr) => { const w = rijWaarde(z, nr); if (w === 3) return 0;
+  if (w === 2) return spuitBeplant(z) ? Math.min(1, spuitRijtjesVan(z) / (rijtjesVan(z) || 4)) : 1;
+  if (!patroonVan(z)) return 1; return w; };   // deel van het spoor dat beplant is (sproeierspoor: niets)
 const spuitSetCache = new WeakMap();
 function spuitSet(z) {
   const bv = banenVan(z), sv = spuitVan(z), sk = JSON.stringify(sv), c = spuitSetCache.get(bv);
@@ -2968,6 +2982,7 @@ function spuitHerstel(zoneId) {
 }
 function tekenSpuit(z) {
   const meta = banenVan(z).meta, set = spuitSet(z);
+  tekenSproeier(z);
   banenVan(z).forEach(bn => {
     if (!set.has(bn.nr)) return;
     const o = bn.a + bn.b / 2, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
@@ -2977,15 +2992,32 @@ function tekenSpuit(z) {
     geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#ff6d00', weight: 3, dashArray: '10,6', interactive: false})).addTo(laag);
   });
 }
+// sproeiersporen: blauwe stippellijn midden in het spoor
+function tekenSproeier(z) {
+  const meta = banenVan(z).meta, l = (spuitVan(z).sproeier || []).length || patroonVan(z)?.includes(3); if (!l || !meta) return;
+  banenVan(z).forEach(bn => {
+    if (rijWaarde(z, bn.nr) !== 3) return;
+    const o = bn.a + bn.b / 2, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
+    geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#000', weight: 6, opacity: .3, interactive: false})).addTo(laag);
+    geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#29b6f6', weight: 3, dashArray: '2,7', interactive: false})).addTo(laag);
+  });
+}
+function wisselSproeier(z, nr) {
+  const s = {...spuitVan(z)}, l = new Set(s.sproeier || []), was = rijWaarde(z, nr) === 3;
+  if (l.has(nr)) l.delete(nr); else if (!was) l.add(nr);
+  else { toast('Dit sproeierspoor komt uit het spoorpatroon; pas het patroon aan', 1); return; }
+  s.sproeier = [...l].sort((a, b) => a - b); zetSpuit(z, s);
+  toast(`${z._vak ? z.naam + ' · ' : ''}Spoor ${nr} ${l.has(nr) ? 'is nu een 💧 sproeierspoor' : 'is geen sproeierspoor meer'}`);
+}
 function patroonVoorbeeld(z) {
   const n = Math.min(banenVan(z).length || 40, 48); let h = '';
-  for (let nr = 1; nr <= n; nr++) { const w = rijWaarde(z, nr); h += `<i class="pv w${String(w).replace('.', '')}" title="Spoor ${nr}: ${w === 2 ? 'spuitspoor' : w === .5 ? 'half gevuld' : w === 0 ? 'leeg' : 'vol'}"></i>`; }
+  for (let nr = 1; nr <= n; nr++) { const w = rijWaarde(z, nr); h += `<i class="pv w${String(w).replace('.', '')}" title="Spoor ${nr}: ${w === 3 ? 'sproeierspoor' : w === 2 ? 'spuitspoor' : w === .5 ? 'half gevuld' : w === 0 ? 'leeg' : 'vol'}"></i>`; }
   return `<div class="patroonbalk">${h}${banenVan(z).length > n ? '<span>…</span>' : ''}</div>`;
 }
 function zetPatroon(zoneId, veld, waarde) {
   const z = alleZones(perceel(actief)).find(x => x.id === zoneId); if (!z) return;
   const s = {...spuitVan(z)};
-  if (veld === 'patroon') { const t = String(waarde || '').trim(); if (t && !patroonLees(t).length) { toast('Gebruik 1, 0,5, 2 en 0, bijv. "1111 0,5 2 0,5"', 1); return; } s.patroon = t || null; if (t) { s.extra = []; s.uit = []; } }
+  if (veld === 'patroon') { const t = String(waarde || '').trim(); if (t && !patroonLees(t).length) { toast('Gebruik 1, 0,5, 2, 3 en 0, bijv. "1111 0,5 2 3 0,5"', 1); return; } s.patroon = t || null; if (t) { s.extra = []; s.uit = []; } }
   else s.patroonStart = Math.max(1, parseInt(waarde) || 1);
   zetSpuit(z, s);
 }
@@ -2994,15 +3026,82 @@ function spuitInvoer(z, bew) {
   return `<div class="spuitrij"><div class="spuitkop">🚜 Spuitsporen</div>
     <label>Spoorpatroon <small style="display:inline">(optioneel)</small></label>
     <input class="veld" ${bew ? '' : 'disabled'} placeholder="bijv. 1111 0,5 2 0,5" value="${esc(s.patroon || '')}" onchange="zetPatroon('${z.id}','patroon',this.value)">
-    <small>1 = spoor vol met planten · 0,5 = half gevuld · 2 = spuitspoor · 0 = leeg. Het patroon herhaalt zich over het hele veld.</small>
+    <small>1 = spoor vol met planten · 0,5 = half gevuld · 2 = spuitspoor · 3 = sproeierspoor · 0 = leeg. Het patroon herhaalt zich over het hele veld.</small>
     ${pp ? `<div class="raster2"><div><label>Patroon begint bij spoor</label><input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="1" value="${s.patroonStart || 1}" onchange="zetPatroon('${z.id}','start',this.value)"></div><div></div></div>
-      ${patroonVoorbeeld(z)}<small>Groen = vol · half groen = half gevuld · oranje = spuitspoor · grijs = leeg</small>` : `
+      ${patroonVoorbeeld(z)}<small>Groen = vol · half groen = half gevuld · oranje = spuitspoor · blauw = sproeierspoor · grijs = leeg</small>` : `
     <div class="raster2"><div><label>Elke hoeveel sporen (bijv. 20+1 = 21)</label>
       <input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="0" placeholder="bijv. 8" value="${s.elke || ''}" onchange="zetSpuitGetal('${z.id}','elke',this.value)"></div>
     <div><label>Eerste spuitspoor is spoor</label>
       <input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="1" placeholder="${s.elke || 'bijv. 4'}" value="${s.start || ''}" onchange="zetSpuitGetal('${z.id}','start',this.value)"></div></div>`}
-    <small>${n} spuitsporen${los ? ` · ${los} met de hand aangepast ${bew ? `· <a href="#" onclick="spuitHerstel('${z.id}');return false">herstel</a>` : ''}` : ''}</small>
+    <small>${n} spuitsporen${(s.sproeier || []).length ? ` · ${s.sproeier.length} sproeiersporen` : ''}${los ? ` · ${los} met de hand aangepast ${bew ? `· <a href="#" onclick="spuitHerstel('${z.id}');return false">herstel</a>` : ''}` : ''}</small>
+    <div class="raster2" style="margin-top:8px"><div><label>Plantrijtjes per spoor <small style="display:inline">(bijv. 4)</small></label>
+      <input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="0" placeholder="niet ingesteld" value="${s.rijtjes || ''}" onchange="zetSpuitGetal('${z.id}','rijtjes',this.value)"></div>
+    <div><label>Rijtjes onder een spuitspoor <small style="display:inline">(0 = leeg)</small></label>
+      <input class="veld" ${bew ? '' : 'disabled'} type="number" inputmode="numeric" min="0" placeholder="0" value="${s.spuitRijtjes || ''}" onchange="zetSpuitGetal('${z.id}','spuitRijtjes',this.value)"></div></div>
+    ${spuitBeplant(z) ? `<small>🌱 Onder de spuitsporen staan ${spuitRijtjesVan(z)} van de ${rijtjesVan(z) || 4} rijtjes: die sporen tellen mee als beplant en krijgen ras en partij.</small>` : ''}
+    ${opbouwHtml(z, bew)}${moederHtml(z, bew)}
     ${htmlSpuitvakken(z)}</div>`;
+}
+/* ---------- standaard spooropbouw: opslaan en toepassen ---------- */
+const leesGetal = (x, d = null) => { const n = parseFloat(String(x ?? '').replace(',', '.')); return isNaN(n) ? d : n; };
+const opbouwLijst = () => { try { const l = JSON.parse(S.inst?.spoor_opbouw || '[]'); return Array.isArray(l) ? l : []; } catch { return []; } };
+async function opbouwBewaar(l) { const {error} = await sb.rpc('zet_instelling', {p_sleutel: 'spoor_opbouw', p_waarde: JSON.stringify(l)}); if (error) { toast((/Onbekende/.test(error.message) ? 'Draai eerst beheer.sql opnieuw in Supabase. ' : '') + foutTekst(error), 1); return false; } await laadInstellingen(); render(true); return true; }
+function opbouwHtml(z, bew) {
+  const l = opbouwLijst(), s = spuitVan(z);
+  return `<div class="opbouwBlok"><label>📐 Standaard spooropbouw</label>
+    ${l.length ? `<div class="rij" style="gap:6px;flex-wrap:wrap">${l.map((o, i) => `<button class="knop licht klein" ${bew ? '' : 'disabled'} title="${esc(o.patroon || '')} · ${String(o.breedte || '').replace('.', ',')} m" onclick="opbouwToepassen('${z.id}',${i})">${esc(o.naam)}<small style="display:block;font-weight:400">${String(o.breedte || '?').replace('.', ',')} m · ${esc(o.patroon || '')}${o.rijtjes ? ` · ${o.rijtjes} rijtjes${o.spuitRijtjes ? ` (${o.spuitRijtjes} onder spuitspoor)` : ''}` : ''}</small></button>`).join('')}</div>` : '<small>Nog geen standaard opbouw. Sla de opbouw van dit veld op, of maak er zelf een.</small>'}
+    ${bew ? `<div class="rij" style="gap:6px;margin-top:6px;flex-wrap:wrap">${s.patroon ? `<button class="knop licht klein" onclick="opbouwOpslaan('${z.id}')">💾 Deze opbouw opslaan als standaard</button>` : ''}<button class="knop licht klein" onclick="opbouwNieuw()">＋ Zelf een opbouw maken</button>${l.length ? `<button class="knop licht klein" onclick="opbouwBeheer()">✏️ Beheren</button>` : ''}</div>` : ''}</div>`;
+}
+async function opbouwNieuw(o = {}, i = -1) {
+  const w = await formulier(i >= 0 ? '✏️ Spooropbouw aanpassen' : '📐 Nieuwe spooropbouw', [
+    {k: 'naam', label: 'Naam', waarde: o.naam || '', placeholder: 'bijv. Opkweek 20+1'},
+    {k: 'breedte', label: 'Spoorbreedte (m)', type: 'number', waarde: o.breedte ?? 1.5},
+    {k: 'patroon', label: 'Patroon', waarde: o.patroon || '', placeholder: 'bijv. 1111 0,5 2 3 0,5'},
+    {k: 'rijtjes', label: 'Plantrijtjes per spoor (mag leeg)', type: 'number', waarde: o.rijtjes ?? '', placeholder: 'bijv. 4'},
+    {k: 'spuitRijtjes', label: 'Rijtjes onder een spuitspoor (0 = leeg)', type: 'number', waarde: o.spuitRijtjes ?? '', placeholder: 'bijv. 3'},
+    {type: 'uitleg', waarde: '1 = vol met planten · 0,5 = half gevuld · 2 = spuitspoor · 3 = sproeierspoor · 0 = leeg. Het patroon herhaalt zich over het veld.'}], 'Opslaan');
+  if (!w) return;
+  if (!w.naam) { toast('Geef de opbouw een naam', 1); return; }
+  if (!patroonLees(w.patroon).length) { toast('Het patroon klopt niet (gebruik 1, 0,5, 2, 3 en 0)', 1); return; }
+  const l = opbouwLijst(), n = {naam: w.naam, breedte: leesGetal(w.breedte, 1.5), patroon: w.patroon, rijtjes: Math.max(0, parseInt(w.rijtjes) || 0), spuitRijtjes: Math.max(0, parseInt(w.spuitRijtjes) || 0)};
+  if (i >= 0) l[i] = n; else l.push(n);
+  if (await opbouwBewaar(l)) toast('📐 Opbouw opgeslagen');
+}
+async function opbouwOpslaan(zid) {
+  const z = alleZones(perceel(actief)).find(x => x.id === zid); if (!z) return;
+  opbouwNieuw({naam: '', breedte: +z.breedte || 1.5, patroon: spuitVan(z).patroon || '', rijtjes: rijtjesVan(z) || '', spuitRijtjes: spuitRijtjesVan(z) || ''});
+}
+async function opbouwBeheer() {
+  const l = opbouwLijst();
+  const w = await formulier('📐 Standaard spooropbouw', [{k: 'i', label: 'Welke?', type: 'select', waarde: '0', opties: l.map((o, i) => [i, `${o.naam} · ${String(o.breedte).replace('.', ',')} m · ${o.patroon}${o.rijtjes ? ' · ' + o.rijtjes + ' rijtjes' : ''}`])},
+    {k: 'doe', label: 'Wat wil je doen?', type: 'select', waarde: 'aanpassen', opties: [['aanpassen', '✏️ Aanpassen'], ['weg', '🗑️ Weghalen']]}], 'Verder');
+  if (!w) return; const i = +w.i;
+  if (w.doe === 'weg') { if (!await bevestigJa('Opbouw weghalen?', `"${esc(l[i].naam)}" verdwijnt uit de lijst. Velden die hem al gebruiken blijven zoals ze zijn.`, '🗑️ Weghalen')) return; l.splice(i, 1); if (await opbouwBewaar(l)) toast('Weggehaald'); }
+  else opbouwNieuw(l[i], i);
+}
+async function opbouwToepassen(zid, i) {
+  const p = perceel(actief), z = alleZones(p).find(x => x.id === zid), o = opbouwLijst()[i]; if (!z || !o) return;
+  if (!await bevestigJa(`"${esc(o.naam)}" toepassen?`, `${z._vak ? esc(z.naam) + ': s' : 'S'}poorbreedte wordt ${String(o.breedte).replace('.', ',')} m en het patroon "${esc(o.patroon)}"${o.rijtjes ? `, ${o.rijtjes} rijtjes per spoor${o.spuitRijtjes ? ` en ${o.spuitRijtjes} onder het spuitspoor` : ''}` : ''}. Losse spuit- en sproeiersporen gaan eraf.`, '📐 Toepassen')) return;
+  const patch = {spuit: {...spuitVan(z), patroon: o.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], rijtjes: o.rijtjes || 0, spuitRijtjes: o.spuitRijtjes || 0}};
+  if (+o.breedte && +o.breedte !== +z.breedte) patch.breedte = +o.breedte;
+  await zoneZetten(p, z, patch); banenCache.delete(z.id); render(true); toast(`📐 ${o.naam} toegepast`);
+}
+/* ---------- vermeerdering: moederplanten onder de trekker, daarna wisselen ---------- */
+function moederHtml(z, bew) {
+  const s = spuitVan(z);
+  return `<div class="opbouwBlok"><label>🌱 Vermeerdering</label>
+    <label class="vinkje"><input type="checkbox" ${bew ? '' : 'disabled'} ${s.moeder ? 'checked' : ''} onchange="zetMoeder('${z.id}',this.checked)"> Moederplanten staan midden in het spoor (onder de trekker door)</label>
+    ${s.moeder ? `<small>Op de kaart staat elke rij als een lijn midden in het spoor.</small>${bew ? `<button class="knop klein" style="margin-top:6px" onclick="wisselMoeder('${z.id}')">🔄 Nu wisselen: sporen ${String((+z.breedte || 1.5) / 2).replace('.', ',')} m opschuiven</button>` : ''}`
+      : s.gewisseld ? `<small>Gewisseld op ${new Date(s.gewisseld).toLocaleDateString('nl-NL', {day: 'numeric', month: 'long'})}: de vakken tussen de moederrijen zijn nu de sporen.</small>` : ''}</div>`;
+}
+function zetMoeder(zid, aan) { const z = alleZones(perceel(actief)).find(x => x.id === zid); if (!z) return; zetSpuit(z, {...spuitVan(z), moeder: !!aan}); }
+async function wisselMoeder(zid, pid = actief) {
+  const p = perceel(pid), z = zoneVan(pid, zid); if (!p || !z) return;
+  const half = (+z.breedte || 1.5) / 2;
+  if (!await bevestigJa('Nu wisselen?', `Alle sporen schuiven ${String(half).replace('.', ',')} m op. De moederplanten komen dan onder de wielen en het stuk ertussen wordt het spoor met de jonge plantjes. Rassen en partijen gaan mee naar het nieuwe spoor.`, '🔄 Wisselen')) return;
+  await sporenOmzetten(pid, zid, {verschuiving: Math.round(((+z.verschuiving || 0) + half) * 1000) / 1000}, '🔄 Gewisseld');
+  const z2 = zoneVan(pid, zid); if (z2) await zoneZetten(p, z2, {spuit: {...spuitVan(z2), moeder: false, gewisseld: new Date().toISOString()}});
+  render(true);
 }
 
 /* ============ markeringen ============ */
@@ -3563,15 +3662,19 @@ function tekenZone(p, isA) {
   // weggehaalde sporen: kopeinde; met één tik terug te zetten (als je het perceel aan het aanpassen bent)
   if (!(gereedschap === 'spoorweg' && isA))
     (banenVan(p).weg || []).forEach(w => geenSnap(L.geoJSON(w.geo, {style: {stroke: false, fillColor: kl, fillOpacity: .45}})).bindTooltip('🟫 Kopeinde', {sticky: true}).addTo(laag));
+  const moeder = !!spuitVan(p).moeder, mMeta = moeder ? banenVan(p).meta : null;
   banenVan(p).forEach(bn => {
-    const stukken = stukkenVan(p, bn), f = metPatroon ? rijFactor(p, bn.nr) : 1;
+    const stukken = stukkenVan(p, bn), f = metPatroon || rijWaarde(p, bn.nr) === 3 || spuitBeplant(p) ? rijFactor(p, bn.nr) : 1;
     stukken.forEach(st => {
-      const s = teelt(st.id);
+      const s = teelt(st.id), mLijn = moeder && s && f > 0;
       geenSnap(L.geoJSON(st.geo, {style: {color: isA ? '#ffffff' : '#111', weight: isA ? .9 : .4, opacity: .75,
-        fillColor: s ? s.kleur : '#ffffff', fillOpacity: s ? (f === 1 ? .62 : f === 0 ? .04 : .12) : .06}}))
+        fillColor: s ? s.kleur : '#ffffff', fillOpacity: mLijn ? .07 : s ? (f >= .99 ? .62 : f === 0 ? .04 : f >= .6 ? .48 : .12) : .06}}))
         .bindTooltip(() => spoorTip(p, bn, st), {sticky: true, direction: 'top', offset: [0, -8], className: 'spoortip', opacity: .97})
         .on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); klikBaan(p, bn, ev.latlng); }).addTo(laag);
-      if (s && f === .5) { const h = halfStuk(p, bn, st.geo); if (h) geenSnap(L.geoJSON(h, {interactive: false, style: {stroke: false, fillColor: s.kleur, fillOpacity: .62}})).addTo(laag); }
+      if (mLijn && mMeta) {   // vermeerdering: de moederplanten staan als één rij midden onder de trekker
+        const o = bn.a + bn.b / 2, pt = t => { const q = mMeta.naarG([mMeta.n[0] * o + mMeta.d[0] * t, mMeta.n[1] * o + mMeta.d[1] * t]); return [q[1], q[0]]; };
+        geenSnap(L.polyline([pt(bn.t0 + st.van), pt(bn.t0 + st.tot)], {color: s.kleur, weight: isA ? 5 : 3, opacity: .95, interactive: false, lineCap: 'butt'})).addTo(laag);
+      } else if (s && f === .5) { const h = halfStuk(p, bn, st.geo); if (h) geenSnap(L.geoJSON(h, {interactive: false, style: {stroke: false, fillColor: s.kleur, fillOpacity: .62}})).addTo(laag); }
       if (partijKwast && partijOpSpoor(p, bn.nr, stukken.length > 1 ? st.idx : null)?.id === partijKwast.id) geenSnap(L.geoJSON(st.geo, {interactive: false, style: {color: '#ffd600', weight: 3, fill: false}})).addTo(laag);
     });
     if (stukken.length > 1 && isA) {   // wissellijnen
@@ -3595,7 +3698,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -3657,6 +3760,7 @@ function renderPaneel() {
   else if (tab === 'plantplan') h = seizoenKnop() + htmlPlantplan();
   else if (tab === 'weekplanning') h = htmlWeekplanning();
   else if (tab === 'rooiplanning') h = htmlRooiplanning();
+  else if (tab === 'plantzaai') h = seizoenKnop() + htmlPlantZaai();
   else if (tab === 'resinvoer') h = seizoenKnop() + htmlResInvoer();
   else if (tab === 'resrapport') h = seizoenKnop() + htmlResRapport();
   else if (tab === 'resprognose') h = seizoenKnop() + htmlResPrognose();
@@ -4028,7 +4132,9 @@ function htmlDetail(p) {
     ${banen.length && mag('spuitsporen_bewerken') ? spuitInvoer(p, true) : ''}
     ${bew ? `<button class="knop ${p.banen_aan ? 'licht' : ''}" onclick="wijzig(actief,{banen_aan:${!p.banen_aan}})">${p.banen_aan ? 'Sporen verbergen' : 'Sporen maken'}</button>` : ''}
     ${mag('spuitsporen_bewerken') && totaalSporen ? `<button class="knop ${gereedschap === 'spuit' ? '' : 'licht'}" onclick="zetGereedschap('spuit')">🚜 ${gereedschap === 'spuit' ? 'Klaar met spuitsporen aanklikken' : 'Spuitsporen aanklikken op de kaart'}</button>
-      ${gereedschap === 'spuit' ? '<p class="hint"><b>Tik op een spoor</b> om er een spuitspoor van te maken, of tik op een spuitspoor (oranje streep) om het weg te halen. Werkt ook in deelvelden.</p>' : ''}` : ''}
+      ${gereedschap === 'spuit' ? '<p class="hint"><b>Tik op een spoor</b> om er een spuitspoor van te maken, of tik op een spuitspoor (oranje streep) om het weg te halen. Werkt ook in deelvelden.</p>' : ''}
+      <button class="knop ${gereedschap === 'sproeier' ? '' : 'licht'}" onclick="zetGereedschap('sproeier')">💧 ${gereedschap === 'sproeier' ? 'Klaar met sproeiersporen aanklikken' : 'Sproeiersporen aanklikken op de kaart'}</button>
+      ${gereedschap === 'sproeier' ? '<p class="hint"><b>Tik op een spoor</b> om er een sproeierspoor van te maken (blauwe stippellijn), of tik er nog een keer op om het weg te halen. Op een sproeierspoor staan geen planten.</p>' : ''}` : ''}
     ${bew && totaalSporen ? `<button class="knop ${gereedschap === 'spoorweg' ? '' : 'licht'}" onclick="zetGereedschap('spoorweg')">✂️ ${gereedschap === 'spoorweg' ? 'Klaar met sporen weghalen' : 'Losse sporen weghalen of terugzetten'}</button>
       ${gereedschap === 'spoorweg' ? '<p class="hint"><b>Tik op een spoor</b> om het weg te halen. Weggehaalde sporen zie je rood gestippeld; tik erop om ze terug te zetten. Werkt ook in deelvelden.</p>' : ''}` : ''}
     ${bew ? abInvoer(p, bew) : ''}
@@ -4094,7 +4200,7 @@ function htmlVakken(p, bew) {
       ${abInvoer(z, bew)}` : ''}
       <button class="knop ${sporenAan ? 'licht' : ''}" onclick="zetZonderSporen('${v.id}',${sporenAan})">${sporenAan ? 'Sporen verbergen (heel deelveld één gewas)' : 'Sporen maken'}</button>
       ${!sporenAan && indeel ? `<label>🌱 Gewas op het hele deelveld</label>${gewasKeuze(z, true)}` : ''}
-      ${sporenAan && spuit && n ? `<button class="knop ${gereedschap === 'spuit' ? '' : 'licht'}" onclick="zetGereedschap('spuit')">🚜 ${gereedschap === 'spuit' ? 'Klaar met spuitsporen aanklikken' : 'Spuitsporen aanklikken op de kaart'}</button>` : ''}
+      ${sporenAan && spuit && n ? `<button class="knop ${gereedschap === 'spuit' ? '' : 'licht'}" onclick="zetGereedschap('spuit')">🚜 ${gereedschap === 'spuit' ? 'Klaar met spuitsporen aanklikken' : 'Spuitsporen aanklikken op de kaart'}</button><button class="knop ${gereedschap === 'sproeier' ? '' : 'licht'}" onclick="zetGereedschap('sproeier')">💧 ${gereedschap === 'sproeier' ? 'Klaar met sproeiersporen' : 'Sproeiersporen aanklikken'}</button>` : ''}
       </div>`; }).join('')}
     ${bew ? `<div class="rij"><button class="knop licht" onclick="tekenVak()">▦ Deelveld tekenen</button>${mag('deelvelden_bewerken') ? '<button class="knop licht" onclick="gierToevoegen()">🟨 Gier toevoegen</button>' : ''}</div>
       <p class="hint">Een deelveld werkt als een eigen veld binnen het perceel: eigen richting, breedte, aantal sporen, spuitsporen, A-punt en gewas. Het hoofdveld stopt daar automatisch.</p>` : ''}
@@ -5371,7 +5477,7 @@ function sectieTabs(s) {
   return ({
     vandaag: [['vandaag', '☀️', 'Vandaag'], ...(ziet('historie_bekijken') ? [['gebeurtenissen', '🔔', 'Gebeurtenissen']] : [])],
     velden: [['percelen', '🗺️', 'Kaart'], ['watstaatwaar', '🌱', 'Wat staat waar'], ['partijen', '🏷️', 'Partijen'], ['prognose', '📈', 'Prognose'], ['plantplan', '🧮', 'Plantplan'], ['vruchtwisseling', '🔄', 'Wisseling'], ['waarnemingen', '🐛', 'Ziektes'], ['monsters', '🧪', 'Monsters']],
-    werk: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['rooiplanning', '🚜', 'Rooiplanning'], ['spuiten', '🧪', 'Spuiten'], ['bemesten', '🌱', 'Bemesten'],
+    werk: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['plantzaai', '🌱', 'Planten en zaaien'], ['rooiplanning', '🚜', 'Rooiplanning'], ['spuiten', '🧪', 'Spuiten'], ['bemesten', '🌱', 'Bemesten'],
       ...(trek ? [['tractoren', '🚜', 'Trekkers']] : []), ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : [])],
     oogst: resIn ? [['resinvoer', '✍️', 'Invoer'], ['reskiep', '🧺', 'Kieplijst'], ...(resBek ? [['resrapport', '📊', 'Rapport'], ['resprognose', '📈', 'Prognose']] : []), ['respoten', '🌱', 'Poten'],
       ['reskisten', '📦', 'Kistjes'], ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])] : [],
@@ -5529,7 +5635,7 @@ function spoorPartijIndex() {
         const perTeelt = new Map(); lijst.forEach(([, x]) => { const t = x.ras_id || x.soort_id; if (!t) return; if (!perTeelt.has(t)) perTeelt.set(t, new Set()); perTeelt.get(t).add(x); });
         uit = [];
         if ([...perTeelt.values()].some(st => st.size === 1)) alleZones(p).forEach(z => { const sp = spuitSet(z), pat = patroonVan(z);
-          banenVan(z).forEach(bn => { if ((pat ? isSpuitRij(z, bn.nr) : sp.has(bn.nr)) || spoorPartijMap.has(z.id + '|' + bn.nr)) return;
+          banenVan(z).forEach(bn => { if (isSpuitRij(z, bn.nr) || spoorPartijMap.has(z.id + '|' + bn.nr)) return;
             const stukken = stukkenVan(z, bn), geknipt = stukken.length > 1;
             stukken.forEach(st => { const t = teelt(st.id); if (!t) return; const set = perTeelt.get(t.id); if (!set || set.size !== 1) return;
               const key = z.id + '|' + bn.nr + (geknipt ? '|' + st.idx : ''); if (spoorPartijMap.has(key)) return; uit.push([key, [...set][0]]); }); }); });
@@ -5541,7 +5647,8 @@ function spoorPartijIndex() {
   return spoorPartijMap;
 }
 // spuitsporen (en lege sporen uit het rijpatroon) horen bij geen enkele partij
-const isSpuitRij = (z, nr) => { try { return patroonVan(z) ? rijWaarde(z, nr) === 2 || rijWaarde(z, nr) === 0 : spuitSet(z).has(nr); } catch { return false; } };
+const isSpuitRij = (z, nr) => { try { const w = rijWaarde(z, nr); if (w === 2 && spuitBeplant(z)) return false;   // er staan planten onder het spuitspoor
+  return w === 3 || (patroonVan(z) ? w === 2 || w === 0 : spuitSet(z).has(nr)); } catch { return false; } };
 // st = welk stuk van een gesplitst spoor (0, 1, …); zonder st geldt de partij voor het hele spoor
 const partijOpSpoor = (z, nr, st) => { const m = spoorPartijIndex(); return (st != null && m.get(z.id + '|' + nr + '|' + st)) || m.get(z.id + '|' + nr) || null; };
 const partijSporen = (x, zid) => { spoorPartijIndex(); return [...new Set((spoorPartijPer.get(x) || []).filter(q => !zid || q.z === zid).map(q => q.nr))].sort((a, b) => a - b); };
@@ -5892,7 +5999,9 @@ const partijRegel = (y, metRas, metKnop) => `<div class="pi">🏷️ ${metRas ? 
 function spoorTip(p, bn, st) {
   const t = teelt(st.id), f = patroonVan(p) ? rijWaarde(p, bn.nr) : (spuitSet(p).has(bn.nr) ? 2 : 1);
   const vak = spuitvakkenVan(p).find(v => v.nrs.includes(bn.nr));
-  const kop = `<b>Spoor ${bn.nr}</b>${vak ? ` · vak ${vak.letter}` : ''}${f === 2 ? ' · 🚜 spuitspoor' : f === .5 ? ' · half gevuld' : f === 0 ? ' · leeg' : ''}`;
+  const f3 = rijWaarde(p, bn.nr) === 3, moe = spuitVan(p).moeder;
+  const rt = rijtjesVan(p), rtHier = f3 ? 0 : f === 2 ? spuitRijtjesVan(p) : rt ? Math.round(rt * (f === .5 ? .5 : f === 0 ? 0 : 1)) : 0;
+  const kop = `<b>Spoor ${bn.nr}</b>${vak ? ` · vak ${vak.letter}` : ''}${f3 ? ' · 💧 sproeierspoor' : f === 2 ? ' · 🚜 spuitspoor' : f === .5 ? ' · half gevuld' : f === 0 ? ' · leeg' : ''}${rtHier ? ` · ${rtHier} ${rtHier === 1 ? 'rijtje' : 'rijtjes'}${f === 2 ? ' eronder' : ''}` : ''}${moe && !f3 ? ' · 🌱 moederplanten (onder de trekker)' : ''}`;
   if (!t) return `${kop}<br><small>Niet ingedeeld · ${Math.round(st.tot - st.van)} m</small>`;
   // alleen de partij die op dit spoor is aangewezen; is er maar één partij van dit ras, dan is het die
   const kand = partijenVanTeelt(ouder(p).id, st.id), aangewezen = partijOpSpoor(p, bn.nr, st.idx);
@@ -7778,7 +7887,7 @@ const TAB_INFO = {
   prognose: ['📈', 'Prognose', 'Hoeveel planten per partij'], plantplan: ['🧮', 'Plantplan', 'Voorstel hoe te planten'],
   vruchtwisseling: ['🔄', 'Vruchtwisseling', 'Wat stond waar, over de jaren'], waarnemingen: ['🐛', 'Ziektes en plagen', 'Waarnemingen per spoor'],
   monsters: ['🧪', 'Monsters', 'Grondmonsters en keuringen'], taken: ['📋', 'Taken', 'Alle taken en wie wat doet'],
-  weekplanning: ['👥', 'Weekoverzicht', 'Wie doet wat deze week'], rooiplanning: ['🚜', 'Rooiplanning', 'Welke dag, wat, hoeveel en wie'],
+  weekplanning: ['👥', 'Weekoverzicht', 'Wie doet wat deze week'], rooiplanning: ['🚜', 'Rooiplanning', 'Welke dag, wat, hoeveel en wie'], plantzaai: ['🌱', 'Planten en zaaien', 'Wat waar de grond in gaat (batch komt later)'],
   spuiten: ['🧪', 'Spuiten', 'Planning en spuitregister'], bemesten: ['🌱', 'Bemesten', 'Planning en bemestingsregister'],
   tractoren: ['🚜', 'Trekkers', 'Waar de trekkers nu zijn'], logboek: ['📒', 'Logboek', 'Uitgevoerd werk, met ongedaan maken'],
   resinvoer: ['✍️', 'Invoer', 'Rooien, kiepen, telling en scans'], reskiep: ['🧺', 'Kieplijst', 'Wat er nog gekiept moet worden'],
@@ -7796,7 +7905,7 @@ const blokMetTegels = s => s !== 'vandaag' && sectieTabs(s).length > 1;
 function blokTellers() {
   const open = S.taken.filter(t => !t.klaar);
   return {taken: open.length, tractoren: S.tractoren.filter(isLive).length || '', uren: S.taken.filter(t => t.bezig_door && !t.klaar).length || '',
-    rooiplanning: (S.rooiplanning || []).filter(r => r.datum >= vandaag()).length || '', reskiep: kiepLijst().reduce((a, y) => a + y.nog, 0) || '',
+    rooiplanning: (S.rooiplanning || []).filter(r => r.datum >= vandaag()).length || '', plantzaai: (S.plantplanning || []).filter(x => x.status === 'gepland').length || '', reskiep: kiepLijst().reduce((a, y) => a + y.nog, 0) || '',
     spuiten: open.filter(t => { try { return isSpuitTaak(t); } catch { return false; } }).length || '', waarnemingen: (S.waarnemingen || []).filter(x => x.status !== 'behandeld').length || '',
     gebeurtenissen: (S.gebeurtenissen || []).filter(g => new Date(g.tijd) >= vandaagBegin()).length || ''};
 }
@@ -7984,6 +8093,123 @@ function rpKaart(r) {
     ${dub.length ? `<div class="rpLet">⚠️ ${dub.map(naamVan).map(esc).join(', ')} ${dub.length === 1 ? 'staat' : 'staan'} deze dag ook ergens anders ingepland</div>` : ''}
     ${t ? `<div class="rpRij"><span>📋</span><div><a href="#" onclick="event.preventDefault();focusTaak('${t.id}')">Taak: ${esc(t.tekst)}</a> ${t.klaar ? '· ✅ klaar' : t.bezig_door ? `· 🟡 bezig (${esc(t.bezig_door)})` : ''}${voortgangTekst(t) && !t.klaar ? ' · ' + voortgangTekst(t) : ''}</div></div>` : ''}
   </div>`;
+}
+/* =====================================================================================
+   PLANTEN EN ZAAIEN – eerst plannen met alleen het ras; de batch komt pas als het in de grond staat
+   ===================================================================================== */
+let pzToon = 'gepland';
+const isAardbei = sid => /aardbei/i.test(soort(sid)?.naam || '');
+const pzNaam = x => [soort(x.soort_id)?.naam, ras(x.ras_id)?.naam].filter(Boolean).join(' – ') || '?';
+const pzWaar = x => { const p = perceel(x.perceel_id); return [(x.vakken || []).length ? 'vak ' + x.vakken.join(', ') : '', (x.rijen || []).length ? rijenLabel(p, x.rijen) : ''].filter(Boolean).join(' · ') || 'hele perceel'; };
+// welke sporen: gekozen vakken + losse rijen; niets gekozen = alles. Spuit- en sproeiersporen en lege sporen uit het patroon nooit.
+function pzSporen(p, vakIdx, rijKeys) {
+  const pv = perceelVakken(p), per = new Map(), voeg = (zid, nr) => { if (!per.has(zid)) per.set(zid, new Set()); per.get(zid).add(+nr); };
+  vakIdx.forEach(i => { const v = pv[+i]; if (v) v.nrs.forEach(nr => voeg(v.z.id, nr)); });
+  (rijKeys || []).forEach(k => { const j = String(k).lastIndexOf(':'); voeg(k.slice(0, j), k.slice(j + 1)); });
+  if (!per.size) alleZones(p).forEach(z => banenVan(z).forEach(bn => voeg(z.id, bn.nr)));
+  return [...per].map(([zid, set]) => { const z = zoneVan(p.id, zid); return {z: zid, nrs: [...set].filter(nr => z && !isSpuitRij(z, nr)).sort((a, b) => a - b)}; }).filter(q => q.nrs.length);
+}
+function htmlPlantZaai() {
+  const beh = mag('taken_toevoegen') || mag('soorten_indelen'), l = (S.plantplanning || []).filter(x => pzToon === 'alles' || x.status === pzToon);
+  const perP = new Map(); l.forEach(x => { const k = x.perceel_id || '_'; if (!perP.has(k)) perP.set(k, []); perP.get(k).push(x); });
+  const kaart = x => { const p = perceel(x.perceel_id), pa = (S.partijen || []).find(y => y.id === x.partij_id), moe = x.teeltwijze === 'vermeerdering';
+    const zones = (x.sporen || []).map(q => zoneVan(x.perceel_id, q.z)).filter(Boolean), nogMoeder = zones.some(z => spuitVan(z).moeder);
+    return `<div class="pzItem ${x.status}"><div class="pzKop"><b>${x.werk === 'zaaien' ? '🌾' : '🌱'} ${esc(pzNaam(x))}</b>
+      <span class="badge">${x.werk === 'zaaien' ? 'zaaien' : 'planten'}</span>${isAardbei(x.soort_id) || moe ? `<span class="badge ${moe ? 'oranje' : ''}">${moe ? 'vermeerdering' : 'opkweek'}</span>` : ''}${x.status === 'geplant' ? '<span class="badge groen">✓ in de grond</span>' : ''}</div>
+      <small>📅 ${x.datum ? new Date(x.datum + 'T12:00').toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric', month: 'short'}) : 'nog geen datum'} · 📍 ${esc(pzWaar(x))}${x.aantal ? ' · ' + getal(x.aantal) + ' ' + esc(x.eenheid || '') : ''}${(x.sporen || []).length ? ' · ' + x.sporen.reduce((a, q) => a + q.nrs.length, 0) + ' sporen' : ''}</small>
+      ${x.notitie ? `<small>📝 ${esc(x.notitie)}</small>` : ''}
+      <div class="pzBatch">🏷️ ${pa ? `Batch <b>${esc(pa.batch || pa.nak || '?')}</b>${pa.klasse ? ' · ' + esc(pa.klasse) : ''}` : '<i>nog geen batch</i>'}
+        ${beh ? `<button class="knop licht klein" onclick="pzBatch('${x.id}')">${pa ? '✏️ Batch' : '＋ Batchnummer toevoegen'}</button>` : ''}</div>
+      ${beh ? `<div class="rij pzKnoppen">${x.status === 'gepland' ? `<button class="knop klein" onclick="pzGeplant('${x.id}')">✓ Staat in de grond</button>` : ''}
+        ${x.status === 'geplant' && moe && nogMoeder ? `<button class="knop klein" onclick="pzWissel('${x.id}')">🔄 Nu wisselen</button>` : ''}
+        <button class="knop licht klein" onclick="pzFormulier('${x.id}')">✏️</button>${p ? `<button class="knop licht klein" onclick="kies('${p.id}')">🗺️</button>` : ''}<button class="knop licht klein" onclick="pzWeg('${x.id}')">✕</button></div>` : ''}</div>`; };
+  return `<section class="kaartje"><h4>🌱 Planten en zaaien</h4>
+    <p class="hint" style="margin-top:0">Plan wat waar de grond in gaat. Je kiest alleen het ras; het batchnummer voeg je later toe als het er echt staat. Met "✓ Staat in de grond" worden de sporen op de kaart ingedeeld.</p>
+    ${beh ? `<button class="knop" onclick="pzFormulier()">＋ Planten of zaaien plannen</button>` : ''}
+    <div class="schakel" style="margin-top:10px">${[['gepland', 'Gepland'], ['geplant', 'In de grond'], ['alles', 'Alles']].map(([k, t]) => `<button class="${pzToon === k ? 'aan' : ''}" onclick="pzToon='${k}';render(true)">${t} (${(S.plantplanning || []).filter(x => k === 'alles' || x.status === k).length})</button>`).join('')}</div></section>
+    ${[...perP].sort((a, b) => (perceel(a[0])?.naam || '').localeCompare(perceel(b[0])?.naam || '', 'nl', {numeric: true})).map(([pid, xs]) => `<section class="kaartje"><h4>📍 ${esc(perceel(pid)?.naam || 'Geen perceel')} <small>${xs.length}</small></h4>
+      ${xs.sort((a, b) => String(a.datum || '9').localeCompare(String(b.datum || '9'))).map(kaart).join('')}</section>`).join('')
+    || `<section class="kaartje"><p class="hint">${pzToon === 'gepland' ? 'Nog niets gepland.' : 'Niets gevonden.'}</p></section>`}`;
+}
+async function pzFormulier(id, pid0) {
+  const oud = id ? (S.plantplanning || []).find(x => x.id === id) : null; const velden0 = S.percelen.filter(p => p.type !== 'pand');
+  let pid = oud?.perceel_id || pid0;
+  if (!pid) { const w0 = await formulier('🌱 Planten of zaaien plannen', [{k: 'pid', label: 'Op welk perceel?', type: 'select', waarde: actief || velden0[0]?.id, opties: velden0.map(p => [p.id, p.naam])}], 'Verder'); if (!w0) return; pid = w0.pid; }
+  const p = perceel(pid); if (!p) return;
+  const x = oud || {werk: 'planten', teeltwijze: 'opkweek', datum: vandaag(), vakken: [], rijen: [], eenheid: 'planten'};
+  const pv = perceelVakken(p), gek = pv.map((v, i) => (x.vakken || []).includes(v.letter) ? i : -1).filter(i => i >= 0);
+  const rasOpties = S.soorten.flatMap(sr => [[sr.id, `${sr.naam} (nog geen ras)`], ...S.rassen.filter(r => r.soort_id === sr.id).map(r => [r.id, `${sr.naam} – ${r.naam}`])]);
+  const w = await formulier(oud ? '✏️ Plan aanpassen' : `🌱 Planten en zaaien · ${p.naam}`, [
+    {k: 'werk', label: 'Wat gaan we doen?', type: 'select', waarde: x.werk, opties: [['planten', '🌱 Planten'], ['zaaien', '🌾 Zaaien']]},
+    {k: 'teelt', label: 'Welk ras? (de batch komt later)', type: 'select', waarde: x.ras_id || x.soort_id || '', opties: [['', '– kies –'], ...rasOpties]},
+    {k: 'teeltwijze', label: 'Opkweek of vermeerdering? (aardbeien)', type: 'select', waarde: x.teeltwijze, opties: [['opkweek', '🌱 Opkweek (sporen vol, zoals nu)'], ['vermeerdering', '🌿 Vermeerdering (moederplanten midden onder de trekker)']]},
+    {k: 'datum', label: '📅 Wanneer?', type: 'date', waarde: x.datum || ''},
+    {type: 'html', waarde: veldSchets(p, gek, {metRijen: true, rijen: x.rijen || []})},
+    ...(pv.length ? [{k: 'vakken', label: 'Welke vakken? (niets aanvinken = het hele perceel)', type: 'vinkjes', waarde: gek, opties: pv.map((v, i) => [i, `Vak ${v.letter}${v.z._vak ? ' (' + v.z.naam + ')' : ''} · ${v.rijen ?? v.nrs.length} rijen`])}] : []),
+    {k: 'aantal', label: 'Hoeveel? (mag leeg)', type: 'number', waarde: x.aantal ?? ''},
+    {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: x.eenheid || 'planten', opties: [['planten', 'planten'], ['meters', 'meters'], ['trays', 'trays'], ['kg', 'kg zaad']]},
+    {k: 'notitie', label: 'Opmerking', type: 'textarea', waarde: x.notitie || ''},
+    ...(!oud ? [{k: 'taak', label: '', type: 'vinkjes', waarde: ['ja'], opties: [['ja', '📋 Er meteen een taak van maken']]}] : [])], oud ? 'Opslaan' : 'Plannen');
+  if (!w) return;
+  if (!w.teelt) { toast('Kies wat er geplant of gezaaid wordt', 1); return; }
+  const rs = ras(w.teelt), sid = rs ? rs.soort_id : w.teelt, vakIdx = (w.vakken || []).map(Number);
+  const rij = {perceel_id: p.id, soort_id: sid, ras_id: rs ? rs.id : null, werk: w.werk || 'planten', teeltwijze: w.teeltwijze || 'opkweek', datum: w.datum || null,
+    vakken: vakIdx.map(i => pv[i]?.letter).filter(Boolean), rijen: w.rijen || [], aantal: leesGetal(w.aantal), eenheid: w.eenheid || null, notitie: w.notitie || null};
+  rij.sporen = (rij.vakken.length || rij.rijen.length) ? pzSporen(p, vakIdx, rij.rijen) : null;
+  if (!oud) { rij.gemaakt_door = naamMe(); rij.status = 'gepland'; }
+  const res = oud ? await sb.from('plantplanning').update(rij).eq('id', oud.id).select().single() : await sb.from('plantplanning').insert(rij).select().single();
+  if (res.error) { toast((/plantplanning/.test(res.error.message) ? 'Draai eerst beheer.sql opnieuw in Supabase. ' : '') + foutTekst(res.error), 1); return; }
+  S.plantplanning = S.plantplanning || []; const i = S.plantplanning.findIndex(y => y.id === res.data.id); if (i >= 0) S.plantplanning[i] = res.data; else S.plantplanning.push(res.data);
+  if (!oud && (w.taak || []).includes('ja')) {
+    const geb = rij.vakken.length ? vakkenGebied(vakIdx.map(i => pv[i]).filter(Boolean)) : null;
+    const {data: t, error} = await sb.from('taken').insert({tekst: `${rij.werk === 'zaaien' ? 'Zaaien' : 'Planten'}: ${pzNaam(rij)}${rij.teeltwijze === 'vermeerdering' ? ' (vermeerdering)' : ''}`, perceel_id: p.id, gepland: rij.datum, gebied: geb,
+      omschrijving: [pzWaar(rij), rij.aantal ? getal(rij.aantal) + ' ' + (rij.eenheid || '') : '', rij.notitie || ''].filter(Boolean).join('\n'), gezamenlijk: false}).select().single();
+    if (!error && t) { S.taken.push(t); await sb.from('plantplanning').update({taak_id: t.id}).eq('id', res.data.id); res.data.taak_id = t.id; }
+  }
+  render(true); toast(oud ? 'Opgeslagen' : '🌱 Gepland');
+}
+// staat in de grond: sporen op de kaart indelen met dit ras (bij vermeerdering ook de moederplanten-weergave aan)
+async function pzGeplant(id) {
+  const x = (S.plantplanning || []).find(y => y.id === id), p = x && perceel(x.perceel_id); if (!p) return;
+  const sporen = x.sporen?.length ? x.sporen : pzSporen(p, [], []), tid = x.ras_id || x.soort_id, n = sporen.reduce((a, q) => a + q.nrs.length, 0);
+  const vol = sporen.reduce((a, q) => { const z = zoneVan(p.id, q.z); return a + (z ? q.nrs.filter(nr => waarden((z.banen || [])[nr - 1]).some(Boolean)).length : 0); }, 0);
+  if (!await bevestigJa('Staat het in de grond?', `${n} sporen op ${esc(p.naam)} worden ingedeeld met <b>${esc(pzNaam(x))}</b>.${vol ? `<br>⚠️ ${vol} daarvan zijn al ingedeeld en worden overschreven.` : ''}${x.teeltwijze === 'vermeerdering' ? '<br>🌿 Vermeerdering: de planten staan als lijn midden in het spoor tot je wisselt.' : ''}`, '✓ Ja, indelen')) return;
+  for (const q of sporen) {
+    const z = zoneVan(p.id, q.z); if (!z) continue;
+    const arr = [...(z.banen || [])]; q.nrs.forEach(nr => { while (arr.length < nr) arr.push(null); arr[nr - 1] = tid; });
+    const patch = {banen: arr}; if (x.teeltwijze === 'vermeerdering') patch.spuit = {...spuitVan(z), moeder: true};
+    await zoneZetten(p, z, patch); banenCache.delete(z.id);
+  }
+  const {data, error} = await sb.from('plantplanning').update({status: 'geplant', geplant_op: new Date().toISOString(), geplant_door: naamMe(), sporen}).eq('id', id).select().single();
+  if (error) { toast(foutTekst(error), 1); return; }
+  Object.assign(x, data);
+  if (x.partij_id) await pzPartijSporen(x);
+  spoorPartijMap = null; render(true); toast(`✓ ${pzNaam(x)} staat op de kaart`);
+}
+async function pzPartijSporen(x) {   // de partij (batch) op dezelfde sporen zetten
+  const y = (S.partijen || []).find(z => z.id === x.partij_id); if (!y || !x.sporen?.length) return;
+  const sp = [...(Array.isArray(y.sporen) ? y.sporen : []).filter(q => !x.sporen.some(r => r.z === q.z)), ...x.sporen.map(q => ({z: q.z, nrs: q.nrs}))];
+  y.sporen = sp; const {error} = await sb.from('partijen').update({sporen: sp}).eq('id', y.id); if (error) toast(foutTekst(error), 1);
+  partijenVanSporen(); spoorPartijMap = null;
+}
+function pzBatch(id) {
+  const x = (S.plantplanning || []).find(y => y.id === id); if (!x) return;
+  if (x.partij_id && (S.partijen || []).some(y => y.id === x.partij_id)) { partijBewerk(x.partij_id); return; }
+  partijBewerk(null, null, {soort_id: x.soort_id, ras: ras(x.ras_id)?.naam || null, naOpslaan: async y => {
+    if (!y) return;
+    const {error} = await sb.from('plantplanning').update({partij_id: y.id}).eq('id', id); if (error) { toast(foutTekst(error), 1); return; }
+    x.partij_id = y.id; if (x.status === 'geplant') { if (!x.sporen?.length) x.sporen = pzSporen(perceel(x.perceel_id), [], []); await pzPartijSporen(x); }
+    render(true); toast('🏷️ Batch gekoppeld');
+  }});
+}
+async function pzWissel(id) {
+  const x = (S.plantplanning || []).find(y => y.id === id); if (!x) return;
+  for (const zid of [...new Set((x.sporen || []).map(q => q.z))]) { const z = zoneVan(x.perceel_id, zid); if (z && spuitVan(z).moeder) await wisselMoeder(zid, x.perceel_id); }
+}
+async function pzWeg(id) {
+  if (!await bevestigJa('Uit de planning halen?', 'Wat al op de kaart staat blijft staan.', '✕ Weghalen')) return;
+  const {error} = await sb.from('plantplanning').delete().eq('id', id); if (error) { toast(foutTekst(error), 1); return; }
+  S.plantplanning = (S.plantplanning || []).filter(x => x.id !== id); render(true);
 }
 function htmlRooiplanning() {
   const ma = new Date(rpDatum); ma.setHours(0, 0, 0, 0); ma.setDate(ma.getDate() - ((ma.getDay() + 6) % 7));
@@ -8202,7 +8428,7 @@ function rpOpPerceel(p) {
   const per = new Map(), los = new Map();
   for (const z of alleZones(p)) { const sp = spuitSet(z); banenVan(z).forEach((bn, i) => { const nr = bn.nr ?? i + 1, key = `${z.id}:${nr}`;
     const st = stukkenVan(z, bn).filter(q => teelt(q.id)), f = st.length === 1 ? rijFactor(z, nr) || 1 : 1;
-    st.forEach(q => { const x = partijOpSpoor(z, nr, q.idx); if (!x && sp.has(nr)) return; const m = (q.tot - q.van) * f; if (m <= .05) return;
+    st.forEach(q => { const x = partijOpSpoor(z, nr, q.idx); if (!x && sp.has(nr) && !spuitBeplant(z)) return; const m = (q.tot - q.van) * f; if (m <= .05) return;
       const k = x ? x.id : 't_' + q.id, g = per.get(k) || {}; g[key] = (g[key] || 0) + Math.round(m * 10) / 10; per.set(k, g); if (x) los.set(k, x); else los.set(k, q.id); }); }); }
   return [...per].map(([k, rm]) => { let x = los.get(k);
     if (typeof x === 'string') { const tid = x, rs = ras(tid); x = {id: k, _los: true, ras_id: rs ? tid : null, soort_id: rs?.soort_id || teelt(tid)?.plantId || tid, klasse: 'geen partij gekoppeld'}; }
@@ -9076,9 +9302,11 @@ async function sporenOmzetten(pid, zid, patch, melding) {
   const oudNr = bn => oudVanK.get(bn.k) ?? (anker ? oudVanK.get(anker.k) + (bn.k - anker.k) : bn.nr);   // nieuw spoor: waar het in het oude patroon zou vallen
   const banen = nieuw.map(bn => oudVanK.has(bn.k) ? oudBanen[oudVanK.get(bn.k) - 1] ?? null : null);
   const extraPatch = {...patch, banen};
-  if (pp || spuitOud.size) {
-    if (pp) extraPatch.spuit = {...sp, patroon: nieuw.map(bn => { const w = oudWaarde(oudNr(bn)); return w === .5 ? '0,5' : String(w); }).join(''), patroonStart: 1, extra: [], uit: []};
-    else extraPatch.spuit = {...sp, elke: 0, start: 0, uit: [], extra: nieuw.filter(bn => oudWaarde(oudNr(bn)) === 2).map(bn => bn.nr)};
+  const sproeiOud = new Set((sp.sproeier || []));
+  if (pp || spuitOud.size || sproeiOud.size) {
+    const sproeier = nieuw.filter(bn => sproeiOud.has(oudNr(bn))).map(bn => bn.nr);
+    if (pp) extraPatch.spuit = {...sp, patroon: nieuw.map(bn => { const w = oudWaarde(oudNr(bn)); return w === .5 ? '0,5' : String(w); }).join(''), patroonStart: 1, extra: [], uit: [], sproeier: []};   // losse sproeiers gaan mee in het patroon (3)
+    else extraPatch.spuit = {...sp, elke: 0, start: 0, uit: [], extra: nieuw.filter(bn => !sproeiOud.has(oudNr(bn)) && oudWaarde(oudNr(bn)) === 2).map(bn => bn.nr), sproeier};
   }
   await zoneZetten(p, z, extraPatch);
   // partijen op dit deel: zelfde spoor (plek in het raster), nieuw nummer; verdwenen sporen eraf
@@ -9550,7 +9778,7 @@ const seizoenStart = () => { const s = S.seizoenen.find(x => x.id === bekeken); 
 const seizoenEind = () => { const lijst = [...S.seizoenen].sort((a, b) => new Date(a.gestart) - new Date(b.gestart)), i = lijst.findIndex(x => x.id === bekeken); return lijst[i + 1] ? new Date(lijst[i + 1].gestart) : new Date(8.64e15); };
 async function laadBedrijf() {
   const q = (t, f) => f(sb.from(t).select('*')).then(r => r.error ? null : r.data).catch(() => null);
-  const [md, oo, ma, ml, ko, me2, pa, mo, pm, wn, pb, rp] = await Promise.all([
+  const [md, oo, ma, ml, ko, me2, pa, mo, pm, wn, pb, rp, ppl] = await Promise.all([
     q('middelen', x => x.order('naam')),
     q('oogst', x => bekeken ? x.eq('seizoen_id', bekeken).order('datum') : x.order('datum')),
     q('machines', x => x.order('naam')),
@@ -9562,8 +9790,9 @@ async function laadBedrijf() {
     q('partij_mutaties', x => x.order('datum')),
     q('waarnemingen', x => x.order('datum', {ascending: false}).limit(2000)),
     q('plantbehoefte', x => x.order('created_at')),
-    q('rooiplanning', x => x.gte('datum', new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10)).order('datum'))]);
-  S.rooiplanning = rp || []; laadKlok(); laadResultaten().then(() => { if (/^res|gebeurtenissen|uren|mij/.test(tab)) render(true); }); setTimeout(() => rooiSyncRollen().catch(() => {}), 1500);
+    q('rooiplanning', x => x.gte('datum', new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10)).order('datum')),
+    q('plantplanning', x => bekeken ? x.eq('seizoen_id', bekeken).order('datum') : x.order('datum'))]);
+  S.rooiplanning = rp || []; S.plantplanning = ppl || []; laadKlok(); laadResultaten().then(() => { if (/^res|gebeurtenissen|uren|mij/.test(tab)) render(true); }); setTimeout(() => rooiSyncRollen().catch(() => {}), 1500);
   S.partijen = pa || []; partijenVanSporen(); S.monsters = mo || []; S.partij_mutaties = pm || []; S.waarnemingen = wn || []; S.plantbehoefte = pb || [];
   S.middelen = md || []; S.oogst = oo || []; S.machines = ma || []; S.machine_log = ml || []; S.kosten = ko || []; S.meldingen = me2 || [];
   bedrijfGeladen = !!md;
