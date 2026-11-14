@@ -4171,6 +4171,7 @@ function htmlDetail(p) {
     <div><b>${open.length}</b><small>open taken</small></div></div>
   ${p.type !== 'pand' && !p.uitgeschakeld ? opstaandHtml(p) : ''}
   ${partijSamenvatting(p)}
+  ${!p.uitgeschakeld && (mag('soorten_indelen') || mag('taken_toevoegen')) ? pzPerceelBlok(p) : ''}
   ${vgtVan(p.id) && perceelTab !== 'oogst' && perceelTab !== 'info' ? `<div class="vgtbalk">${vgtTekst(vgtVan(p.id))}</div>` : ''}
   ${vruchtwisselWaarschuwing(p).map(x => `<div class="waarschuwing">${x}</div>`).join('')}
   <div class="ptabs">${tabs.map(([k, i, l]) => `<button class="${perceelTab === k ? 'aan' : ''}" onclick="perceelTab='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
@@ -8112,7 +8113,10 @@ function pzSporen(p, vakIdx, rijKeys) {
 function htmlPlantZaai() {
   const beh = mag('taken_toevoegen') || mag('soorten_indelen'), l = (S.plantplanning || []).filter(x => pzToon === 'alles' || x.status === pzToon);
   const perP = new Map(); l.forEach(x => { const k = x.perceel_id || '_'; if (!perP.has(k)) perP.set(k, []); perP.get(k).push(x); });
-  const kaart = x => { const p = perceel(x.perceel_id), pa = (S.partijen || []).find(y => y.id === x.partij_id), moe = x.teeltwijze === 'vermeerdering';
+  const kaart = pzKaart;
+  return pzLijstHtml(beh, l, perP, kaart);
+}
+function pzKaart(x) { const beh = mag('taken_toevoegen') || mag('soorten_indelen'); { const p = perceel(x.perceel_id), pa = (S.partijen || []).find(y => y.id === x.partij_id), moe = x.teeltwijze === 'vermeerdering';
     const zones = (x.sporen || []).map(q => zoneVan(x.perceel_id, q.z)).filter(Boolean), nogMoeder = zones.some(z => spuitVan(z).moeder);
     return `<div class="pzItem ${x.status}"><div class="pzKop"><b>${x.werk === 'zaaien' ? '🌾' : '🌱'} ${esc(pzNaam(x))}</b>
       <span class="badge">${x.werk === 'zaaien' ? 'zaaien' : 'planten'}</span>${isAardbei(x.soort_id) || moe ? `<span class="badge ${moe ? 'oranje' : ''}">${moe ? 'vermeerdering' : 'opkweek'}</span>` : ''}${x.status === 'geplant' ? '<span class="badge groen">✓ in de grond</span>' : ''}</div>
@@ -8122,7 +8126,8 @@ function htmlPlantZaai() {
         ${beh ? `<button class="knop licht klein" onclick="pzBatch('${x.id}')">${pa ? '✏️ Batch' : '＋ Batchnummer toevoegen'}</button>` : ''}</div>
       ${beh ? `<div class="rij pzKnoppen">${x.status === 'gepland' ? `<button class="knop klein" onclick="pzGeplant('${x.id}')">✓ Staat in de grond</button>` : ''}
         ${x.status === 'geplant' && moe && nogMoeder ? `<button class="knop klein" onclick="pzWissel('${x.id}')">🔄 Nu wisselen</button>` : ''}
-        <button class="knop licht klein" onclick="pzFormulier('${x.id}')">✏️</button>${p ? `<button class="knop licht klein" onclick="kies('${p.id}')">🗺️</button>` : ''}<button class="knop licht klein" onclick="pzWeg('${x.id}')">✕</button></div>` : ''}</div>`; };
+        <button class="knop licht klein" onclick="pzFormulier('${x.id}')">✏️</button>${p && actief !== p.id ? `<button class="knop licht klein" onclick="kies('${p.id}')">🗺️</button>` : ''}<button class="knop licht klein" onclick="pzWeg('${x.id}')">✕</button></div>` : ''}</div>`; } }
+function pzLijstHtml(beh, l, perP, kaart) {
   return `<section class="kaartje"><h4>🌱 Planten en zaaien</h4>
     <p class="hint" style="margin-top:0">Plan wat waar de grond in gaat. Je kiest alleen het ras; het batchnummer voeg je later toe als het er echt staat. Met "✓ Staat in de grond" worden de sporen op de kaart ingedeeld.</p>
     ${beh ? `<button class="knop" onclick="pzFormulier()">＋ Planten of zaaien plannen</button>` : ''}
@@ -8131,7 +8136,19 @@ function htmlPlantZaai() {
       ${xs.sort((a, b) => String(a.datum || '9').localeCompare(String(b.datum || '9'))).map(kaart).join('')}</section>`).join('')
     || `<section class="kaartje"><p class="hint">${pzToon === 'gepland' ? 'Nog niets gepland.' : 'Niets gevonden.'}</p></section>`}`;
 }
-async function pzFormulier(id, pid0) {
+// op het perceel zelf: plannen en indelen via hetzelfde formulier
+function pzPerceelBlok(p) {
+  if (!p || p.type === 'pand' || !banenVan(p).length && !(p.vakken || []).length) return '';
+  const beh = mag('taken_toevoegen') || mag('soorten_indelen'), l = (S.plantplanning || []).filter(x => x.perceel_id === p.id).sort((a, b) => (a.status === 'gepland' ? 0 : 1) - (b.status === 'gepland' ? 0 : 1) || String(a.datum || '9').localeCompare(String(b.datum || '9')));
+  const zonderBatch = x => !x.partij_id || !(S.partijen || []).some(y => y.id === x.partij_id);
+  const open = l.filter(x => x.status === 'gepland' || zonderBatch(x)), klaar = l.filter(x => !open.includes(x));   // in de grond maar nog zonder batch blijft zichtbaar
+  return `<section class="kaartje"><h4>🌱 Planten en zaaien</h4>
+    ${beh ? `<div class="rij" style="gap:6px;flex-wrap:wrap"><button class="knop" onclick="pzFormulier(null,'${p.id}',true)">🌱 Nu indelen (staat in de grond)</button><button class="knop licht" onclick="pzFormulier(null,'${p.id}')">📅 Plannen</button></div>
+      <p class="hint" style="margin:6px 0 0">Kies het ras, tik de vakken of rijen aan op de tekening, klaar. De batch voeg je later toe.</p>` : ''}
+    ${open.map(pzKaart).join('')}
+    ${klaar.length ? `<details style="margin-top:6px"><summary class="hint" style="cursor:pointer">✓ In de grond, met batch (${klaar.length})</summary>${klaar.map(pzKaart).join('')}</details>` : ''}</section>`;
+}
+async function pzFormulier(id, pid0, direct) {
   const oud = id ? (S.plantplanning || []).find(x => x.id === id) : null; const velden0 = S.percelen.filter(p => p.type !== 'pand');
   let pid = oud?.perceel_id || pid0;
   if (!pid) { const w0 = await formulier('🌱 Planten of zaaien plannen', [{k: 'pid', label: 'Op welk perceel?', type: 'select', waarde: actief || velden0[0]?.id, opties: velden0.map(p => [p.id, p.naam])}], 'Verder'); if (!w0) return; pid = w0.pid; }
@@ -8139,17 +8156,17 @@ async function pzFormulier(id, pid0) {
   const x = oud || {werk: 'planten', teeltwijze: 'opkweek', datum: vandaag(), vakken: [], rijen: [], eenheid: 'planten'};
   const pv = perceelVakken(p), gek = pv.map((v, i) => (x.vakken || []).includes(v.letter) ? i : -1).filter(i => i >= 0);
   const rasOpties = S.soorten.flatMap(sr => [[sr.id, `${sr.naam} (nog geen ras)`], ...S.rassen.filter(r => r.soort_id === sr.id).map(r => [r.id, `${sr.naam} – ${r.naam}`])]);
-  const w = await formulier(oud ? '✏️ Plan aanpassen' : `🌱 Planten en zaaien · ${p.naam}`, [
+  const w = await formulier(oud ? '✏️ Plan aanpassen' : direct ? `🌱 Indelen · ${p.naam}` : `🌱 Planten en zaaien · ${p.naam}`, [
     {k: 'werk', label: 'Wat gaan we doen?', type: 'select', waarde: x.werk, opties: [['planten', '🌱 Planten'], ['zaaien', '🌾 Zaaien']]},
     {k: 'teelt', label: 'Welk ras? (de batch komt later)', type: 'select', waarde: x.ras_id || x.soort_id || '', opties: [['', '– kies –'], ...rasOpties]},
     {k: 'teeltwijze', label: 'Opkweek of vermeerdering? (aardbeien)', type: 'select', waarde: x.teeltwijze, opties: [['opkweek', '🌱 Opkweek (sporen vol, zoals nu)'], ['vermeerdering', '🌿 Vermeerdering (moederplanten midden onder de trekker)']]},
-    {k: 'datum', label: '📅 Wanneer?', type: 'date', waarde: x.datum || ''},
+    {k: 'datum', label: direct ? '📅 Geplant op' : '📅 Wanneer?', type: 'date', waarde: x.datum || ''},
     {type: 'html', waarde: veldSchets(p, gek, {metRijen: true, rijen: x.rijen || []})},
     ...(pv.length ? [{k: 'vakken', label: 'Welke vakken? (niets aanvinken = het hele perceel)', type: 'vinkjes', waarde: gek, opties: pv.map((v, i) => [i, `Vak ${v.letter}${v.z._vak ? ' (' + v.z.naam + ')' : ''} · ${v.rijen ?? v.nrs.length} rijen`])}] : []),
     {k: 'aantal', label: 'Hoeveel? (mag leeg)', type: 'number', waarde: x.aantal ?? ''},
     {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: x.eenheid || 'planten', opties: [['planten', 'planten'], ['meters', 'meters'], ['trays', 'trays'], ['kg', 'kg zaad']]},
     {k: 'notitie', label: 'Opmerking', type: 'textarea', waarde: x.notitie || ''},
-    ...(!oud ? [{k: 'taak', label: '', type: 'vinkjes', waarde: ['ja'], opties: [['ja', '📋 Er meteen een taak van maken']]}] : [])], oud ? 'Opslaan' : 'Plannen');
+    ...(!oud && !direct ? [{k: 'taak', label: '', type: 'vinkjes', waarde: ['ja'], opties: [['ja', '📋 Er meteen een taak van maken']]}] : [])], oud ? 'Opslaan' : direct ? '🌱 Indelen' : 'Plannen');
   if (!w) return;
   if (!w.teelt) { toast('Kies wat er geplant of gezaaid wordt', 1); return; }
   const rs = ras(w.teelt), sid = rs ? rs.soort_id : w.teelt, vakIdx = (w.vakken || []).map(Number);
@@ -8166,14 +8183,15 @@ async function pzFormulier(id, pid0) {
       omschrijving: [pzWaar(rij), rij.aantal ? getal(rij.aantal) + ' ' + (rij.eenheid || '') : '', rij.notitie || ''].filter(Boolean).join('\n'), gezamenlijk: false}).select().single();
     if (!error && t) { S.taken.push(t); await sb.from('plantplanning').update({taak_id: t.id}).eq('id', res.data.id); res.data.taak_id = t.id; }
   }
+  if (direct && !oud) { await pzGeplant(res.data.id, true); return; }
   render(true); toast(oud ? 'Opgeslagen' : '🌱 Gepland');
 }
 // staat in de grond: sporen op de kaart indelen met dit ras (bij vermeerdering ook de moederplanten-weergave aan)
-async function pzGeplant(id) {
+async function pzGeplant(id, stil) {
   const x = (S.plantplanning || []).find(y => y.id === id), p = x && perceel(x.perceel_id); if (!p) return;
   const sporen = x.sporen?.length ? x.sporen : pzSporen(p, [], []), tid = x.ras_id || x.soort_id, n = sporen.reduce((a, q) => a + q.nrs.length, 0);
   const vol = sporen.reduce((a, q) => { const z = zoneVan(p.id, q.z); return a + (z ? q.nrs.filter(nr => waarden((z.banen || [])[nr - 1]).some(Boolean)).length : 0); }, 0);
-  if (!await bevestigJa('Staat het in de grond?', `${n} sporen op ${esc(p.naam)} worden ingedeeld met <b>${esc(pzNaam(x))}</b>.${vol ? `<br>⚠️ ${vol} daarvan zijn al ingedeeld en worden overschreven.` : ''}${x.teeltwijze === 'vermeerdering' ? '<br>🌿 Vermeerdering: de planten staan als lijn midden in het spoor tot je wisselt.' : ''}`, '✓ Ja, indelen')) return;
+  if ((!stil || vol) && !await bevestigJa(stil ? 'Sporen overschrijven?' : 'Staat het in de grond?', `${n} sporen op ${esc(p.naam)} worden ingedeeld met <b>${esc(pzNaam(x))}</b>.${vol ? `<br>⚠️ ${vol} daarvan zijn al ingedeeld en worden overschreven.` : ''}${x.teeltwijze === 'vermeerdering' ? '<br>🌿 Vermeerdering: de planten staan als lijn midden in het spoor tot je wisselt.' : ''}`, '✓ Ja, indelen')) return;
   for (const q of sporen) {
     const z = zoneVan(p.id, q.z); if (!z) continue;
     const arr = [...(z.banen || [])]; q.nrs.forEach(nr => { while (arr.length < nr) arr.push(null); arr[nr - 1] = tid; });
