@@ -939,6 +939,9 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .rpVolg b{font-size:14px;line-height:1.1;text-align:center}.rpVolg small{display:block;font-size:10px;color:var(--groen);font-weight:700}
 .beplantPartijen{margin:6px 0 2px 10px;padding-left:10px;border-left:3px solid #e2ecdf;display:flex;flex-direction:column;gap:6px}.beplantPartijen>small{color:#6b7a6d}
 .bpPartij{background:#f8fbf6;border-radius:10px;padding:6px 8px}.bpKop small{color:#6b7a6d}
+.kopKnop{width:auto!important;margin:0 0 0 8px!important;padding:3px 10px!important;font-size:12.5px!important;display:inline-block}.kopKnop.aan{background:var(--groen)!important;color:#fff!important}
+.plantInfo{pointer-events:none}.plantInfo div{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;text-align:center;font-size:12px;line-height:1.25;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;font-weight:600}
+.plantInfo b{display:block;font-size:13.5px;font-weight:800}.plantInfo span{display:block;font-size:11.5px;opacity:.95}
 </style>
 </head>
 <body>
@@ -1744,7 +1747,14 @@ function klikBaan(p, bn, ll) {
       if (!al && !xp.ras_id && arr[bn.nr - 1] !== kwast) { arr[bn.nr - 1] = kwast; zetBanen(p, arr); }
       return;
     }
-    if (kwast === null) { const op = partijOpSpoor(p, bn.nr); if (op && mag('partijen_beheren')) partijZetSporen(op, p, [bn.nr], false); }
+    if (xp && isGeknipt(v) && mag('partijen_beheren')) {   // stuk van een gesplitst spoor: ras én partij op dat stuk
+      if (isSpuitRij(p, bn.nr)) { toast('Dat is een spuitspoor, daar staat geen partij op', 1); return; }
+      const al = partijOpSpoor(p, bn.nr, idx) === xp, n = {k: [...v.k], s: [...v.s]};
+      if (!al) { n.s[idx] = xp.ras_id || kwast; arr[bn.nr - 1] = n; zetBanen(p, arr); }
+      setTimeout(() => partijZetStuk(xp, alleZones(ouder(p)).find(q => q.id === p.id) || p, bn.nr, idx, !al), 30);
+      toast(`${al ? 'Partij eraf' : 'Partij ' + partijKort(xp)} · spoor ${bn.nr}, stuk ${idx + 1}`); return;
+    }
+    if (kwast === null) { const op = partijOpSpoor(p, bn.nr, isGeknipt(v) ? idx : undefined); if (op && mag('partijen_beheren')) { if (isGeknipt(v)) partijZetStuk(op, p, bn.nr, idx, false); else partijZetSporen(op, p, [bn.nr], false); } }
     if (isGeknipt(v)) { const n = {k: [...v.k], s: [...v.s]}; n.s[idx] = kwast; arr[bn.nr - 1] = n; }
     else arr[bn.nr - 1] = kwast;
     zetBanen(p, arr);
@@ -2695,7 +2705,7 @@ function banenVan(p) {
           const k = Math.round((a - start) / b);   // vaste plek in het raster: blijft hetzelfde bij opschuiven en weghalen
           const hk = haaks(a, b);   // haaks afgesloten (rechthoek); lukt dat niet, dan zoals het gebied loopt
           if (hk && !weg.has(k) && m2 - hk.m2 > 1) { try { const r = verschil(stuk, hk.geo); if (r && turf.area(r) > 1) res.rest.push(r); } catch {} }   // wat overblijft: braak, zoals een kopeinde
-          if (weg.has(k)) res.weg.push({k, geo: hk?.geo || stuk, a, b}); else
+          if (weg.has(k)) res.weg.push({k, geo: stuk, a, b}); else
           res.push(hk ? {nr: res.length + 1, k, geo: hk.geo, m2: hk.m2, a, b, t0: hk.t0, t1: hk.t1} : {nr: res.length + 1, k, geo: stuk, m2, a, b, t0: Math.min(...t), t1: Math.max(...t)});
         }
       }
@@ -2745,9 +2755,9 @@ let weergave = {}; try { weergave = JSON.parse(localStorage.getItem('weergave') 
 const LAAG = ['sporen', 'spuit', 'grond', 'vlag', 'taken'];
 function lagenVan(id) {          // wat er bij dit veld aan staat
   const w = weergave[id] ?? weergave._alle ?? 'alles';
-  if (w === 'alles' || w === 'sporen') return {sporen: true, spuit: true, grond: true, vlag: true, taken: true};
-  if (w === 'blanco') return {sporen: false, spuit: false, grond: false, vlag: false, taken: false};
-  return {sporen: !!w.sporen, spuit: !!(w.spuit ?? w.sporen), grond: !!(w.grond ?? w.mark), vlag: !!(w.vlag ?? w.mark), taken: w.taken !== false};
+  if (w === 'alles' || w === 'sporen') return {sporen: true, spuit: true, grond: true, vlag: true, taken: true, info: true};
+  if (w === 'blanco') return {sporen: false, spuit: false, grond: false, vlag: false, taken: false, info: false};
+  return {sporen: !!w.sporen, spuit: !!(w.spuit ?? w.sporen), grond: !!(w.grond ?? w.mark), vlag: !!(w.vlag ?? w.mark), taken: w.taken !== false, info: w.info !== false};
 }
 const overal = k => (weergave._g || {})[k] !== false;   // in één keer voor alle velden
 function zichtbaar(id) { const l = lagenVan(id); return Object.fromEntries(LAAG.map(k => [k, l[k] && overal(k)])); }
@@ -2755,7 +2765,7 @@ const laagVanMark = m => m.soort === 'vlag' ? 'vlag' : 'grond';
 function bewaarWeergave() { try { localStorage.setItem('weergave', JSON.stringify(weergave)); } catch {} }
 function zetLaag(id, wat) {
   const l = lagenVan(id);
-  weergave[id] = wat === 'blanco' ? {sporen: false, spuit: false, grond: false, vlag: false, taken: false} : {...l, [wat]: !l[wat]};
+  weergave[id] = wat === 'blanco' ? {sporen: false, spuit: false, grond: false, vlag: false, taken: false, info: false} : {...l, [wat]: !l[wat]};
   if (wat !== 'blanco' && weergave[id][wat] && !overal(wat)) toast('Let op: deze laag staat via 🗂️ voor alle velden uit');
   bewaarWeergave(); render(true);
 }
@@ -3284,6 +3294,9 @@ function initKaart() {
   laag = L.layerGroup().addTo(map); markLaag = L.layerGroup().addTo(map); focusLaag = L.layerGroup().addTo(map); pijlLaag = L.layerGroup().addTo(map);
   tractorLaag = L.layerGroup().addTo(map); locatieLaag = L.layerGroup().addTo(map); voertuigLaag = L.layerGroup().addTo(map);
   map.on('zoomend', zetKaartSchaal);
+  // plantinfo komt pas bij inzoomen: opnieuw tekenen als je over die grens zoomt
+  let zoomNiv = map.getZoom() >= 16 ? 2 : map.getZoom() >= 15 ? 1 : 0;
+  map.on('zoomend', () => { const n = map.getZoom() >= 16 ? 2 : map.getZoom() >= 15 ? 1 : 0; if (n !== zoomNiv) { zoomNiv = n; try { renderKaart(); } catch {} } });
 
   map.pm.setLang('nl');
   map.pm.setGlobalOptions({snappable: true, snapDistance: 15, allowSelfIntersection: false,
@@ -3400,6 +3413,7 @@ function renderKaart() {
       .on('click', () => { if (tmAan) { tmPerceelKiezen(p.id); return; } if (!tekent()) kies(p.id); }).addTo(laag);
     const zb = zichtbaar(p.id);
     if (!p.uitgeschakeld && !licht) alleZones(p).forEach(z => { if (zb.sporen) { tekenGewasVlak(z, p); tekenZone(z, isA); if (isA) tekenABLijn(z); } if (zb.spuit) { tekenSpuit(z); tekenVakLetters(z); } });
+    if (!p.uitgeschakeld && !licht && zb.sporen && lagenVan(p.id).info && p.type !== 'pand' && map.getZoom() >= (isA ? 15 : 16)) { try { tekenPlantInfo(p); } catch (e) { console.warn('plantinfo', e); } }
     if (toonOmtrek) {
       (p.vakken || []).map(v => vakZone(p, v).binnen).filter(Boolean).forEach(g => L.geoJSON(g, {interactive: false,
         style: {color: '#ffffff', weight: isA ? 2.5 : 1.5, dashArray: '6,5', fill: false, opacity: .9}}).addTo(laag));
@@ -3460,6 +3474,12 @@ function halfStuk(p, bn, geo) {
   const o0 = hoog ? bn.a + bn.b / 2 : bn.a - .05, o1 = hoog ? bn.a + bn.b + .05 : bn.a + bn.b / 2;
   try { return turf.intersect(geo, rechthoek(meta, o0, o1, bn.t0 - 1, bn.t1 + 1)); } catch { return null; }
 }
+// kopeinde aanpassen: tik op sporen om ze kopeinde te maken, of op een kopeinde-spoor om het weer een spoor te maken
+function kopBewerken(pid) {
+  if (gereedschap === 'spoorweg' && actief === pid) { gereedschap = undefined; banner(); render(true); return; }
+  actief = pid; perceelTab = 'aanpassen'; gereedschap = 'spoorweg'; kwast = undefined; gekozenPlant = undefined; paneelKlein?.(); render(true);
+  banner('<b>🟫 Kopeinde aanpassen</b><br>Tik op een spoor om het kopeinde te maken. Kopeinde-sporen zie je rood gestippeld: tik erop om er weer een spoor van te maken.', [['✓ Klaar', () => kopBewerken(pid)]]);
+}
 const kopKleur = z => { const ou = ouder(z); return S.markeringen.find(m => m.perceel_id === ou?.id && m.soort === 'kopeinde')?.kleur || braakSoort()?.kleur || '#8d6e63'; };
 // oppervlak kopeinde: getekend kopeinde + restjes + weggehaalde sporen
 function kopOppervlak(p) {
@@ -3476,11 +3496,8 @@ function tekenZone(p, isA) {
   const kl = kopKleur(p);
   (banenVan(p).rest || []).forEach(g => geenSnap(L.geoJSON(g, {style: {stroke: false, fillColor: kl, fillOpacity: .45}})).bindTooltip('🟫 Kopeinde (geen spoor)', {sticky: true}).addTo(laag));
   // weggehaalde sporen: kopeinde; met één tik terug te zetten (als je het perceel aan het aanpassen bent)
-  if (!(gereedschap === 'spoorweg' && isA)) { const terug = isA && perceelTab === 'aanpassen' && mag('percelen_bewerken') && !archief;
-    (banenVan(p).weg || []).forEach(w => { const l = geenSnap(L.geoJSON(w.geo, {style: {color: kl, weight: terug ? 1 : 0, dashArray: '4 4', fillColor: kl, fillOpacity: .45}}))
-      .bindTooltip(terug ? '🟫 Kopeinde (weggehaald spoor) · tik om het spoor terug te zetten' : '🟫 Kopeinde (weggehaald spoor)', {sticky: true});
-      if (terug) l.on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); spoorTerug(p, w.k); });
-      l.addTo(laag); }); }
+  if (!(gereedschap === 'spoorweg' && isA))
+    (banenVan(p).weg || []).forEach(w => geenSnap(L.geoJSON(w.geo, {style: {stroke: false, fillColor: kl, fillOpacity: .45}})).bindTooltip('🟫 Kopeinde', {sticky: true}).addTo(laag));
   banenVan(p).forEach(bn => {
     const stukken = stukkenVan(p, bn), f = metPatroon ? rijFactor(p, bn.nr) : 1;
     stukken.forEach(st => {
@@ -3844,7 +3861,8 @@ function htmlDetail(p) {
         <td>${x.n ? x.n + ' sporen' : ''}${x.n && x.vlak ? ' + ' : ''}${x.vlak ? 'heel vlak' : ''}</td><td>${ha(x.m2)} ha</td><td>${Math.round(x.m2 / opp * 100)}%</td></tr>`;
     }).join('');
     const ko = zones.length ? kopOppervlak(p) : {m2: 0};
-    const kopRij = ko.m2 > 1 ? `<tr><td><i style="background:${esc(kopKleur(p))}"></i>🟫 Kopeinde (geen spoor)</td><td>${ko.nWeg ? ko.nWeg + ' weggehaald' : ''}</td><td>${ha(ko.m2)} ha</td><td>${Math.round(ko.m2 / opp * 100)}%</td></tr>` : '';
+    const kopBew = mag('percelen_bewerken') && !archief && p.type !== 'pand';
+    const kopRij = ko.m2 > 1 || kopBew ? `<tr><td><i style="background:${esc(kopKleur(p))}"></i>🟫 Kopeinde (geen spoor)${kopBew ? ` <button class="knop licht klein kopKnop ${gereedschap === 'spoorweg' && actief === p.id ? 'aan' : ''}" onclick="event.stopPropagation();kopBewerken('${p.id}')">${gereedschap === 'spoorweg' && actief === p.id ? '✓ Klaar' : '✏️ Aanpassen'}</button>` : ''}</td><td>${ko.nWeg ? ko.nWeg + ' weggehaald' : ''}</td><td>${ko.m2 > 1 ? ha(ko.m2) + ' ha' : ''}</td><td>${ko.m2 > 1 ? Math.round(ko.m2 / opp * 100) + '%' : ''}</td></tr>` : '';
     let indelen = '';
     if (mag('soorten_indelen') && zones.length) {
       const pl = gekozenPlant ? soort(gekozenPlant) : null;
@@ -3905,7 +3923,8 @@ function htmlDetail(p) {
     ${p.type === 'pand' ? '' : `<button class="chip ${lagenVan(p.id).spuit ? 'aan' : ''}" onclick="zetLaag('${p.id}','spuit')">🚜 Spuitsporen</button>`}
     <button class="chip ${lagenVan(p.id).grond ? 'aan' : ''}" onclick="zetLaag('${p.id}','grond')">🟫 Grond</button>
     <button class="chip ${lagenVan(p.id).vlag ? 'aan' : ''}" onclick="zetLaag('${p.id}','vlag')">🚩 Vlaggen</button>
-    <button class="chip ${lagenVan(p.id).taken ? 'aan' : ''}" onclick="zetLaag('${p.id}','taken')">📋 Taken</button></div>`;
+    <button class="chip ${lagenVan(p.id).taken ? 'aan' : ''}" onclick="zetLaag('${p.id}','taken')">📋 Taken</button>
+    ${p.type === 'pand' ? '' : `<button class="chip ${lagenVan(p.id).info ? 'aan' : ''}" onclick="zetLaag('${p.id}','info')">🏷️ Plantinfo</button>`}</div>`;
   let inhoud = '';
   if (perceelTab === 'info') inhoud = htmlInfo(p);
   else if (perceelTab === 'weer') inhoud = htmlWeer(p);
@@ -4090,7 +4109,7 @@ function htmlMarkeringen(p, welke) {
       || `<p class="hint">${leeg}</p>`}
     ${welke !== 'vlag' && !archief && p.type !== 'pand' && mag('percelen_bewerken') && alleZones(p).some(z => banenVan(z).length || (z.sporen_weg || []).length) ? `<div class="rij" style="margin-top:8px;flex-wrap:wrap">
       <button class="knop licht" onclick="legeSporenBraak('${p.id}')">🟫 Lege sporen weghalen (braak)</button>
-      ${alleZones(p).some(z => (z.sporen_weg || []).length) ? `<button class="knop licht" onclick="alleSporenTerug('${p.id}')">↩︎ Alle weggehaalde sporen terug</button><p class="hint" style="flex-basis:100%;margin:2px 0 0">Eén spoor terug? Tik op de kaart op het weggehaalde spoor (kopeinde-kleur).</p>` : ''}
+      ${alleZones(p).some(z => (z.sporen_weg || []).length) ? `<button class="knop licht" onclick="alleSporenTerug('${p.id}')">↩︎ Alle weggehaalde sporen terug</button>` : ''}
       ${mag('kopeinden_bewerken') && lijst.some(m => m.soort === 'kopeinde') ? `<button class="knop licht rood" onclick="alleKopeindesWeg('${p.id}')">✕ Alle kopeindes weghalen</button>` : ''}</div>` : ''}
   </section>`;
 }
@@ -4101,8 +4120,7 @@ async function legeSporenBraak(pid) {
     [['zelf', '👆 Zelf sporen aantikken op de kaart'], ['rand', '↕️ Alleen de lege sporen aan de randen (overgebleven sporen)'], ['alles', '▦ Alle lege sporen (spuitsporen blijven staan)']]);
   if (!k || k === 'nee') return;
   if (k === 'zelf') {   // zelf aantikken: tik = weg, rood gestippeld = weggehaald (nog eens tikken = terug)
-    actief = pid; perceelTab = 'aanpassen'; gereedschap = 'spoorweg'; kwast = undefined; gekozenPlant = undefined; paneelKlein?.(); render(true);
-    banner('<b>✂️ Sporen weghalen</b><br>Tik op de sporen die weg moeten. Weggehaalde sporen zie je rood gestippeld; tik erop om ze terug te zetten.', [['✓ Klaar', () => { zetGereedschap(undefined); banner(); }]]);
+    gereedschap = undefined; kopBewerken(pid);
     return;
   }
   let totaal = 0;
@@ -7641,6 +7659,58 @@ function htmlWatStaatWaar() {
     <div class="subKeuze"><button class="${wswWeergave === 'perceel' ? 'aan' : ''}" onclick="wswWeergave='perceel';render(true)">📍 Per perceel</button><button class="${wswWeergave === 'ras' ? 'aan' : ''}" onclick="wswWeergave='ras';render(true)">🌱 Per ras</button></div>
     <input class="veld" placeholder="🔎 Zoek perceel, ras of batch" value="${esc(wswZoek)}" oninput="wswZoek=this.value;clearTimeout(window._wsw);window._wsw=setTimeout(()=>{render(true);const v=document.querySelector('#wswZoek');if(v){v.focus();v.setSelectionRange(v.value.length,v.value.length)}},300)" id="wswZoek"></section>
     ${lijst || '<section class="kaartje"><p class="hint">Nog niets ingedeeld op de percelen.</p></section>'}`;
+}
+
+
+/* ---------- plantgegevens op de kaart (zoals op de plattegrond): ras, doel, batch, klasse, rijen, lengte en m² ---------- */
+// meerdere partijen van hetzelfde ras op een veld: de partij met de minste meters krijgt een andere tekstkleur (en zo verder)
+const PI_KLEUREN = ['#ffffff', '#ffeb3b', '#80deea', '#ffab91', '#ce93d8', '#a5d6a7'];
+function partijKleurRang(p) {
+  const c = partijKleurRang.c || (partijKleurRang.c = new Map()), sl = spoorPartijIndex(); let e = c.get(p.id);
+  if (e && e.sl === sl && e.v === S.partijen) return e.r;
+  const per = new Map();
+  (S.partijen || []).filter(x => x.perceel_id === p.id && partijSporen(x).length).forEach(x => { const k = x.ras_id || x.soort_id || ''; if (!per.has(k)) per.set(k, []); per.get(k).push({x, m: partijMeters(x)}); });
+  const r = new Map(); per.forEach(l => l.sort((a, b) => b.m - a.m).forEach((q, i) => r.set(q.x.id, i)));
+  c.set(p.id, {sl, v: S.partijen, r}); return r;
+}
+function tekenPlantInfo(p) {
+  const rang = partijKleurRang(p), groepen = [];
+  alleZones(p).forEach(z => { let open = new Map();
+    banenVan(z).forEach(bn => { const nu = new Map(); if (isSpuitRij(z, bn.nr)) { open = new Map(); return; }   // spuitsporen tellen niet mee; per vak een eigen regel
+      stukkenVan(z, bn).forEach(st => { const t = teelt(st.id); if (!t || vanTeelt(t)) return;
+        const x = partijOpSpoor(z, bn.nr, st.idx), key = x ? 'p:' + x.id : 't:' + t.id;
+        let g = open.get(key); if (!g) { g = {z, key, x, t, nrs: [], m: 0, m2: 0, pts: []}; groepen.push(g); }
+        g.nrs.push(bn.nr); g.m += (st.tot - st.van) * (rijFactor(z, bn.nr) || 1); g.m2 += st.m2 || 0;
+        try { const c = turf.centroid(st.geo).geometry.coordinates; g.pts.push([c, st.m2 || 1]); } catch {}
+        nu.set(key, g); });
+      open = nu; }); });
+  groepen.filter(g => g.pts.length && g.m > 5).forEach(g => {
+    const w = g.pts.reduce((a, q) => a + q[1], 0), lng = g.pts.reduce((a, q) => a + q[0][0] * q[1], 0) / w, lat = g.pts.reduce((a, q) => a + q[0][1] * q[1], 0) / w;
+    const n = new Set(g.nrs).size, x = g.x, r = g.t.id && ras(g.t.id), naam = r ? r.naam : g.t.naam;
+    const doel = x ? (x.doel || x.teeltdoel || '') : '', kleur = x ? PI_KLEUREN[(rang.get(x.id) || 0) % PI_KLEUREN.length] : '#ffffff';
+    const plm = x && partijPlmEigen?.(x);
+    const r1 = [naam, doel && doel.toLowerCase(), x ? (x.batch || x.nak) : '', x?.klasse].filter(Boolean).map(esc).join(' &nbsp;');
+    const r2 = `${n} ${n === 1 ? 'rij' : 'rijen'} · ${Math.round(g.m / n).toLocaleString('nl-NL')} m · ${Math.round(g.m2).toLocaleString('nl-NL')} m²${plm ? ` · ${getal(plm, 1)} pl/m` : ''}`;
+    L.marker([lat, lng], {interactive: false, keyboard: false, icon: L.divIcon({className: 'plantInfo', html: `<div style="color:${kleur}"><b>${r1}</b><span>${r2}</span></div>`, iconSize: [0, 0]})}).addTo(laag);
+  });
+}
+// een partij op één stuk van een gesplitst spoor (st = welk stuk)
+async function partijZetStuk(x, z, nr, st, aan) {
+  if (isSpuitRij(z, nr)) { toast('Dat is een spuitspoor, daar staat geen partij op', 1); return; }
+  const bn = banenVan(z)[nr - 1]; if (!bn) return; const alle = stukkenVan(z, bn).map(q => q.idx), wijz = new Map();
+  // whole spoor → losse stukken (zodat de andere stukken hun partij houden)
+  const splits = y => { const l = Array.isArray(y.sporen) ? y.sporen.map(q => ({...q, nrs: [...(q.nrs || [])]})) : []; let heel = false;
+    l.forEach(q => { if (q.z === z.id && q.st == null && q.nrs.includes(nr)) { q.nrs = q.nrs.filter(n2 => n2 !== nr); heel = true; } });
+    if (heel) alle.forEach(i => l.push({z: z.id, nrs: [nr], st: i})); return l.filter(q => q.nrs.length); };
+  const zonder = (l, i) => l.filter(q => !(q.z === z.id && q.st === i && q.nrs.includes(nr)));
+  (S.partijen || []).forEach(y => { const heeft = partijOpSpoor(z, nr, st) === y || (Array.isArray(y.sporen) && y.sporen.some(q => q.z === z.id && q.nrs?.includes(nr)));
+    if (!heeft) return; let l = splits(y);
+    if (y.id !== x.id || !aan) l = zonder(l, st);
+    if (JSON.stringify(l) !== JSON.stringify(y.sporen || [])) { y.sporen = l.length ? l : null; wijz.set(y.id, y); } });
+  if (aan && !(x.sporen || []).some(q => q.z === z.id && q.st === st && q.nrs.includes(nr))) { x.sporen = [...(x.sporen || []), {z: z.id, nrs: [nr], st}]; wijz.set(x.id, x); }
+  for (const y of wijz.values()) y.perceel_id = partijPerceelUitSporen(y) || null;
+  spoorPartijMap = null; render(true);
+  for (const y of wijz.values()) { const {error} = await sb.from('partijen').update({sporen: y.sporen, perceel_id: y.perceel_id || null}).eq('id', y.id); if (error) { toast('Opslaan mislukt: ' + error.message, 1); break; } }
 }
 
 /* ============ ROOIPLANNING ============
