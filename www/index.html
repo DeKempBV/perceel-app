@@ -321,6 +321,8 @@ textarea.veld{resize:vertical;font-family:inherit}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
 .patroonbalk{display:flex;flex-wrap:wrap;gap:2px;margin-top:8px;align-items:center}.patroonbalk .pv{width:9px;height:22px;border-radius:2px;background:#43a047}
+.wzLijst{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto}.wzRij{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid #e3e8e1;border-radius:10px;padding:7px 10px;background:#fff}
+.wzRij small{display:block;color:var(--grijs);font-size:12px}.wzRij .knop{width:auto;flex:0 0 auto}.wzRij.hersteld{opacity:.55}.wzRij.isHerstel{background:#f5f5f5}
 .pzPaneel{border:2px solid #ffd600}.pzStap{margin:10px 0 4px;font-size:14px}.pzChips{display:flex;flex-wrap:wrap;gap:6px}.pzRassen{display:contents}
 .pzChip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid #d7dccf;background:#fff;border-radius:18px;padding:6px 11px;font:inherit;font-size:14px;cursor:pointer;color:#26402b}.pzChip i{width:12px;height:12px;border-radius:50%;display:inline-block}
 .pzChip.open{border-color:#2e7d32;background:#f1f8f1}.pzChip.aan{background:#2e7d32;border-color:#2e7d32;color:#fff}.pzGekozen{background:#fffde7;border-radius:10px;padding:7px 10px;margin:6px 0;font-size:14px}
@@ -1011,6 +1013,7 @@ setTimeout(function () { window.opstartWeg(); }, 20000);   // voor de zekerheid 
       <div class="logo">🌾 Perceel App <span id="netStatus" class="netstatus" style="display:none;cursor:pointer" onclick="event.stopPropagation();wachtrijBekijken()"></span></div>
       <div class="wie" id="wie"></div>
       <button class="uit agknop" title="Agenda openen" onclick="openAgenda()" style="font-size:16px;padding:4px 8px">📆</button>
+      <button class="uit" id="wzKnop" title="Wat ik heb gedaan (ongedaan maken)" onclick="openWijzigingen()" style="font-size:16px;padding:4px 8px">↶</button>
       <button class="uit belknop" id="belKnop" title="Meldingen" onclick="openMeldingen()" style="font-size:16px;padding:4px 8px">🔔</button>
       <button class="uit" title="Wachtwoord wijzigen" onclick="eigenWachtwoord()">🔑</button>
       <button class="uit" title="Uitloggen" onclick="uitloggen()" style="font-size:15px;padding:4px 8px">🚪</button>
@@ -1766,7 +1769,9 @@ function klikBaan(p, bn, ll) {
   }
   if (gereedschap === 'sproeier') {
     if (!mag('spuitsporen_bewerken')) { toast('Je mag geen sporen aanpassen', 1); return; }
-    wisselSproeier(p, bn.nr); return;
+    let f = .5; if (ll && meta) { const q = meta.naarM([ll.lng, ll.lat]), o = q[0] * meta.n[0] + q[1] * meta.n[1]; f = (o - bn.a) / bn.b; }
+    if (f < .25 && bn.nr > 1) wisselSproeierLijn(p, bn.nr - 1); else if (f > .75 && bn.nr < banenVan(p).length) wisselSproeierLijn(p, bn.nr); else wisselSproeier(p, bn.nr);
+    return;
   }
   if (gereedschap === 'knip' && magIndelen) {
     if (t < 1 || t > lengte - 1) { toast('Te dicht bij het begin of eind van het spoor', 1); return; }
@@ -2879,10 +2884,10 @@ function patroonDelen(tekst) {
 function patroonLees(tekst) { return patroonDelen(tekst).vals; }
 // "0,5-0,5": het streepje = sproeierleiding precies op de lijn tussen die twee sporen (op de lijn van een trekkerspoor)
 function sproeierLijnenVan(z) {
-  const t = String(spuitVan(z).patroon || ''); if (!t.includes('-')) return new Set();
+  const los = (spuitVan(z).sproeierLijn || []).map(Number), t = String(spuitVan(z).patroon || ''); if (!t.includes('-')) return new Set(los);
   const d = patroonDelen(t), na = [...d.lijnen], per = d.per, st = Math.max(1, parseInt(spuitVan(z).patroonStart) || 1), uit = new Set(), tot = banenVan(z).length;
-  if (!per) return uit; for (let base = st - 1 - per * Math.ceil(st / per); base < tot; base += per) na.forEach(i => { const nr = base + i; if (nr >= 1 && nr < tot) uit.add(nr); });
-  return uit;
+  if (per) for (let base = st - 1 - per * Math.ceil(st / per); base < tot; base += per) na.forEach(i => { const nr = base + i; if (nr >= 1 && nr < tot) uit.add(nr); });
+  los.forEach(nr => uit.add(nr)); return uit;
 }
 const patroonVan = z => { const t = spuitVan(z).patroon; if (!t) return null; const pp = patroonLees(t); return pp.length ? pp : null; };
 function rijWaarde(z, nr) {   // een sproeierspoor tussen twee spuitsporen is gewoon spuitpad (de mensen weten dat daar de sproeiers liggen)
@@ -3033,6 +3038,12 @@ function tekenSproeier(z) {
     geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#29b6f6', weight: 3, dashArray: '2,7', interactive: false})).addTo(laag);
   });
 }
+function wisselSproeierLijn(z, na) {   // leiding op de lijn tussen spoor na en na+1
+  const s = {...spuitVan(z)}, l = new Set((s.sproeierLijn || []).map(Number));
+  if (l.has(na)) l.delete(na); else if (sproeierLijnenVan(z).has(na)) { toast('Deze leiding komt uit het spoorpatroon; pas het patroon aan', 1); return; } else l.add(na);
+  s.sproeierLijn = [...l].sort((a, b) => a - b); zetSpuit(z, s);
+  toast(`${z._vak ? z.naam + ' · ' : ''}${l.has(na) ? '💧 Sproeierleiding tussen' : 'Geen leiding meer tussen'} spoor ${na} en ${na + 1}`);
+}
 function wisselSproeier(z, nr) {
   const s = {...spuitVan(z)}, l = new Set(s.sproeier || []), was = rijWaarde(z, nr) === 3;
   if (l.has(nr)) l.delete(nr); else if (!was) l.add(nr);
@@ -3167,7 +3178,7 @@ async function wisselMoeder(zid, pid = actief) {
   const oudBanen = [...(z.banen || [])], banen = v.uit.map(x => x.bron && (x.w === 1 || x.w === .5) ? oudBanen[x.bron.nr - 1] ?? null : null);
   const patroon = vals.map((q, i) => (v.lijnNa.has(i) ? '-' : '') + (q === .5 ? '0,5' : String(q))).join('');
   const sp = spuitVan(z);
-  await zoneZetten(p, z, {verschuiving: v.proef.verschuiving, banen, spuit: {...sp, patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], elke: 0, start: 0, moeder: false, gewisseld: new Date().toISOString()}});
+  await zoneZetten(p, z, {verschuiving: v.proef.verschuiving, banen, spuit: {...sp, patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierLijn: [], elke: 0, start: 0, moeder: false, gewisseld: new Date().toISOString()}});
   banenCache.delete(z.id);
   // partijen: het nieuwe spoor hoort bij de partij van de moederrij waar (het meeste van) zijn plantjes vandaan komen
   const naar = new Map(); v.uit.forEach(x => { if (x.bron && banen[x.bn.nr - 1] != null) { if (!naar.has(x.bron.nr)) naar.set(x.bron.nr, []); naar.get(x.bron.nr).push(x.bn.nr); } });
@@ -3943,7 +3954,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -4006,6 +4017,7 @@ function renderPaneel() {
   else if (tab === 'weekplanning') h = htmlWeekplanning();
   else if (tab === 'rooiplanning') h = htmlRooiplanning();
   else if (tab === 'plantzaai') h = seizoenKnop() + htmlPlantZaai();
+  else if (tab === 'wijzigingen') { if (!wz.geladen) laadWijzigingen(true); h = htmlWijzigingen(); }
   else if (tab === 'resinvoer') h = seizoenKnop() + htmlResInvoer();
   else if (tab === 'resrapport') h = seizoenKnop() + htmlResRapport();
   else if (tab === 'resprognose') h = seizoenKnop() + htmlResPrognose();
@@ -4379,7 +4391,7 @@ function htmlDetail(p) {
     ${mag('spuitsporen_bewerken') && totaalSporen ? `<button class="knop ${gereedschap === 'spuit' ? '' : 'licht'}" onclick="zetGereedschap('spuit')">🚜 ${gereedschap === 'spuit' ? 'Klaar met spuitsporen aanklikken' : 'Spuitsporen aanklikken op de kaart'}</button>
       ${gereedschap === 'spuit' ? '<p class="hint"><b>Tik op een spoor</b> om er een spuitspoor van te maken, of tik op een spuitspoor (oranje streep) om het weg te halen. Werkt ook in deelvelden.</p>' : ''}
       <button class="knop ${gereedschap === 'sproeier' ? '' : 'licht'}" onclick="zetGereedschap('sproeier')">💧 ${gereedschap === 'sproeier' ? 'Klaar met sproeiersporen aanklikken' : 'Sproeiersporen aanklikken op de kaart'}</button>
-      ${gereedschap === 'sproeier' ? '<p class="hint"><b>Tik op een spoor</b> om er een sproeierspoor van te maken (blauwe stippellijn), of tik er nog een keer op om het weg te halen. Op een sproeierspoor staan geen planten.</p>' : ''}` : ''}
+      ${gereedschap === 'sproeier' ? '<p class="hint"><b>Tik midden op een spoor</b> = sproeierspoor (daar staan geen planten). <b>Tik vlak bij de lijn tussen twee sporen</b> = sproeierleiding op die lijn (de sporen blijven beplant). Nog een keer tikken haalt hem weg. Zoom in om precies te tikken.</p>' : ''}` : ''}
     ${bew && totaalSporen ? `<button class="knop ${gereedschap === 'spoorweg' ? '' : 'licht'}" onclick="zetGereedschap('spoorweg')">✂️ ${gereedschap === 'spoorweg' ? 'Klaar met sporen weghalen' : 'Losse sporen weghalen of terugzetten'}</button>
       ${gereedschap === 'spoorweg' ? '<p class="hint"><b>Tik op een spoor</b> om het weg te halen. Weggehaalde sporen zie je rood gestippeld; tik erop om ze terug te zetten. Werkt ook in deelvelden.</p>' : ''}` : ''}
     ${bew ? abInvoer(p, bew) : ''}
@@ -5721,7 +5733,7 @@ function sectieTabs(s) {
   const trek = ziet('tractoren_volgen') || ziet('tractor_rijden') || ziet('voertuigen_zien');
   const resBek = ziet('resultaten_bekijken') || mag('resultaten_beheren'), resIn = mag('resultaten_invoeren') || mag('resultaten_beheren') || resBek;
   return ({
-    vandaag: [['vandaag', '☀️', 'Vandaag'], ...(ziet('historie_bekijken') ? [['gebeurtenissen', '🔔', 'Gebeurtenissen']] : [])],
+    vandaag: [['vandaag', '☀️', 'Vandaag'], ...(ziet('historie_bekijken') ? [['gebeurtenissen', '🔔', 'Gebeurtenissen']] : []), ...(ziet('historie_bekijken') || isBeheerder() ? [['wijzigingen', '↶', 'Wijzigingen']] : [])],
     velden: [['percelen', '🗺️', 'Kaart'], ['watstaatwaar', '🌱', 'Wat staat waar'], ['partijen', '🏷️', 'Partijen'], ['prognose', '📈', 'Prognose'], ['plantplan', '🧮', 'Plantplan'], ['vruchtwisseling', '🔄', 'Wisseling'], ['waarnemingen', '🐛', 'Ziektes'], ['monsters', '🧪', 'Monsters']],
     werk: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['plantzaai', '🌱', 'Planten en zaaien'], ['rooiplanning', '🚜', 'Rooiplanning'], ['spuiten', '🧪', 'Spuiten'], ['bemesten', '🌱', 'Bemesten'],
       ...(trek ? [['tractoren', '🚜', 'Trekkers']] : []), ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : [])],
@@ -8128,7 +8140,7 @@ async function aiAllesUitvoeren(mi) { const l = AI.berichten[mi]?.acties || []; 
 
 /* ---------- binnen een blok: eerst blokjes, daarna elk onderdeel een eigen pagina ---------- */
 const TAB_INFO = {
-  vandaag: ['☀️', 'Vandaag', 'Wat er nu gebeurt'], gebeurtenissen: ['🔔', 'Gebeurtenissen', 'Wie deed wat en wanneer'],
+  vandaag: ['☀️', 'Vandaag', 'Wat er nu gebeurt'], wijzigingen: ['↶', 'Wijzigingen', 'Alles wat er is aangepast, met ongedaan maken'], gebeurtenissen: ['🔔', 'Gebeurtenissen', 'Wie deed wat en wanneer'],
   percelen: ['🗺️', 'Kaart', 'Alle percelen, sporen en wat er staat'], watstaatwaar: ['🌱', 'Wat staat waar', 'Waar we echt planten hebben staan'], partijen: ['🏷️', 'Partijen', 'NAK-nummers en batches per perceel'],
   prognose: ['📈', 'Prognose', 'Hoeveel planten per partij'], plantplan: ['🧮', 'Plantplan', 'Voorstel hoe te planten'],
   vruchtwisseling: ['🔄', 'Vruchtwisseling', 'Wat stond waar, over de jaren'], waarnemingen: ['🐛', 'Ziektes en plagen', 'Waarnemingen per spoor'],
@@ -9610,6 +9622,7 @@ async function sporenOmzetten(pid, zid, patch, melding) {
     const sproeier = nieuw.filter(bn => sproeiOud.has(oudNr(bn))).map(bn => bn.nr);
     if (pp) extraPatch.spuit = {...sp, patroon: nieuw.map(bn => { const w = oudWaarde(oudNr(bn)); return w === .5 ? '0,5' : String(w); }).join(''), patroonStart: 1, extra: [], uit: [], sproeier: []};   // losse sproeiers gaan mee in het patroon (3)
     else extraPatch.spuit = {...sp, elke: 0, start: 0, uit: [], extra: nieuw.filter(bn => !sproeiOud.has(oudNr(bn)) && oudWaarde(oudNr(bn)) === 2).map(bn => bn.nr), sproeier};
+    if ((sp.sproeierLijn || []).length) { const lijn = []; nieuw.forEach((bn, i) => { const o = oudNr(bn), o2 = i + 1 < nieuw.length ? oudNr(nieuw[i + 1]) : null; if (o2 === o + 1 && sp.sproeierLijn.includes(o)) lijn.push(bn.nr); }); extraPatch.spuit.sproeierLijn = lijn; }
   }
   await zoneZetten(p, z, extraPatch);
   // partijen op dit deel: zelfde spoor (plek in het raster), nieuw nummer; verdwenen sporen eraf
@@ -10754,6 +10767,83 @@ const ongelezen = () => (S.meldingen || []).filter(m => !m.gelezen).length;
 function belTeken() {
   const n = ongelezen() + waarschuwingen().length, b = $('#belKnop'); if (!b) return;
   b.innerHTML = '🔔' + (n ? `<span class="tel">${n}</span>` : '');
+}
+/* =====================================================================================
+   WIJZIGINGEN – alles wat er is aangepast (database houdt het bij), met ongedaan maken
+   ===================================================================================== */
+const wz = {lijst: [], mijn: [], geladen: false, wie: '', zoek: '', dagen: 7};
+async function laadWijzigingen(alles) {
+  const gister = new Date(); gister.setDate(gister.getDate() - 1); gister.setHours(0, 0, 0, 0);
+  const q = sb.from('wijzigingen').select('id,tabel,rij_id,actie,velden,oud,nieuw,door,door_naam,op,herstel_van,hersteld_op,hersteld_door').order('id', {ascending: false});
+  if (alles) { const van = new Date(Date.now() - wz.dagen * 864e5); const {data, error} = await q.gte('op', van.toISOString()).limit(1500); if (error) { wz.fout = error.message; } else { wz.lijst = data || []; wz.fout = null; } wz.geladen = true; render(true); }
+  else { const {data, error} = await q.eq('door', me?.id).gte('op', gister.toISOString()).limit(400); wz.mijn = error ? [] : data || []; wz.fout = error?.message || null; }
+}
+const WZ_VELD = {banen: 'sporen ingedeeld', spuit: 'spuitsporen / patroon / sproeiers', vakken: 'deelvelden', geo: 'vorm', naam: 'naam', richting: 'richting sporen', breedte: 'spoorbreedte',
+  verschuiving: 'sporen verschoven', aantal: 'aantal sporen', gewas: 'gewas', sporen_weg: 'sporen weggehaald', beplanting: 'beplanting', bio: 'bio', uitgeschakeld: 'aan/uit', ab_punt: 'A-punt',
+  klaar: 'afgerond', tekst: 'tekst', gepland: 'datum', deadline: 'uiterlijk', toegewezen_aan: 'wie', gezamenlijk: 'gezamenlijk', meewerkers: 'meewerkers', voortgang: 'voortgang', omschrijving: 'omschrijving',
+  sporen: 'sporen', batch: 'batch', nak: 'NAK', klasse: 'klasse', ras_id: 'ras', soort_id: 'soort', perceel_id: 'perceel', status: 'status', regels: 'wat er gerooid wordt', datum: 'datum', ingang: 'ingang',
+  meters: 'meters', bakken: 'bakken', kleur: 'kleur', titel: 'titel', notitie: 'notitie'};
+const WZ_TABEL = {percelen: '🗺️', partijen: '🏷️', taken: '📋', plantplanning: '🌱', rooiplanning: '🚜', markeringen: '🚩', soorten: '🌿', rassen: '🌿', wagens_weg: '🚛', res_invoer: '✍️'};
+function wzNaam(w) {
+  const r = w.nieuw || w.oud || {};
+  if (w.tabel === 'percelen') return perceel(w.rij_id)?.naam || r.naam || 'perceel';
+  if (w.tabel === 'taken') return S.taken.find(t => t.id === w.rij_id)?.tekst || r.tekst || 'taak';
+  if (w.tabel === 'partijen') { const x = (S.partijen || []).find(y => y.id === w.rij_id) || r; return [partijRas(x) || ras(x.ras_id)?.naam || x.ras_tekst, x.batch].filter(Boolean).join(' ') || 'partij'; }
+  if (w.tabel === 'plantplanning') { const x = (S.plantplanning || []).find(y => y.id === w.rij_id) || r; return 'plan ' + pzNaam(x); }
+  if (w.tabel === 'rooiplanning') return 'rooiplanning ' + (r.datum || '');
+  if (w.tabel === 'markeringen') return r.titel || r.soort || 'markering';
+  if (w.tabel === 'soorten' || w.tabel === 'rassen') return r.naam || '';
+  if (w.tabel === 'wagens_weg') return 'wagen ' + (r.wagen || '');
+  return w.tabel;
+}
+function wzTekst(w) {
+  const n = esc(wzNaam(w)), i = WZ_TABEL[w.tabel] || '•';
+  if (w.herstel_van) return `${i} ↶ Ongedaan gemaakt: ${n}`;
+  if (w.actie === 'insert') return `${i} ${n} <b>toegevoegd</b>`;
+  if (w.actie === 'delete') return `${i} ${n} <b>verwijderd</b>`;
+  const v = (w.velden || []).filter(k => !['updated_at', 'klaar_door', 'klaar_op', 'bezig_door', 'bezig_sinds'].includes(k) || (w.velden || []).length === 1);
+  if (w.tabel === 'taken' && v.includes('klaar')) return `${i} ${n}: <b>${w.nieuw?.klaar ? 'afgerond' : 'weer open'}</b>`;
+  if (w.tabel === 'taken' && v.includes('toegewezen_aan')) return `${i} ${n}: <b>naar ${esc(naamVan(w.nieuw?.toegewezen_aan) === '?' ? (w.nieuw?.gezamenlijk ? 'gezamenlijk' : 'niemand') : naamVan(w.nieuw?.toegewezen_aan))}</b>`;
+  return `${i} ${n}: ${[...new Set(v.map(k => WZ_VELD[k] || k))].map(esc).join(', ')}`;
+}
+const wzTijd = w => { const d = new Date(w.op), v = new Date(); const dag = d.toDateString() === v.toDateString() ? 'vandaag' : d.toDateString() === new Date(Date.now() - 864e5).toDateString() ? 'gisteren' : d.toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric', month: 'short'}); return `${dag} ${d.toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}`; };
+function wzRij(w, metWie) {
+  const kan = !w.herstel_van && !w.hersteld_op && (w.door === me?.id || isBeheerder());
+  return `<div class="wzRij ${w.hersteld_op ? 'hersteld' : ''} ${w.herstel_van ? 'isHerstel' : ''}"><div><span>${wzTekst(w)}</span><small>${wzTijd(w)}${metWie ? ' · ' + esc(w.door_naam || '?') : ''}${w.hersteld_op ? ` · ↶ ongedaan gemaakt${w.hersteld_door ? ' door ' + esc(w.hersteld_door) : ''}` : ''}</small></div>
+    ${kan ? `<button class="knop licht klein" onclick="wzHerstel(${w.id})">↶ Ongedaan maken</button>` : ''}</div>`;
+}
+async function openWijzigingen() {
+  $('#modal').innerHTML = `<div class="dialoog groot"><h3>↶ Wat ik heb gedaan</h3><p class="hint" style="margin-top:0">Vandaag en gisteren. Tik op ↶ om iets ongedaan te maken.</p><div id="wzMijn"><p class="hint">Laden…</p></div>
+    <div class="rij">${ziet('historie_bekijken') || isBeheerder() ? `<button class="knop licht" onclick="$('#modal').classList.remove('open');kiesSectie('vandaag');zetTab('wijzigingen')">📜 Alles en van iedereen</button>` : ''}<button class="knop" id="mNee">Sluiten</button></div></div>`;
+  $('#modal').classList.add('open'); $('#mNee').onclick = () => $('#modal').classList.remove('open');
+  await laadWijzigingen(false); wzMijnTeken();
+}
+function wzMijnTeken() {
+  const el = $('#wzMijn'); if (!el) return;
+  el.innerHTML = wz.fout ? `<p class="hint">${/wijzigingen/.test(wz.fout) ? 'Draai eerst beheer.sql opnieuw in Supabase.' : esc(wz.fout)}</p>` : wz.mijn.length ? `<div class="wzLijst">${wz.mijn.map(w => wzRij(w)).join('')}</div>` : '<p class="hint">Je hebt vandaag en gisteren nog niets aangepast.</p>';
+}
+async function wzHerstel(id) {
+  const w = [...wz.mijn, ...wz.lijst].find(x => x.id === id); if (!w) return;
+  const ander = w.door !== me?.id;
+  if (!await bevestigJa('Ongedaan maken?', `${wzTekst(w)}<br><small>${wzTijd(w)}${ander ? ' · door ' + esc(w.door_naam || '?') : ''}</small><br><br>Het wordt teruggezet zoals het daarvoor was.`, '↶ Ongedaan maken')) { if ($('#wzMijn') === null && tab !== 'wijzigingen') openWijzigingen(); return; }
+  const {data, error} = await sb.rpc('herstel_wijziging', {p_id: id});
+  if (error) { toast(foutTekst(error), 1); return; }
+  toast(data === 'later' ? '↶ Ongedaan gemaakt. Let op: daarna is hier nog meer aan veranderd; kijk even of het klopt.' : '↶ Ongedaan gemaakt');
+  banenCache.clear?.(); spoorPartijMap = null; await laadAlles();
+  if (tab === 'wijzigingen') { await laadWijzigingen(true); } else { openWijzigingen(); }
+}
+function htmlWijzigingen() {
+  const mensen = [...new Map(wz.lijst.map(w => [w.door || '', w.door_naam || '?'])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const z = normTekst(wz.zoek), l = wz.lijst.filter(w => (!wz.wie || (w.door || '') === wz.wie) && (!z || normTekst(wzNaam(w) + ' ' + (w.velden || []).join(' ') + ' ' + (w.door_naam || '')).includes(z)));
+  const perDag = new Map(); l.forEach(w => { const k = new Date(w.op).toDateString(); if (!perDag.has(k)) perDag.set(k, []); perDag.get(k).push(w); });
+  return `<section class="kaartje"><h4>↶ Wijzigingen</h4>
+    <p class="hint" style="margin-top:0">Alles wat er is aangepast, door iedereen. ${isBeheerder() ? 'Als beheerder kun je ook wijzigingen van anderen ongedaan maken.' : 'Je kunt je eigen wijzigingen ongedaan maken.'}</p>
+    <div class="raster2"><div><label>Wie</label><select class="veld" onchange="wz.wie=this.value;render(true)"><option value="">Iedereen</option>${mensen.map(([id, n]) => `<option value="${id}" ${wz.wie === id ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+      <div><label>Hoe ver terug</label><select class="veld" onchange="wz.dagen=+this.value;wz.geladen=false;render(true)">${[[2, '2 dagen'], [7, 'een week'], [30, 'een maand'], [120, '4 maanden']].map(([d, t]) => `<option value="${d}" ${wz.dagen === d ? 'selected' : ''}>${t}</option>`).join('')}</select></div></div>
+    <input class="veld" placeholder="🔎 Zoeken (perceel, taak, partij…)" value="${esc(wz.zoek)}" oninput="wz.zoek=this.value;clearTimeout(window._wzz);window._wzz=setTimeout(()=>{render(true);const i=document.querySelector('#inhoud input[placeholder^=\\'🔎 Zoeken (perceel\\']');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},300)"></section>
+    ${wz.fout ? `<section class="kaartje"><p class="hint">${/wijzigingen/.test(wz.fout) ? 'Draai eerst beheer.sql opnieuw in Supabase.' : esc(wz.fout)}</p></section>`
+      : !wz.geladen ? '<section class="kaartje"><p class="hint">Laden…</p></section>'
+      : [...perDag].map(([k, ws]) => `<section class="kaartje"><h4>${new Date(k).toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})} <small>${ws.length}</small></h4><div class="wzLijst">${ws.map(w => wzRij(w, true)).join('')}</div></section>`).join('') || '<section class="kaartje"><p class="hint">Niets gevonden.</p></section>'}`;
 }
 function openMeldingen() {
   const w = waarschuwingen(), lijst = S.meldingen || [];
