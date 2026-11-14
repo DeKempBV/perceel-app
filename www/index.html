@@ -3320,7 +3320,9 @@ async function pzToevoegen() {
     const sporen = pzSelSporen(PZ.sel);
     if (sporen.length !== 1) { toast('Kies voor een eigen sporensysteem één aaneengesloten stuk in één veld', 1); return; }
     const z = zoneVan(p.id, sporen[0].z), heel = z && banenVan(z).filter(b => !isSpuitRij(z, b.nr)).length === sporen[0].nrs.length;
-    if (!heel || !z._vak) { const nieuw = await pzDeelveld(p, sporen[0], opb, PZ.teeltwijze); if (!nieuw) return; PZ.sel = nieuw.flatMap(q => q.nrs.map(nr => pzKey(q.z, nr))); }
+    if (!z._vak) { const nieuw = await pzDeelveld(p, sporen[0], opb, PZ.teeltwijze); if (!nieuw) return; PZ.sel = nieuw.flatMap(q => q.nrs.map(nr => pzKey(q.z, nr))); }
+    else if (opb && !heel && !await bevestigJa('Sporensysteem van het hele deelveld?', `Deze sporen liggen al in het deelveld <b>${esc(z.naam)}</b>. "${esc(opb.naam)}" geldt dan voor dat hele deelveld.`, '📐 Ja, hele deelveld')) return;
+    else if (!opb) { /* al een eigen deelveld: gewoon daarin plannen */ }
     else { const patch = {spuit: {...spuitVan(z), ...(opb ? {patroon: opb.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], rijtjes: opb.rijtjes || 0, spuitRijtjes: opb.spuitRijtjes || 0} : {})}};
       if (opb && +opb.breedte && +opb.breedte !== +z.breedte) patch.breedte = +opb.breedte; await zoneZetten(p, z, patch); banenCache.delete(z.id); }
   }
