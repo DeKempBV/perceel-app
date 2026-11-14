@@ -2885,7 +2885,10 @@ function sproeierLijnenVan(z) {
   return uit;
 }
 const patroonVan = z => { const t = spuitVan(z).patroon; if (!t) return null; const pp = patroonLees(t); return pp.length ? pp : null; };
-function rijWaarde(z, nr) {   // 1, 0,5, 0, 2 (spuitspoor) of 3 (sproeierspoor)
+function rijWaarde(z, nr) {   // een sproeierspoor tussen twee spuitsporen is gewoon spuitpad (de mensen weten dat daar de sproeiers liggen)
+  const w = rijWaardeRuw(z, nr); if (w === 3 && nr > 1 && rijWaardeRuw(z, nr - 1) === 2 && rijWaardeRuw(z, nr + 1) === 2) return 2; return w;
+}
+function rijWaardeRuw(z, nr) {   // 1, 0,5, 0, 2 (spuitspoor) of 3 (sproeierspoor)
   if ((spuitVan(z).sproeier || []).includes(nr)) return 3;
   const pp = patroonVan(z);
   if (pp) { const st = Math.max(1, parseInt(spuitVan(z).patroonStart) || 1), i = (((nr - st) % pp.length) + pp.length) % pp.length; const s = spuitVan(z);
@@ -2907,7 +2910,8 @@ function spuitSet(z) {
 function spuitSet0(z, s, n) {
   const set = new Set();
   const pp = patroonVan(z);
-  if (pp) { const st = Math.max(1, parseInt(s.patroonStart) || 1); for (let nr = 1; nr <= n; nr++) if (pp[(((nr - st) % pp.length) + pp.length) % pp.length] === 2) set.add(nr); }
+  if (pp) { const st = Math.max(1, parseInt(s.patroonStart) || 1), val = nr => pp[(((nr - st) % pp.length) + pp.length) % pp.length];
+    for (let nr = 1; nr <= n; nr++) if (val(nr) === 2 || (val(nr) === 3 && nr > 1 && val(nr - 1) === 2 && val(nr + 1) === 2)) set.add(nr); }
   const elke = pp ? 0 : parseInt(s.elke) || 0, start = parseInt(s.start) || elke;
   if (elke > 0 && start > 0) for (let i = start; i <= n; i += elke) set.add(i);
   (s.extra || []).forEach(i => i <= n && set.add(i));
@@ -3126,46 +3130,52 @@ function zetMoeder(zid, aan) { const z = alleZones(perceel(actief)).find(x => x.
 // plant + plant = 1, plant + sproeier/spuit/leeg = 0,5, spuit + spuit = 2, sproeier + sproeier = 3.
 const patroonTekst = (l, lijnNa = new Set()) => { let uit = '', vorige = null; l.forEach((w, i) => { const t = w === .5 ? '0,5' : String(w);
   if (vorige !== null) uit += lijnNa.has(i) ? '-' : (t.includes(',') || vorige.includes(',') || t !== vorige) ? ' ' : ''; uit += t; vorige = t; }); return uit; };
+// Wisselen: over de oude sporen komt een nieuwe laag, een half spoor verschoven. Elke moederrij legt zijn ranken 75 cm naar
+// links en rechts, dus een nieuw spoor tussen twee moederrijen is vol (elke kant een helft). Naast een spuitpad, rand of
+// sproeier komt maar één helft (0,5). Op een bioperceel gaan de ranken naast het spuitpad juist de andere kant op, zodat
+// het spuitpad breed blijft. Een sproeierleiding komt op de lijn tussen twee nieuwe sporen te liggen (0,5-0,5).
 function wisselVoorstel(z) {
-  const oud = banenVan(z), half = (+z.breedte || 1.5) / 2;
+  const oud = banenVan(z), half = (+z.breedte || 1.5) / 2, bio = isBioPerceel(ouder(z));
   const proef = {...z, verschuiving: Math.round(((+z.verschuiving || 0) + half) * 1000) / 1000}; banenCache.delete(z.id);
   const nieuw = banenVan(proef); banenCache.delete(z.id); banenVan(z);
-  const pv = w => w === 1 ? 1 : w === .5 ? .5 : 0;
+  const w = o => o ? rijWaarde(z, o.nr) : null, plant = o => o && (w(o) === 1 || w(o) === .5);
+  const op = x => oud.find(o => Math.abs(o.a + o.b / 2 - x) < o.b * .25) || null;   // oude rij met zijn midden op deze lijn
+  const buur = (o, d) => o ? oud.find(q => q.nr === o.nr + d) : null;
   const uit = nieuw.map(bn => {
-    const ov = oud.map(o => ({o, f: Math.max(0, Math.min(bn.a + bn.b, o.a + o.b) - Math.max(bn.a, o.a)) / bn.b})).filter(x => x.f > .05);
-    const ws = ov.map(x => ({...x, w: rijWaarde(z, x.o.nr)}));
-    const plant = ws.reduce((a, x) => a + x.f * pv(x.w), 0), soorten = new Set(ws.map(x => x.w));
-    let w; if (plant < .05 && soorten.size === 1 && (soorten.has(2) || soorten.has(3))) w = [...soorten][0];
-    else w = plant >= .75 ? 1 : plant >= .25 ? .5 : (soorten.has(2) ? 2 : 0);
-    const bron = ws.filter(x => pv(x.w) > 0).sort((a, b) => b.f * pv(b.w) - a.f * pv(a.w))[0]?.o || null;   // waar de planten vandaan komen
-    return {bn, w, bron};
+    const L = op(bn.a), R = op(bn.a + bn.b);
+    // hoeveel van de moederrij links (L) en rechts (R) in dit spoor komt
+    let vl = 0, vr = 0;
+    if (plant(L)) { const naarLinksDicht = bio && w(buur(L, -1)) === 2, naarRechtsDicht = bio && w(buur(L, 1)) === 2; vl = naarRechtsDicht ? 0 : naarLinksDicht ? 1 : .5; }
+    if (plant(R)) { const naarRechtsDicht = bio && w(buur(R, 1)) === 2, naarLinksDicht = bio && w(buur(R, -1)) === 2; vr = naarLinksDicht ? 0 : naarRechtsDicht ? 1 : .5; }
+    const som = Math.min(1, vl + vr);
+    let v = som >= .75 ? 1 : som >= .25 ? .5 : (w(L) === 2 || w(R) === 2 ? 2 : 0);
+    if (v === 0 && (w(L) === 2 || w(R) === 2)) v = 2;
+    const bron = vl || vr ? (vl >= vr ? L : R) : null;
+    return {bn, w: v, bron, L, R};
   });
-  // komt de lijn tussen twee nieuwe sporen precies op een oud sproeierspoor (of een leiding), dan ligt de leiding daar
-  const oudLijn = sproeierLijnenVan(z), lijnNa = new Set();
-  uit.forEach((x, i) => { if (i === uit.length - 1) return; const grens = x.bn.a + x.bn.b;
-    if (oud.some(o => (rijWaarde(z, o.nr) === 3 && Math.abs(o.a + o.b / 2 - grens) < o.b * .2) || (oudLijn.has(o.nr) && Math.abs(o.a + o.b - grens) < o.b * .2))) lijnNa.add(i + 1); });
-  return {proef, oud, uit, lijnNa};
+  // sproeierleiding: een oud sproeierspoor (3) ligt nu op de lijn tussen twee nieuwe sporen; in een spuitpad tekenen we hem niet
+  const lijnNa = new Set();
+  uit.forEach((x, i) => { if (i === 0) return; const vorige = uit[i - 1]; if (w(x.L) === 3 && vorige.w !== 2 && x.w !== 2) lijnNa.add(i); });
+  return {proef, oud, uit, lijnNa, bio};
 }
 async function wisselMoeder(zid, pid = actief) {
   const p = perceel(pid), z = zoneVan(pid, zid); if (!p || !z) return;
-  const half = (+z.breedte || 1.5) / 2, oudTekst = patroonTekst(banenVan(z).map(bn => rijWaarde(z, bn.nr)), new Set([...sproeierLijnenVan(z)])), v = wisselVoorstel(z), voorstel = patroonTekst(v.uit.map(x => x.w), v.lijnNa);
-  const w = await formulier('🔄 Nu wisselen', [{type: 'uitleg', waarde: `Alle sporen schuiven <b>${String(half).replace('.', ',')} m</b> op. De moederplanten komen onder de wielen en het stuk ertussen wordt het nieuwe spoor. Rassen en partijen gaan mee.`},
-    {type: 'uitleg', waarde: `<b>Nu:</b><br><code style="word-break:break-all">${esc(oudTekst)}</code>`},
-    {k: 'pat', label: 'Na het wisselen (pas aan als het anders moet)', type: 'textarea', waarde: voorstel},
-    {type: 'uitleg', waarde: '1 = vol · 0,5 = half · 2 = spuitspoor · 3 = sproeierspoor · 0 = leeg · streepje (0,5-0,5) = sproeierleiding op de lijn tussen twee sporen. Een spoor dat half over een sproeier- of spuitspoor ligt is 0,5.'}], '🔄 Wisselen');
-  if (!w) return;
-  const lijst = patroonLees(String(w.pat || '').replace(/\s+/g, '')); if (!lijst.length) { toast('Het patroon klopt niet', 1); return; }
-  const oudBanen = [...(z.banen || [])], banen = v.uit.map(x => x.bron && lijst[x.bn.nr - 1] !== 2 && lijst[x.bn.nr - 1] !== 3 && lijst[x.bn.nr - 1] !== 0 ? oudBanen[x.bron.nr - 1] ?? null : null);
-  const sp = spuitVan(z), patroon = String(w.pat || '').replace(/\s+/g, '');   // met de streepjes erin
+  const half = (+z.breedte || 1.5) / 2, v = wisselVoorstel(z), vals = v.uit.map(x => x.w);
+  const oudTekst = patroonTekst(banenVan(z).map(bn => rijWaarde(z, bn.nr)), new Set([...sproeierLijnenVan(z)])), nieuwTekst = patroonTekst(vals, v.lijnNa);
+  if (!await bevestigJa('Nu wisselen?', `Over de moederrijen komt een nieuwe laag sporen, <b>${String(half).replace('.', ',')} m</b> verschoven. Elke moederrij vult de helft van de twee sporen ernaast${v.bio ? '; naast een spuitpad gaan de ranken de andere kant op (bioperceel)' : ''}. Rassen en partijen gaan mee.
+    <br><br><small>Nu:</small><br><code style="word-break:break-all;font-size:12px">${esc(oudTekst)}</code><br><small>Wordt:</small><br><code style="word-break:break-all;font-size:12px">${esc(nieuwTekst)}</code>`, '🔄 Wisselen')) return;
+  const oudBanen = [...(z.banen || [])], banen = v.uit.map(x => x.bron && (x.w === 1 || x.w === .5) ? oudBanen[x.bron.nr - 1] ?? null : null);
+  const patroon = vals.map((q, i) => (v.lijnNa.has(i) ? '-' : '') + (q === .5 ? '0,5' : String(q))).join('');
+  const sp = spuitVan(z);
   await zoneZetten(p, z, {verschuiving: v.proef.verschuiving, banen, spuit: {...sp, patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], elke: 0, start: 0, moeder: false, gewisseld: new Date().toISOString()}});
   banenCache.delete(z.id);
-  // partijen: het nieuwe spoor hoort bij de partij van het oude spoor waar zijn planten vandaan komen
+  // partijen: het nieuwe spoor hoort bij de partij van de moederrij waar (het meeste van) zijn plantjes vandaan komen
   const naar = new Map(); v.uit.forEach(x => { if (x.bron && banen[x.bn.nr - 1] != null) { if (!naar.has(x.bron.nr)) naar.set(x.bron.nr, []); naar.get(x.bron.nr).push(x.bn.nr); } });
   for (const y of (S.partijen || []).filter(y => Array.isArray(y.sporen) && y.sporen.some(q => q.z === zid))) {
     const sporen = y.sporen.map(q => q.z !== zid ? q : {z: q.z, nrs: [...new Set((q.nrs || []).flatMap(nr => naar.get(nr) || []))].sort((a, b) => a - b)}).filter(q => q.nrs.length);
     y.sporen = sporen; const {error} = await sb.from('partijen').update({sporen}).eq('id', y.id); if (error) toast(foutTekst(error), 1);
   }
-  spoorPartijMap = null; partijenVanSporen(); render(true); toast('🔄 Gewisseld: de sporen liggen nu tussen de moederrijen');
+  spoorPartijMap = null; partijenVanSporen(); render(true); toast('🔄 Gewisseld: de nieuwe sporen liggen tussen de moederrijen');
 }
 
 /* ============ PLANNEN OP DE KAART: gebieden van spoor tot spoor, per gebied een gewas en eventueel een eigen sporensysteem ============ */
