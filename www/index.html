@@ -3362,7 +3362,14 @@ async function pzDeelveld(p, q, opb, teeltwijze) {
 function tekenPlan(z, isA) {
   if (!isA) return; const pid = ouder(z).id, b = banenVan(z), meta = b.meta;
   const stuk = (bn, van, tot) => rechthoek(meta, bn.a, bn.a + bn.b, bn.t0 + van, bn.t0 + tot);
+  const lijn = (bn, van, tot) => { const o = bn.a + bn.b / 2, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; }; return [pt(bn.t0 + van), pt(bn.t0 + tot)]; };
   const vlak = (x, stijl) => { const t = teelt(x.ras_id || x.soort_id || x.teelt), kl = t?.kleur || '#ffeb3b';
+    if ((x.teeltwijze || (stijl ? PZ?.teeltwijze : '')) === 'vermeerdering') {   // vermeerdering: de moederplanten als lijn midden in het spoor
+      const delen = x.delen || (x.sporen || []).flatMap(q => q.nrs.map(nr => ({z: q.z, nr, van: 0, tot: 1e6})));
+      delen.filter(d => d.z === z.id).forEach(d => { const bn = b[d.nr - 1]; if (!bn) return; const tot = Math.min(d.tot, bn.t1 - bn.t0);
+        geenSnap(L.geoJSON(stuk(bn, d.van, tot), {interactive: false, style: {color: stijl ? '#ffd600' : kl, weight: stijl ? 2 : 1, dashArray: stijl ? null : '6 5', fillColor: kl, fillOpacity: .08}})).addTo(laag);
+        geenSnap(L.polyline(lijn(bn, d.van, tot), {color: kl, weight: 5, opacity: stijl ? 1 : .8, dashArray: stijl ? null : '10 6', interactive: false})).addTo(laag); });
+      return; }
     if (x.delen) x.delen.filter(d => d.z === z.id).forEach(d => { const bn = b[d.nr - 1]; if (bn) geenSnap(L.geoJSON(stuk(bn, d.van, d.tot), {interactive: false, style: {color: stijl ? '#ffd600' : kl, weight: stijl ? 3 : 2, dashArray: stijl ? null : '6 5', fillColor: kl, fillOpacity: stijl ? .55 : .25}})).addTo(laag); });
     else (x.sporen || []).filter(q => q.z === z.id).forEach(q => q.nrs.forEach(nr => { const bn = b[nr - 1]; if (bn) geenSnap(L.geoJSON(bn.geo, {interactive: false, style: {color: kl, weight: 2, dashArray: '6 5', fillColor: kl, fillOpacity: .22}})).addTo(laag); })); };
   (S.plantplanning || []).filter(x => x.perceel_id === pid && x.status === 'gepland').forEach(x => vlak(x));
