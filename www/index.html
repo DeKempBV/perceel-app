@@ -889,6 +889,17 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 /* ---------- wagen weg (trekker) ---------- */
 .wagenTypes{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
 .wagenTypes button{min-height:84px;border:0;border-radius:16px;background:#2e5e3a;color:#fff;font-size:20px;font-weight:700}.wagenTypes button b{font-size:34px}.wagenTypes button.aan{background:#1e88e5;outline:3px solid #fff}
+.mijnWagens{display:flex;flex-direction:column;gap:8px;margin:0 0 12px}.mijnWagens .mw{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#fff3e0;border:2px solid #fb8c00;border-radius:14px;padding:10px 12px;color:#4e342e}
+.mijnWagens .mw.legen{background:#e3f2fd;border-color:#1e88e5}.mijnWagens .mw small{display:block;color:#6d4c41}.mijnWagens .mw button{border:0;border-radius:12px;background:#fb8c00;color:#fff;font-weight:700;padding:10px 14px;font-size:15px}.mijnWagens .mw button.groen{background:#2e7d32}
+.mijnWagens.groot .mw{font-size:20px;padding:14px 16px}.mijnWagens.groot .mw small{font-size:16px}.mijnWagens.groot .mw button{font-size:20px;padding:14px 18px}
+.owLijst{display:flex;flex-direction:column;gap:6px}.owLijst .ow{background:#fff3e0;border-left:5px solid #fb8c00;border-radius:10px;padding:8px 12px}.owLijst .ow.legen{background:#e3f2fd;border-color:#1e88e5}.owLijst small{display:block;color:#6d4c41}
+.owLijst.tm .ow{background:rgba(255,255,255,.08);color:#fff;font-size:18px}.owLijst.tm small{color:#ffcc80}
+.kcTot{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.kcTot span{background:#e8f5e9;border-radius:10px;padding:5px 10px;font-size:14px}
+.wagenTel{display:block;width:100%;margin:-4px 0 8px;border:0;border-radius:12px;background:rgba(255,255,255,.1);color:#fff;font-size:17px;font-weight:700;padding:10px 12px;text-align:left}
+.wagenLijst{display:flex;flex-direction:column;gap:6px;margin:0 0 10px}.wagenLijst>div{position:relative;background:rgba(255,255,255,.08);border-radius:12px;padding:8px 52px 8px 12px;display:flex;flex-direction:column;font-size:17px}.wagenLijst span{font-size:15px;color:#c8e6c9}
+.wagenLijst button{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:38px;height:38px;border:0;border-radius:10px;background:#6d4c41;color:#fff;font-size:20px}
+.wagenAl{margin:4px 0 10px;font-size:17px}.wagenAl summary{cursor:pointer;font-weight:700;padding:6px 0}
+.wagenBijr button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}.wagenBijr button b{font-size:28px}.wagenBijr button small{font-size:16px;font-weight:600;opacity:.9}
 .wagenPartij{display:flex;align-items:center;gap:10px;background:#2b4a33;border-radius:16px;padding:8px;margin:8px 0}.wagenPartij.aan{background:#33691e;outline:2px solid #aed581}
 .wpNaam{flex:1;min-width:0;text-align:left;border:0;background:none;color:#fff;font-size:22px;padding:6px}.wpNaam small{display:block;font-size:15px;opacity:.8}
 .wpKn{width:70px;height:70px;border:0;border-radius:14px;background:#455a64;color:#fff;font-size:34px;font-weight:800}.wpN{min-width:56px;text-align:center;font-size:32px}
@@ -1498,6 +1509,7 @@ async function laadAlles() {
 }
 function verwerkLive(pl) {
   if (pl.table === 'percelen' || pl.table === 'partijen') spoorPartijMap = null;
+  if (pl.table === 'wagens_weg') setTimeout(() => { if (TM.aan) { if (!TM.wagen) tmRender(); } else render(); }, 80);
   if (pl.table === 'res_invoer' || pl.table === 'res_kistinhoud') setTimeout(() => { if ($('#kiepScherm')) toonKiep(true); else if (TM.aan) { if (!TM.wagen) tmRender(); } else if (/^res|vandaag/.test(tab)) render(); }, 60);
   if (pl.table === 'seizoenen') {
     if (pl.eventType !== 'DELETE' && pl.new.actief && pl.new.id !== actiefSeizoen()?.id) toast(`Nieuw seizoen gestart: ${pl.new.naam}`);
@@ -4274,7 +4286,7 @@ function htmlAlleTaken() {
       ? (!!b.bezig_door - !!a.bezig_door) || (a.gepland || a.deadline || '9999').localeCompare(b.gepland || b.deadline || '9999')
       : (b.klaar_op || '').localeCompare(a.klaar_op || ''));
   const tel = f => S.taken.filter(t => f === 'vandaag' ? !t.klaar && isMijnTaak(t) && (!t.gepland || t.gepland <= nu || !!t.bezig_door) : f === 'mij' ? !t.klaar && isMijnTaak(t) : isSamenTaak(t)).length;
-  const schakel = weergaveSchakel() + `<div class="schakel"><button class="${takenFilter === 'vandaag' ? 'aan' : ''}" onclick="takenFilter='vandaag';render(true)">☀️ Vandaag (${tel('vandaag')})</button>
+  const schakel = mijnWagensHtml() + weergaveSchakel() + `<div class="schakel"><button class="${takenFilter === 'vandaag' ? 'aan' : ''}" onclick="takenFilter='vandaag';render(true)">☀️ Vandaag (${tel('vandaag')})</button>
     <button class="${takenFilter === 'mij' ? 'aan' : ''}" onclick="takenFilter='mij';render(true)">👤 Al mijn taken (${tel('mij')})</button>
     <button class="${takenFilter === 'samen' ? 'aan' : ''}" onclick="takenFilter='samen';render(true)">👥 Gezamenlijk (${tel('samen')})</button>
     ${ziertAlleTaken() ? `<button class="${takenFilter === 'open' ? 'aan' : ''}" onclick="takenFilter='open';render(true)">Alle open</button>` : ''}
@@ -5410,7 +5422,7 @@ function htmlMij0() {
       <div class="inforij"><span>E-mail</span><b>${esc(me?.email || ik?.email || '–')}</b></div>
       <div class="inforij"><span>Rol</span><b>${isBeheerder() ? 'Beheerder' : 'Medewerker'}</b></div>
       <div class="rij" style="margin-top:10px"><button class="knop licht" onclick="eigenWachtwoord()">🔑 Wachtwoord wijzigen</button><button class="knop licht" onclick="pinInstellen()">🔢 Pincode trekker</button><button class="knop licht" onclick="uitloggen()">🚪 Uitloggen</button></div></section>
-    <section class="kaartje"><h4>📋 Mijn werk</h4>
+    <section class="kaartje"><h4>📋 Mijn werk</h4>${mijnWagensHtml()}
       ${bezig.length ? bezig.map(t => taakHtml(t, true)).join('') : ''}
       <div class="inforij"><span>Open taken voor mij</span><b>${open.length}</b></div>
       ${minuten ? `<div class="inforij"><span>Gewerkt de afgelopen 7 dagen</span><b>${Math.floor(minuten / 60)} u ${String(Math.round(minuten % 60)).padStart(2, '0')}</b></div>` : ''}
@@ -6814,15 +6826,15 @@ const RES_TEELTEN = ['frigo', 'vers', 'stekjes', 'potplanten'];
 let resZoek = '', resTeelt = '', resOpen = null, resInvoerSoort = 'rooien';
 async function laadResultaten() {
   const q = (t, f) => f(sb.from(t).select('*')).then(r => r.error ? null : r.data).catch(() => null);
-  const [ri, rp, rs, rb, gb, zk, kv, rk, rki] = await Promise.all([
+  const [ri, rp, rs, rb, gb, zk, kv, rk, rki, ww] = await Promise.all([
     q('res_invoer', x => bekeken ? x.eq('seizoen_id', bekeken).order('created_at') : x.order('created_at')),
     q('res_prognose', x => bekeken ? x.eq('seizoen_id', bekeken) : x),
     q('res_sorteringen', x => x.order('volgorde')), q('res_baksoorten', x => x.order('naam')),
     q('gebeurtenissen', x => x.order('tijd', {ascending: false}).limit(400)),
     q('ziek', x => x.order('van', {ascending: false}).limit(300)),
     q('klok_verzoek', x => x.order('created_at', {ascending: false}).limit(300)),
-    q('res_kisten', x => x), q('res_kistinhoud', x => x)]);
-  S.res_kisten = rk || []; S.res_kistinhoud = rki || [];
+    q('res_kisten', x => x), q('res_kistinhoud', x => x), q('wagens_weg', x => x.order('gemeld_op', {ascending: false}).limit(500))]);
+  S.res_kisten = rk || []; S.res_kistinhoud = rki || []; S.wagens_weg = ww || [];
   S.res_invoer = ri || []; S.res_prognose = rp || []; S.res_sorteringen = rs || []; S.res_baksoorten = rb || [];
   S.gebeurtenissen = gb || []; S.ziek = zk || []; S.klok_verzoek = kv || [];
   S.resKlaar = ri !== null;
@@ -7276,6 +7288,8 @@ function vandaagLetOp() {
   open.filter(t => (t.gepland || '').slice(0, 10) === nu && planConflicten(t).length).forEach(t => l.push({z: 'oranje', t: `⚠️ "${t.tekst}" bijt vandaag met ander werk op ${perceel(t.perceel_id)?.naam || 'hetzelfde perceel'}`, ga: "kiesSectie('werk')"}));
   if (ziet('resultaten_bekijken') || mag('resultaten_beheren')) resPartijen().forEach(x => { const c = resCijfers(x); c.let_op.filter(w => w.z === 'rood').forEach(w => l.push({z: 'rood', t: `📊 ${partijKort(x)}: ${w.t}`, ga: "kiesSectie('oogst');zetTab('resrapport')"})); });
   (S.middelen || []).filter(voorraadLaag).forEach(m => l.push({z: 'oranje', t: `🧪 Voorraad laag: ${m.naam}`, ga: "kiesSectie('voorraad');zetTab('middelen')"}));
+  { const ow = (S.wagens_weg || []).filter(w => w.status === 'onderweg' || w.status === 'legen');
+    if (ow.length) l.push({z: 'oranje', t: `🚛 ${ow.length} ${ow.length === 1 ? 'wagen' : 'wagens'} onderweg of aan het legen: ${fmt(ow.reduce((a, w) => a + n0(w.bakken), 0))} bakken`, ga: "kiesSectie('voorraad');zetTab('voorraad')"}); }
   (S.machines || []).filter(m => { try { return machineStatus(m).some(x => x.niveau === 'rood'); } catch { return false; } }).forEach(m => l.push({z: 'rood', t: `🔧 ${m.naam} heeft onderhoud nodig`, ga: "kiesSectie('instellingen');zetTab('bedrijf')"}));
   if (isBeheerder() || mag('uren_beheren')) { const v = (S.klok_verzoek || []).filter(x => x.status === 'open').length; if (v) l.push({z: 'oranje', t: `⏱️ ${v} correctieverzoek${v === 1 ? '' : 'en'} voor uren`, ga: "kiesSectie('mensen');zetTab('uren')"}); }
   return l;
@@ -7437,11 +7451,18 @@ function wagenPartijen(t) {
   (TM.wagen?.extra || []).forEach(id => { const x = (S.partijen || []).find(y => y.id === id); if (x) ps.push(x); });
   return [...new Map(ps.map(x => [x.id, x])).values()];
 }
+// de bijrijders van de rooiplanning, met hun wagen (die staat in de planning)
+const wagenBijrijders = t => { const r = rooiVanTaak(t); return r ? (r.bijrijders || []).map(id => ({id, naam: naamVan(id), wagen: +r.wagens?.[id] || null, trekker: r.tractoren?.[id] || ''})) : []; };
 function tmWagenStart(id) {
-  const t = S.taken.find(x => x.id === id), ps = wagenPartijen(t), ty = TM.wagenType || wagenTypes()[Math.min(1, wagenTypes().length - 1)];
-  TM.wagen = {taak: id, type: ty, per: ps.length === 1 ? {[ps[0].id]: ty} : TM.wagenPer && Object.keys(TM.wagenPer).length === 1 && ps.some(x => x.id === Object.keys(TM.wagenPer)[0]) ? {[Object.keys(TM.wagenPer)[0]]: ty} : {}, extra: []};
+  const t = S.taken.find(x => x.id === id), ps = wagenPartijen(t), bs = wagenBijrijders(t);
+  // om de beurt: de volgende bijrijder na de vorige wagen staat al klaar
+  const vorige = bs.findIndex(b => b.id === TM.wagenBijr), bij = bs.length ? bs[(vorige + 1) % bs.length] : null;
+  const ty = bij?.wagen || TM.wagenType || wagenTypes()[Math.min(1, wagenTypes().length - 1)];
+  TM.wagen = {taak: id, type: ty, bijr: bij?.id || null, per: ps.length === 1 ? {[ps[0].id]: ty} : {}, extra: []};
   tmRender();
 }
+function tmWagenBijr(bid) { const w = TM.wagen; if (!w) return; const b = wagenBijrijders(S.taken.find(x => x.id === w.taak)).find(x => x.id === bid); if (!b) return;
+  w.bijr = bid; if (b.wagen) tmWagenType(b.wagen); else tmRender(); }
 function tmWagenType(n) { const w = TM.wagen; if (!w) return; const ks = Object.keys(w.per).filter(k => w.per[k] > 0); w.type = n; TM.wagenType = n; if (ks.length <= 1 && ks[0]) w.per = {[ks[0]]: n}; tmRender(); }
 function tmWagenAlles(pid) { const w = TM.wagen; if (!w) return; w.per = {[pid]: w.type}; tmRender(); }
 function tmWagenPlus(pid, d) { const w = TM.wagen; if (!w) return; w.per[pid] = Math.max(0, (w.per[pid] || 0) + d); tmRender(); }
@@ -7451,13 +7472,16 @@ function tmWagenHtml() {
   const t = S.taken.find(x => x.id === w.taak), ps = wagenPartijen(t), tot = Object.values(w.per).reduce((a, b) => a + (b || 0), 0);
   const anders = resPartijen().filter(x => !ps.some(p => p.id === x.id));
   return `<div class="tmPopup"><div class="tmPopupIn tmWagen"><h2>🚛 Wagen weg</h2>
-    <div class="tmVraag" style="font-size:20px">Welke wagen?</div>
+    ${(() => { const bs = wagenBijrijders(t); return bs.length ? `<div class="tmVraag" style="font-size:20px">Welke bijrijder?</div>
+    <div class="wagenTypes wagenBijr">${bs.map(b => `<button class="${w.bijr === b.id ? 'aan' : ''}" onclick="tmWagenBijr('${b.id}')"><b>${esc(b.naam)}</b><small>${b.wagen ? b.wagen + '-bakker' : 'wagen onbekend'}${b.trekker ? ' · ' + esc(b.trekker) : ''}</small></button>`).join('')}</div>` : ''; })()}
+    <div class="tmVraag" style="font-size:20px">${wagenBijrijders(t).length ? 'Wagen' : 'Welke wagen?'}</div>
     <div class="wagenTypes">${wagenTypes().map(n => `<button class="${w.type === n ? 'aan' : ''}" onclick="tmWagenType(${n})"><b>${n}</b>-bakker</button>`).join('')}</div>
     <div class="tmVraag" style="font-size:20px">Van welke partij? <small style="font-size:15px;font-weight:600">tik = hele wagen · met − en + verdelen</small></div>
     ${ps.map(x => { const n = w.per[x.id] || 0; return `<div class="wagenPartij ${n ? 'aan' : ''}"><button class="wpNaam" onclick="tmWagenAlles('${x.id}')"><b>${esc(partijRas(x) || '?')}</b> ${esc(x.batch || x.nak || '')}<small>${esc([x.nak && x.batch ? 'NAK ' + x.nak : '', x.klasse, perceel(x.perceel_id)?.naam].filter(Boolean).join(' · '))}</small></button>
       <button class="wpKn" onclick="tmWagenPlus('${x.id}',-1)">−</button><b class="wpN">${n}</b><button class="wpKn" onclick="tmWagenPlus('${x.id}',1)">+</button></div>`; }).join('')}
     ${anders.length ? `<select class="veld wagenAnders" onchange="tmWagenExtra(this.value)"><option value="">${ps.length ? '＋ Andere partij erbij…' : 'Kies de partij…'}</option>${anders.map(x => `<option value="${x.id}">${esc(partijKort(x))} · ${esc(partijLabel(x))}</option>`).join('')}</select>` : ''}
     <div class="wagenTot">Totaal <b>${tot}</b> ${tot === 1 ? 'bak' : 'bakken'}${tot && tot !== w.type ? ` <small>(${tot < w.type ? 'wagen niet vol' : 'meer dan een ' + w.type + '-bakker'})</small>` : ''}</div>
+    ${tmWagensWeg(t || {}).length ? `<details class="wagenAl"><summary>🚛 Al ${tmWagensWeg(t || {}).length} ${tmWagensWeg(t || {}).length === 1 ? 'wagen' : 'wagens'} weg vandaag</summary>${tmWagenLijstHtml(t || {})}</details>` : ''}
     <div class="tmKnoppen"><button onclick="TM.wagen=null;tmRender()">✕ Annuleren</button><button class="groen" onclick="tmWagenWeg()" ${tot ? '' : 'disabled style="opacity:.5"'}>✓ Wagen weg${tot ? ` (${tot})` : ''}</button></div></div></div>`;
 }
 async function tmWagenWeg() {
@@ -7465,22 +7489,85 @@ async function tmWagenWeg() {
   const regels = Object.entries(w.per).filter(([, n]) => n > 0); if (!regels.length) { toast('Vul in hoeveel bakken er op de wagen staan', 1); return; }
   const wid = crypto.randomUUID?.() || ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
   let n = 0;
-  for (const [pid, b] of regels) if (await resOpslaan({soort: 'rooien', partij_id: pid, bakken: b, wagen: `${w.type}-bakker`, wagen_id: wid, taak_id: t?.id || null, datum: vandaag(), bron: 'trekker', door: TM.chauffeur?.naam || naamMe(), vak: t?.tekst || null}, true)) n += b;
-  TM.wagenPer = w.per; TM.wagen = null;
-  if (n) { TM.wagenLaatst = {wid, t: Date.now()}; toast(`🚛 ${w.type}-bakker weg: ${n} bakken`); }
+  for (const [pid, b] of regels) if (await resOpslaan({soort: 'rooien', partij_id: pid, bakken: b, wagen: `${w.type}-bakker`, wagen_id: wid, ...(w.bijr ? {opmerking: 'Bijrijder: ' + naamVan(w.bijr)} : {}), taak_id: t?.id || null, datum: vandaag(), bron: 'trekker', door: TM.chauffeur?.naam || naamMe(), vak: t?.tekst || null}, true)) n += b;
+  if (n) { const pn = id => { const x = (S.partijen || []).find(y => y.id === id); return x ? [partijRas(x), x.batch || x.nak].filter(Boolean).join(' ') : '?'; };
+    const inhoud = regels.map(([pid, b]) => ({partij_id: pid, naam: pn(pid), bakken: b}));
+    const ww = {id: wid, taak_id: t?.id || null, perceel_id: t?.perceel_id || null, bijrijder: w.bijr || null, bijrijder_id: w.bijr && !String(w.bijr).startsWith('~') ? w.bijr : null,
+      wagen: `${w.type}-bakker`, bakken: n, inhoud, status: 'onderweg', gemeld_op: new Date().toISOString(), tekst: inhoud.map(i => `${i.naam}: ${i.bakken}`).join(' · '), gemeld_door: TM.chauffeur?.naam || naamMe()};
+    const {data, error} = await sb.from('wagens_weg').insert(ww).select().single();
+    if (error) console.warn('wagens_weg', error.message); else { S.wagens_weg = S.wagens_weg || []; if (!S.wagens_weg.some(x => x.id === data.id)) S.wagens_weg.unshift(data); } }
+  TM.wagenPer = w.per; TM.wagen = null; if (n && w.bijr) TM.wagenBijr = w.bijr;
+  if (n) { TM.wagenLaatst = {wid, t: Date.now()}; toast(`🚛 ${w.type}-bakker${w.bijr ? ' van ' + naamVan(w.bijr) : ''} weg: ${n} bakken`); }
   tmRender();
 }
-async function tmWagenTerug() {
-  const wid = TM.wagenLaatst?.wid; if (!wid) return;
-  if (!await bevestigJa('Laatste wagen terugdraaien?', 'De laatst gemelde wagen wordt weggehaald (bijv. als je verkeerd tikte).', '↶ Terugdraaien')) return;
+async function tmWagenTerug(wid0) {
+  const wid = wid0 || TM.wagenLaatst?.wid; if (!wid) return;
+  if (!await bevestigJa(wid0 ? 'Deze wagen weghalen?' : 'Laatste wagen terugdraaien?', 'De gemelde wagen wordt weggehaald (bijv. als je verkeerd tikte).', '↶ Weghalen')) return;
   const {error} = await sb.from('res_invoer').delete().eq('wagen_id', wid); if (error) { toast(foutTekst(error), 1); return; }
-  S.res_invoer = (S.res_invoer || []).filter(i => i.wagen_id !== wid); TM.wagenLaatst = null; toast('↶ Wagen teruggedraaid'); tmRender();
+  await sb.from('wagens_weg').delete().eq('id', wid); S.wagens_weg = (S.wagens_weg || []).filter(x => x.id !== wid);
+  S.res_invoer = (S.res_invoer || []).filter(i => i.wagen_id !== wid); if (TM.wagenLaatst?.wid === wid) TM.wagenLaatst = null; toast('↶ Wagen weggehaald'); tmRender();
+}
+/* ---------- wagens van het veld: onderweg → legen → in de koelcel ---------- */
+const WAGEN_STATUS = {onderweg: '🚛 Onderweg', legen: '🧺 Aan het legen', koelcel: '❄️ In de koelcel', uit: '✓ Verwerkt'};
+const wagenVanMij = (w, uid, naam) => (uid && (w.bijrijder_id === uid || w.bijrijder === uid)) || (naam && String(w.bijrijder || '').startsWith('~') && normTekst(w.bijrijder.slice(1)) === normTekst(naam));
+async function wagenStatus(id, status) {
+  const nu = new Date().toISOString(), wie = (typeof TM !== 'undefined' && TM.aan && TM.chauffeur?.naam) || naamMe();
+  const patch = {status, ...(status === 'legen' ? {legen_op: nu, legen_door: wie} : status === 'koelcel' ? {koelcel_op: nu, koelcel_door: wie} : status === 'uit' ? {uit_op: nu, uit_door: wie} : {})};
+  const {data, error} = await sb.from('wagens_weg').update(patch).eq('id', id).select().single();
+  if (error) { toast(/wagens_weg/.test(error.message) ? 'Draai eerst beheer.sql opnieuw in Supabase' : foutTekst(error), 1); return; }
+  const i = (S.wagens_weg || []).findIndex(x => x.id === id); if (i >= 0) S.wagens_weg[i] = data;
+  toast(status === 'legen' ? '🧺 Je bent aan het legen' : status === 'koelcel' ? '❄️ De bakken staan in de koelcel' : '✓ Verwerkt');
+  render(true); if (typeof TM !== 'undefined' && TM.aan) tmRender();
+}
+const wagenBeheer = () => isBeheerder() || mag('voorraad_beheren') || mag('taken_toevoegen');
+const wagenKnoppen = w => w.status === 'onderweg' ? `<button class="knop licht klein" onclick="wagenStatus('${w.id}','legen')">🧺 Wordt geleegd</button><button class="knop licht klein" onclick="wagenStatus('${w.id}','koelcel')">❄️ Aangekomen, in koelcel</button>`
+  : w.status === 'legen' ? `<button class="knop licht klein" onclick="wagenStatus('${w.id}','koelcel')">❄️ In koelcel</button>` : w.status === 'koelcel' ? `<button class="knop licht klein" title="Verwerkt (gekiept/gesorteerd)" onclick="wagenStatus('${w.id}','uit')">✓ Verwerkt</button>` : '';
+const wagenTijd = x => x ? new Date(x).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : '';
+// voor de bijrijder: zijn wagens die nog niet in de koelcel staan
+function mijnWagensHtml(groot) {
+  const uid = (typeof TM !== 'undefined' && TM.aan && TM.chauffeur?.id) || me?.id, naam = (typeof TM !== 'undefined' && TM.aan && TM.chauffeur?.naam) || naamMe();
+  const l = (S.wagens_weg || []).filter(w => (w.status === 'onderweg' || w.status === 'legen') && wagenVanMij(w, uid, naam)); if (!l.length) return '';
+  return `<div class="mijnWagens ${groot ? 'groot' : ''}">${l.map(w => `<div class="mw ${w.status}"><div><b>${w.status === 'legen' ? '🧺 Je bent je ' + esc(w.wagen || 'wagen') + ' aan het legen' : '🚛 Je ' + esc(w.wagen || 'wagen') + ' is weg gemeld'}</b>
+      <small>${wagenTijd(w.gemeld_op)}${w.gemeld_door ? ' door ' + esc(w.gemeld_door) : ''} · ${esc(w.tekst || '')} · <b>${fmt(n0(w.bakken))} bakken</b></small></div>
+      ${w.status === 'onderweg' ? `<button onclick="wagenStatus('${w.id}','legen')">🏠 Ik ben terug, ik ga legen</button>` : `<button class="groen" onclick="wagenStatus('${w.id}','koelcel')">✓ Leeg, staat in de koelcel</button>`}</div>`).join('')}</div>`;
+}
+// kort: welke bakken nu onderweg zijn (rooiplanning, trekker)
+function onderwegHtml(tm) {
+  const l = (S.wagens_weg || []).filter(w => w.status === 'onderweg' || w.status === 'legen'); if (!l.length) return '';
+  const in1 = w => `<div class="ow ${w.status}"><b>${w.status === 'legen' ? '🧺' : '🚛'} ${esc(w.wagen || 'wagen')}${w.bijrijder ? ' · ' + esc(naamVan(w.bijrijder)) : ''} · ${fmt(n0(w.bakken))} bakken</b><small>${WAGEN_STATUS[w.status]} · weg om ${wagenTijd(w.gemeld_op)} · ${esc(w.tekst || '')}</small>${!tm && wagenBeheer() ? `<div class="rij" style="gap:6px;margin-top:6px">${wagenKnoppen(w)}</div>` : ''}</div>`;
+  return tm ? `<div class="owLijst tm">${l.map(in1).join('')}</div>` : `<section class="kaartje"><h4>🚛 Onderweg naar het bedrijf <small>${fmt(l.reduce((a, w) => a + n0(w.bakken), 0))} bakken</small></h4><div class="owLijst">${l.map(in1).join('')}</div></section>`;
+}
+// in de koelcel: wat er van het veld is binnengekomen
+function koelcelWagensHtml() {
+  const l = (S.wagens_weg || []).filter(w => w.status !== 'uit'); if (!l.length) return '';
+  const groep = st => l.filter(w => w.status === st);
+  const per = new Map(); groep('koelcel').forEach(w => (w.inhoud || []).forEach(i => { const k = i.partij_id || i.naam; const x = per.get(k) || {naam: i.naam, b: 0}; x.b += n0(i.bakken); per.set(k, x); }));
+  const rij = w => `<div class="srRij" style="flex-wrap:wrap"><div class="t"><b>${esc(w.wagen || 'wagen')}${w.bijrijder ? ' · ' + esc(naamVan(w.bijrijder)) : ''}</b> · ${fmt(n0(w.bakken))} bakken
+      <small>${esc(w.tekst || '')} · gemeld ${wagenTijd(w.gemeld_op)} ${new Date(w.gemeld_op).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})}${w.koelcel_op ? ' · in de koelcel ' + wagenTijd(w.koelcel_op) + (w.koelcel_door ? ' (' + esc(w.koelcel_door) + ')' : '') : w.legen_op ? ' · legen sinds ' + wagenTijd(w.legen_op) : ''}</small></div>
+      <span class="logknoppen" style="flex-wrap:wrap;gap:4px">${wagenKnoppen(w)}</span></div>`;
+  return `<section class="kaartje"><h4>🚛 Bakken van het veld</h4>
+    ${['onderweg', 'legen'].map(st => groep(st).length ? `<div class="trKop">${WAGEN_STATUS[st]} (${groep(st).length})</div>${groep(st).map(rij).join('')}` : '').join('')}
+    ${groep('koelcel').length ? `<div class="trKop">${WAGEN_STATUS.koelcel}: ${fmt(groep('koelcel').reduce((a, w) => a + n0(w.bakken), 0))} bakken</div>
+      <div class="kcTot">${[...per.values()].map(x => `<span><b>${esc(x.naam)}</b> ${fmt(x.b)} bakken</span>`).join('')}</div>${groep('koelcel').map(rij).join('')}` : ''}</section>`;
+}
+// de wagens die al weg zijn (bij deze taak, of vandaag door jou), nieuwste bovenaan
+function tmWagensWeg(t) {
+  const r = (S.res_invoer || []).filter(i => i.soort === 'rooien' && i.wagen_id && (i.taak_id === t.id || (i.datum === vandaag() && i.door === (TM.chauffeur?.naam || naamMe()))));
+  const per = new Map(); r.forEach(i => { if (!per.has(i.wagen_id)) per.set(i.wagen_id, []); per.get(i.wagen_id).push(i); });
+  return [...per].map(([wid, l]) => ({wid, l, tijd: l.map(i => i.created_at || '').sort()[0], wagen: l[0].wagen || '', bijr: String(l[0].opmerking || '').replace(/^Bijrijder:\s*/, ''), b: l.reduce((a, i) => a + n0(i.bakken), 0)}))
+    .sort((a, b) => String(b.tijd).localeCompare(String(a.tijd)));
+}
+function tmWagenLijstHtml(t) {
+  const ws = tmWagensWeg(t); if (!ws.length) return '';
+  const pn = id => { const x = (S.partijen || []).find(y => y.id === id); return x ? [partijRas(x), x.batch || x.nak].filter(Boolean).join(' ') : '?'; };
+  return `<div class="wagenLijst">${ws.map((w, i) => `<div><b>${ws.length - i}. ${esc(w.wagen)}${w.bijr && !/^via/.test(w.bijr) ? ' · ' + esc(w.bijr) : ''}</b><span>${(() => { const ww = (S.wagens_weg || []).find(x => x.id === w.wid); return ww ? WAGEN_STATUS[ww.status] + ' · ' : ''; })()}${w.tijd ? new Date(w.tijd).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) + ' · ' : ''}${w.l.map(i => `${esc(pn(i.partij_id))}: ${fmt(n0(i.bakken))}`).join(' · ')} · <b>${fmt(w.b)} bakken</b></span>
+    <button onclick="tmWagenTerug('${w.wid}')" title="Weghalen">↶</button></div>`).join('')}</div>`;
 }
 function tmWagenOverzicht(t) {
   const r = (S.res_invoer || []).filter(i => i.soort === 'rooien' && i.wagen_id && (i.taak_id === t.id || (i.datum === vandaag() && i.door === (TM.chauffeur?.naam || naamMe()))));
   const ws = new Set(r.map(i => i.wagen_id)).size, b = r.reduce((a, i) => a + n0(i.bakken), 0), terug = TM.wagenLaatst && Date.now() - TM.wagenLaatst.t < 30 * 60e3;
   return `<button class="tmGroot" style="background:#6d4c41" onclick="tmWagenStart('${t.id}')">🚛 Wagen weg melden</button>
-    ${ws ? `<small style="display:block;margin:-4px 0 8px">Al ${ws} ${ws === 1 ? 'wagen' : 'wagens'} gemeld · ${fmt(b)} bakken${terug ? ` · <a href="#" style="color:#ffcc80" onclick="tmWagenTerug();return false">↶ laatste wagen terug</a>` : ''}</small>` : ''}`;
+    ${ws ? `<button class="wagenTel" onclick="TM.wagenOpen=!TM.wagenOpen;tmRender()">🚛 Al ${ws} ${ws === 1 ? 'wagen' : 'wagens'} weg · ${fmt(b)} bakken ${TM.wagenOpen ? '▴' : '▾ bekijken'}</button>${TM.wagenOpen ? tmWagenLijstHtml(t) : ''}` : ''}`;
 }
 // rooi-modus: zolang de chauffeur met een rooitaak bezig is, draait de tablet alleen om die taak
 const tmRooiFocus = () => { const t = mijnBezig(); try { return !!(t && !isRolTaak(t) && isRooiTaak(t)); } catch { return false; } };
@@ -7885,7 +7972,7 @@ function htmlRooiplanning() {
   const ma = new Date(rpDatum); ma.setHours(0, 0, 0, 0); ma.setDate(ma.getDate() - ((ma.getDay() + 6) % 7));
   const dagen = Array.from({length: 7}, (_, i) => { const d = new Date(ma); d.setDate(ma.getDate() + i); return d; });
   const beh = mag('taken_toevoegen');
-  return `<section class="kaartje"><h4>🚜 Rooiplanning</h4>
+  return onderwegHtml() + `<section class="kaartje"><h4>🚜 Rooiplanning</h4>
     <div class="rij"><button class="knop licht" style="flex:0 0 auto;width:auto" onclick="rpDatum=new Date(rpDatum.getTime()-7*864e5);render(true)">◀</button>
       <b style="flex:1;text-align:center;align-self:center">Week van ${ma.toLocaleDateString('nl-NL', {day: 'numeric', month: 'long'})}</b>
       <button class="knop licht" style="flex:0 0 auto;width:auto" onclick="rpDatum=new Date(rpDatum.getTime()+7*864e5);render(true)">▶</button></div>
@@ -8341,7 +8428,7 @@ function tmRender() {
     body = `<div class="rij" style="gap:10px;margin-bottom:12px"><button class="tmTerug" style="margin:0" onclick="TM.scherm='start';tmRender()">◀ Terug</button>
       <button class="tmKeuze ${welk === 'vandaag' ? 'aan' : ''}" onclick="TM.takenKeuze='vandaag';tmRender()">☀️ Vandaag <b>${tmTakenVan('vandaag').length}</b></button>
       <button class="tmKeuze ${welk === 'mijn' ? 'aan' : ''}" onclick="TM.takenKeuze='mijn';tmRender()">👤 ${TM.chauffeur ? 'Alle van ' + esc(TM.chauffeur.naam.split(' ')[0]) : 'Al mijn taken'} <b>${tmTakenVan('mijn').length}</b></button>
-      <button class="tmKeuze ${welk === 'samen' ? 'aan' : ''}" onclick="TM.takenKeuze='samen';tmRender()">👥 Gezamenlijk <b>${tmTakenVan('samen').length}</b></button></div>
+      <button class="tmKeuze ${welk === 'samen' ? 'aan' : ''}" onclick="TM.takenKeuze='samen';tmRender()">👥 Gezamenlijk <b>${tmTakenVan('samen').length}</b></button></div>${mijnWagensHtml(true)}
     ${lijst.map(t => { const p = perceel(t.perceel_id), vg = voortgangTekst(t), ikBezig = t.bezig_door && t.bezig_door === naamMe();
       if (isRolTaak(t)) { const h = hoofdVan(t);
         return `<div class="tmTaak rol ${ikBezig ? 'bezig' : ''}"><div onclick="tmTaakOpen('${t.id}')"><b><span class="tmRol">👥 ${rolNaam(t)}</span> ${esc(t.tekst)}</b><small>${p ? '📍 ' + esc(p.naam) + ' · ' : ''}${esc(taakWaar(t))} · met ${esc(hoofdChauffeur(h))}${t.toegewezen_aan && welk === 'alle' ? ' · 👤 ' + esc(S.profielen.find(u => u.id === t.toegewezen_aan)?.naam || '') : ''}</small>
@@ -8655,7 +8742,7 @@ function tmTaakPopupHtml() {
   if (isRolTaak(t)) { const h = hoofdVan(t), ikB = t.bezig_door === naamMe();
     const rb = tmRooiBlok(t);
     return `<div class="tmPopup"><div class="tmPopupIn"><h2><span class="tmRol">👥 ${rolNaam(t)}</span> ${esc(t.tekst)}</h2>${rb ? '<div class="tmBlok"><h3>👤 Jouw taak</h3>' + tmJouwRooi(t) : ''}
-      ${regel('🚜', `Je bent <b>${rolNaam(t).toLowerCase()}</b> bij <b>${esc(h?.tekst || 'de hoofdtaak')}</b> met <b>${esc(hoofdChauffeur(h))}</b>`)}
+      ${mijnWagensHtml(true)}${regel('🚜', `Je bent <b>${rolNaam(t).toLowerCase()}</b> bij <b>${esc(h?.tekst || 'de hoofdtaak')}</b> met <b>${esc(hoofdChauffeur(h))}</b>`)}
       ${regel('🟡', t.bezig_door ? `Bezig: <b>${esc(t.bezig_door)}</b>${t.bezig_sinds ? ' sinds ' + new Date(t.bezig_sinds).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : ''}` : 'Niemand is er nu mee bezig')}
       ${regel('📍', p ? `<b>${esc(p.naam)}</b> · ${esc(taakWaar(t))}` : '')}
       ${regel('✅', h && voortgangTekst(h) ? 'Rooien: ' + voortgangTekst(h) : '')}
@@ -10629,9 +10716,10 @@ function htmlVoorraad() {
       ${hits.slice(0, 20).map(traceerKaart).join('') || (z ? '<p class="hint">Niets gevonden.</p>' : '<p class="hint">Zoek een partij en zie in één keer: perceel en sporen, keuringen, wat er gespoten is, inslag en aan wie het geleverd is.</p>')}</section>`;
   }
   // voorraad per koelcel
+  const kopW = kop + koelcelWagensHtml();
   const perCel = new Map();
   (S.partijen || []).forEach(y => voorraadVan(y.id).forEach((x, cel) => { if (Math.abs(x.planten) < .5) return; (perCel.get(cel) || perCel.set(cel, []).get(cel)).push({y, x}); }));
-  return kop + ([...perCel].sort((a, b) => a[0].localeCompare(b[0], 'nl')).map(([cel, l]) => `<section class="kaartje"><h4>🧊 ${esc(cel)} <small>${getal(l.reduce((s, e) => s + e.x.planten, 0))} planten</small></h4>
+  return kopW + ([...perCel].sort((a, b) => a[0].localeCompare(b[0], 'nl')).map(([cel, l]) => `<section class="kaartje"><h4>🧊 ${esc(cel)} <small>${getal(l.reduce((s, e) => s + e.x.planten, 0))} planten</small></h4>
     ${l.map(({y, x}) => `<div class="srRij"><div class="t"><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}${y.bio ? ' <span class="badge bio">BIO</span>' : ''}
       <small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)} · ${esc(perceel(y.perceel_id)?.naam || '')}</small></div>
       ${beh ? `<span class="logknoppen"><button class="weg" title="Levering" onclick="mutatieFormulier('${y.id}','uit')">⬆️</button></span>` : ''}</div>`).join('')}</section>`).join('')
