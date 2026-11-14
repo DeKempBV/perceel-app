@@ -321,6 +321,11 @@ textarea.veld{resize:vertical;font-family:inherit}
 .spuitrij{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
 .spuitkop{font-size:13px;font-weight:700;color:var(--groen)}
 .patroonbalk{display:flex;flex-wrap:wrap;gap:2px;margin-top:8px;align-items:center}.patroonbalk .pv{width:9px;height:22px;border-radius:2px;background:#43a047}
+.tpScroll{overflow-x:auto;margin:6px 0}.tpTab{border-collapse:collapse;font-size:13px;min-width:100%}.tpTab th,.tpTab td{border-bottom:1px solid #e8ece5;padding:4px 6px;text-align:right;white-space:nowrap}
+.tpTab th:first-child,.tpTab td:first-child{text-align:left;position:sticky;left:0;background:#fff}.tpTab th{font-size:12px;color:#4a5d4c;vertical-align:bottom}.tpTab td.act{background:#fffde7}
+.tpIn{width:86px;border:1px solid #d7dccf;border-radius:7px;padding:4px 6px;font:inherit;text-align:right;background:#fff}.tpIn:focus{outline:2px solid #66bb6a}select.tpIn{text-align:left;width:auto}
+.tpTab tr.som td{background:#f4faf3;font-weight:600}.tpTot{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:6px}.tpTot div{background:#f4faf3;border-radius:12px;padding:10px;text-align:center}.tpTot b{display:block;font-size:20px}.tpTot small{color:var(--grijs)}
+.tpRas{border:1px solid #e3e8e1;border-radius:12px;margin:8px 0;padding:6px 10px}.tpRasKop{display:flex;gap:10px;align-items:center;flex-wrap:wrap;cursor:pointer}.tpRasKop b{min-width:110px}.tpRasKop span{font-size:13px}.tpRasKop .ok{color:#2e7d32}.tpRasKop .nog{color:#e65100}.tpMist{color:#e65100;display:block}
 .wzLijst{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto}.wzRij{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid #e3e8e1;border-radius:10px;padding:7px 10px;background:#fff}
 .wzRij small{display:block;color:var(--grijs);font-size:12px}.wzRij .knop{width:auto;flex:0 0 auto}.wzRij.hersteld{opacity:.55}.wzRij.isHerstel{background:#f5f5f5}
 .pzPaneel{border:2px solid #ffd600}.pzStap{margin:10px 0 4px;font-size:14px}.pzChips{display:flex;flex-wrap:wrap;gap:6px}.pzRassen{display:contents}
@@ -3196,7 +3201,8 @@ let PZ = null;   // {pid, teelt, open (soort met rassen open), teeltwijze, opbou
 const pzKey = (zid, nr) => `${zid}:${nr}`, pzSplit = k => { const i = k.lastIndexOf(':'); return [k.slice(0, i), +k.slice(i + 1)]; };
 function pzStart(pid) {
   const p = perceel(pid); if (!p) return;
-  PZ = {pid, items: [], open: null, teeltwijze: 'opkweek', breed: 5, opbouw: '', sel: [], anker: null, kant: 'a', omgekeerd: false, voorstel: null};
+  if (vrijeMeters(p, alleZones(p).flatMap(z => banenVan(z).map(bn => pzKey(z.id, bn.nr)))).vrij < 1) toast('🚫 Dit veld is vol: overal staan al planten of is al iets gepland', 1);
+  PZ = {pid, items: [], open: null, teeltwijze: 'opkweek', breed: 5, opbouw: '', sel: [], anker: null, kant: 'auto', omgekeerd: 'auto', voorstel: null};
   kiesSectie('velden'); zetTab('percelen'); kies(pid); kaartTonen(true);
   toast('🌱 Kies wat er de grond in gaat en tik de sporen aan');
 }
@@ -3238,38 +3244,55 @@ function pzVak(i) {   // een vak (tussen de spuitpaden) in één keer aan- of ui
   keys.forEach(k => alles ? sel.delete(k) : sel.add(k)); PZ.sel = [...sel]; PZ.anker = null; PZ.voorstel = null; render(true);
 }
 function pzHeel() { const p = perceel(PZ.pid); PZ.sel = alleZones(p).flatMap(z => banenVan(z).filter(bn => !isSpuitRij(z, bn.nr)).map(bn => pzKey(z.id, bn.nr))); PZ.anker = null; PZ.voorstel = null; render(true); }
+// wat is er al bezet op een spoor (planten die er staan + wat al gepland is), in meters vanaf het begin
+function bezetVan(p, behalve) {
+  const B = braakSoort()?.id, uit = new Map(), voeg = (k, van, tot) => { if (!uit.has(k)) uit.set(k, []); uit.get(k).push([van, tot]); };
+  alleZones(p).forEach(z => banenVan(z).forEach(bn => stukkenVan(z, bn).forEach(q => { if (q.id && q.id !== B && teelt(q.id)) voeg(pzKey(z.id, bn.nr), q.van, q.tot); })));
+  (S.plantplanning || []).filter(x => x.perceel_id === p.id && x.status === 'gepland' && x.id !== behalve).forEach(x => {
+    if (x.delen?.length) x.delen.forEach(d => voeg(pzKey(d.z, d.nr), d.van, d.tot));
+    else (x.sporen || []).forEach(q => q.nrs.forEach(nr => voeg(pzKey(q.z, nr), 0, 1e6))); });
+  return uit;
+}
+const isBezet = (bz, k, t) => (bz.get(k) || []).some(([a, b]) => t >= a - .01 && t < b - .01);
+function vrijeMeters(p, keys, bz = bezetVan(p)) {
+  let vrij = 0, tot = 0; keys.forEach(k => { const [zid, nr] = pzSplit(k), z = zoneVan(p.id, zid), bn = z && banenVan(z)[nr - 1]; if (!bn || isSpuitRij(z, nr)) return;
+    const L0 = bn.t1 - bn.t0, f = rijFactor(z, nr) || 0, bezet = (bz.get(k) || []).map(([a, b]) => [Math.max(0, a), Math.min(L0, b)]).filter(([a, b]) => b > a).sort((a, b) => a[0] - b[0]);
+    let gedekt = 0, eind = 0; bezet.forEach(([a, b]) => { if (b > eind) { gedekt += b - Math.max(a, eind); eind = b; } });
+    tot += L0 * f; vrij += Math.max(0, L0 - gedekt) * f; });
+  return {vrij: Math.round(vrij), tot: Math.round(tot)};
+}
 // Verdelen: per planterbreedte (vermeerdering 5 sporen naast elkaar, opkweek 1 spoor) achter elkaar vullen, in de gekozen volgorde.
 // Elk ras schuift door waar het vorige ophield; is een groep sporen vol, dan verder in de volgende groep.
 function pzVerdeel(p, keys, items, breed, kant, omgekeerd) {
-  const zones = alleZones(p), zi = new Map(zones.map((z, i) => [z.id, i]));
-  let sp = keys.map(k => { const [zid, nr] = pzSplit(k), z = zoneVan(p.id, zid), bn = z && banenVan(z)[nr - 1]; return bn ? {z, bn, nr, L: bn.t1 - bn.t0, f: rijFactor(z, nr) || 0} : null; }).filter(Boolean)
+  const zones = alleZones(p), zi = new Map(zones.map((z, i) => [z.id, i])), bz = bezetVan(p), STAP = .5;
+  let sp = keys.map(k => { const [zid, nr] = pzSplit(k), z = zoneVan(p.id, zid), bn = z && banenVan(z)[nr - 1]; return bn ? {z, bn, nr, k, L: bn.t1 - bn.t0, f: rijFactor(z, nr) || 0} : null; }).filter(Boolean)
     .sort((a, b) => (zi.get(a.z.id) - zi.get(b.z.id)) || (a.nr - b.nr));
   if (omgekeerd) sp.reverse();
   const groepen = []; sp.forEach(x => { const g = groepen[groepen.length - 1], v = g && g[g.length - 1];
     if (g && g.length < breed && v.z.id === x.z.id && Math.abs(v.nr - x.nr) === 1) g.push(x); else groepen.push([x]); });
-  const uit = items.map(it => ({...it, delen: [], kreeg: 0, wil: leesGetal(it.m)})); let gi = 0, c = 0, restGehad = false;
+  // positie langs het spoor (vanaf de gekozen kant) → meter vanaf het begin van het spoor
+  const echt = (x, c) => kant === 'b' ? x.L - c : c;
+  const vrijOp = (x, c) => c < x.L - .01 && x.f > 0 && !isBezet(bz, x.k, kant === 'b' ? x.L - c - STAP / 2 : c + STAP / 2);
+  const uit = items.map(it => ({...it, delen: [], kreeg: 0, wil: leesGetal(it.m), stuk: new Map()})); let gi = 0, c = 0, restGehad = false;
   for (const it of uit) {
     let nodig = it.wil; if (nodig == null) { if (restGehad) continue; restGehad = true; nodig = Infinity; }
     while (nodig > .05 && gi < groepen.length) {
       const g = groepen[gi], Lmax = Math.max(...g.map(x => x.L));
-      if (c >= Lmax - .05) { gi++; c = 0; continue; }
-      // hoe ver moet de cursor om "nodig" meter in deze groep te halen (sporen kunnen verschillend lang zijn)
-      let c1 = c, over = nodig;
-      const knik = [...new Set(g.map(x => x.L).filter(L => L > c))].sort((a, b) => a - b);
-      for (const L of knik) { const tempo = g.filter(x => x.L > c1).reduce((a, x) => a + x.f, 0); if (tempo <= 0) { c1 = L; continue; }
-        const kan = (L - c1) * tempo; if (kan >= over) { c1 += over / tempo; over = 0; break; } over -= kan; c1 = L; }
-      const eind = Math.min(c1, Lmax);
-      g.forEach(x => { const a = Math.min(c, x.L), b = Math.min(eind, x.L); if (b - a > .05) {
-        const van = kant === 'b' ? x.L - b : a, tot = kant === 'b' ? x.L - a : b;
-        it.delen.push({z: x.z.id, nr: x.nr, van: Math.round(van * 10) / 10, tot: Math.round(tot * 10) / 10}); it.kreeg += (b - a) * x.f; } });
-      nodig = it.wil == null ? Infinity : it.wil - it.kreeg; c = eind;
-      if (c >= Lmax - .05) { gi++; c = 0; }
-      if (it.wil == null && gi >= groepen.length) break;
+      if (c >= Lmax - .01) { gi++; c = 0; continue; }
+      const vrij = g.filter(x => vrijOp(x, c)); const tempo = vrij.reduce((a, x) => a + x.f, 0);
+      if (tempo > 0) { const stap = Math.min(STAP, Lmax - c, nodig / tempo);
+        vrij.forEach(x => { const a = c, b2 = Math.min(c + stap, x.L), m = it.stuk.get(x.k);   // aaneengesloten stukken samenvoegen
+          if (m && Math.abs(m.b - a) < .02) m.b = b2; else { const n = {x, a, b: b2}; it.stuk.set(x.k, n); it.delen.push(n); }
+          it.kreeg += (b2 - a) * x.f; });
+        nodig -= stap * tempo; c += stap; }
+      else c += STAP;
+      if (c >= Lmax - .01) { gi++; c = 0; }
     }
-    it.kreeg = Math.round(it.kreeg); it.tekort = it.wil != null ? Math.max(0, Math.round(it.wil - it.kreeg)) : 0;
+    it.delen = it.delen.map(n => { const v = echt(n.x, n.a), t = echt(n.x, n.b); return {z: n.x.z.id, nr: n.x.nr, van: Math.round(Math.min(v, t) * 10) / 10, tot: Math.round(Math.max(v, t) * 10) / 10}; }).filter(d => d.tot - d.van > .3);
+    delete it.stuk; it.kreeg = Math.round(it.kreeg); it.tekort = it.wil != null ? Math.max(0, Math.round(it.wil - it.kreeg)) : 0;
   }
-  const vrij = groepen.slice(gi).reduce((a, g, j) => a + g.reduce((s2, x) => s2 + Math.max(0, x.L - (j === 0 ? c : 0)) * x.f, 0), 0);
-  return {items: uit, vrij: Math.round(vrij)};
+  const v = vrijeMeters(p, keys, bz), gebruikt = uit.reduce((a, x) => a + x.kreeg, 0);
+  return {items: uit, vrij: Math.max(0, v.vrij - gebruikt), alVol: v.vrij < 1};
 }
 const delenTekst = (pid, delen) => { const per = new Map(); (delen || []).forEach(d => { const k = d.z + '|' + Math.round(d.van) + '|' + Math.round(d.tot); if (!per.has(k)) per.set(k, {z: d.z, van: d.van, tot: d.tot, nrs: []}); per.get(k).nrs.push(d.nr); });
   return [...per.values()].map(g => { const z = zoneVan(pid, g.z), heel = z && g.nrs.every(nr => { const bn = banenVan(z)[nr - 1]; return bn && g.van < .5 && g.tot > bn.t1 - bn.t0 - .5; });
@@ -3280,7 +3303,9 @@ function pzPaneel(p) {
   const chip = (id, naam, kleur) => `<button class="pzChip" onclick="pzVoegToe('${id}')"><i style="background:${esc(kleur || '#9e9e9e')}"></i>${esc(naam)}</button>`;
   const plan = (S.plantplanning || []).filter(x => x.perceel_id === p.id && x.status === 'gepland');
   const v = PZ.voorstel, rich = +p.richting || 0, kantA = windRoos((rich + 180) % 360), kantB = windRoos(rich);
+  const heelVrij = vrijeMeters(p, alleZones(p).flatMap(z => banenVan(z).map(bn => pzKey(z.id, bn.nr))));
   return `<section class="kaartje pzPaneel"><h4>🌱 Plannen op de kaart <button class="link klein" style="float:right" onclick="pzStop()">✓ Klaar met plannen</button></h4>
+    ${heelVrij.vrij < 1 ? '<div class="waarschuwing">🚫 <b>Dit veld is vol.</b> Op alle sporen staan al planten of er is al iets gepland. Haal eerst iets weg (rooien, braak, of een plan weghalen).</div>' : `<small class="hint">Vrij op dit veld: <b>${heelVrij.vrij.toLocaleString('nl-NL')} m</b> van ${heelVrij.tot.toLocaleString('nl-NL')} m.</small>`}
     <div class="pzStap"><b>1.</b> Tik aan wat er de grond in gaat (meerdere kan, ook hetzelfde ras nog een keer)</div>
     <div class="pzChips">${soorten.map(sr => { const rs = S.rassen.filter(x => x.soort_id === sr.id), open = PZ.open === sr.id;
       return rs.length ? `<button class="pzChip ${open ? 'open' : ''}" onclick="PZ.open=PZ.open==='${sr.id}'?null:'${sr.id}';render(true)"><i style="background:${esc(sr.kleur || '#9e9e9e')}"></i>${esc(sr.icoon || '')} ${esc(sr.naam)} ▾</button>${open ? `<span class="pzRassen">${rs.map(x => chip(x.id, x.naam, x.kleur || sr.kleur)).join('')}${chip(sr.id, sr.naam + ' (nog geen ras)', sr.kleur)}</span>` : ''}`
@@ -3297,18 +3322,37 @@ function pzPaneel(p) {
     ${PZ.opbouw !== '' || PZ.teeltwijze === 'vermeerdering' ? '<small class="hint">Dit stuk krijgt een eigen sporensysteem (deelveld), zodat het los van de rest kan, en bij vermeerdering los kan wisselen.</small>' : ''}
     <div class="pzStap"><b>3.</b> Waar? Tik vakken aan, of op de kaart het <b>eerste</b> en <b>laatste</b> spoor (van – tot).</div>
     <div class="pzChips">${pv.map((x, i) => { const ks = x.nrs.filter(nr => !isSpuitRij(x.z, nr)).map(nr => pzKey(x.z.id, nr)), aan = ks.length && ks.every(k => sel.has(k)); return `<button class="pzChip ${aan ? 'aan' : ''}" onclick="pzVak(${i})">Vak ${esc(x.letter)}</button>`; }).join('')}<button class="pzChip" onclick="pzHeel()">Hele perceel</button></div>
-    ${sp.length ? `<div class="pzGekozen">📍 ${esc(pzSporenTekst(p.id, sp))} · <b>${sp.reduce((a, q) => a + q.nrs.length, 0)} sporen · ${m.toLocaleString('nl-NL')} m</b> <button class="link klein" onclick="PZ.sel=[];PZ.anker=null;PZ.voorstel=null;render(true)">wissen</button></div>` : '<small class="hint">Nog geen sporen gekozen.</small>'}
-    <div class="raster2"><div><label>Beginnen bij</label><select class="veld" onchange="PZ.omgekeerd=this.value==='1';PZ.voorstel=null;render(true)"><option value="0" ${!PZ.omgekeerd ? 'selected' : ''}>het laagste spoornummer</option><option value="1" ${PZ.omgekeerd ? 'selected' : ''}>het hoogste spoornummer</option></select></div>
-      <div><label>Planten vanaf</label><select class="veld" onchange="PZ.kant=this.value;PZ.voorstel=null;render(true)"><option value="a" ${PZ.kant === 'a' ? 'selected' : ''}>de ${kantA}-kant</option><option value="b" ${PZ.kant === 'b' ? 'selected' : ''}>de ${kantB}-kant</option></select></div></div>
+    ${sp.length ? `<div class="pzGekozen">📍 ${esc(pzSporenTekst(p.id, sp))} · <b>${sp.reduce((a, q) => a + q.nrs.length, 0)} sporen · ${(() => { const vm = vrijeMeters(p, PZ.sel); return vm.vrij < vm.tot ? `${vm.vrij.toLocaleString('nl-NL')} m vrij</b> (van ${vm.tot.toLocaleString('nl-NL')} m; de rest staat al vol)` : `${m.toLocaleString('nl-NL')} m vrij</b>`; })()} <button class="link klein" onclick="PZ.sel=[];PZ.anker=null;PZ.voorstel=null;render(true)">wissen</button></div>` : '<small class="hint">Nog geen sporen gekozen.</small>'}
+    <div class="raster2"><div><label>Beginnen bij</label><select class="veld" onchange="PZ.omgekeerd=this.value==='auto'?'auto':this.value==='1';PZ.voorstel=null;render(true)"><option value="auto" ${PZ.omgekeerd === 'auto' ? 'selected' : ''}>🔗 Aansluiten op wat er staat</option><option value="0" ${PZ.omgekeerd === false ? 'selected' : ''}>het laagste spoornummer</option><option value="1" ${PZ.omgekeerd === true ? 'selected' : ''}>het hoogste spoornummer</option></select></div>
+      <div><label>Planten vanaf</label><select class="veld" onchange="PZ.kant=this.value;PZ.voorstel=null;render(true)"><option value="auto" ${PZ.kant === 'auto' ? 'selected' : ''}>🔗 Aansluiten op wat er staat</option><option value="a" ${PZ.kant === 'a' ? 'selected' : ''}>de ${kantA}-kant</option><option value="b" ${PZ.kant === 'b' ? 'selected' : ''}>de ${kantB}-kant</option></select></div></div>
     <div class="rij" style="gap:6px"><button class="knop licht" ${PZ.items.length && sp.length ? '' : 'disabled'} onclick="pzVoorstel()">🧮 Voorstel maken</button>
       <button class="knop" ${v ? '' : 'disabled'} onclick="pzToevoegen()">＋ In het plan zetten</button></div>
     ${v ? `<small class="hint">Het voorstel staat geel omlijnd op de kaart${v.vrij ? ` · nog ${v.vrij.toLocaleString('nl-NL')} m vrij in de gekozen sporen` : ''}.</small>` : ''}
     ${plan.length ? `<div class="pzStap" style="margin-top:12px"><b>Plan van ${esc(p.naam)}</b></div>${plan.sort((a, b) => (a.volgorde ?? 0) - (b.volgorde ?? 0)).map(pzKaart).join('')}
       <div class="rij" style="gap:6px;margin-top:6px"><button class="knop" onclick="pzTaakMaken('${p.id}')">📋 Taak maken om te planten / zaaien</button></div>` : ''}</section>`;
 }
+// automatisch: aansluiten op wat er al staat (zelfde kant van het spoor, beginnen naast de planten), niet tegen een sproeier- of spuitspoor
+function pzRichting(p, keys) {
+  const bz = bezetVan(p), sp = keys.map(k => { const [zid, nr] = pzSplit(k); return {k, zid, nr, z: zoneVan(p.id, zid)}; }).filter(x => x.z).sort((a, b) => a.nr - b.nr);
+  let kant = PZ.kant, omg = PZ.omgekeerd;
+  if (kant === 'auto') { let a = 0, b = 0;
+    sp.forEach(x => { const bn = banenVan(x.z)[x.nr - 1]; if (!bn) return; const L0 = bn.t1 - bn.t0; (bz.get(x.k) || []).forEach(([v, t]) => { if (v < 1 && t < L0 - 1) a++; if (t > L0 - 1 && v > 1) b++; }); });
+    kant = b > a ? 'b' : 'a'; }
+  if (omg === 'auto') { const lo = sp[0], hi = sp[sp.length - 1];
+    const score = (x, d) => { if (!x) return 0; const z = x.z, buur = x.nr + d, bk = pzKey(z.id, buur);
+      if ((bz.get(x.k) || []).length) return 3;                        // dit spoor is al deels beplant: hier verder
+      if (buur >= 1 && buur <= banenVan(z).length && (bz.get(bk) || []).length && !isSpuitRij(z, buur)) return 2;   // naast planten
+      if (buur >= 1 && buur <= banenVan(z).length && isSpuitRij(z, buur)) return -1;                               // tegen een spuit-/sproeierspoor
+      if (sproeierLijnenVan(z).has(d < 0 ? x.nr - 1 : x.nr)) return -1;                                            // tegen een sproeierleiding
+      return 0; };
+    omg = score(hi, 1) > score(lo, -1); }
+  else omg = omg === true || omg === '1';
+  return {kant, omg};
+}
 function pzVoorstel() {
   const p = perceel(PZ.pid); if (!p || !PZ.items.length || !PZ.sel.length) return;
-  PZ.voorstel = pzVerdeel(p, PZ.sel, PZ.items, PZ.teeltwijze === 'vermeerdering' ? PZ.breed : 1, PZ.kant, PZ.omgekeerd);
+  const rr = pzRichting(p, PZ.sel); PZ.voorstel = pzVerdeel(p, PZ.sel, PZ.items, PZ.teeltwijze === 'vermeerdering' ? PZ.breed : 1, rr.kant, rr.omg);
+  if (PZ.voorstel.alVol) { PZ.voorstel = null; render(true); toast('🚫 Deze sporen zijn al vol: er staan al planten of er is al iets gepland. Kies andere sporen.', 1); return; }
   const tk = PZ.voorstel.items.filter(x => x.tekort);
   render(true); toast(tk.length ? `⚠️ Past niet helemaal: ${tk.map(x => `${teelt(x.teelt)?.naam} ${x.tekort} m`).join(', ')}` : '🧮 Voorstel staat op de kaart');
 }
@@ -3326,7 +3370,7 @@ async function pzToevoegen() {
     else { const patch = {spuit: {...spuitVan(z), ...(opb ? {patroon: opb.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], rijtjes: opb.rijtjes || 0, spuitRijtjes: opb.spuitRijtjes || 0} : {})}};
       if (opb && +opb.breedte && +opb.breedte !== +z.breedte) patch.breedte = +opb.breedte; await zoneZetten(p, z, patch); banenCache.delete(z.id); }
   }
-  const v = pzVerdeel(perceel(p.id), PZ.sel, PZ.items, PZ.teeltwijze === 'vermeerdering' ? PZ.breed : 1, PZ.kant, PZ.omgekeerd);
+  const rr = pzRichting(perceel(p.id), PZ.sel), v = pzVerdeel(perceel(p.id), PZ.sel, PZ.items, PZ.teeltwijze === 'vermeerdering' ? PZ.breed : 1, rr.kant, rr.omg);
   const groep = pzUid() + Date.now().toString(36), al = (S.plantplanning || []).filter(x => x.perceel_id === p.id).reduce((a, x) => Math.max(a, x.volgorde || 0), 0);
   let n = 0;
   for (const [i, it] of v.items.entries()) {
@@ -3382,9 +3426,13 @@ function tekenPlan(z, isA) {
   }
 }
 // stukken van een spoor op de kaart zetten: wat er al staat blijft, behalve waar een nieuw stuk komt
-function spoorMetStukken(z, nr, nieuw) {
-  const bn = banenVan(z)[nr - 1]; if (!bn) return null; const L0 = bn.t1 - bn.t0;
+function spoorMetStukken(z, nr, nieuw, alleenVrij) {
+  const bn = banenVan(z)[nr - 1]; if (!bn) return null; const L0 = bn.t1 - bn.t0, B = braakSoort()?.id;
   let segs = stukkenVan(z, bn).map(q => ({van: q.van, tot: q.tot, id: q.id ?? null}));
+  if (alleenVrij) {   // niet over planten heen die er al staan: alleen de lege (of braak) stukken vullen
+    const vol = segs.filter(sg => sg.id && sg.id !== B && teelt(sg.id));
+    nieuw = nieuw.flatMap(n => { let delen = [{...n}]; vol.forEach(v => { delen = delen.flatMap(d => d.tot <= v.van || d.van >= v.tot ? [d] : [...(d.van < v.van ? [{...d, tot: v.van}] : []), ...(d.tot > v.tot ? [{...d, van: v.tot}] : [])]); }); return delen; });
+  }
   for (const n of nieuw.sort((a, b) => a.van - b.van)) {
     const v = Math.max(0, n.van), t = Math.min(L0, n.tot); if (t - v < .05) continue;
     segs = segs.flatMap(sg => sg.tot <= v || sg.van >= t ? [sg] : [...(sg.van < v ? [{...sg, tot: v}] : []), ...(sg.tot > t ? [{...sg, van: t}] : [])]);
@@ -3395,7 +3443,7 @@ function spoorMetStukken(z, nr, nieuw) {
   return {k: m.slice(1).map(sg => Math.round(sg.van * 10) / 10), s: m.map(sg => sg.id)};
 }
 // een of meer plannen op de kaart zetten (per stuk spoor)
-async function pzOpKaart(p, plannen) {
+async function pzOpKaart(p, plannen, alleenVrij = true) {
   const per = new Map();
   plannen.forEach(x => { const id = x.ras_id || x.soort_id;
     const delen = x.delen?.length ? x.delen : (x.sporen || []).flatMap(q => q.nrs.map(nr => ({z: q.z, nr, van: 0, tot: 1e6})));
@@ -3403,7 +3451,7 @@ async function pzOpKaart(p, plannen) {
       if (!zz.nrs.has(d.nr)) zz.nrs.set(d.nr, []); zz.nrs.get(d.nr).push({van: d.van, tot: d.tot, id}); }); });
   for (const [zid, zz] of per) {
     const z = zoneVan(p.id, zid); if (!z) continue;
-    const arr = [...(z.banen || [])]; for (const [nr, nieuw] of zz.nrs) { while (arr.length < nr) arr.push(null); arr[nr - 1] = spoorMetStukken(z, nr, nieuw); }
+    const arr = [...(z.banen || [])]; for (const [nr, nieuw] of zz.nrs) { while (arr.length < nr) arr.push(null); arr[nr - 1] = spoorMetStukken(z, nr, nieuw, alleenVrij); }
     const patch = {banen: arr}; if (zz.moeder) patch.spuit = {...spuitVan(z), moeder: true};
     await zoneZetten(p, z, patch); banenCache.delete(z.id);
   }
@@ -4083,7 +4131,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -4146,6 +4194,7 @@ function renderPaneel() {
   else if (tab === 'weekplanning') h = htmlWeekplanning();
   else if (tab === 'rooiplanning') h = htmlRooiplanning();
   else if (tab === 'plantzaai') h = seizoenKnop() + htmlPlantZaai();
+  else if (tab === 'teeltplan') { if (!TP.geladen) laadTeeltplan(); h = seizoenKnop() + htmlTeeltplan(); }
   else if (tab === 'wijzigingen') { if (!wz.geladen) laadWijzigingen(true); h = htmlWijzigingen(); }
   else if (tab === 'resinvoer') h = seizoenKnop() + htmlResInvoer();
   else if (tab === 'resrapport') h = seizoenKnop() + htmlResRapport();
@@ -5864,7 +5913,7 @@ function sectieTabs(s) {
   return ({
     vandaag: [['vandaag', '☀️', 'Vandaag'], ...(ziet('historie_bekijken') ? [['gebeurtenissen', '🔔', 'Gebeurtenissen']] : []), ...(ziet('historie_bekijken') || isBeheerder() ? [['wijzigingen', '↶', 'Wijzigingen']] : [])],
     velden: [['percelen', '🗺️', 'Kaart'], ['watstaatwaar', '🌱', 'Wat staat waar'], ['partijen', '🏷️', 'Partijen'], ['prognose', '📈', 'Prognose'], ['plantplan', '🧮', 'Plantplan'], ['vruchtwisseling', '🔄', 'Wisseling'], ['waarnemingen', '🐛', 'Ziektes'], ['monsters', '🧪', 'Monsters']],
-    werk: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['plantzaai', '🌱', 'Planten en zaaien'], ['rooiplanning', '🚜', 'Rooiplanning'], ['spuiten', '🧪', 'Spuiten'], ['bemesten', '🌱', 'Bemesten'],
+    werk: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['teeltplan', '📊', 'Teeltplanning'], ['plantzaai', '🌱', 'Planten en zaaien'], ['rooiplanning', '🚜', 'Rooiplanning'], ['spuiten', '🧪', 'Spuiten'], ['bemesten', '🌱', 'Bemesten'],
       ...(trek ? [['tractoren', '🚜', 'Trekkers']] : []), ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : [])],
     oogst: resIn ? [['resinvoer', '✍️', 'Invoer'], ['reskiep', '🧺', 'Kieplijst'], ...(resBek ? [['resrapport', '📊', 'Rapport'], ['resprognose', '📈', 'Prognose']] : []), ['respoten', '🌱', 'Poten'],
       ['reskisten', '📦', 'Kistjes'], ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])] : [],
@@ -8274,7 +8323,7 @@ const TAB_INFO = {
   prognose: ['📈', 'Prognose', 'Hoeveel planten per partij'], plantplan: ['🧮', 'Plantplan', 'Voorstel hoe te planten'],
   vruchtwisseling: ['🔄', 'Vruchtwisseling', 'Wat stond waar, over de jaren'], waarnemingen: ['🐛', 'Ziektes en plagen', 'Waarnemingen per spoor'],
   monsters: ['🧪', 'Monsters', 'Grondmonsters en keuringen'], taken: ['📋', 'Taken', 'Alle taken en wie wat doet'],
-  weekplanning: ['👥', 'Weekoverzicht', 'Wie doet wat deze week'], rooiplanning: ['🚜', 'Rooiplanning', 'Welke dag, wat, hoeveel en wie'], plantzaai: ['🌱', 'Planten en zaaien', 'Wat waar de grond in gaat (batch komt later)'],
+  weekplanning: ['👥', 'Weekoverzicht', 'Wie doet wat deze week'], rooiplanning: ['🚜', 'Rooiplanning', 'Welke dag, wat, hoeveel en wie'], plantzaai: ['🌱', 'Planten en zaaien', 'Wat waar de grond in gaat (batch komt later)'], teeltplan: ['📊', 'Teeltplanning', 'Van verwachte verkoop naar hectares, moederplanten en PBM'],
   spuiten: ['🧪', 'Spuiten', 'Planning en spuitregister'], bemesten: ['🌱', 'Bemesten', 'Planning en bemestingsregister'],
   tractoren: ['🚜', 'Trekkers', 'Waar de trekkers nu zijn'], logboek: ['📒', 'Logboek', 'Uitgevoerd werk, met ongedaan maken'],
   resinvoer: ['✍️', 'Invoer', 'Rooien, kiepen, telling en scans'], reskiep: ['🧺', 'Kieplijst', 'Wat er nog gekiept moet worden'],
@@ -8581,8 +8630,9 @@ async function pzFormulier(id, pid0, direct) {
 async function pzGeplant(id, stil) {
   const x = (S.plantplanning || []).find(y => y.id === id), p = x && perceel(x.perceel_id); if (!p) return;
   const sporen = x.sporen?.length ? x.sporen : pzSporen(p, [], []), tid = x.ras_id || x.soort_id, n = sporen.reduce((a, q) => a + q.nrs.length, 0);
-  const vol = sporen.reduce((a, q) => { const z = zoneVan(p.id, q.z); return a + (z ? q.nrs.filter(nr => waarden((z.banen || [])[nr - 1]).some(Boolean)).length : 0); }, 0);
-  if ((!stil || vol) && !await bevestigJa(stil ? 'Sporen overschrijven?' : 'Staat het in de grond?', `${n} sporen op ${esc(p.naam)} worden ingedeeld met <b>${esc(pzNaam(x))}</b>.${vol ? `<br>⚠️ ${vol} daarvan zijn al ingedeeld en worden overschreven.` : ''}${x.teeltwijze === 'vermeerdering' ? '<br>🌿 Vermeerdering: de planten staan als lijn midden in het spoor tot je wisselt.' : ''}`, '✓ Ja, indelen')) return;
+  const vol = sporen.reduce((a, q) => { const z = zoneVan(p.id, q.z); return a + (z ? q.nrs.filter(nr => waarden((z.banen || [])[nr - 1]).some(v => v && v !== braakSoort()?.id && teelt(v))).length : 0); }, 0);
+  if (vol >= n && !x.delen?.length) { toast(`🚫 Die sporen zijn al vol: daar staan al planten. ${esc(pzNaam(x))} is niet op de kaart gezet.`, 1); return; }
+  if (!stil && !await bevestigJa('Staat het in de grond?', `${n} sporen op ${esc(p.naam)} worden ingedeeld met <b>${esc(pzNaam(x))}</b>.${vol ? `<br>ℹ️ Op ${vol} daarvan staan al planten: die stukken blijven zoals ze zijn.` : ''}${x.teeltwijze === 'vermeerdering' ? '<br>🌿 Vermeerdering: de planten staan als lijn midden in het spoor tot je wisselt.' : ''}`, '✓ Ja, indelen')) return;
   await pzOpKaart(p, [{...x, sporen}]);
   const {data, error} = await sb.from('plantplanning').update({status: 'geplant', geplant_op: new Date().toISOString(), geplant_door: naamMe(), sporen}).eq('id', id).select().single();
   if (error) { toast(foutTekst(error), 1); return; }
@@ -10899,6 +10949,156 @@ const ongelezen = () => (S.meldingen || []).filter(m => !m.gelezen).length;
 function belTeken() {
   const n = ongelezen() + waarschuwingen().length, b = $('#belKnop'); if (!b) return;
   b.innerHTML = '🔔' + (n ? `<span class="tel">${n}</span>` : '');
+}
+/* =====================================================================================
+   TEELTPLANNING – zoals het Excel "Planning basismateriaal op verwachte verkoop":
+   verwachte verkoop (A-planten) + opkweek − planten van derden → bruto nodig (via kwaliteitsverdeling)
+   → ha veld / m1 kas (via opbrengst) → moederplanten (MP/ha) → m² kas BM (BM/m²) → MP kas (MP/m²) → PBM te bestellen (planten/MP)
+   ===================================================================================== */
+const TP_PROD = [
+  {k: 'HS', naam: 'Stek hangend', kort: 'HS', een: 'm1', kw: ['A', 'B'], verk: ['A'], mp: 12},
+  {k: 'LS', naam: 'Stek liggend', kort: 'LS', een: 'm1', kw: ['A', 'B'], verk: ['A'], mp: 8},
+  {k: 'VS', naam: 'Veldstek stro', kort: 'VS', een: 'ha', kw: ['A', 'B'], verk: ['A'], mp: 35000},
+  {k: 'VV', naam: 'Vers vroeg', kort: 'Vers vroeg', een: 'ha', kw: ['A', 'B', 'Stek'], verk: ['A'], mp: 35000},
+  {k: 'VL', naam: 'Vers laat / veldstek', kort: 'Vers laat', een: 'ha', kw: ['A', 'B', 'Stek'], verk: ['A'], mp: 35000},
+  {k: 'FR', naam: 'Frigo', kort: 'Frigo', een: 'ha', kw: ['A-', 'A', 'A1+', 'A2+', 'A3+'], verk: ['A', 'A1+', 'A2+', 'A3+'], mp: 18000},
+  {k: 'FB', naam: 'Frigo BIO', kort: 'Frigo BIO', een: 'ha', kw: ['A--', 'A-', 'A', 'A1+', 'A2+'], verk: ['A-', 'A', 'A1+', 'A2+'], mp: 18000}];
+const TP_BM = [{k: 'BM3', naam: 'BM3 (verkoop)'}, {k: 'BM1', naam: 'BM1 (verkoop)'}];
+const TP_OPK = [
+  {k: 'wachtbed', naam: 'Wachtbed', van: 'VV', cor: 1.3}, {k: 'misted', naam: 'Misted tip', van: 'HS', cor: 1.1}, {k: 'tray', naam: 'Tray', van: 'HS', cor: 1.1},
+  {k: 'minitray', naam: 'Minitray', van: 'HS', cor: 1.1}, {k: 'potfrigo', naam: 'Potplant (frigo)', van: 'FR', cor: 1.1}, {k: 'potstek', naam: 'Potplant (stek)', van: 'HS', cor: 1.1},
+  {k: 'plug', naam: 'Plugplant (frigo)', van: 'FR', cor: 1.1}, {k: 'wachtbio', naam: 'Wachtbed BIO', van: 'FB', cor: 1.3}, {k: 'plugbio', naam: 'Plugplant BIO', van: 'FB', cor: 1.1}];
+const TP_KW_STD = {HS: {A: 80, B: 20}, LS: {A: 80, B: 20}, VS: {A: 80, B: 20}, VV: {A: 70, B: 20, Stek: 10}, VL: {A: 70, B: 20, Stek: 10},
+  FR: {'A-': 10, A: 50, 'A1+': 30, 'A2+': 8, 'A3+': 2}, FB: {'A--': 5, 'A-': 15, A: 50, 'A1+': 25, 'A2+': 5}};
+const TP = {geladen: false, rijen: [], blad: 'uitkomst', soort: '', open: null, timers: {}};
+async function laadTeeltplan() {
+  TP.geladen = true;
+  const {data, error} = await sb.from('teeltplanning').select('*').or(`seizoen_id.eq.${bekeken},seizoen_id.is.null`);
+  TP.fout = error ? error.message : null; TP.rijen = data || []; render(true);
+}
+const tpRasSoort = () => TP.soort || S.soorten.find(x => /aardbei/i.test(x.naam || ''))?.id || S.soorten[0]?.id;
+const tpRassen = () => S.rassen.filter(r => r.soort_id === tpRasSoort()).sort((a, b) => (a.naam || '').localeCompare(b.naam || '', 'nl'));
+const tpRij = rid => TP.rijen.find(x => (x.ras_id || null) === (rid || null) && (rid ? x.seizoen_id === bekeken : true));
+const tpData = rid => tpRij(rid)?.data || {};
+// standaard kengetallen (rij zonder ras), aangevuld met de waarden uit het Excel-bestand
+function tpStd() { const d = tpData(null);
+  return {mp: Object.fromEntries(TP_PROD.map(p => [p.k, d.mp?.[p.k] ?? p.mp])), opbr: d.opbr || {}, kw: Object.fromEntries(TP_PROD.map(p => [p.k, {...TP_KW_STD[p.k], ...(d.kw?.[p.k] || {})}])),
+    cor: Object.fromEntries(TP_OPK.map(o => [o.k, d.cor?.[o.k] ?? o.cor])), van: Object.fromEntries(TP_OPK.map(o => [o.k, d.van?.[o.k] ?? o.van])),
+    bmM2: d.bmM2 ?? 90, mpM2: d.mpM2 ?? 1.5, plMP: d.plMP ?? 368}; }
+// kengetal voor een ras: eigen waarde, anders de standaard
+function tpKen(rid) { const s0 = tpStd(), d = tpData(rid);
+  return {mp: Object.fromEntries(TP_PROD.map(p => [p.k, d.mp?.[p.k] ?? s0.mp[p.k]])), opbr: Object.fromEntries(TP_PROD.map(p => [p.k, d.opbr?.[p.k] ?? s0.opbr[p.k]])),
+    kw: Object.fromEntries(TP_PROD.map(p => [p.k, {...s0.kw[p.k], ...(d.kw?.[p.k] || {})}])), cor: s0.cor, van: s0.van,
+    bmM2: d.bmM2 ?? s0.bmM2, mpM2: d.mpM2 ?? s0.mpM2, plMP: d.plMP ?? s0.plMP}; }
+const tpN = v => { const n = parseFloat(String(v ?? '').replace(/\./g, '').replace(',', '.')); return isNaN(n) ? 0 : n; };
+// de hele berekening voor één ras
+function tpReken(rid) {
+  const d = tpData(rid), k = tpKen(rid), uit = {prod: [], ha: 0, m1: 0, mpVeld: 0, mist: []};
+  TP_PROD.forEach(p => {
+    const verkoop = tpN(d.act?.[p.k]) || tpN(d.verkoop?.[p.k]);
+    const opk = TP_OPK.filter(o => k.van[o.k] === p.k).reduce((a, o) => a + tpN(d.opkweek?.[o.k]) * (+k.cor[o.k] || 1), 0);
+    const pct = p.verk.reduce((a, c) => a + tpN(k.kw[p.k]?.[c]), 0) / 100, derden = tpN(d.derden?.[p.k]);
+    const nodig = verkoop + opk; if (!nodig && !derden) return;
+    const bruto = pct > 0 ? Math.max(0, nodig / pct - derden) : 0, opbr = tpN(k.opbr[p.k]);
+    if (nodig && !pct) uit.mist.push(`kwaliteitsverdeling ${p.kort}`); if (nodig && !opbr) uit.mist.push(`opbrengst per ${p.een} ${p.kort}`);
+    const opp = opbr ? bruto / opbr : 0, mp = opp * (+k.mp[p.k] || 0);
+    uit.prod.push({p, verkoop, opk, pct, derden, bruto, opbr, opp, mp});
+    if (p.een === 'ha') uit.ha += opp; else uit.m1 += opp; uit.mpVeld += mp;
+  });
+  uit.verkBM3 = tpN(d.act?.BM3) || tpN(d.verkoop?.BM3); uit.verkBM1 = tpN(d.act?.BM1) || tpN(d.verkoop?.BM1);
+  uit.mpTot = Math.max(0, uit.mpVeld + uit.verkBM3 - tpN(d.derden?.BM3));
+  uit.m2Kas = k.bmM2 ? uit.mpTot / k.bmM2 : 0;
+  uit.mpKas = Math.max(0, uit.m2Kas * k.mpM2 - tpN(d.derden?.BM1));
+  uit.pb = k.plMP ? uit.mpKas / k.plMP : 0; uit.pbLaat = k.plMP ? uit.verkBM1 / k.plMP : 0;
+  // wat er in de app al gepland/geplant staat (vermeerdering = moederplanten op het veld)
+  const pl = (S.plantplanning || []).filter(x => x.ras_id === rid && (!bekeken || !x.seizoen_id || x.seizoen_id === bekeken));
+  uit.gepland = pl.reduce((a, x) => { const br = +(zoneVan(x.perceel_id, x.sporen?.[0]?.z)?.breedte || perceel(x.perceel_id)?.breedte || 1.5); return a + (+x.meters_doel || 0) * br / 10000; }, 0);
+  uit.geplandM = pl.reduce((a, x) => a + (+x.meters_doel || 0), 0);
+  return uit;
+}
+// opslaan per ras (even wachten tot je klaar bent met typen)
+function tpZet(rid, pad, waarde) {
+  const rij = tpRij(rid) || (TP.rijen.push({seizoen_id: rid ? bekeken : null, ras_id: rid || null, data: {}}), tpRij(rid));
+  const delen = pad.split('.'); let o = rij.data; delen.slice(0, -1).forEach(x => { o[x] = o[x] || {}; o = o[x]; });
+  const v = String(waarde ?? '').trim(); if (v === '') delete o[delen[delen.length - 1]]; else o[delen[delen.length - 1]] = tpN(v);
+  const sl = rid || 'std'; clearTimeout(TP.timers[sl]);
+  TP.timers[sl] = setTimeout(async () => {
+    const body = {seizoen_id: rij.seizoen_id, ras_id: rij.ras_id, data: rij.data, bijgewerkt: new Date().toISOString(), door: naamMe()};
+    const res = rij.id ? await sb.from('teeltplanning').update(body).eq('id', rij.id).select().single() : await sb.from('teeltplanning').insert(body).select().single();
+    if (res.error) { toast((/teeltplanning/.test(res.error.message) ? 'Draai eerst beheer.sql opnieuw in Supabase. ' : '') + foutTekst(res.error), 1); return; }
+    rij.id = res.data.id; tpVerversUitkomst();
+  }, 700);
+  tpVerversUitkomst();
+}
+function tpVerversUitkomst() { const el = document.getElementById('tpTotaal'); if (el) el.innerHTML = tpTotaalHtml(); }
+const tpG = (n, d = 0) => (Math.round((+n || 0) * 10 ** d) / 10 ** d).toLocaleString('nl-NL', {maximumFractionDigits: d});
+function tpTotaalHtml() {
+  const rs = tpRassen().map(r => ({r, u: tpReken(r.id)})).filter(x => x.u.prod.length || x.u.verkBM3 || x.u.verkBM1);
+  const ha = rs.reduce((a, x) => a + x.u.ha, 0), m1 = rs.reduce((a, x) => a + x.u.m1, 0), pb = rs.reduce((a, x) => a + x.u.pb + x.u.pbLaat, 0), m2 = rs.reduce((a, x) => a + x.u.m2Kas, 0), gepl = rs.reduce((a, x) => a + x.u.gepland, 0);
+  const vrij = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).reduce((a, p) => a + (p.geo ? turf.area(p.geo) / 10000 : 0), 0);
+  return `<div class="tpTot"><div><b>${tpG(ha, 2)} ha</b><small>veld nodig</small></div><div><b>${tpG(gepl, 2)} ha</b><small>al gepland in de app</small></div><div><b>${tpG(m1)} m1</b><small>kas (stek)</small></div><div><b>${tpG(m2)} m²</b><small>kas BM</small></div><div><b>${tpG(pb)}</b><small>PBM te bestellen</small></div></div>
+    <small class="hint">Alle velden samen zijn ${tpG(vrij, 1)} ha bruto.</small>`;
+}
+function htmlTeeltplan() {
+  if (TP.fout) return `<section class="kaartje"><p class="hint">${/teeltplanning/.test(TP.fout) ? 'Draai eerst beheer.sql opnieuw in Supabase.' : esc(TP.fout)}</p></section>`;
+  if (!TP.geladen) return '<section class="kaartje"><p class="hint">Laden…</p></section>';
+  const beh = isBeheerder() || mag('taken_toevoegen') || mag('resultaten_beheren'), dis = beh ? '' : 'disabled', rs = tpRassen();
+  const bladen = [['uitkomst', '📊 Uitkomst'], ['verkoop', '💶 Verwachte verkoop'], ['opkweek', '🌱 Opkweek'], ['derden', '📦 Van derden'], ['ken', '⚙️ Kengetallen']];
+  const inp = (rid, pad, v, ph = '') => `<input class="tpIn" type="text" inputmode="decimal" ${dis} value="${v != null && v !== '' ? esc(tpG(v, 2)) : ''}" placeholder="${esc(ph)}" onchange="tpZet(${rid ? `'${rid}'` : 'null'},'${pad}',this.value)">`;
+  const tabel = (kop, rij) => `<div class="tpScroll"><table class="tpTab"><thead><tr><th>Ras</th>${kop.map(k => `<th>${k}</th>`).join('')}</tr></thead><tbody>${rs.map(r => `<tr><td><b>${esc(r.naam)}</b></td>${rij(r)}</tr>`).join('')}</tbody></table></div>`;
+  let inhoud = '';
+  if (TP.blad === 'verkoop') inhoud = `<p class="hint">Verwachte verkoop van <b>A-planten</b> per sortering (zoals het tabblad "Verwachte verkoop"). Weet je het later precies, vul dan <b>Actueel</b> in: dat telt dan.</p>
+    ${tabel([...TP_PROD, ...TP_BM].flatMap(p => [esc(p.kort || p.naam), '<small>actueel</small>']), r => { const d = tpData(r.id); return [...TP_PROD, ...TP_BM].map(p => `<td>${inp(r.id, 'verkoop.' + p.k, d.verkoop?.[p.k])}</td><td class="act">${inp(r.id, 'act.' + p.k, d.act?.[p.k])}</td>`).join(''); })}`;
+  else if (TP.blad === 'opkweek') { const k0 = tpStd(); inhoud = `<p class="hint">Hoeveel planten er per doel opgekweekt worden. Tussen haakjes: uit welke sortering ze komen en de correctie (instellen bij Kengetallen).</p>
+    ${tabel(TP_OPK.map(o => `${esc(o.naam)}<small style="display:block;font-weight:400">${esc(TP_PROD.find(p => p.k === k0.van[o.k])?.kort || '')} ×${tpG(k0.cor[o.k], 2)}</small>`), r => TP_OPK.map(o => `<td>${inp(r.id, 'opkweek.' + o.k, tpData(r.id).opkweek?.[o.k])}</td>`).join(''))}`; }
+  else if (TP.blad === 'derden') inhoud = `<p class="hint">Toegeleverde A-planten van derden. Die hoef je zelf niet te telen.</p>
+    ${tabel([...TP_PROD, ...TP_BM].map(p => esc(p.kort || p.naam)), r => [...TP_PROD, ...TP_BM].map(p => `<td>${inp(r.id, 'derden.' + p.k, tpData(r.id).derden?.[p.k])}</td>`).join(''))}`;
+  else if (TP.blad === 'ken') { const k0 = tpStd(), d0 = tpData(null);
+    inhoud = `<p class="hint">De standaard geldt voor alle rassen. Per ras kun je hieronder afwijken (leeg = standaard).</p>
+    <div class="tpScroll"><table class="tpTab"><thead><tr><th>Standaard</th>${TP_PROD.map(p => `<th>${esc(p.kort)}</th>`).join('')}</tr></thead><tbody>
+      <tr><td>Opbrengst planten per ${'ha / m1'}</td>${TP_PROD.map(p => `<td>${inp(null, 'opbr.' + p.k, d0.opbr?.[p.k], p.een === 'ha' ? 'per ha' : 'per m1')}</td>`).join('')}</tr>
+      <tr><td>Moederplanten per ha / m1</td>${TP_PROD.map(p => `<td>${inp(null, 'mp.' + p.k, d0.mp?.[p.k], tpG(p.mp))}</td>`).join('')}</tr>
+      ${[...new Set(TP_PROD.flatMap(p => p.kw))].map(c => `<tr><td>% ${esc(c)}</td>${TP_PROD.map(p => p.kw.includes(c) ? `<td>${inp(null, 'kw.' + p.k + '.' + c, d0.kw?.[p.k]?.[c], tpG(TP_KW_STD[p.k][c] ?? 0))}</td>` : '<td></td>').join('')}</tr>`).join('')}
+    </tbody></table></div>
+    <div class="tpScroll"><table class="tpTab"><thead><tr><th>Opkweek</th>${TP_OPK.map(o => `<th>${esc(o.naam)}</th>`).join('')}</tr></thead><tbody>
+      <tr><td>Correctie (×)</td>${TP_OPK.map(o => `<td>${inp(null, 'cor.' + o.k, d0.cor?.[o.k], tpG(o.cor, 2))}</td>`).join('')}</tr>
+      <tr><td>Komt uit</td>${TP_OPK.map(o => `<td><select class="tpIn" ${dis} onchange="tpZetVan('${o.k}',this.value)">${TP_PROD.map(p => `<option value="${p.k}" ${k0.van[o.k] === p.k ? 'selected' : ''}>${esc(p.kort)}</option>`).join('')}</select></td>`).join('')}</tr></tbody></table></div>
+    <div class="raster2" style="max-width:640px"><div><label>BM per m² kas</label>${inp(null, 'bmM2', d0.bmM2, '90')}</div><div><label>MP per m² kas</label>${inp(null, 'mpM2', d0.mpM2, '1,5')}</div><div><label>Planten per MP (PBM)</label>${inp(null, 'plMP', d0.plMP, '368')}</div></div>
+    <h4 style="margin-top:14px">Per ras afwijken</h4>
+    ${tabel([...TP_PROD.map(p => `Opbrengst ${esc(p.kort)}`), 'BM/m²', 'MP/m²', 'Pl/MP'], r => { const d = tpData(r.id); return TP_PROD.map(p => `<td>${inp(r.id, 'opbr.' + p.k, d.opbr?.[p.k], k0.opbr[p.k] ? tpG(k0.opbr[p.k]) : '')}</td>`).join('') + `<td>${inp(r.id, 'bmM2', d.bmM2, tpG(k0.bmM2))}</td><td>${inp(r.id, 'mpM2', d.mpM2, tpG(k0.mpM2, 2))}</td><td>${inp(r.id, 'plMP', d.plMP, tpG(k0.plMP))}</td>`; })}`; }
+  else {
+    const lijst = rs.map(r => ({r, u: tpReken(r.id)})).filter(x => x.u.prod.length || x.u.verkBM3 || x.u.verkBM1);
+    inhoud = `<div id="tpTotaal">${tpTotaalHtml()}</div>
+      ${lijst.length ? lijst.map(({r, u}) => { const open = TP.open === r.id, nodigM = u.ha * 10000 / 1.5;
+        return `<div class="tpRas"><div class="tpRasKop" onclick="TP.open=TP.open==='${r.id}'?null:'${r.id}';render(true)"><b>${esc(r.naam)}</b>
+          <span>${u.ha ? tpG(u.ha, 2) + ' ha' : ''}${u.m1 ? ' · ' + tpG(u.m1) + ' m1 kas' : ''} · ${tpG(u.mpTot)} MP · <b>${tpG(u.pb + u.pbLaat)} PBM</b></span>
+          <span class="${u.gepland + .01 >= u.ha && u.ha ? 'ok' : 'nog'}">${u.ha ? (u.gepland ? `${tpG(u.gepland, 2)} van ${tpG(u.ha, 2)} ha gepland` : 'nog niets gepland') : ''}</span>${open ? '▴' : '▾'}</div>
+          ${u.mist.length ? `<small class="tpMist">⚠️ Nog invullen: ${[...new Set(u.mist)].map(esc).join(', ')}</small>` : ''}
+          ${open ? `<div class="tpScroll"><table class="tpTab"><thead><tr><th>Sortering</th><th>Verkoop A</th><th>Opkweek</th><th>% verkoopbaar</th><th>Van derden</th><th>Bruto te telen</th><th>Opbrengst</th><th>Nodig</th><th>Moederplanten</th></tr></thead><tbody>
+            ${u.prod.map(x => `<tr><td>${esc(x.p.naam)}</td><td>${tpG(x.verkoop)}</td><td>${tpG(x.opk)}</td><td>${tpG(x.pct * 100)}%</td><td>${tpG(x.derden)}</td><td>${tpG(x.bruto)}</td><td>${x.opbr ? tpG(x.opbr) + '/' + x.p.een : '–'}</td><td><b>${tpG(x.opp, x.p.een === 'ha' ? 2 : 0)} ${x.p.een}</b></td><td>${tpG(x.mp)}</td></tr>`).join('')}
+            <tr class="som"><td colspan="8">Moederplanten veld${u.verkBM3 ? ` + verkoop BM3 (${tpG(u.verkBM3)})` : ''}</td><td><b>${tpG(u.mpTot)}</b></td></tr>
+            <tr class="som"><td colspan="8">Kas BM: ${tpG(u.m2Kas)} m² · moederplanten in de kas</td><td><b>${tpG(u.mpKas)}</b></td></tr>
+            <tr class="som"><td colspan="8">PBM-planten bestellen${u.pbLaat ? ` (+ ${tpG(u.pbLaat)} laat voor verkoop BM1)` : ''}</td><td><b>${tpG(u.pb + u.pbLaat)}</b></td></tr></tbody></table></div>
+            ${u.ha && beh ? `<div class="rij" style="gap:6px;margin:6px 0 4px"><button class="knop licht klein" onclick="tpNaarKaart('${r.id}')">🗺️ Plannen op de kaart (${tpG(Math.max(0, u.ha - u.gepland), 2)} ha ≈ ${tpG(Math.max(0, u.ha - u.gepland) * 10000 / 1.5)} m spoor)</button></div>` : ''}` : ''}</div>`; }).join('')
+      : '<p class="hint">Nog niets ingevuld. Begin bij <b>💶 Verwachte verkoop</b> en vul bij <b>⚙️ Kengetallen</b> de opbrengst per ha in.</p>'}
+      ${lijst.length ? `<div class="rij" style="gap:6px;margin-top:10px"><button class="knop licht" onclick="tpExport()">📤 Bestellijst PBM en ha per ras (Excel/CSV)</button></div>` : ''}`;
+  }
+  return `<section class="kaartje"><h4>📊 Teeltplanning ${esc(S.seizoenen?.find?.(x => x.id === bekeken)?.naam || '')}</h4>
+    <p class="hint" style="margin-top:0">Van verwachte verkoop naar hectares veld, moederplanten, kas en de PBM-bestelling. Hetzelfde als het Excel-bestand, maar alles op één plek en gekoppeld aan de kaart.</p>
+    <div class="raster2" style="max-width:420px"><div><label>Gewas</label><select class="veld" onchange="TP.soort=this.value;render(true)">${S.soorten.filter(x => S.rassen.some(r => r.soort_id === x.id)).map(x => `<option value="${x.id}" ${tpRasSoort() === x.id ? 'selected' : ''}>${esc(x.naam)}</option>`).join('')}</select></div><div></div></div>
+    <div class="schakel" style="flex-wrap:wrap">${bladen.map(([k, t]) => `<button class="${TP.blad === k ? 'aan' : ''}" onclick="TP.blad='${k}';render(true)">${t}</button>`).join('')}</div></section>
+    <section class="kaartje">${inhoud}</section>`;
+}
+function tpZetVan(k, v) { const rij = tpRij(null) || (TP.rijen.push({seizoen_id: null, ras_id: null, data: {}}), tpRij(null)); rij.data.van = {...(rij.data.van || {}), [k]: v}; tpZet(null, 'bmM2', rij.data.bmM2 ?? ''); }
+function tpNaarKaart(rid) {
+  const u = tpReken(rid), rest = Math.max(0, u.ha - u.gepland), m = Math.round(rest * 10000 / 1.5);
+  pzKiesPerceel().then(() => { if (PZ) { PZ.teeltwijze = 'vermeerdering'; PZ.items = [{id: pzUid(), teelt: rid, m: String(m)}]; render(true); toast(`🗺️ ${ras(rid)?.naam}: ${m.toLocaleString('nl-NL')} m staat klaar. Tik de sporen aan en maak een voorstel.`); } });
+}
+function tpExport() {
+  const rij = [['Ras', 'Ha veld nodig', 'Ha gepland in app', 'M1 kas (stek)', 'Moederplanten veld', 'M2 kas BM', 'Moederplanten kas', 'PBM bestellen']];
+  tpRassen().forEach(r => { const u = tpReken(r.id); if (!u.prod.length && !u.verkBM3 && !u.verkBM1) return; rij.push([r.naam, u.ha.toFixed(2), u.gepland.toFixed(2), Math.round(u.m1), Math.round(u.mpTot), Math.round(u.m2Kas), Math.round(u.mpKas), Math.round(u.pb + u.pbLaat)]); });
+  const csv = '﻿' + rij.map(x => x.map(v => `"${String(v).replace('.', ',').replace(/"/g, '""')}"`).join(';')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = `teeltplanning-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
 }
 /* =====================================================================================
    WIJZIGINGEN – alles wat er is aangepast (database houdt het bij), met ongedaan maken
