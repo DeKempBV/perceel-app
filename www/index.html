@@ -651,7 +651,7 @@ body.klokAan #hoofdmenu,body.klokAan #map,body.klokAan #panel{display:none!impor
 #taakKnopKaart .tkLijst button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:1px solid #e3e8e1;border-radius:9px;background:#fff;padding:7px 10px;font:inherit;color:#26402b;cursor:pointer}
 #taakKnopKaart .tkLijst button small{color:#6b7a6d;font-size:11px}#taakKnopKaart .tkLijst button.aan{background:#ff00d4;border-color:#ff00d4;color:#fff}#taakKnopKaart .tkLijst button.aan small{color:#ffe0f9}
 #taakKnopKaart .tkLijst .tkUit{align-items:center;color:#b33;font-weight:600}
-.rpKies{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.rpKies button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:7px 10px;border:1.5px solid #cfd8cc;border-radius:10px;background:#fff;cursor:pointer;font:inherit;color:#26402b}.rpKies button small{color:#6b7a6d;font-size:11px}.rpKies button.aan{background:#2e7d32;border-color:#2e7d32;color:#fff}.rpKies button.aan small{color:#dcefdc}
+.rpKies{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.rpKies button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:7px 10px;border:1.5px solid #cfd8cc;border-radius:10px;background:#fff;cursor:pointer;font:inherit;color:#26402b}.rpKies button small{color:#6b7a6d;font-size:11px}.rpKies button.aan{background:#2e7d32;border-color:#2e7d32;color:#fff}.rpKies button.aan small{color:#dcefdc}.rpKies button.anders{border-style:dashed}
 .rpLet{background:#fff3e0;border-radius:8px;padding:6px 8px;font-size:13px;margin-top:4px}.rpDag.vandaag{outline:3px solid #f9a825}
 .veldSchets{position:relative;background:#faf8f3;border:1px solid #e0dccf;border-radius:12px;padding:8px;margin:4px 0}.veldSchets svg{width:100%;height:auto;max-height:360px;display:block}
 .vsModus{display:flex;gap:6px;margin-bottom:6px}.vsModus button{flex:1;border:1px solid #cfc6b4;background:#fff;border-radius:9px;padding:6px;font-size:13px;cursor:pointer}.vsModus button.aan{background:#2e7d32;color:#fff;border-color:#2e7d32}
@@ -7960,10 +7960,11 @@ async function rooiFormulier(id, voor = {}) {
       const oudeX = Object.fromEntries([...document.querySelectorAll('#modal [data-k^="bk_"],#modal [data-k^="op_"]')].map(e => [e.dataset.k, e.value]));
       const eenh = $('#modal [data-k="eenheid"]')?.value || 'planten', oudeW = Object.fromEntries([...document.querySelectorAll('#modal [data-k^="rg_"]')].map(e => [e.dataset.k, e.value]));   // wat er al staat blijft staan; niets wordt vanzelf ingevuld
       const hv = $('#modal [data-k="aantal"]')?.closest('.fveld'); if (hv) hv.style.display = sel.value === 'auto' && auto.length ? 'none' : '';
+      const sv = sel.closest('.fveld'); if (sv) sv.style.display = sel.value === 'auto' && auto.length ? 'none' : '';   // de soorten tik je gewoon aan
       const vlg = rpRegels.volgorde || []; auto.sort((a, b) => ((vlg.indexOf(a.x.id) + 1) || 999) - ((vlg.indexOf(b.x.id) + 1) || 999));
       Object.assign(rpRegels.mem, oudeX); if (rpRegels.eenh === eenh) Object.assign(rpRegels.mem, oudeW);   // wat je had ingevuld onthouden, ook als je iets even uitvinkt
       const gek = auto.filter(a => rpRegels.kies.has(a.x.id)); rpRegels.volgorde = [...gek.map(a => a.x.id), ...vlg.filter(id => !gek.some(a => a.x.id === id))];
-      const kiesHtml = `<label style="margin:0 0 4px">Tik aan wat er gerooid wordt:</label><div class="rpKies">${auto.map(a => `<button type="button" class="${rpRegels.kies.has(a.x.id) ? 'aan' : ''}" onclick="rpKies('${a.x.id}')"><b>${rpRegels.kies.has(a.x.id) ? '✓ ' : ''}${esc(partijTekst(a.x))}</b><small>${a.m.toLocaleString('nl-NL')} m · ${a.n} ${a.n === 1 ? 'rij' : 'rijen'}</small></button>`).join('')}</div>${gek.length ? '' : '<p class="hint" style="margin:4px 0">Nog niets aangetikt.</p>'}`;
+      const kiesHtml = `<label style="margin:0 0 4px">Tik aan wat er gerooid wordt:</label><div class="rpKies">${auto.map(a => `<button type="button" class="${rpRegels.kies.has(a.x.id) ? 'aan' : ''}" onclick="rpKies('${a.x.id}')"><b>${rpRegels.kies.has(a.x.id) ? '✓ ' : ''}${esc(partijTekst(a.x))}</b><small>${a.m.toLocaleString('nl-NL')} m · ${a.n} ${a.n === 1 ? 'rij' : 'rijen'}${a.buiten ? ' · niet in de gekozen vakken' : ''}</small></button>`).join('')}<button type="button" class="anders" onclick="const s=document.querySelector('#modal [data-k=wat]');s.value='anders';s.dispatchEvent(new Event('change',{bubbles:true}))"><b>✏️ Iets anders</b><small>zelf invullen</small></button></div>${gek.length ? '' : '<p class="hint" style="margin:4px 0">Nog niets aangetikt.</p>'}`;
       if (uit) uit.innerHTML = sel.value !== 'auto' ? '' : auto.length ? `${kiesHtml}${gek.length > 1 ? '<p class="hint" style="margin:0 0 4px">Met ▲ ▼ zet je de volgorde: bij de bovenste beginnen ze.</p>' : ''}<input type="hidden" data-k="rg_volgorde" value="${gek.map(a => a.x.id).join(',')}"><div class="rpRegels">${gek.map((a, ai) => { const k = 'rg_' + a.x.id, zelf = k in rpRegels.mem && rpRegels.eenh != null, w = zelf ? rpRegels.mem[k] : (rpRegels.start?.[a.x.id]?.[eenh] ?? '');
           return `<div class="rpRegel ${gek.length > 1 ? 'metVolg' : ''}" data-pid="${a.x.id}">${gek.length > 1 ? `<div class="rpVolg"><button type="button" title="Eerder" onclick="rpVolgorde('${a.x.id}',-1)" ${ai ? '' : 'disabled'}>▲</button><b>${ai + 1}e${ai ? '' : '<small>begin</small>'}</b><button type="button" title="Later" onclick="rpVolgorde('${a.x.id}',1)" ${ai < gek.length - 1 ? '' : 'disabled'}>▼</button></div>` : ''}<div class="rpIn"><div><b>🌱 ${esc(partijTekst(a.x))}</b><small>nog ${a.m.toLocaleString('nl-NL')} m op ${a.n} ${a.n === 1 ? 'rij' : 'rijen'}${a.plm ? ` · ${getal(a.plm, 1)} pl/m ≈ ${Math.round(a.m * a.plm).toLocaleString('nl-NL')} planten` : ' · planten per meter onbekend'}</small></div>
             <label>Rooien (${esc(eenh)}) <input class="veld" data-k="${k}" type="number" inputmode="decimal" step="any" value="${esc(String(w ?? ''))}" placeholder="${eenh === 'bakken' ? 'aantal bakken' : 'nog onbekend'}" oninput="rpOmreken(this,${a.plm || 0},'${eenh}')"></label><small class="rpOm" data-om="${k}"></small>
@@ -8087,18 +8088,20 @@ function partijRijMeters(x, keys) {
 function rpAutoPartijen(p, pv, vakIdx, rijKeys) {
   const keys = new Set(rijKeys || []);
   vakIdx.forEach(i => { const v = pv[i]; if (v) v.nrs.forEach(n => keys.add(`${v.z.id}:${n}`)); });
-  const alle = !keys.size;   // niets gekozen = het hele perceel
-  return partijenVan(p.id).map(x => { const rm = partijRijMeters(x, alle ? null : keys), m = Object.values(rm).reduce((s, v) => s + v, 0);
-    return {x, n: Object.keys(rm).length, m: Math.round(m), rijen: rm, plm: plmEcht(x)}; }).filter(y => y.n).concat(rpZonderPartij(p, alle ? null : keys)).sort((a, b) => b.m - a.m);
+  // alles wat op het perceel getekend staat, per partij (of per ras als er geen partij aan hangt); in de gekozen vakken/rijen telt alleen dat stuk
+  return rpOpPerceel(p).map(a => { if (!keys.size) return a;
+    const rm = Object.fromEntries(Object.entries(a.rijen).filter(([k]) => keys.has(k)));
+    return Object.keys(rm).length ? {...a, rijen: rm, n: Object.keys(rm).length, m: Math.round(Object.values(rm).reduce((s, v) => s + v, 0))} : {...a, buiten: true}; })
+    .sort((a, b) => (!!a.buiten - !!b.buiten) || b.m - a.m);
 }
-// wat er wel getekend staat maar (nog) aan geen partij hangt: per ras/soort ook een regel
-function rpZonderPartij(p, keys) {
-  const per = new Map();
-  for (const z of alleZones(p)) { const sp = spuitSet(z); banenVan(z).forEach((bn, i) => { const nr = bn.nr ?? i + 1, key = `${z.id}:${nr}`; if ((keys && !keys.has(key)) || sp.has(nr)) return;
+function rpOpPerceel(p) {
+  const per = new Map(), los = new Map();
+  for (const z of alleZones(p)) { const sp = spuitSet(z); banenVan(z).forEach((bn, i) => { const nr = bn.nr ?? i + 1, key = `${z.id}:${nr}`;
     const st = stukkenVan(z, bn).filter(q => teelt(q.id)), f = st.length === 1 ? rijFactor(z, nr) || 1 : 1;
-    st.forEach(q => { if (partijOpSpoor(z, nr, q.idx)) return; const m = (q.tot - q.van) * f; if (m <= .05) return;
-      const g = per.get(q.id) || {}; g[key] = (g[key] || 0) + Math.round(m * 10) / 10; per.set(q.id, g); }); }); }
-  return [...per].map(([tid, rm]) => { const rs = ras(tid), x = {id: 't_' + tid, _los: true, ras_id: rs ? tid : null, soort_id: rs?.soort_id || teelt(tid)?.plantId || tid, klasse: 'geen partij gekoppeld'};
+    st.forEach(q => { const x = partijOpSpoor(z, nr, q.idx); if (!x && sp.has(nr)) return; const m = (q.tot - q.van) * f; if (m <= .05) return;
+      const k = x ? x.id : 't_' + q.id, g = per.get(k) || {}; g[key] = (g[key] || 0) + Math.round(m * 10) / 10; per.set(k, g); if (x) los.set(k, x); else los.set(k, q.id); }); }); }
+  return [...per].map(([k, rm]) => { let x = los.get(k);
+    if (typeof x === 'string') { const tid = x, rs = ras(tid); x = {id: k, _los: true, ras_id: rs ? tid : null, soort_id: rs?.soort_id || teelt(tid)?.plantId || tid, klasse: 'geen partij gekoppeld'}; }
     return {x, n: Object.keys(rm).length, m: Math.round(Object.values(rm).reduce((a, v) => a + v, 0)), rijen: rm, plm: plmEcht(x)}; });
 }
 function rijenLabel(p, keys) {
