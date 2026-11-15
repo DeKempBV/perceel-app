@@ -11145,7 +11145,12 @@ function htmlTeeltplan() {
       <tr><td>Komt uit</td>${TP_OPK.map(o => `<td><select class="tpIn" ${dis} onchange="tpZetVan('${o.k}',this.value)">${TP_PROD.map(p => `<option value="${p.k}" ${k0.van[o.k] === p.k ? 'selected' : ''}>${esc(p.kort)}</option>`).join('')}</select></td>`).join('')}</tr></tbody></table></div>
     <div class="raster2" style="max-width:640px"><div><label>BM per m² kas</label>${inp(null, 'bmM2', d0.bmM2, '90')}</div><div><label>MP per m² kas</label>${inp(null, 'mpM2', d0.mpM2, '1,5')}</div><div><label>Planten per MP (PBM)</label>${inp(null, 'plMP', d0.plMP, '368')}</div></div>
     <h4 style="margin-top:14px">Per ras afwijken</h4>
-    ${tabel([...TP_PROD.map(p => `Opbrengst ${esc(p.kort)}`), 'BM/m²', 'MP/m²', 'Pl/MP'], r => { const d = tpData(r.id); return TP_PROD.map(p => `<td>${inp(r.id, 'opbr.' + p.k, d.opbr?.[p.k], k0.opbr[p.k] ? tpG(k0.opbr[p.k]) : '')}</td>`).join('') + `<td>${inp(r.id, 'bmM2', d.bmM2, tpG(k0.bmM2))}</td><td>${inp(r.id, 'mpM2', d.mpM2, tpG(k0.mpM2, 2))}</td><td>${inp(r.id, 'plMP', d.plMP, tpG(k0.plMP))}</td>`; })}`; }
+    ${tabel([...TP_PROD.map(p => `Opbrengst ${esc(p.kort)}`), 'BM/m²', 'MP/m²', 'Pl/MP'], r => { const d = tpData(r.id); return TP_PROD.map(p => `<td>${inp(r.id, 'opbr.' + p.k, d.opbr?.[p.k], k0.opbr[p.k] ? tpG(k0.opbr[p.k]) : '')}</td>`).join('') + `<td>${inp(r.id, 'bmM2', d.bmM2, tpG(k0.bmM2))}</td><td>${inp(r.id, 'mpM2', d.mpM2, tpG(k0.mpM2, 2))}</td><td>${inp(r.id, 'plMP', d.plMP, tpG(k0.plMP))}</td>`; })}
+    <h4 style="margin-top:14px">Moederplanten per ha / m1 per ras <small>leeg = standaard</small></h4>
+    ${tabel(TP_PROD.map(p => `MP ${esc(p.kort)}`), r => { const d = tpData(r.id); return TP_PROD.map(p => `<td>${inp(r.id, 'mp.' + p.k, d.mp?.[p.k], tpG(k0.mp[p.k]))}</td>`).join(''); })}
+    ${rs.some(r => tpData(r.id).kw) ? `<h4 style="margin-top:14px">Kwaliteit per ras <small>% verkoopbaar · alleen rassen die afwijken van de standaard</small></h4>
+    ${(() => { const l = rs.filter(r => tpData(r.id).kw); return `<div class="tpScroll"><table class="tpTab"><thead><tr><th>Ras</th>${TP_PROD.map(p => `<th>${esc(p.kort)}</th>`).join('')}</tr></thead><tbody>${l.map(r => { const kk = tpKen(r.id), d = tpData(r.id);
+      return `<tr><td><b>${esc(r.naam)}</b></td>${TP_PROD.map(p => { const pc = p.verk.reduce((a, c) => a + tpN(kk.kw[p.k]?.[c]), 0); return `<td ${d.kw?.[p.k] ? `title="${esc(Object.entries(kk.kw[p.k] || {}).filter(([, v]) => v).map(([c, v]) => `${c}: ${tpG(v, 1)}%`).join(' · '))}" style="font-weight:600"` : 'style="color:#999"'}>${tpG(pc, 1)}%</td>`; }).join('')}</tr>`; }).join('')}</tbody></table></div>`; })()}` : ''}`; }
   else {
     const lijst = rs.map(r => ({r, u: tpReken(r.id)})).filter(x => x.u.prod.length || x.u.verkBM3 || x.u.verkBM1);
     inhoud = `<div id="tpTotaal">${tpTotaalHtml()}</div>
@@ -11512,11 +11517,20 @@ async function tpImpOpslaan() {
   const nieuweO = D.opkweek ? Object.keys(P.opkNieuw) : [];
   // correctie opkweek: wat de meeste rassen hebben wordt de standaard
   const cor = {}; if (K) Object.entries(K.cor).forEach(([k, l]) => { const tel = {}; l.forEach(v => tel[v] = (tel[v] || 0) + 1); const v = +Object.entries(tel).sort((a, b) => b[1] - a[1])[0][0]; if (Math.abs(v - (tpStd().cor[k] ?? 0)) > 1e-9) cor[k] = v; });
-  if (nieuweT.length || nieuweO.length || Object.keys(cor).length) {
+  // standaard kengetallen: wat de meeste rassen in Excel hebben wordt de standaard; per ras wordt alleen het afwijkende bewaard
+  const modus = l => { const t = {}; l.forEach(v => t[v] = (t[v] || 0) + 1); const e = Object.entries(t).sort((a, b) => b[1] - a[1])[0]; return e ? e[0] : null; };
+  const std = {}, kStd = tpStd();
+  if (K) { const rl = Object.values(K.ras);
+    TP_PROD.forEach(p => { const m = modus(rl.map(o => o.mp[p.k]).filter(Boolean)); if (m != null && +m !== kStd.mp[p.k]) (std.mp ||= {})[p.k] = +m; });
+    ['bmM2', 'mpM2', 'plMP'].forEach(f => { const m = modus(rl.map(o => o[f]).filter(Boolean)); if (m != null && +m !== kStd[f]) std[f] = +m; }); }
+  if (D.kw) TP_PROD.forEach(p => { const m = modus(Object.values(P.ras).map(o => o.kw?.[p.k]).filter(Boolean).map(v => JSON.stringify({...Object.fromEntries(p.kw.map(c => [c, 0])), ...v})));
+    if (m && m !== JSON.stringify({...Object.fromEntries(p.kw.map(c => [c, 0])), ...kStd.kw[p.k]})) (std.kw ||= {})[p.k] = JSON.parse(m); });
+  const stdTekst = [...Object.entries(std.mp || {}).map(([k, v]) => `MP ${TP_PROD.find(p => p.k === k)?.kort} ${tpG(v)}`), ...['bmM2', 'mpM2', 'plMP'].filter(f => f in std).map(f => `${{bmM2: 'BM/m²', mpM2: 'MP/m²', plMP: 'Pl/MP'}[f]} ${tpG(std[f], 2)}`), ...Object.keys(std.kw || {}).map(k => `kwaliteit ${TP_PROD.find(p => p.k === k)?.kort}`)];
+  if (nieuweT.length || nieuweO.length || Object.keys(cor).length || Object.keys(std).length) {
     const rijen = nieuweT.map((t, i) => { const k = 'X' + Date.now().toString(36) + i; typen[t] = k; const kwv = Object.values(P.ras).map(o => o.kw?.['?' + t]).find(Boolean);
       return {k, naam: t, kort: t, een: 'ha', mp: uit.onbekend[t]?.mp || 0, kw: kwv ? Object.keys(kwv) : ['A', 'B'], verk: kwv && Object.keys(kwv).some(s => /^a$/i.test(s)) ? [Object.keys(kwv).find(s => /^a$/i.test(s))] : ['A']}; });
     const opk = nieuweO.map((t, i) => ({k: 'o' + Date.now().toString(36) + i, naam: t, van: 'FR', cor: 1.1})); opk.forEach(o => { P.opkNieuw[o.naam] = o.k; });
-    if (!(await tpStdWijzig(d => ({...d, types: [...(d.types || []), ...rijen], opk: [...(d.opk || []), ...opk], cor: {...(d.cor || {}), ...cor}})))) { b.disabled = false; b.textContent = '📥 Inlezen'; return; } }
+    if (!(await tpStdWijzig(d => ({...d, ...std, mp: {...(d.mp || {}), ...(std.mp || {})}, kw: {...(d.kw || {}), ...(std.kw || {})}, types: [...(d.types || []), ...rijen], opk: [...(d.opk || []), ...opk], cor: {...(d.cor || {}), ...cor}})))) { b.disabled = false; b.textContent = '📥 Inlezen'; return; } }
   uit.regels.forEach(x => { if (!x.prod && x.typ) x.prod = typen[x.typ] && typen[x.typ] !== 'nieuw' ? typen[x.typ] : null; });
   // nieuwe rassen aanmaken (alleen die echt gebruikt worden)
   const sid = tpRasSoort(), nodig = new Set([...(metInd ? uit.regels.filter(x => koppel[x.perceel] && x.prod).map(x => x.ras) : []), ...(metVr ? uit.voorraad.map(x => x.ras) : []),
@@ -11566,8 +11580,9 @@ async function tpImpOpslaan() {
   const al = new Set((S.perceel_aliassen || []).map(a => a.tekst)), nieuweAl = Object.entries(koppel).filter(([n, id]) => id && !al.has(n.trim().toLowerCase())).map(([n, id]) => ({tekst: n.trim().toLowerCase(), perceel_id: id}));
   if (nieuweAl.length) { const {data: d} = await sb.from('perceel_aliassen').insert(nieuweAl).select(); if (d) S.perceel_aliassen = [...(S.perceel_aliassen || []), ...d]; }
   $('#modal').classList.remove('open');
-  const n = metInd ? data.indeling.filter(x => x.bron === 'excel').length : 0; TPI = null; TP.blad = n || metVr ? 'indeling' : 'uitkomst'; render(true);
-  toast(`📥 Ingelezen: ${[n ? `${n} indelingen` : '', metVr ? 'de voorraad moederplanten' : '', nRas ? `teeltplanning van ${nRas} rassen` : ''].filter(Boolean).join(', ') || 'niets veranderd'}`);
+  const n = metInd ? data.indeling.filter(x => x.bron === 'excel').length : 0; TPI = null; TP.blad = n || metVr ? 'indeling' : D.verkoop || D.opkweek || D.derden ? 'uitkomst' : 'ken'; render(true);
+  const corT = Object.keys(cor).length ? [`correctie opkweek (${Object.keys(cor).length})`] : [];
+  toast(`📥 Ingelezen: ${[n ? `${n} indelingen` : '', metVr ? 'de voorraad moederplanten' : '', nRas ? `teeltplanning van ${nRas} rassen` : '', stdTekst.length || corT.length ? `standaard kengetallen: ${[...stdTekst, ...corT].join(', ')}` : ''].filter(Boolean).join(' · ') || 'alles stond er al zo in'}`);
 }
 
 function tpZetVan(k, v) { const rij = tpRij(null) || (TP.rijen.push({seizoen_id: null, ras_id: null, data: {}}), tpRij(null)); rij.data.van = {...(rij.data.van || {}), [k]: v}; tpZet(null, 'bmM2', rij.data.bmM2 ?? ''); }
