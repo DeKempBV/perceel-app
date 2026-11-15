@@ -326,6 +326,15 @@ textarea.veld{resize:vertical;font-family:inherit}
 .tpIn{width:86px;border:1px solid #d7dccf;border-radius:7px;padding:4px 6px;font:inherit;text-align:right;background:#fff}.tpIn:focus{outline:2px solid #66bb6a}select.tpIn{text-align:left;width:auto}
 .tpTab tr.som td{background:#f4faf3;font-weight:600}.tpTot{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:6px}.tpTot div{background:#f4faf3;border-radius:12px;padding:10px;text-align:center}.tpTot b{display:block;font-size:20px}.tpTot small{color:var(--grijs)}
 .kcBalk{display:flex;flex-direction:column;gap:6px}.kcBalk .schakel{max-width:320px}
+.kcKaart{position:relative;height:62vh;min-height:360px;overflow:hidden;border-radius:10px;background:#fafcf9;touch-action:none;cursor:grab;border:1px solid #e3e8e0}
+.kcStage{position:absolute;left:0;top:0;transform-origin:0 0;background-image:linear-gradient(#e6ece4 1px,transparent 1px),linear-gradient(90deg,#e6ece4 1px,transparent 1px);background-size:20px 20px;border:1px solid #d5ddd2}
+.kcBlok{position:absolute;box-sizing:border-box;background:#e3f2fd;border:2px solid #64b5f6;border-radius:6px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:700;color:#0d47a1;cursor:pointer;user-select:none;overflow:hidden;padding:2px}
+.kcBlok.vol{background:#bbdefb}.kcBlok span{font-size:15px;line-height:1.1;word-break:break-word}.kcKaart.bewerk .kcBlok{border-style:dashed;cursor:move}.kcBlok.over,.kcKaart.kiezen .kcBlok:hover{border-color:#2e7d32;background:#c8e6c9}
+.kcKaart.kiezen .kcBlok{animation:kcPuls 1.2s infinite}.kcBlok.bron{opacity:.45;animation:none !important}@keyframes kcPuls{50%{box-shadow:0 0 0 4px rgba(46,125,50,.35)}}
+.kcZoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px}.kcZoom button{width:38px;height:38px;border:0;border-radius:10px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:20px;cursor:pointer}
+.kcKiesBalk{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;background:#2e7d32;color:#fff;padding:10px 14px;border-radius:12px;display:flex;gap:10px;align-items:center;box-shadow:0 4px 14px rgba(0,0,0,.25)}.kcKiesBalk button{border:0;border-radius:8px;padding:6px 10px;font-weight:700}
+.kcTot{display:flex;flex-direction:column;gap:2px;margin:6px 0}.kcTotRij{display:grid;grid-template-columns:minmax(90px,auto) 1fr auto;gap:8px;align-items:baseline;padding:4px 0;border-bottom:1px solid #eef2ec}.kcTotRij small{color:#777}.kcTotRij span{background:none !important;padding:0 !important;border:0 !important;font-size:14px}
+.kcInslaan{background:#f1f8e9;border-radius:10px;padding:8px 10px;margin:6px 0 10px}.kcItem{display:flex;justify-content:space-between;gap:8px;align-items:center;border-top:1px solid #eee;padding:8px 0;flex-wrap:wrap}.kcItem small{display:block;color:#666}.kcItem.pallet b{color:#8d6e00}.kcItemKnop{display:flex;gap:6px;flex-wrap:wrap}
 .kcPlat{position:relative;width:100%;height:0;background:repeating-linear-gradient(0deg,#f6f8f5 0 1px,transparent 1px 20px),repeating-linear-gradient(90deg,#f6f8f5 0 1px,transparent 1px 20px);border-radius:10px}
 .kcCel{position:absolute;background:#eef7fd;border:2px solid #90caf9;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;transition:box-shadow .12s}
 .kcCel.over{border-color:#2e7d32;box-shadow:0 0 0 3px #a5d6a7;background:#e8f5e9}.kcPlat.bewerk .kcCel{border-style:dashed;cursor:move}
@@ -333,7 +342,7 @@ textarea.veld{resize:vertical;font-family:inherit}
 .kcPlat.bewerk .kcKop{cursor:move;touch-action:none;background:#c5e2f7}.kcInh{flex:1;overflow:auto;padding:4px;display:flex;flex-direction:column;gap:4px}
 .kcChip{background:#fff;border:1px solid #cfd8dc;border-radius:7px;padding:3px 6px;font-size:12px;user-select:none}.kcChip small{display:block;color:#666}.kcChip.sleep{cursor:grab;touch-action:none}
 .kcChip.pallet{background:#fff8e1;border-color:#ffcc80}.kcHoog{float:right;font-size:11px;color:#8d6e00}
-.kcRand{position:absolute;right:0;bottom:0;width:18px;height:18px;background:linear-gradient(135deg,transparent 50%,#1e88e5 50%);cursor:nwse-resize;touch-action:none}
+.kcRand{position:absolute;right:0;bottom:0;width:16px;height:16px;background:linear-gradient(135deg,transparent 50%,#1e88e5 50%);cursor:nwse-resize;touch-action:none}
 .kcLeegPlat{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#888}
 .kcPRij{display:grid;grid-template-columns:1fr 90px 90px 28px;gap:6px;margin-bottom:6px}
 section[data-vbcel].over{outline:3px dashed #2e7d32}
@@ -723,6 +732,11 @@ body.klokAan #hoofdmenu,body.klokAan #map,body.klokAan #panel{display:none!impor
 .mIcoon{font-size:34px;width:56px;height:56px;border-radius:16px;background:var(--licht);display:flex;align-items:center;justify-content:center;flex:none}
 .mTekst{display:flex;flex-direction:column;gap:3px}.mTekst b{font-size:18px;color:var(--groen)}.mTekst small{color:var(--grijs);font-size:13px;line-height:1.35}
 .mInfo{font-size:12.5px;color:var(--tekst);margin-top:2px}
+.mTegel.bewerk,.blokTegel.bewerk{touch-action:none;cursor:grab;outline:2px dashed rgba(46,125,50,.6);outline-offset:-4px;position:relative}.menuPen{position:absolute;top:8px;right:10px;font-size:13px;opacity:.75}
+.menuGhost{position:fixed;left:0;top:0;z-index:9999;pointer-events:none;opacity:.92;box-shadow:0 12px 30px rgba(0,0,0,.3)}.menuWeg{opacity:.3}.menuOver{outline:3px solid #ffca28 !important}
+.menuBewerkBalk{margin-top:14px;background:rgba(255,255,255,.95);color:var(--tekst);border-radius:14px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.menuBewerkBalk button{border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer;background:#eef3ec}.menuBewerkBalk button.aan{background:#2e7d32;color:#fff}
+.menuBewerkBalk.licht{margin:0 0 10px;flex-direction:column;align-items:stretch;background:#fffbea;border:1px solid #ffe082}.menuNaar{display:flex;flex-wrap:wrap;gap:6px}.menuNaarBlok{border:2px dashed #bbb;border-radius:10px;padding:8px 10px;background:#fff;font-weight:600}
+.menuAanpasRij{display:flex;justify-content:flex-end;margin:-4px 0 4px}.menuIconen{display:flex;flex-wrap:wrap;gap:4px}.menuIconen button{font-size:20px;border:1px solid #ddd;background:#fff;border-radius:8px;padding:2px 6px;cursor:pointer}
 .mSnel{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.mSnel button{flex:1;border:0;border-radius:14px;padding:12px;background:rgba(255,255,255,.15);color:#fff;font-weight:700;cursor:pointer}
 .tabs .menuknop{opacity:.9;border-right:1px solid rgba(255,255,255,.2)}
 .kop .menukop{font-size:16px;padding:4px 8px}
@@ -4302,7 +4316,7 @@ function renderPaneel() {
     if (!sectieTabs(sectie).some(t => t[0] === tab)) tab = sectieTabs(sectie)[0]?.[0] || 'percelen';
   }
   const tellers = {taken: [open], tractoren: [live, 'live'], uren: [bezigN, 'live'], bedrijf: [bedrijfLet ? '!' : 0]};
-  { const bl = SECTIES[sectie] || {}, inf = TAB_INFO[tab] || [], n = (tellers[tab] || [])[0], toggle = tab !== '_blok' && !isMobiel() ? (!isVol() ? `<button class="pkKnop licht" onclick="kaartTonen(false)" title="Kaart weg, hele scherm">⛶ Volledig</button>` : `<button class="pkKnop licht" onclick="kaartTonen(true)" title="De kaart erbij">🗺️ Kaart erbij</button>`) : '';
+  { const bl = {i: blokIcoon(sectie), naam: blokNaam(sectie)}, inf = tegelInfo(tab, (TAB_INFO[tab] || [])[0], (TAB_INFO[tab] || [])[1] || tab), n = (tellers[tab] || [])[0], toggle = tab !== '_blok' && !isMobiel() ? (!isVol() ? `<button class="pkKnop licht" onclick="kaartTonen(false)" title="Kaart weg, hele scherm">⛶ Volledig</button>` : `<button class="pkKnop licht" onclick="kaartTonen(true)" title="De kaart erbij">🗺️ Kaart erbij</button>`) : '';
     $('#tabs').innerHTML = `<div class="paginaKop">${tab !== '_blok' && blokMetTegels(sectie) ? `<button class="pkKnop" onclick="zetTab('_blok')" title="Terug naar ${esc(bl.naam || '')}">◀ ${esc(bl.naam || 'Terug')}</button>` : ''}<button class="pkKnop" onclick="toonMenu()" title="Hoofdmenu">🏠 Menu</button>
       <div class="pkTitel">${tab === '_blok' ? `${bl.i || ''} ${esc(bl.naam || '')}` : `${inf[0] || ''} ${esc(inf[1] || tab)}${n ? ` <span class="pkTel">${n}</span>` : ''}`}</div>${toggle}</div>`; }
   const echteTab = tab; let subKop = '';
@@ -6048,7 +6062,7 @@ const SECTIES = {
 const magBeheer = () => !eenvoudig() && isBeheerder() || ['soorten_beheren', 'seizoen_starten', 'middelen_beheren', 'machines_beheren', 'tractoren_beheren', 'voertuigen_beheren', 'partijen_beheren', 'team_beheren', 'instellingen_beheren'].some(r => mag(r));
 const magTeam = () => !archief && !eenvoudig() && (isBeheerder() || mag('team_beheren'));
 const magInstellingen = () => !archief && (isBeheerder() || mag('instellingen_beheren'));
-function sectieTabs(s) {
+function sectieTabsBasis(s) {
   const trek = ziet('tractoren_volgen') || ziet('tractor_rijden') || ziet('voertuigen_zien');
   const resBek = ziet('resultaten_bekijken') || mag('resultaten_beheren'), resIn = mag('resultaten_invoeren') || mag('resultaten_beheren') || resBek;
   return ({
@@ -6073,6 +6087,73 @@ function sectieTabs(s) {
     beheer: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['dossier', '📁', 'Bio-dossier'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])]
   })[s] || [];
 }
+/* ============ EIGEN MENU ============
+   Iedereen kan zijn eigen menu indelen: titels, icoontjes, volgorde en welke tegel onder welk kopje staat.
+   Wat je mag zien blijft door je rechten bepaald; het eigen menu is alleen een andere indeling daarvan. */
+let menuBewerk = false;
+const mijnMenu = () => { const m = mijnProfiel()?.menu; if (m && typeof m === 'object') return m; try { return JSON.parse(localStorage.getItem('mijn_menu') || 'null') || {}; } catch { return {}; } };
+async function menuBewaar(m) {
+  const leeg = !m || !Object.keys(m).some(k => m[k] && (Array.isArray(m[k]) ? m[k].length : Object.keys(m[k]).length));
+  const ik = mijnProfiel(); if (ik) ik.menu = leeg ? null : m; try { localStorage.setItem('mijn_menu', leeg ? 'null' : JSON.stringify(m)); } catch {}
+  const {error} = await sb.rpc('zet_mijn_menu', {p_menu: leeg ? null : m}); if (error && !/zet_mijn_menu|function/i.test(error.message)) toast(foutTekst(error), 1);
+  else if (error) toast('Je menu staat op dit apparaat. Draai beheer.sql opnieuw om het ook op je andere apparaten te zien.', 1);
+}
+const menuWijzig = f => { const m = JSON.parse(JSON.stringify(mijnMenu())); f(m); return menuBewaar(m); };
+const blokNaam = k => mijnMenu().blokken?.[k]?.naam || BLOKKEN.find(b => b[0] === k)?.[2] || SECTIES[k]?.naam || k;
+const blokIcoon = k => mijnMenu().blokken?.[k]?.i || SECTIES[k]?.i || '';
+const blokUitleg = k => mijnMenu().blokken?.[k]?.uitleg ?? BLOKKEN.find(b => b[0] === k)?.[3] ?? '';
+const blokkenVolgorde = () => { const v = mijnMenu().volgorde || [], alle = BLOKKEN.map(b => b[0]); return [...v.filter(k => alle.includes(k)), ...alle.filter(k => !v.includes(k))]; };
+const tegelInfo = (k, i, l) => { const t = mijnMenu().tegels?.[k] || {}, inf = TAB_INFO[k] || [i, l, '']; return [t.i || inf[0] || i, t.naam || inf[1] || l, t.uitleg ?? inf[2] ?? '']; };
+// de tegels per kopje volgens je eigen indeling (alleen tegels die je mag zien)
+function sectieTabs(s) {
+  const plek = mijnMenu().plek; if (!plek || !BLOKKEN.some(b => b[0] === s)) return sectieTabsBasis(s);
+  const basis = {}, alle = new Map(); BLOKKEN.forEach(([k]) => { basis[k] = sectieTabsBasis(k); basis[k].forEach(t => { if (!alle.has(t[0])) alle.set(t[0], t); }); });
+  const geplaatst = new Set(Object.values(plek).flat());
+  return [...(plek[s] || []).filter(k => alle.has(k)).map(k => alle.get(k)), ...basis[s].filter(t => !geplaatst.has(t[0]))]
+    .filter((t, i, a) => a.findIndex(x => x[0] === t[0]) === i);
+}
+function menuBewerkAan(aan) { menuBewerk = aan; if ($('#hoofdmenu.open')) toonMenu(); else render(true); }
+// titel en icoon van een kopje of tegel
+async function menuTegelForm(soort, k) {
+  const blok = soort === 'blok', [i0, n0, u0] = blok ? [blokIcoon(k), blokNaam(k), blokUitleg(k)] : tegelInfo(k, '', k);
+  const ICONEN = ['☀️', '🗺️', '🚜', '📊', '❄️', '👥', '⚙️', '📋', '🌱', '🍓', '🌾', '🧪', '🐛', '🏷️', '📈', '🧮', '🔄', '📦', '🚛', '⏱️', '👤', '📅', '📒', '🔔', '💶', '🧺', '🏠', '⭐', '❤️', '🔧', '📁', '🎯'];
+  const w = await formulier(`✏️ ${blok ? 'Kopje' : 'Tegel'} aanpassen`, [
+    {k: 'naam', label: 'Titel', waarde: n0},
+    {k: 'i', label: 'Icoontje (een emoji)', waarde: i0},
+    {type: 'html', waarde: `<div class="menuIconen">${ICONEN.map(x => `<button type="button" onclick="document.querySelector('#modal [data-k=i]').value='${x}'">${x}</button>`).join('')}</div>`},
+    {k: 'uitleg', label: 'Uitleg eronder', waarde: u0}], 'Opslaan');
+  if (!w) return;
+  await menuWijzig(m => { const doel = blok ? (m.blokken ||= {}) : (m.tegels ||= {}); doel[k] = {naam: w.naam.trim() || undefined, i: w.i.trim() || undefined, uitleg: w.uitleg}; });
+  menuBewerkAan(true);
+}
+async function menuStandaard() { if (!await bevestig('Menu terugzetten?', 'Alle eigen titels, icoontjes en de volgorde gaan terug naar de standaard.')) return; await menuBewaar({}); menuBewerkAan(false); toast('Menu staat weer op de standaard'); }
+// slepen in het menu: kopjes van volgorde wisselen, tegels binnen een kopje of naar een ander kopje
+function menuSleep(e, soort, k, blok) {
+  if (!menuBewerk || (e.button !== undefined && e.button > 0)) return;
+  const bron = e.currentTarget, st = {x: e.clientX, y: e.clientY, ghost: null, doel: null}; e.preventDefault();
+  const zoek = (x, y) => { const el = document.elementFromPoint(x, y); return soort === 'blok' ? el?.closest('.mTegel[data-k]') : el?.closest('.blokTegel[data-k],[data-naarblok]'); };
+  const mv = ev => {
+    if (!st.ghost) { if (Math.hypot(ev.clientX - st.x, ev.clientY - st.y) < 6) return; st.ghost = bron.cloneNode(true); st.ghost.classList.add('menuGhost'); st.ghost.style.width = bron.offsetWidth + 'px'; document.body.appendChild(st.ghost); bron.classList.add('menuWeg'); }
+    ev.preventDefault(); st.ghost.style.transform = `translate(${ev.clientX - bron.offsetWidth / 2}px, ${ev.clientY - 30}px)`;
+    const t = zoek(ev.clientX, ev.clientY); if (t !== st.doel) { st.doel?.classList.remove('menuOver'); if (t && t !== bron) t.classList.add('menuOver'); st.doel = t === bron ? null : t; }
+  };
+  const op = async () => {
+    removeEventListener('pointermove', mv); removeEventListener('pointerup', op); removeEventListener('pointercancel', op);
+    st.ghost?.remove(); bron.classList.remove('menuWeg'); st.doel?.classList.remove('menuOver');
+    if (!st.ghost) { if (soort === 'blok') menuTegelForm('blok', k); else menuTegelForm('tegel', k); return; }   // tikken = aanpassen
+    if (!st.doel) return;
+    if (soort === 'blok') { const v = blokkenVolgorde().filter(x => x !== k), i = v.indexOf(st.doel.dataset.k); v.splice(i, 0, k); await menuWijzig(m => { m.volgorde = v; }); toonMenu(); return; }
+    // tegel: huidige indeling vastleggen en dan verplaatsen
+    await menuWijzig(m => { const plek = {}; BLOKKEN.forEach(([b]) => { plek[b] = sectieTabs(b).map(t => t[0]); }); Object.keys(plek).forEach(b => { plek[b] = plek[b].filter(x => x !== k); });
+      if (st.doel.dataset.naarblok) plek[st.doel.dataset.naarblok].push(k);
+      else { const l = plek[blok], i = l.indexOf(st.doel.dataset.k); l.splice(i < 0 ? l.length : i, 0, k); }
+      m.plek = plek; });
+    if (st.doel.dataset.naarblok) toast(`Verplaatst naar ${blokNaam(st.doel.dataset.naarblok)}`);
+    render(true);
+  };
+  addEventListener('pointermove', mv, {passive: false}); addEventListener('pointerup', op); addEventListener('pointercancel', op);
+}
+
 function toonMenu() {
   let el = $('#hoofdmenu');
   if (!el) { el = document.createElement('div'); el.id = 'hoofdmenu'; document.body.appendChild(el); }
@@ -6080,17 +6161,18 @@ function toonMenu() {
   const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld), haTot = velden.reduce((s, p) => s + turf.area(p.geo), 0);
   const uur = new Date().getHours(), groet = uur < 6 ? 'Goedenacht' : uur < 12 ? 'Goedemorgen' : uur < 18 ? 'Goedemiddag' : 'Goedenavond';
   const live = S.tractoren.filter(isLive).length;
-  const tegel = (k, titel, uitleg, info, extra = '') => `<button class="mTegel ${k}" onclick="kiesSectie('${k}')"><span class="mIcoon">${SECTIES[k].i}</span>
-    <span class="mTekst"><b>${titel}</b><small>${uitleg}</small>${info ? `<span class="mInfo">${info}</span>` : ''}</span>${extra}</button>`;
+  const tegel = (k, titel, uitleg, info, extra = '') => `<button class="mTegel ${k} ${menuBewerk ? 'bewerk' : ''}" data-k="${k}" ${menuBewerk ? `onpointerdown="menuSleep(event,'blok','${k}')"` : `onclick="kiesSectie('${k}')"`}><span class="mIcoon">${esc(blokIcoon(k))}</span>
+    <span class="mTekst"><b>${esc(blokNaam(k))}</b><small>${esc(blokUitleg(k))}</small>${info && !menuBewerk ? `<span class="mInfo">${info}</span>` : ''}</span>${menuBewerk ? '<span class="menuPen">✏️ ⠿</span>' : extra}</button>`;
   el.innerHTML = `<div class="mBinnen">
     <div class="mKop"><div><div class="mLogo">🌾 Perceel App</div><h1>${groet}, ${esc((naamMe() || '').split(' ')[0])}</h1>
       <p>${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})} · teeltjaar ${esc(seizoenNaam(bekeken))}${isApparaat() ? ` · <b>🚜 tablet ${esc(tabletNaam())}</b>` : ''}</p></div>
       <button class="mUit" title="Uitloggen" onclick="${isApparaat() ? 'tmUitloggen()' : 'uitloggen()'}">🚪</button></div>
     ${klokplicht() && !isBeheerder() && !isApparaat() && !klokOpen(me?.id, naamMe()) ? '<div class="mKlok">⏰ Je bent vandaag nog niet ingeklokt. Klok in op de iPad in de kantine; dan kun je taken oppakken en afvinken.</div>' : ''}
     <div class="mTegels">
-      ${BLOKKEN.filter(([k]) => blokZichtbaar(k)).map(([k, ic, titel, uitleg]) => tegel(k, titel, uitleg, blokInfo(k))).join('')}
+      ${blokkenVolgorde().filter(k => blokZichtbaar(k)).map(k => tegel(k, '', '', blokInfo(k))).join('')}
     </div>
-    <div class="mSnel"><button onclick="trekkerModus(true)">🚜 Trekker-modus</button><button onclick="verbergMenu();openAgenda()">📆 Agenda</button><button onclick="verbergMenu();openMeldingen()">🔔 Meldingen</button>${isApparaat() ? '' : '<button onclick="verbergMenu();startFilm()">🎬 Film</button>'}</div>
+    ${menuBewerk ? `<div class="menuBewerkBalk">✏️ Tik op een kopje om de titel of het icoontje te veranderen, of sleep het naar een andere plek. <button onclick="menuStandaard()">↺ Standaard</button><button class="aan" onclick="menuBewerkAan(false)">✓ Klaar</button></div>` : ''}
+    <div class="mSnel"><button onclick="menuBewerkAan(!menuBewerk)">${menuBewerk ? '✓ Klaar met aanpassen' : '✏️ Menu aanpassen'}</button><button onclick="trekkerModus(true)">🚜 Trekker-modus</button><button onclick="verbergMenu();openAgenda()">📆 Agenda</button><button onclick="verbergMenu();openMeldingen()">🔔 Meldingen</button>${isApparaat() ? '' : '<button onclick="verbergMenu();startFilm()">🎬 Film</button>'}</div>
   </div>`;
   el.classList.add('open'); document.body.classList.add('menuOpen'); aiKnop();
 }
@@ -8550,7 +8632,7 @@ const TAB_INFO = {
 // oude losse tabbladen → één onderdeel met planning en register
 const TAB_ALIAS = {spuittaken: ['spuiten', 'planning'], spuitregister: ['spuiten', 'register'], mesttaken: ['bemesten', 'planning'], mestregister: ['bemesten', 'register']};
 const werkSub = {spuiten: 'planning', bemesten: 'planning'};
-const blokMetTegels = s => s !== 'vandaag' && sectieTabs(s).length > 1;
+const blokMetTegels = s => sectieTabs(s).length > 1 && (s !== 'vandaag' || sectieTabs(s).some(t => !['vandaag', 'gebeurtenissen', 'wijzigingen'].includes(t[0])));
 function blokTellers() {
   const open = S.taken.filter(t => !t.klaar);
   return {taken: open.length, tractoren: S.tractoren.filter(isLive).length || '', uren: S.taken.filter(t => t.bezig_door && !t.klaar).length || '',
@@ -8560,8 +8642,12 @@ function blokTellers() {
 }
 function htmlBlokOverzicht(s) {
   const tel = blokTellers();
-  return `<div class="blokTegels">${sectieTabs(s).map(([k, i, l]) => { const inf = TAB_INFO[k] || [i, l, ''], n = tel[k];
-    return `<button class="blokTegel" onclick="zetTab('${k}')"><span class="btIcoon">${inf[0] || i}</span><b>${esc(inf[1] || l)}</b><small>${esc(inf[2] || '')}</small>${n ? `<span class="btTel">${n}</span>` : ''}</button>`; }).join('')}</div>`;
+  return `${menuBewerk ? `<div class="menuBewerkBalk licht">✏️ Tik op een tegel om hem aan te passen. Sleep om de volgorde te veranderen, of naar een ander kopje hieronder.
+      <div class="menuNaar">${blokkenVolgorde().filter(k => k !== s).map(k => `<span class="menuNaarBlok" data-naarblok="${k}">${esc(blokIcoon(k))} ${esc(blokNaam(k))}</span>`).join('')}</div>
+      <div class="rij" style="gap:6px"><button onclick="menuStandaard()">↺ Standaard</button><button class="aan" onclick="menuBewerkAan(false)">✓ Klaar</button></div></div>`
+    : `<div class="menuAanpasRij"><button class="link klein" onclick="menuBewerkAan(true)">✏️ Aanpassen</button></div>`}
+  <div class="blokTegels">${sectieTabs(s).map(([k, i, l]) => { const inf = tegelInfo(k, i, l), n = tel[k];
+    return `<button class="blokTegel ${menuBewerk ? 'bewerk' : ''}" data-k="${k}" ${menuBewerk ? `onpointerdown="menuSleep(event,'tegel','${k}','${s}')"` : `onclick="zetTab('${k}')"`}><span class="btIcoon">${esc(inf[0])}</span><b>${esc(inf[1])}</b><small>${esc(inf[2] || '')}</small>${n && !menuBewerk ? `<span class="btTel">${n}</span>` : ''}${menuBewerk ? '<span class="menuPen">✏️ ⠿</span>' : ''}</button>`; }).join('')}</div>`;
 }
 function htmlWagenInstel() {
   return `<section class="kaartje"><h4>🚛 Wagens</h4><p class="hint">Welke wagens de rooier kan kiezen bij "Wagen weg" (aantal bakken per wagen, met komma's).</p>
@@ -12346,9 +12432,9 @@ function voorraadVan(partijId) {   // per koelcel: planten en de laatst gebruikt
   return per;
 }
 const eenhedenTekst = (pl, eenheid, per) => eenheid && eenheid !== 'planten' && per ? `${getal(Math.round(pl / per * 10) / 10)} ${eenheid} (${getal(pl)} pl.)` : `${getal(pl)} planten`;
-async function mutatieFormulier(partijId, soortVast, id) {
+async function mutatieFormulier(partijId, soortVast, id, voor = {}) {
   if (!mag('voorraad_beheren')) return;
-  const m = id ? S.partij_mutaties.find(x => x.id === id) : {soort: soortVast || 'in', datum: dKey(new Date()), eenheid: 'trays', partij_id: partijId};
+  const m = id ? S.partij_mutaties.find(x => x.id === id) : {soort: soortVast || 'in', datum: dKey(new Date()), eenheid: voor.eenheid || 'trays', partij_id: partijId, koelcel: voor.koelcel};
   const alle = (S.partijen || []).slice().sort((a, b) => (partijRas(a) || '').localeCompare(partijRas(b) || '', 'nl'));
   const vorige = mutatiesVan(m.partij_id || '').filter(x => x.soort === 'in').pop();
   const lijst = k => [...new Set((S.partij_mutaties || []).map(x => x[k]).filter(Boolean))];
@@ -12357,7 +12443,7 @@ async function mutatieFormulier(partijId, soortVast, id) {
     {k: 'soort', label: 'Wat', type: 'select', waarde: m.soort, opties: MUT_SOORTEN},
     {k: 'datum', label: 'Datum', type: 'date', waarde: m.datum},
     {k: 'aantal', label: 'Aantal', type: 'number', waarde: m.aantal ?? ''},
-    {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: m.eenheid || vorige?.eenheid || 'trays', opties: [...KC_EENHEDEN, ...(m.eenheid && !KC_EENHEDEN.some(e => e[0] === m.eenheid) ? [[m.eenheid, m.eenheid]] : [])]},
+    {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: voor.eenheid || m.eenheid || vorige?.eenheid || 'trays', opties: [...KC_EENHEDEN, ...(m.eenheid && !KC_EENHEDEN.some(e => e[0] === m.eenheid) ? [[m.eenheid, m.eenheid]] : [])]},
     {k: 'per_eenheid', label: 'Planten per tray / kistje / kuubskist', type: 'number', waarde: m.per_eenheid ?? vorige?.per_eenheid ?? ''},
     {k: 'koelcel', label: 'Koelcel', type: 'select', waarde: m.koelcel || vorige?.koelcel || kcLijst()[0]?.naam || '', opties: [...new Set([...kcLijst().map(c => c.naam), ...lijst('koelcel'), m.koelcel].filter(Boolean))].map(c => [c, c]).concat([['', '— geen / anders —']])},
     {k: 'pallet', label: `Pallet (nummer, max ${KC_PALLET_MAX} kistjes)`, waarde: m.pallet || '', lijst: kcPallets().map(p => p.nr), als: ['eenheid', 'kistjes'], placeholder: 'leeg = niet op een pallet'},
@@ -12392,7 +12478,7 @@ async function vbBestemmingForm(id, soortVast) {
   const b = id ? S.voorraad_bestemmingen.find(x => x.id === id) : {soort: soortVast || 'order'};
   const klanten = [...new Set([...(S.partij_mutaties || []).map(m => m.klant), ...(S.voorraad_bestemmingen || []).map(x => x.klant)].filter(Boolean))];
   const w = await formulier(id ? '✏️ Bestemming' : '＋ Nieuwe bestemming', [
-    {k: 'soort', label: 'Soort', type: 'select', waarde: b.soort, opties: [['order', '🧾 Order van een klant'], ['eigen', '🌱 Eigen gebruik (zelf planten)'], ['overig', '📌 Iets anders']]},
+    {k: 'soort', label: 'Soort', type: 'select', waarde: b.soort, opties: [['order', '🧾 Order van een klant'], ['overig', '📌 Iets anders'], ...(b.soort === 'eigen' ? [['eigen', '🌱 Eigen gebruik']] : [])]},
     {k: 'klant', label: 'Klant', waarde: b.klant || '', lijst: klanten, als: ['soort', 'order']},
     {k: 'ordernr', label: 'Ordernummer', waarde: b.ordernr || '', als: ['soort', 'order']},
     {k: 'naam', label: 'Naam (leeg = klant of soort)', waarde: b.naam || '', placeholder: 'bijv. Eigen gebruik vollegrond, Export Spanje'},
@@ -12465,8 +12551,8 @@ async function vbLeveren(id) {
 // tikken in plaats van slepen: kiezen waar het heen moet
 async function vbKies(pid, cel) {
   if (!mag('voorraad_beheren')) return;
-  const l = vbBest(), w = await formulier('Waar moeten deze planten heen?', [{k: 'b', label: 'Bestemming', type: 'select', waarde: l[0]?.id || 'eigen',
-    opties: [...(l.some(b => b.soort === 'eigen') ? [] : [['eigen', '🌱 Eigen gebruik']]), ...l.map(b => [b.id, `${VB_SOORT[b.soort] || '📌'} ${b.naam}`]), ['nieuw', '＋ Nieuwe order / bestemming…']]}], 'Verder');
+  const l = vbBest(), w = await formulier('Voor welke order?', [{k: 'b', label: 'Order / bestemming', type: 'select', waarde: l[0]?.id || 'nieuw',
+    opties: [...l.map(b => [b.id, `${VB_SOORT[b.soort] || '📌'} ${b.naam}`]), ['nieuw', '＋ Nieuwe order / bestemming…']]}], 'Verder');
   if (w) vbReserveer(pid, cel, w.b);
 }
 // slepen met muis én vinger (pointer events, werkt ook op iPad)
@@ -12476,16 +12562,20 @@ const KC_PALLET_MAX = 64;
 let kcWeergave = (() => { try { return localStorage.getItem('kc_weergave') || 'plattegrond'; } catch { return 'plattegrond'; } })(), kcBewerk = false;
 function kcZetWeergave(v) { kcWeergave = v; try { localStorage.setItem('kc_weergave', v); } catch {} render(true); }
 function kcOpgeslagen() { try { const l = JSON.parse(S.inst?.koelcellen || '[]'); return Array.isArray(l) ? l.filter(c => c?.naam) : []; } catch { return []; } }
-// alle koelcellen: de ingestelde (met plek op de plattegrond) + cellen waar iets in staat
+// plattegrond = een kaartje van rasterhokjes (KC_HOK px); koelcellen liggen precies op de hokjes
+const KC_HOK = 20, KC_KOL = 80, KC_RIJ = 50;
+let kcTotOpen = false, KCZ = (() => { try { return JSON.parse(localStorage.getItem('kc_zoom') || 'null') || {z: 1, px: 10, py: 10}; } catch { return {z: 1, px: 10, py: 10}; } })(), kcVerplaatsVan = null;
+const kcZoomBewaar = () => { try { localStorage.setItem('kc_zoom', JSON.stringify(KCZ)); } catch {} };
 function kcLijst() {
-  const l = kcOpgeslagen().map(c => ({...c})), namen = new Set(l.map(c => c.naam));
-  const gebruikt = new Set(); (S.partijen || []).forEach(y => voorraadVan(y.id).forEach((x, cel) => { if (x.planten > .5) gebruikt.add(cel); }));
+  const l = kcOpgeslagen().map(c => { const x = {...c}; if (x.gx == null && x.x != null) { x.gx = Math.round(x.x * .6); x.gy = Math.round(x.y * .6); x.gw = Math.max(3, Math.round(x.w * .6)); x.gh = Math.max(3, Math.round(x.h * .6)); } return x; });
+  const namen = new Set(l.map(c => c.naam)), gebruikt = new Set();
+  (S.partijen || []).forEach(y => voorraadVan(y.id).forEach((x, cel) => { if (x.planten > .5) gebruikt.add(cel); }));
   [...gebruikt].filter(c => !namen.has(c)).sort((a, b) => a.localeCompare(b, 'nl', {numeric: true})).forEach(n => l.push({naam: n}));
-  let i = 0; l.forEach(c => { if (c.x == null) { c.x = 2 + (i % 4) * 24.5; c.y = 2 + Math.floor(i / 4) * 32; c.w = 23; c.h = 30; c.nieuw = true; i++; } });
+  let i = 0; l.forEach(c => { if (c.gx == null) { c.gx = 1 + (i % 6) * 9; c.gy = 1 + Math.floor(i / 6) * 7; c.gw = 8; c.gh = 6; i++; } });
   return l;
 }
 async function kcBewaar(l) {
-  const w = JSON.stringify(l.map(({naam, x, y, w, h}) => ({naam, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, w: Math.round(w * 10) / 10, h: Math.round(h * 10) / 10})));
+  const w = JSON.stringify(l.map(({naam, gx, gy, gw, gh}) => ({naam, gx, gy, gw, gh})));
   const {error} = await sb.rpc('zet_instelling', {p_sleutel: 'koelcellen', p_waarde: w});
   if (error) { toast(/Onbekende instelling/.test(error.message) ? 'Draai eerst beheer.sql opnieuw in Supabase' : foutTekst(error), 1); return false; }
   S.inst = {...(S.inst || {}), koelcellen: w}; return true;
@@ -12493,9 +12583,121 @@ async function kcBewaar(l) {
 async function kcErbij() {
   const naam = (await vraag('Naam van de koelcel', {knop: 'Toevoegen'}))?.trim(); if (!naam) return;
   const l = kcLijst(); if (l.some(c => normTekst(c.naam) === normTekst(naam))) { toast('Die koelcel bestaat al', 1); return; }
-  const maxY = l.reduce((a, c) => Math.max(a, c.y + c.h), 0);
-  l.push({naam, x: 2, y: Math.min(maxY + 2, 160), w: 23, h: 30}); if (await kcBewaar(l)) { render(true); toast(`🧊 ${naam} toegevoegd`); }
+  // eerste vrije plek zoeken
+  const vrij = (x, y) => !l.some(c => x < c.gx + c.gw + 1 && x + 9 > c.gx && y < c.gy + c.gh + 1 && y + 7 > c.gy);
+  let plek = {gx: 1, gy: 1}; zoek: for (let y = 1; y < KC_RIJ - 6; y += 7) for (let x = 1; x < KC_KOL - 8; x += 9) if (vrij(x, y)) { plek = {gx: x, gy: y}; break zoek; }
+  l.push({naam, ...plek, gw: 8, gh: 6}); if (await kcBewaar(l)) { render(true); toast(`🧊 ${naam} toegevoegd`); }
 }
+function kcPlattegrondHtml(beh) {
+  const l = kcLijst();
+  return `<div class="kcKaart ${kcBewerk ? 'bewerk' : ''} ${kcVerplaatsVan ? 'kiezen' : ''}" id="kcKaart" onpointerdown="kcPan(event)" onwheel="kcWiel(event)">
+    <div class="kcStage" id="kcStage" style="width:${KC_KOL * KC_HOK}px;height:${KC_RIJ * KC_HOK}px;transform:translate(${KCZ.px}px,${KCZ.py}px) scale(${KCZ.z})">
+      ${l.map((c, i) => { const inh = kcInhoud(c.naam), vol = inh.planten > .5, hier = kcVerplaatsVan && kcVerplaatsVan.cel === c.naam;
+        return `<div class="kcBlok ${vol ? 'vol' : ''} ${hier ? 'bron' : ''}" data-vbcel="${esc(c.naam)}" data-i="${i}" style="left:${c.gx * KC_HOK}px;top:${c.gy * KC_HOK}px;width:${c.gw * KC_HOK}px;height:${c.gh * KC_HOK}px"
+          onpointerdown="kcBlokDown(event,${i})"><span>${esc(c.naam)}</span>${kcBewerk ? `<div class="kcRand" onpointerdown="kcSchuif(event,${i},'maat')"></div>` : ''}</div>`; }).join('')}
+    </div>
+    <div class="kcZoom"><button onclick="kcZoomStap(1.25)">＋</button><button onclick="kcZoomStap(.8)">－</button><button title="Alles in beeld" onclick="kcPassend()">⤢</button></div>
+    ${kcVerplaatsVan ? `<div class="kcKiesBalk">↔ Tik op de koelcel waar <b>${esc(kcVerplaatsVan.naam)}</b> heen moet <button onclick="kcVerplaatsVan=null;render(true)">Annuleren</button></div>` : ''}
+    ${!l.length ? `<div class="kcLeegPlat">Nog geen koelcellen. ${beh ? 'Tik op ＋ Koelcel om er een toe te voegen.' : ''}</div>` : ''}</div>`;
+}
+function kcStageZet() { const s = $('#kcStage'); if (s) s.style.transform = `translate(${KCZ.px}px,${KCZ.py}px) scale(${KCZ.z})`; kcZoomBewaar(); }
+function kcZoomOm(f, cx, cy) { const k = $('#kcKaart'); if (!k) return; const r = k.getBoundingClientRect(); cx ??= r.width / 2; cy ??= r.height / 2;
+  const z = Math.min(4, Math.max(.25, KCZ.z * f)); f = z / KCZ.z; KCZ.px = cx - (cx - KCZ.px) * f; KCZ.py = cy - (cy - KCZ.py) * f; KCZ.z = z; kcStageZet(); }
+const kcZoomStap = f => kcZoomOm(f);
+function kcWiel(e) { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); kcZoomOm(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top); }
+function kcPassend() { const k = $('#kcKaart'), l = kcLijst(); if (!k || !l.length) return;
+  const x0 = Math.min(...l.map(c => c.gx)) * KC_HOK, y0 = Math.min(...l.map(c => c.gy)) * KC_HOK, x1 = Math.max(...l.map(c => c.gx + c.gw)) * KC_HOK, y1 = Math.max(...l.map(c => c.gy + c.gh)) * KC_HOK;
+  const z = Math.min(3, Math.max(.25, Math.min((k.clientWidth - 30) / (x1 - x0), (k.clientHeight - 30) / (y1 - y0)))); KCZ = {z, px: 15 - x0 * z + ((k.clientWidth - 30) - (x1 - x0) * z) / 2, py: 15 - y0 * z}; kcStageZet(); }
+// schuiven (achtergrond slepen) en knijpen met twee vingers
+const kcVingers = new Map();
+function kcPan(e) {
+  if (e.target.closest('.kcZoom,.kcKiesBalk')) return;
+  kcVingers.set(e.pointerId, {x: e.clientX, y: e.clientY}); if (kcVingers.size > 1) return;   // tweede vinger: de eerste luistert al
+  const opBlok = !!e.target.closest('.kcBlok') || kcBewerk && !!e.target.closest('.kcBlok');
+  const k = e.currentTarget; let vorig = {px: KCZ.px, py: KCZ.py, x: e.clientX, y: e.clientY, d: null};
+  const mv = ev => { if (!kcVingers.has(ev.pointerId)) return; kcVingers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+    if (kcVingers.size >= 2) { const [a, b] = [...kcVingers.values()], d = Math.hypot(a.x - b.x, a.y - b.y), r = k.getBoundingClientRect();
+      if (vorig.d) kcZoomOm(d / vorig.d, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top); vorig.d = d; return; }
+    if (opBlok) return; KCZ.px = vorig.px + ev.clientX - vorig.x; KCZ.py = vorig.py + ev.clientY - vorig.y; kcStageZet(); };
+  const op = ev => { kcVingers.delete(ev.pointerId); if (kcVingers.size === 0) { removeEventListener('pointermove', mv); removeEventListener('pointerup', op); removeEventListener('pointercancel', op); }
+    else { const [a] = [...kcVingers.values()]; vorig = {px: KCZ.px, py: KCZ.py, x: a.x, y: a.y, d: null}; } };
+  addEventListener('pointermove', mv); addEventListener('pointerup', op); addEventListener('pointercancel', op);
+}
+// tik op een koelcel: open (of: hierheen verplaatsen); in de indeel-stand: schuiven
+function kcBlokDown(e, i) {
+  if (e.target.closest('.kcRand')) return;
+  if (kcBewerk) { kcSchuif(e, i, 'move'); return; }
+  const st = {x: e.clientX, y: e.clientY}, naam = kcLijst()[i]?.naam;
+  const op = ev => { removeEventListener('pointerup', op); if (Math.hypot(ev.clientX - st.x, ev.clientY - st.y) > 8 || kcVingers.size > 1) return;
+    if (kcVerplaatsVan) { const v = kcVerplaatsVan; kcVerplaatsVan = null; if (v.cel !== naam) kcVerplaats(v.pid, v.cel, naam, v.pallet); else render(true); return; }
+    kcOpen(naam); };
+  addEventListener('pointerup', op);
+}
+// koelcel schuiven of groter maken, vast op de hokjes
+function kcSchuif(e, i, wat) {
+  e.preventDefault(); e.stopPropagation();
+  const el = document.querySelector(`.kcBlok[data-i="${i}"]`), l = kcLijst(), c = l[i], st = {x: e.clientX, y: e.clientY, c: {...c}}, H = KC_HOK * KCZ.z;
+  const mv = ev => { const dx = Math.round((ev.clientX - st.x) / H), dy = Math.round((ev.clientY - st.y) / H);
+    if (wat === 'move') { c.gx = Math.max(0, Math.min(KC_KOL - c.gw, st.c.gx + dx)); c.gy = Math.max(0, Math.min(KC_RIJ - c.gh, st.c.gy + dy)); }
+    else { c.gw = Math.max(2, Math.min(KC_KOL - c.gx, st.c.gw + dx)); c.gh = Math.max(2, Math.min(KC_RIJ - c.gy, st.c.gh + dy)); }
+    Object.assign(el.style, {left: c.gx * KC_HOK + 'px', top: c.gy * KC_HOK + 'px', width: c.gw * KC_HOK + 'px', height: c.gh * KC_HOK + 'px'}); };
+  const op = async ev => { removeEventListener('pointermove', mv); removeEventListener('pointerup', op);
+    const veranderd = ['gx', 'gy', 'gw', 'gh'].some(k => c[k] !== st.c[k]);
+    if (!veranderd && wat === 'move' && Math.hypot(ev.clientX - st.x, ev.clientY - st.y) < 8) { kcCelForm(c.naam); return; }
+    if (veranderd && await kcBewaar(l)) render(true); };
+  addEventListener('pointermove', mv); addEventListener('pointerup', op);
+}
+async function kcCelForm(naam) {
+  const keuze = await formulier(`🧊 ${naam}`, [{k: 'naam', label: 'Naam', waarde: naam}, {type: 'uitleg', waarde: 'Weghalen kan alleen als de koelcel leeg is.'},
+    {k: 'weg', label: '', type: 'vinkjes', opties: [['weg', '🗑️ Deze koelcel weghalen']], waarde: []}], 'Opslaan');
+  if (!keuze) return;
+  if ((keuze.weg || []).includes('weg')) { kcWeg(naam); return; }
+  const nieuw = keuze.naam.trim(); if (!nieuw || nieuw === naam) return;
+  if (kcInhoud(naam).planten > .5) { toast('Er staat nog iets in deze koelcel. Verplaats het eerst, of houd de naam.', 1); return; }
+  if (await kcBewaar(kcLijst().map(c => c.naam === naam ? {...c, naam: nieuw} : c))) render(true);
+}
+// alles bij elkaar per ras: kuubskisten, pallets (met hoeveel kistjes), trays, losse kistjes en planten
+function kcTotalen(cel) {
+  const per = new Map(), ras = y => partijRas(y) || soort(y?.soort_id)?.naam || '?';
+  const o = n => per.get(n) || (per.set(n, {naam: n, eenheden: {}, pallets: new Map(), planten: 0}), per.get(n));
+  (S.partijen || []).forEach(y => voorraadVan(y.id).forEach((x, c) => { if (cel && c !== cel) return; const l = kcLos(y.id, c); if (l.planten <= .5) return;
+    const t = o(ras(y)), per1 = l.eenheid !== 'planten' ? +l.per_eenheid || 0 : 0; t.planten += l.planten;
+    const e = per1 ? l.eenheid : 'planten'; t.eenheden[e] = (t.eenheden[e] || 0) + (per1 ? l.planten / per1 : l.planten); }));
+  kcPallets().forEach(p => p.regels.forEach(r => { if (cel && r.cel !== cel) return; const y = S.partijen.find(z => z.id === r.partij_id), t = o(ras(y));
+    t.planten += r.kistjes * (+r.per || 0); }));
+  kcPallets().forEach(p => { if (cel && p.cel !== cel) return; const perRas = new Map(); p.regels.forEach(r => { const n = ras(S.partijen.find(z => z.id === r.partij_id)); perRas.set(n, (perRas.get(n) || 0) + r.kistjes); });
+    perRas.forEach((k, n) => { const t = o(n); t.pallets.set(k, (t.pallets.get(k) || 0) + 1); }); });
+  return [...per.values()].sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+}
+function kcTotalenHtml(cel) {
+  const l = kcTotalen(cel); if (!l.length) return '';
+  const r1 = n => getal(Math.round(n * 10) / 10);
+  return `<div class="kcTot">${l.map(t => `<div class="kcTotRij"><b>${esc(t.naam)}</b><span>${[
+    ...[['kuubskisten', 'kuubskisten', 'kuubskist'], ['trays', 'trays', 'tray'], ['kistjes', 'kistjes los', 'kistje los']].filter(([e]) => t.eenheden[e]).map(([e, mv, ev]) => `${r1(t.eenheden[e])} ${t.eenheden[e] === 1 ? ev : mv}`),
+    ...[...t.pallets].sort((a, b) => b[0] - a[0]).map(([k, n]) => `${n} pallet${n === 1 ? '' : 's'} (${r1(k)})`),
+    ...Object.keys(t.eenheden).filter(e => !['kuubskisten', 'trays', 'kistjes', 'planten'].includes(e)).map(e => `${r1(t.eenheden[e])} ${esc(e)}`),
+    t.eenheden.planten ? `${getal(Math.round(t.eenheden.planten))} losse planten` : ''].filter(Boolean).join(' · ')}</span><small>${getal(Math.round(t.planten))} planten</small></div>`).join('')}</div>`;
+}
+// de popup van één koelcel: wat erin staat, inslaan, verplaatsen
+function kcOpen(naam) {
+  const inh = kcInhoud(naam), beh = mag('voorraad_beheren');
+  const los = inh.partijen.map(({y}) => ({y, x: kcLos(y.id, naam)})).filter(({x}) => x.planten > .5);
+  const knop = (t, f) => beh ? `<button class="knop licht klein" style="width:auto" onclick="$('#modal').classList.remove('open');${f}">${t}</button>` : '';
+  const ver = (pid, pallet, label) => `kcVerplaatsVan={pid:${pid ? `'${pid}'` : 'null'},cel:${esc(JSON.stringify(naam))},pallet:${pallet ? esc(JSON.stringify(pallet)) : 'null'},naam:${esc(JSON.stringify(label))}};render(true);toast('Tik nu op de koelcel waar het heen moet')`;
+  $('#modal').innerHTML = `<div class="dialoog groot"><h3>🧊 ${esc(naam)}</h3>
+    ${inh.planten ? kcTotalenHtml(naam) : '<p class="hint">Leeg</p>'}
+    ${beh ? `<div class="kcInslaan"><b>⬇️ Inslaan</b><div class="rij" style="gap:6px;flex-wrap:wrap">
+      ${knop('🧱 Pallet (kistjes)', `kcPalletInslag(${esc(JSON.stringify(naam))})`)}${knop('📦 Kuubskist', `mutatieFormulier('','in',null,{eenheid:'kuubskisten',koelcel:${esc(JSON.stringify(naam))}})`)}
+      ${knop('🥡 Trays', `mutatieFormulier('','in',null,{eenheid:'trays',koelcel:${esc(JSON.stringify(naam))}})`)}${knop('🌱 Losse planten', `mutatieFormulier('','in',null,{eenheid:'planten',koelcel:${esc(JSON.stringify(naam))}})`)}</div></div>` : ''}
+    ${inh.pallets.map(p => `<div class="kcItem pallet"><div><b>🧱 Pallet ${esc(p.nr)}</b> <span class="kcHoog">${getal(p.kistjes)}/${KC_PALLET_MAX} kistjes</span>
+        <small>${p.regels.map(r => { const y = S.partijen.find(z => z.id === r.partij_id); return `${esc(partijRas(y) || '?')} ${esc(y?.batch || '')} · ${getal(r.kistjes)} kistjes`; }).join('<br>')}</small></div>
+      <div class="kcItemKnop">${knop('↔ Verplaatsen', ver(null, p.nr, 'pallet ' + p.nr))}</div></div>`).join('')}
+    ${los.map(({y, x}) => `<div class="kcItem"><div><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}<small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)}${vbGereserveerd(y.id, naam) ? ` · ${getal(vbGereserveerd(y.id, naam))} voor een order` : ''}</small></div>
+      <div class="kcItemKnop">${knop('↔ Verplaatsen', ver(y.id, null, partijRas(y) || 'deze partij'))}${knop('🧾 Order', `vbKies('${y.id}',${esc(JSON.stringify(naam))})`)}${knop('⬆️ Leveren', `mutatieFormulier('${y.id}','uit',null,{koelcel:${esc(JSON.stringify(naam))}})`)}</div></div>`).join('')}
+    <div class="rij"><button class="knop licht" id="mNee">Sluiten</button></div></div>`;
+  const m = $('#modal'); m.classList.add('open'); $('#mNee').onclick = () => m.classList.remove('open');
+}
+
 async function kcHernoem(naam) {
   const nieuw = (await vraag('Nieuwe naam', {waarde: naam}))?.trim(); if (!nieuw || nieuw === naam) return;
   if (kcInhoud(naam).planten > .5) { toast('Er staat nog iets in deze koelcel. Verplaats het eerst, of houd de naam.', 1); return; }
@@ -12516,7 +12718,7 @@ function kcInhoud(cel) {
 function kcPallets() {
   const per = new Map();
   (S.partij_mutaties || []).filter(m => m.pallet).sort((a, b) => String(a.datum).localeCompare(String(b.datum)) || String(a.created_at).localeCompare(String(b.created_at))).forEach(m => {
-    const p = per.get(m.pallet) || {nr: m.pallet, regels: new Map(), cel: null}; per.set(m.pallet, p);
+    const pk = m.pallet + '|' + (m.koelcel || '—'), p = per.get(pk) || {nr: m.pallet, regels: new Map(), cel: null}; per.set(pk, p);
     const t = m.soort === 'in' || m.soort === 'correctie' ? 1 : -1, n = +m.aantal || 0;
     const k = m.partij_id + '|' + (m.koelcel || '—'), r = p.regels.get(k) || {partij_id: m.partij_id, cel: m.koelcel || '—', kistjes: 0, per: m.per_eenheid, eenheid: m.eenheid};
     r.kistjes += t * n; if (m.per_eenheid) r.per = m.per_eenheid; p.regels.set(k, r);
@@ -12566,9 +12768,16 @@ async function kcVerplaats(pid, van, naar, pallet) {
   if (!mag('voorraad_beheren') || van === naar) return;
   const nu = dKey(new Date()), notitie = `↔ van ${van} naar ${naar}`, rijen = [];
   if (pallet) {
-    const p = kcPallets().find(x => x.nr === pallet); if (!p) return;
-    p.regels.forEach(r => { const y = S.partijen.find(z => z.id === r.partij_id); const b = {partij_id: r.partij_id, seizoen_id: y?.seizoen_id || bekeken, soort: 'correctie', datum: nu, eenheid: r.eenheid || 'kistjes', per_eenheid: r.per, pallet, notitie, door: naamMe()};
-      rijen.push({...b, aantal: -r.kistjes, koelcel: r.cel === '—' ? null : r.cel}, {...b, aantal: r.kistjes, koelcel: naar}); });
+    const p = kcPallets().find(x => x.nr === pallet && x.cel === van); if (!p) return;
+    // vragen hoeveel er echt verplaatst is (standaard: de hele pallet)
+    const w = await formulier(`↔ Pallet ${pallet} naar ${naar}`, [{type: 'uitleg', waarde: 'Hoeveel kistjes zijn er verplaatst? Staat alles goed, druk dan gewoon op Verplaatsen.'},
+      ...p.regels.map((r, i) => { const y = S.partijen.find(z => z.id === r.partij_id); return {k: 'n' + i, label: `${partijRas(y) || '?'} ${y?.batch || ''} (${getal(r.kistjes)} kistjes)`, type: 'number', waarde: r.kistjes}; }),
+      {k: 'nr', label: 'Palletnummer in de nieuwe koelcel', waarde: pallet}], 'Verplaatsen');
+    if (!w) return; const nieuwNr = (w.nr || '').trim() || pallet;
+    p.regels.forEach((r, i) => { const n = Math.min(r.kistjes, leesGetal(w['n' + i], 0)); if (!(n > 0)) return; const y = S.partijen.find(z => z.id === r.partij_id);
+      const b = {partij_id: r.partij_id, seizoen_id: y?.seizoen_id || bekeken, soort: 'correctie', datum: nu, eenheid: r.eenheid || 'kistjes', per_eenheid: r.per, notitie, door: naamMe()};
+      rijen.push({...b, pallet, aantal: -n, koelcel: r.cel === '—' ? null : r.cel}, {...b, pallet: nieuwNr, aantal: n, koelcel: naar}); });
+    if (!rijen.length) return;
   } else {
     const x = kcLos(pid, van); if (!x || x.planten <= .5) return;
     const per = x.eenheid && x.eenheid !== 'planten' ? +x.per_eenheid || 0 : 0;
@@ -12586,60 +12795,6 @@ async function kcVerplaats(pid, van, naar, pallet) {
     const {data: d} = await sb.from('voorraad_reserveringen').update({koelcel: naar}).eq('id', r.id).select().single(); if (d) Object.assign(r, d); }
   render(true); toast(`↔ ${pallet ? 'Pallet ' + pallet : 'Verplaatst'} naar ${naar}`);
 }
-// plattegrond: koelcellen als blokken; in bewerk-modus schuiven en groter/kleiner maken
-function kcPlattegrondHtml(beh) {
-  const l = kcLijst(), hoog = Math.max(60, l.reduce((a, c) => Math.max(a, c.y + c.h), 0) + 4);
-  const chip = (y, x, cel) => `<div class="kcChip ${beh ? 'sleep' : ''}" ${beh && !kcBewerk ? `onpointerdown="vbSleepStart(event,'${y.id}','${esc(cel)}')" onclick="if(!this.dataset.gesleept)vbKies('${y.id}','${esc(cel)}')"` : ''}><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}<small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)}${vbGereserveerd(y.id, cel) ? ` · ${getal(vbGereserveerd(y.id, cel))} verdeeld` : ''}</small></div>`;
-  const pal = (p, cel) => `<div class="kcChip pallet ${beh ? 'sleep' : ''}" ${beh && !kcBewerk ? `onpointerdown="vbSleepStart(event,null,'${esc(cel)}','${esc(p.nr)}')"` : ''}><b>🧱 Pallet ${esc(p.nr)}</b> <span class="kcHoog">${getal(p.kistjes)}/${KC_PALLET_MAX}</span><small>${p.regels.map(r => `${esc(partijRas(S.partijen.find(z => z.id === r.partij_id)) || '?')} ${getal(r.kistjes)}`).join(' · ')}</small></div>`;
-  return `<div class="kcPlat ${kcBewerk ? 'bewerk' : ''}" id="kcPlat" style="padding-bottom:${hoog}%">${l.map((c, i) => { const inh = kcInhoud(c.naam), opPallet = new Set(inh.pallets.flatMap(p => p.regels.map(r => r.partij_id)));
-    const los = inh.partijen.map(({y}) => ({y, x: kcLos(y.id, c.naam)})).filter(({x}) => x.planten > .5);
-    return `<div class="kcCel" data-vbcel="${esc(c.naam)}" data-i="${i}" style="left:${c.x}%;top:${c.y / hoog * 100}%;width:${c.w}%;height:${c.h / hoog * 100}%">
-      <div class="kcKop" ${kcBewerk ? `onpointerdown="kcSchuif(event,${i},'move')"` : ''}><b>🧊 ${esc(c.naam)}</b><small>${inh.planten ? getal(inh.planten) + ' pl.' : 'leeg'}${inh.pallets.length ? ` · ${inh.pallets.length} pallet${inh.pallets.length === 1 ? '' : 's'}` : ''}</small>
-        ${kcBewerk ? `<span class="logknoppen"><button class="weg" onclick="event.stopPropagation();kcHernoem(${esc(JSON.stringify(c.naam))})">✏️</button><button class="weg" onclick="event.stopPropagation();kcWeg(${esc(JSON.stringify(c.naam))})">✕</button></span>` : beh ? `<button class="weg" title="Pallet inslaan" onclick="kcPalletInslag(${esc(JSON.stringify(c.naam))})">🧱＋</button>` : ''}</div>
-      <div class="kcInh">${inh.pallets.map(p => pal(p, c.naam)).join('')}${los.map(({y, x}) => chip(y, x, c.naam)).join('')}${!inh.planten ? '<div class="vbLeeg">Leeg</div>' : ''}</div>
-      ${kcBewerk ? `<div class="kcRand" onpointerdown="kcSchuif(event,${i},'maat')"></div>` : ''}</div>`; }).join('') || ''}
-    ${!l.length ? `<div class="kcLeegPlat">Nog geen koelcellen. ${beh ? 'Tik op ＋ Koelcel om er een toe te voegen.' : ''}</div>` : ''}</div>`;
-}
-// een koelcel op de plattegrond schuiven of groter maken (in procenten van de breedte)
-function kcSchuif(e, i, wat) {
-  e.preventDefault(); e.stopPropagation();
-  const plat = $('#kcPlat'), el = plat.querySelector(`.kcCel[data-i="${i}"]`), l = kcLijst(), c = l[i], B = plat.offsetWidth / 100;
-  const st = {x: e.clientX, y: e.clientY, c: {...c}}, raster = v => Math.round(v * 2) / 2;
-  const mv = ev => { const dx = (ev.clientX - st.x) / B, dy = (ev.clientY - st.y) / B;
-    if (wat === 'move') { c.x = Math.max(0, Math.min(100 - c.w, raster(st.c.x + dx))); c.y = Math.max(0, raster(st.c.y + dy)); }
-    else { c.w = Math.max(10, Math.min(100 - c.x, raster(st.c.w + dx))); c.h = Math.max(10, raster(st.c.h + dy)); }
-    const hoog = parseFloat(plat.style.paddingBottom); el.style.left = c.x + '%'; el.style.width = c.w + '%'; el.style.top = c.y / hoog * 100 + '%'; el.style.height = c.h / hoog * 100 + '%'; };
-  const op = async () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', op); if (c.x !== st.c.x || c.y !== st.c.y || c.w !== st.c.w || c.h !== st.c.h) { if (await kcBewaar(l)) render(true); } };
-  addEventListener('pointermove', mv); addEventListener('pointerup', op);
-}
-
-let VBS = null;
-function vbSleepStart(e, pid, cel, pallet) {
-  if (!mag('voorraad_beheren') || kcBewerk || (e.button !== undefined && e.button > 0)) return;
-  e.stopPropagation(); const bron = e.currentTarget; VBS = {pid, cel, pallet, x: e.clientX, y: e.clientY, bron, ghost: null, doel: null, id: e.pointerId};
-  const beweeg = ev => {
-    if (!VBS || ev.pointerId !== VBS.id) return;
-    if (!VBS.ghost) { if (Math.hypot(ev.clientX - VBS.x, ev.clientY - VBS.y) < 6) return;
-      VBS.ghost = bron.cloneNode(true); VBS.ghost.className = 'vbGhost'; VBS.ghost.style.width = bron.offsetWidth + 'px'; document.body.appendChild(VBS.ghost); document.body.classList.add('vbSleept'); }
-    ev.preventDefault();
-    VBS.ghost.style.transform = `translate(${ev.clientX - 20}px, ${ev.clientY - 18}px)`;
-    const t = document.elementFromPoint(ev.clientX, ev.clientY)?.closest(VBS.pallet ? '[data-vbcel]' : '[data-vbdoel],[data-vbcel]');
-    if (VBS.doel !== t) { VBS.doel?.classList.remove('over'); t?.classList.add('over'); VBS.doel = t; }
-    // automatisch scrollen bij de rand
-    const sc = document.scrollingElement, r = 60; if (ev.clientY < r) sc.scrollBy(0, -14); else if (ev.clientY > innerHeight - r) sc.scrollBy(0, 14);
-  };
-  const los = ev => {
-    removeEventListener('pointermove', beweeg); removeEventListener('pointerup', los); removeEventListener('pointercancel', los);
-    const s = VBS; VBS = null; if (!s) return;
-    s.ghost?.remove(); s.doel?.classList.remove('over'); document.body.classList.remove('vbSleept');
-    if (!s.ghost) return;   // niet gesleept: gewoon een tik
-    s.bron.dataset.gesleept = '1'; setTimeout(() => delete s.bron.dataset.gesleept, 50);
-    if (ev.type !== 'pointerup' || !s.doel) return;
-    if (s.doel.dataset.vbcel != null) { if (s.doel.dataset.vbcel !== s.cel) kcVerplaats(s.pid, s.cel, s.doel.dataset.vbcel, s.pallet); }
-    else vbReserveer(s.pid, s.cel, s.doel.dataset.vbdoel);
-  };
-  addEventListener('pointermove', beweeg, {passive: false}); addEventListener('pointerup', los); addEventListener('pointercancel', los);
-}
 function htmlBestemmingen(beh) {
   const l = vbBest(), heeftEigen = l.some(b => b.soort === 'eigen');
   const doos = b => { const r = vbRes().filter(x => x.bestemming_id === b.id), tot = r.reduce((a, x) => a + +x.planten, 0);
@@ -12649,8 +12804,8 @@ function htmlBestemmingen(beh) {
         return `<div class="vbRegel"><span>${esc(partijRas(y || {}) || '?')} ${esc(y?.batch || '')} ${esc(y?.klasse || '')}<small>${eenhedenTekst(+x.planten, v.eenheid, v.per_eenheid)}${x.koelcel ? ' · ' + esc(x.koelcel) : ''}</small></span>${beh ? `<button class="weg" title="Terug naar de koelcel" onclick="vbResWeg('${x.id}')">↩</button>` : ''}</div>`; }).join('')
         : `<div class="vbLeeg">${beh ? 'Sleep hier planten naartoe' : 'Nog leeg'}</div>`}
       ${beh && r.length ? `<button class="knop licht klein" style="margin-top:6px" onclick="vbLeveren('${b.id}')">${b.soort === 'eigen' ? '🌱 Uit de koelcel halen (gebruikt)' : '⬆️ Geleverd'}</button>` : ''}</div>`; };
-  return `<section class="kaartje"><h4>🎯 Bestemmingen ${beh ? '<small>sleep een partij uit de koelcel hierheen, of tik hem aan</small>' : ''}</h4>
-    <div class="vbDozen">${heeftEigen ? '' : `<div class="vbDoos eigen" data-vbdoel="eigen"><div class="vbKop"><b>🌱 Eigen gebruik</b></div><div class="vbLeeg">${beh ? 'Sleep hier planten naartoe' : 'Nog leeg'}</div></div>`}${l.map(doos).join('')}
+  return `<section class="kaartje"><h4>🧾 Orders ${beh ? '<small>planten die voor een klant klaarstaan; eigen gebruik volgt uit de teeltplanning</small>' : ''}</h4>
+    <div class="vbDozen">${true ? '' : `<div class="vbDoos eigen" data-vbdoel="eigen"><div class="vbKop"><b>🌱 Eigen gebruik</b></div><div class="vbLeeg">${beh ? 'Sleep hier planten naartoe' : 'Nog leeg'}</div></div>`}${l.map(doos).join('')}
       ${beh ? `<button class="vbDoos nieuw" data-vbdoel="nieuw" onclick="vbBestemmingForm(null)">＋ Nieuwe order / bestemming</button>` : ''}</div></section>`;
 }
 
@@ -12685,8 +12840,8 @@ function htmlVoorraad() {
     || '<section class="kaartje"><p class="hint">Er staat niets in de koelcel. Boek een ⬇️ inslag als er gerooid is.</p></section>');
   const kcKop = `<section class="kaartje kcBalk"><div class="schakel">${[['plattegrond', '🗺️ Plattegrond'], ['lijst', '📋 Lijst']].map(([k, t]) => `<button class="${kcWeergave === k ? 'aan' : ''}" onclick="kcZetWeergave('${k}')">${t}</button>`).join('')}</div>
     ${beh ? `<div class="rij" style="gap:6px;flex-wrap:wrap"><button class="knop licht klein" style="width:auto" onclick="kcErbij()">＋ Koelcel</button><button class="knop licht klein" style="width:auto" onclick="kcPalletInslag()">🧱 Pallet inslaan</button>${kcWeergave === 'plattegrond' ? `<button class="knop ${kcBewerk ? '' : 'licht'} klein" style="width:auto" onclick="kcBewerk=!kcBewerk;render(true)">${kcBewerk ? '✓ Klaar met indelen' : '✏️ Plattegrond indelen'}</button>` : ''}</div>` : ''}
-    <small class="hint">${kcBewerk ? 'Sleep een koelcel aan de kop om hem te verplaatsen, en aan het hoekje rechtsonder om hem groter of kleiner te maken.' : beh ? 'Sleep een partij of pallet naar een andere koelcel om hem te verplaatsen, of naar een bestemming rechts.' : ''}</small></section>`;
-  const cellenLijst = kcWeergave === 'plattegrond' ? `<section class="kaartje">${kcPlattegrondHtml(beh)}</section>` : celHtml.replace(/<section class="kaartje"><h4>🧊 ([^<]*?) <small>/g, (m0, n) => `<section class="kaartje" data-vbcel="${n}"><h4>🧊 ${n} <small>`);
+    <small class="hint">${kcBewerk ? 'Sleep een koelcel om hem te verplaatsen, en aan het blauwe hoekje om hem groter of kleiner te maken; hij valt vanzelf op de hokjes. Tik erop om de naam te veranderen.' : kcWeergave === 'plattegrond' ? 'Tik op een koelcel om te zien wat erin staat, in te slaan of te verplaatsen. Zoom met ＋/－, het muiswiel of twee vingers; schuif de kaart met slepen.' : beh ? 'Sleep een partij naar een andere koelcel om hem te verplaatsen, of naar een order rechts.' : ''}</small></section>`;
+  const totAlles = kcTotalenHtml(), cellenLijst = (totAlles ? `<section class="kaartje"><details ${kcTotOpen ? 'open' : ''} ontoggle="kcTotOpen=this.open"><summary><b>📊 Totaal in alle koelcellen</b></summary>${totAlles}</details></section>` : '') + (kcWeergave === 'plattegrond' ? `<section class="kaartje">${kcPlattegrondHtml(beh)}</section>` : celHtml.replace(/<section class="kaartje"><h4>🧊 ([^<]*?) <small>/g, (m0, n) => `<section class="kaartje" data-vbcel="${n}"><h4>🧊 ${n} <small>`));
   return kopW + kcKop + `<div class="vbGrid"><div class="vbCellen">${cellenLijst}</div><div class="vbRechts">${htmlBestemmingen(beh)}</div></div>`;
 }
 function traceerKaart(y) {
