@@ -333,6 +333,7 @@ textarea.veld{resize:vertical;font-family:inherit}
 .vbKop .logknoppen{display:flex;gap:2px}.vbRegel{display:flex;justify-content:space-between;align-items:center;gap:6px;background:#fff;border-radius:8px;padding:4px 6px;font-size:13px}.vbRegel small{display:block}.vbLeeg{color:#999;font-size:13px;padding:6px 0}
 .vbPartij.sleep{cursor:grab;user-select:none}.vbPartij.verdeeld{opacity:.55}.vbGreep{touch-action:none;font-size:20px;color:#9aa;padding:0 8px 0 2px;cursor:grab;align-self:center}.vbStand{color:#1565c0}
 .vbGhost{position:fixed;left:0;top:0;z-index:9999;pointer-events:none;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);padding:6px 10px;opacity:.95;display:flex;gap:6px}body.vbSleept{user-select:none;cursor:grabbing}
+.psBlok{background:#f4faf3;border-radius:10px;padding:6px 10px;margin:6px 0}.psKop{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.psKop small{color:#666}.psOud summary{cursor:pointer;font-size:13px;color:#2e7d32;margin-top:4px}.psRij{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid #e3eee1}.psRij small{display:block;color:#666}.psGroep{margin:6px 0}.psChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .tpPerc{background:#f4faf3;border-radius:10px;padding:8px 10px;margin:6px 0 8px}.tpPercKop{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px}.tpPercKop small{color:#666}.tpPercRij{display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px solid #e3eee1}.tpPercRij:first-of-type{border-top:0}.tpPercRij>i{width:10px;height:10px;border-radius:50%;flex:none}.tpPercRij>span{flex:1}.tpPercRij small{display:block;color:#666}
 .tpLijsten{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}.tpChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-items:center}.tpChip{display:inline-flex;align-items:center;gap:4px;border:1px solid #dde7da;border-radius:16px;padding:3px 10px;font-size:13px;background:#fff}.tpChip small{color:#888;margin-left:4px}.tpChip.eigen{border-color:#81c784;background:#f1f8e9}.tpChip .weg{padding:0 2px}
 .tpVrLijst{display:flex;flex-wrap:wrap;gap:6px}.tpVr{border:1px solid #cfe3cc;background:#fff;border-radius:9px;padding:5px 9px;font:inherit;font-size:13px;cursor:pointer;text-align:left}.tpVr span{display:block;font-size:12px;color:#2e7d32}.tpVr.aan{border-color:#2e7d32;background:#e8f5e9}.tpVr.op span{color:#999}
@@ -1519,6 +1520,7 @@ async function laadTaken() {
   const {data} = await q; S.taken = data || [];
 }
 async function laadAlles() {
+  if (!archief && !isApparaat?.() && tjGecheckt !== dKey(new Date())) { tjGecheckt = dKey(new Date()); try { const {data} = await sb.rpc('teeltjaar_automatisch'); if (data) setTimeout(() => toast(`📅 Nieuw teeltjaar ${data} is begonnen`), 1500); } catch {} }
   const sz = await sb.from('seizoenen').select('*').order('gestart');
   if (sz.error && isNetFout(sz.error)) { if (await laadUitCache()) { render(true); netStatus(); return; } }
   S.seizoenen = sz.data || [];
@@ -1868,7 +1870,7 @@ function knipBereik() {
 /* taken */
 /* ============ seizoenen ============ */
 async function bekijkSeizoen(id) {
-  $('#modal').classList.remove('open');
+  $('#modal').classList.remove('open'); if (PSA) psTerug(true);
   const sz = S.seizoenen.find(s => s.id === id); if (!sz) return;
   if (sz.actief) {
     if (archief) { S.percelen = livePercelen || S.percelen; livePercelen = null; }
@@ -1889,11 +1891,12 @@ function toonArchiefBalk() {
   let b = document.getElementById('archiefBalk');
   if (!archief) { b?.remove(); return; }
   if (!b) { b = document.createElement('div'); b.id = 'archiefBalk'; document.body.appendChild(b); }
-  b.innerHTML = `<span>📚 Seizoen <b>${esc(seizoenNaam(bekeken))}</b> · alleen bekijken</span>
+  b.innerHTML = PSA ? `<span>📚 ${esc(perceelNu(PSA.pid)?.naam || '')}: <b>${esc(PSA.naam)}</b> · alleen bekijken</span><button onclick="psTerug()">Terug naar nu</button>`
+    : `<span>📚 Teeltjaar <b>${esc(seizoenNaam(bekeken))}</b> · alleen bekijken</span>
     <button onclick="bekijkSeizoen('${actiefSeizoen()?.id}')">Terug naar ${esc(actiefSeizoen()?.naam || 'nu')}</button>`;
 }
 function seizoenKnop() {
-  return `<button class="seizoenknop ${archief ? 'archief' : ''}" onclick="zetTab('seizoenen')">📅 Seizoen ${esc(seizoenNaam(bekeken) || '–')} ${archief ? '(archief)' : ''} ▾</button>`;
+  return `<button class="seizoenknop ${archief ? 'archief' : ''}" onclick="zetTab('seizoenen')">📅 Teeltjaar ${esc(seizoenNaam(bekeken) || '–')} ${archief ? '(archief)' : ''} ▾</button>`;
 }
 let seizoenStats = null;
 async function laadSeizoenStats() {
@@ -1917,13 +1920,13 @@ async function hernoemSeizoen(id) {
 }
 function nieuwSeizoenHtml() {
   const nu = actiefSeizoen(), volgende = nu && /^\d{4}$/.test(nu.naam) ? String(+nu.naam + 1) : '';
-  return `<div class="nieuwseizoen"><b>Nieuw seizoen starten</b>
+  return `<div class="nieuwseizoen"><b>Nieuw teeltjaar starten</b>
       <p class="hint">De indeling van alle percelen (wat er staat, sporen, vakken, aantal planten) en het logboek van ${esc(nu?.naam || 'nu')} blijven bewaard en kun je altijd terugkijken.</p>
       <label>Naam</label><input class="veld" id="szNaam" value="${esc(volgende)}" placeholder="bijv. 2027 of Najaar 2026">
-      <label class="vinkje"><input type="checkbox" id="szLeeg" checked> Planten-indeling leegmaken voor het nieuwe seizoen</label>
+      <label class="vinkje"><input type="checkbox" id="szLeeg"> Planten-indeling van álle percelen leegmaken (meestal niet nodig: dat doe je per perceel met 🔄 Nieuw seizoen)</label>
       <label class="vinkje"><input type="checkbox" id="szMee" checked> Open taken meenemen naar het nieuwe seizoen</label>
       <label class="vinkje"><input type="checkbox" id="szAan" checked> Uitgeschakelde percelen weer inschakelen</label>
-      <button class="knop" onclick="startSeizoen()">Nieuw seizoen starten</button></div>`;
+      <button class="knop" onclick="startSeizoen()">Nieuw teeltjaar starten</button></div>`;
 }
 function htmlSeizoenen() {
   if (!seizoenStats) laadSeizoenStats();
@@ -1933,7 +1936,7 @@ function htmlSeizoenen() {
   S.percelen.filter(p => !p.uitgeschakeld).forEach(p => teeltOppervlak(p).forEach((x, id) => { const t = teelt(id); if (t) perPlant.set(t.plantId, (perPlant.get(t.plantId) || 0) + x.m2); }));
   const gewassen = [...perPlant.entries()].sort((a, b) => b[1] - a[1]).map(([id, m2]) => { const s = soort(id);
     return `<div class="inforij"><span><i class="kl" style="background:${esc(s.kleur)}"></i>${icoonHtml(plantIcoon(s))} ${esc(s.naam)}</span><b>${ha(m2)} ha</b></div>`; }).join('');
-  return `<section class="kaartje"><h4>📅 Seizoenen</h4>
+  return `${psOverzichtHtml()}<section class="kaartje"><h4>📅 Teeltjaren <small>voor het hele bedrijf: taken, uren, oogst, verkoop, voorraad en teeltplanning</small></h4>
     ${[...S.seizoenen].reverse().map(s => { const st = seizoenStats?.[s.id];
       return `<div class="seizoenrij ${s.id === bekeken ? 'bekeken' : ''}">
         <div class="t"><b>${esc(s.naam)}</b> ${s.actief ? '<span class="badge">huidig</span>' : ''}${s.id === bekeken && !s.actief ? '<span class="badge archiefbadge">je bekijkt dit</span>' : ''}<br>
@@ -1946,8 +1949,116 @@ function htmlSeizoenen() {
   </section>
   ${verslagenHtml()}
   ${htmlSeizoenOverzicht()}
-  ${mag('seizoen_starten') ? `<section class="kaartje">${nieuwSeizoenHtml()}</section>` : ''}`;
+  <section class="kaartje">${teeltjaarStartHtml()}${mag('seizoen_starten') ? `<details style="margin-top:10px"><summary>Zelf nu een nieuw teeltjaar starten</summary>${nieuwSeizoenHtml()}</details>` : ''}</section>`;
 }
+/* ============ seizoenen per perceel ============
+   Een perceel heeft zijn eigen seizoen (bijv. "Aardbei voorjaar 2026"); er kunnen er meerdere per teeltjaar na elkaar zijn.
+   Bij een nieuw seizoen wordt wat er stond bewaard en is het perceel weer leeg (sporen, kopeinden, spuitsporen en deelvelden blijven). */
+const psVan = pid => (S.perceel_seizoenen || []).filter(x => x.perceel_id === pid);
+const psOpen = pid => psVan(pid).find(x => !x.tot);
+const psDatum = d => d ? new Date(d).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short', year: 'numeric'}) : '';
+const partijPerceelNaam = y => perceel(y?.perceel_id)?.naam || (y?.afgesloten_in ? (() => { const ps = (S.perceel_seizoenen || []).find(x => x.id === y.afgesloten_in); return ps ? `${(perceelNu(ps.perceel_id) || {}).naam || ''} (${ps.naam})` : ''; })() : '');
+const perceelNu = id => (archief && livePercelen ? livePercelen : S.percelen).find(p => p.id === id);
+const magPs = () => !archief && !isApparaat() && (recht('seizoen_starten') || recht('percelen_bewerken'));
+function psNaamVoorstel(soortId, d = new Date()) { const s = soort(soortId)?.naam || ''; return `${s ? s + ' ' : ''}${d.getMonth() < 6 ? 'voorjaar' : 'najaar'} ${d.getFullYear()}`.trim(); }
+function perceelSeizoenBlok(p) {
+  if (p.type === 'pand') return '';
+  const o = psOpen(p.id), oud = psVan(p.id).filter(x => x.tot).sort((a, b) => String(b.tot).localeCompare(String(a.tot)));
+  return `<div class="psBlok"><div class="psKop"><span>🌱 ${o ? `Seizoen <b>${esc(o.naam)}</b> <small>sinds ${psDatum(o.van)}</small>` : '<span class="hint">Nog geen seizoen gestart op dit perceel</span>'}</span>
+      ${magPs() ? `<button class="knop licht klein" style="width:auto" onclick="psNieuw('${p.id}')">${o ? '🔄 Nieuw seizoen' : '▶ Seizoen starten'}</button>` : ''}</div>
+    ${oud.length ? `<details class="psOud"><summary>📚 Eerdere seizoenen (${oud.length})</summary>${oud.map(x => `<div class="psRij"><span><b>${esc(x.naam)}</b><small>${psDatum(x.van)} – ${psDatum(x.tot)}${(x.partijen || []).length ? ` · ${(x.partijen || []).length} partijen` : ''}</small></span>
+      <button class="knop licht klein" style="width:auto" onclick="psBekijk('${x.id}')">Bekijken</button></div>`).join('')}</details>` : ''}</div>`;
+}
+async function psNieuw(pid) {
+  const p = perceel(pid), o = psOpen(pid); if (!p || !magPs()) return;
+  const partijen = partijenVan(pid), plan = (S.plantplanning || []).filter(x => x.perceel_id === pid), ingedeeld = (p.banen || []).some(Boolean) || (p.vakken || []).some(v => v.gewas || (v.banen || []).some(Boolean));
+  const heeft = partijen.length || plan.length || ingedeeld;
+  const gewassen = [...new Set([...partijen.map(x => x.soort_id), ...(p.banen || []).filter(Boolean).map(id => teelt(id)?.plantId)].filter(Boolean))];
+  const soortStd = gewassen[0] || S.soorten.find(s => /aardbei/i.test(s.naam))?.id || '';
+  const w = await formulier(`${o ? '🔄 Nieuw seizoen' : '▶ Seizoen starten'} · ${p.naam}`, [
+    ...(heeft || o ? [{type: 'uitleg', waarde: heeft ? `Op dit perceel staat nu: ${[partijen.length ? `<b>${partijen.length}</b> partij${partijen.length === 1 ? '' : 'en'}` : '', plan.length ? `<b>${plan.length}</b> plant-/zaaiplan${plan.length === 1 ? '' : 'nen'}` : '', ingedeeld ? 'een indeling op de sporen' : ''].filter(Boolean).join(', ')}. Dat wordt bewaard en het perceel wordt leeg. De sporen, kopeinden, spuitsporen en deelvelden blijven staan.` : 'Het perceel is al leeg.'},
+      {k: 'oud', label: o ? 'Het huidige seizoen afsluiten als' : 'Wat er nu staat bewaren als', waarde: o?.naam || psNaamVoorstel(soortStd, new Date(Date.now() - 120 * 864e5))}] : []),
+    {k: 'soort', label: 'Wat komt er nu', type: 'select', waarde: soortStd, opties: [['', '– nog niet bekend –'], ...S.soorten.filter(s => !/^braak$/i.test(s.naam || '')).map(s => [s.id, s.naam])]},
+    {k: 'naam', label: 'Naam van het nieuwe seizoen', waarde: (() => { let d = new Date(), v = psNaamVoorstel(soortStd, d); for (let i = 0; i < 4 && psVan(pid).some(x => x.naam === v); i++) { d = new Date(d.getFullYear(), d.getMonth() + 6, 1); v = psNaamVoorstel(soortStd, d); } return v; })(), placeholder: 'bijv. Aardbei najaar 2026'},
+    {k: 'van', label: 'Begint op', type: 'date', waarde: dKey(new Date())}], o ? 'Nieuw seizoen starten' : 'Starten');
+  if (!w) return;
+  if (!w.naam.trim()) { toast('Geef het seizoen een naam', 1); return; }
+  const {error} = await sb.rpc('perceel_seizoen_starten', {p_perceel: pid, p_naam: w.naam.trim(), p_soort: w.soort || null, p_van: w.van || dKey(new Date()), p_oud_naam: w.oud || null, p_leegmaken: true});
+  if (error) { toast(/perceel_seizoen|function/i.test(error.message) ? 'Draai eerst beheer.sql opnieuw in Supabase' : foutTekst(error), 1); return; }
+  await laadAlles(); kies(pid); toast(`🌱 ${w.naam.trim()} is gestart op ${p.naam}`);
+}
+// een eerder seizoen van een perceel bekijken: eerst een samenvatting, en dan eventueel op de kaart
+function psBekijk(id) {
+  const x = (S.perceel_seizoenen || []).find(y => y.id === id); if (!x) return;
+  const p = perceelNu(x.perceel_id), pl = x.partijen || [], pp = x.plantplanning || [];
+  const per = new Map(); pl.forEach(y => { const k = partijRas(y) || soort(y.soort_id)?.naam || '?'; const o = per.get(k) || {n: 0, m: 0}; o.n++; o.m += (y.sporen || []).reduce((a, s) => a + (s.nrs || []).length, 0); per.set(k, o); });
+  const oogst = (S.oogst || []).filter(o => o.perceel_id === x.perceel_id && (!o.datum || (o.datum >= x.van && o.datum <= x.tot)));
+  $('#modal').innerHTML = `<div class="dialoog groot"><h3>📚 ${esc(x.naam)}</h3>
+    <p class="hint">${esc(p?.naam || '')} · ${psDatum(x.van)} – ${psDatum(x.tot)}${x.afgesloten_door ? ` · afgesloten door ${esc(x.afgesloten_door)}` : ''}</p>
+    ${per.size ? `<h4 style="margin:8px 0 4px">Wat er stond</h4>${[...per].map(([k, o]) => `<div class="inforij"><span>${esc(k)}</span><b>${o.n} partij${o.n === 1 ? '' : 'en'}${o.m ? ` · ${o.m} sporen` : ''}</b></div>`).join('')}` : '<p class="hint">Er stonden geen partijen op.</p>'}
+    ${pl.length ? `<details><summary>Alle partijen (${pl.length})</summary>${pl.map(y => `<div class="inforij"><span>${esc(partijRas(y) || '?')} ${esc(y.batch || '')} ${esc(y.klasse || '')}</span><small>${esc(y.nak || '')}</small></div>`).join('')}</details>` : ''}
+    ${pp.length ? `<div class="inforij"><span>Plant-/zaaiplannen</span><b>${pp.length}</b></div>` : ''}
+    ${oogst.length ? `<div class="inforij"><span>Oogst in deze periode</span><b>${getal(oogst.reduce((a, o) => a + (+o.aantal || 0), 0))}</b></div>` : ''}
+    ${magPs() ? `<label style="margin-top:8px">Naam</label><input class="veld" id="psNaam" value="${esc(x.naam)}">` : ''}
+    <div class="rij"><button class="knop licht" id="mNee">Sluiten</button>${magPs() ? '<button class="knop licht" id="psOpsl">Naam opslaan</button>' : ''}${x.gegevens ? '<button class="knop" id="psKaart">🗺️ Op de kaart bekijken</button>' : ''}</div></div>`;
+  const m = $('#modal'); m.classList.add('open'); $('#mNee').onclick = () => m.classList.remove('open');
+  if ($('#psKaart')) $('#psKaart').onclick = () => { m.classList.remove('open'); psOpKaart(id); };
+  if ($('#psOpsl')) $('#psOpsl').onclick = async () => { const n = $('#psNaam').value.trim(); if (!n) return; const {error} = await sb.from('perceel_seizoenen').update({naam: n}).eq('id', id); if (error) { toast(foutTekst(error), 1); return; } x.naam = n; m.classList.remove('open'); render(true); };
+}
+let PSA = null;   // bekijken van een eerder seizoen van één perceel
+function psOpKaart(id) {
+  const x = (S.perceel_seizoenen || []).find(y => y.id === id); if (!x?.gegevens) return;
+  if (archief && !PSA) { toast('Ga eerst terug naar het huidige teeltjaar', 1); return; }
+  if (PSA) psTerug(true);
+  PSA = {id, naam: x.naam, pid: x.perceel_id, partijen: S.partijen, plan: S.plantplanning};
+  livePercelen = S.percelen; archief = true;
+  S.percelen = S.percelen.map(p => p.id === x.perceel_id ? {...p, ...x.gegevens, id: p.id} : p);
+  S.partijen = [...(S.partijen || []).filter(y => y.perceel_id !== x.perceel_id), ...(x.partijen || []).map(y => ({...y}))];
+  S.plantplanning = [...(S.plantplanning || []).filter(y => y.perceel_id !== x.perceel_id), ...(x.plantplanning || [])];
+  banenCache.clear(); vulCache.clear(); stukCache.clear(); spoorPartijMap = null; kwast = undefined; gereedschap = undefined;
+  toonArchiefBalk(); kies(x.perceel_id); kaartTonen?.(true); render(true); toast(`Je bekijkt ${x.naam}`);
+}
+function psTerug(stil) {
+  if (!PSA) return; const pid = PSA.pid;
+  S.percelen = livePercelen || S.percelen; livePercelen = null; archief = false; S.partijen = PSA.partijen; S.plantplanning = PSA.plan; PSA = null;
+  banenCache.clear(); vulCache.clear(); stukCache.clear(); spoorPartijMap = null; toonArchiefBalk(); if (!stil) { kies(pid); render(true); }
+}
+// overzicht op het blad Teeltjaren: welke seizoenen lopen er op welke percelen
+function psOverzichtHtml() {
+  const open = (S.perceel_seizoenen || []).filter(x => !x.tot && perceelNu(x.perceel_id)), per = new Map();
+  open.forEach(x => { const k = x.naam; if (!per.has(k)) per.set(k, []); per.get(k).push(x); });
+  const zonder = (archief ? livePercelen || [] : S.percelen).filter(p => p.type !== 'pand' && !p.uitgeschakeld && !psOpen(p.id));
+  const dicht = (S.perceel_seizoenen || []).filter(x => x.tot && x.seizoen_id === bekeken);
+  return `<section class="kaartje"><h4>🌱 Seizoenen op de percelen <small>elk perceel heeft zijn eigen seizoen; meerdere na elkaar in één teeltjaar kan</small></h4>
+    ${per.size ? [...per].sort((a, b) => a[0].localeCompare(b[0], 'nl')).map(([n, l]) => `<div class="psGroep"><b>${esc(n)}</b> <small>${l.length} perce${l.length === 1 ? 'el' : 'len'}</small>
+      <div class="psChips">${l.map(x => `<button class="pzChip" onclick="${archief ? '' : `kiesSectie('velden');zetTab('percelen');kies('${x.perceel_id}');kaartTonen?.(true)`}">${esc(perceelNu(x.perceel_id)?.naam || '?')} <small>${psDatum(x.van)}</small></button>`).join('')}</div></div>`).join('')
+      : '<p class="hint">Er loopt nog op geen enkel perceel een seizoen. Start er een via het perceel: 🌱 ▶ Seizoen starten.</p>'}
+    ${zonder.length && per.size ? `<small class="hint">Zonder seizoen: ${zonder.slice(0, 30).map(p => esc(p.naam)).join(', ')}${zonder.length > 30 ? ` en nog ${zonder.length - 30}` : ''}</small>` : ''}
+    ${dicht.length ? `<details style="margin-top:6px"><summary>📚 Afgesloten in dit teeltjaar (${dicht.length})</summary>${dicht.map(x => `<div class="psRij"><span><b>${esc(x.naam)}</b> · ${esc(perceelNu(x.perceel_id)?.naam || '')}<small>${psDatum(x.van)} – ${psDatum(x.tot)}</small></span><button class="knop licht klein" style="width:auto" onclick="psBekijk('${x.id}')">Bekijken</button></div>`).join('')}</details>` : ''}</section>`;
+}
+// teeltjaar: elk jaar vanzelf op dezelfde dag
+const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+function teeltjaarStartHtml() {
+  const v = S.inst?.teeltjaar_start || '', [m, d] = v ? v.split('-').map(Number) : [0, 0], magZ = !archief && (isBeheerder() || recht('seizoen_starten'));
+  let volgende = ''; if (m) { const nu = new Date(), t = new Date(nu.getFullYear(), m - 1, d); if (t <= nu) t.setFullYear(t.getFullYear() + 1); volgende = t.toLocaleDateString('nl-NL', {day: 'numeric', month: 'long', year: 'numeric'}); }
+  return `<div class="nieuwseizoen"><b>Nieuw teeltjaar: elk jaar vanzelf</b>
+    <p class="hint">${m ? `Elk jaar op <b>${d} ${MAANDEN[m - 1]}</b> begint vanzelf een nieuw teeltjaar. Het volgende begint op <b>${volgende}</b>. Er wordt niets leeggemaakt: wat op de percelen staat blijft staan, open taken gaan mee.` : 'Stel in op welke dag elk jaar het nieuwe teeltjaar begint. Er wordt dan niets leeggemaakt; per perceel start je zelf een nieuw seizoen als het veld leeg is.'}</p>
+    ${magZ ? `<div class="rij" style="gap:6px;flex-wrap:wrap"><select class="veld" id="tjDag" style="width:90px">${Array.from({length: 31}, (_, i) => `<option ${i + 1 === d ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>
+      <select class="veld" id="tjMaand" style="width:150px"><option value="">– geen –</option>${MAANDEN.map((x, i) => `<option value="${i + 1}" ${i + 1 === m ? 'selected' : ''}>${x}</option>`).join('')}</select>
+      <button class="knop licht" style="width:auto" onclick="teeltjaarStartOpslaan()">Opslaan</button></div>` : ''}</div>`;
+}
+async function teeltjaarStartOpslaan() {
+  const m = +$('#tjMaand').value, d = +$('#tjDag').value, w = m ? `${String(m).padStart(2, '0')}-${String(Math.min(d, [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1])).padStart(2, '0')}` : '';
+  const {error} = await sb.rpc('zet_instelling', {p_sleutel: 'teeltjaar_start', p_waarde: w}); if (error) { toast(/Onbekende instelling/.test(error.message) ? 'Draai eerst beheer.sql opnieuw in Supabase' : foutTekst(error), 1); return; }
+  S.inst = {...(S.inst || {}), teeltjaar_start: w || null}; render(true); toast(w ? `✓ Het teeltjaar begint voortaan op ${Math.min(d, 31)} ${MAANDEN[m - 1]}` : 'Automatisch starten staat uit');
+  teeltjaarCheck(true);
+}
+let tjGecheckt = '';
+async function teeltjaarCheck(nu) {   // eenmaal per dag: is het nieuwe teeltjaar begonnen?
+  const vandaagK = dKey(new Date()); if (archief || isApparaat() || (!nu && tjGecheckt === vandaagK)) return; tjGecheckt = vandaagK;
+  try { const {data} = await sb.rpc('teeltjaar_automatisch'); if (data) { toast(`📅 Nieuw teeltjaar ${data} is begonnen`); await laadAlles(); } } catch {}
+}
+
 function seizoenMenu() { zetTab('seizoenen'); }
 function oudSeizoenMenu() {
   const beh = mag('seizoen_starten'), nu = actiefSeizoen(), hist = ziet('historie_bekijken');
@@ -1959,7 +2070,7 @@ function oudSeizoenMenu() {
     ${beh ? `<div class="nieuwseizoen"><b>Nieuw seizoen starten</b>
       <p class="hint">De indeling van alle percelen (wat er staat, sporen, vakken) en het logboek van ${esc(nu?.naam || 'nu')} blijven bewaard en kun je altijd terugkijken.</p>
       <label>Naam</label><input class="veld" id="szNaam" value="${esc(volgende)}" placeholder="bijv. 2027 of Najaar 2026">
-      <label class="vinkje"><input type="checkbox" id="szLeeg" checked> Planten-indeling leegmaken voor het nieuwe seizoen</label>
+      <label class="vinkje"><input type="checkbox" id="szLeeg"> Planten-indeling van álle percelen leegmaken (meestal niet nodig: dat doe je per perceel met 🔄 Nieuw seizoen)</label>
       <label class="vinkje"><input type="checkbox" id="szMee" checked> Open taken meenemen naar het nieuwe seizoen</label>
       <label class="vinkje"><input type="checkbox" id="szAan" checked> Uitgeschakelde percelen weer inschakelen</label>
       <button class="knop" id="szStart">Nieuw seizoen starten</button></div>` : ''}
@@ -2215,7 +2326,7 @@ function logRegel(x, metPerceel) {
 }
 function logboekHtml(p) {
   const lijst = logItems(p.id);
-  return `<section class="kaartje"><h4>📒 Logboek · seizoen ${esc(seizoenNaam(bekeken))}</h4>
+  return `<section class="kaartje"><h4>📒 Logboek · teeltjaar ${esc(seizoenNaam(bekeken))}</h4>
     ${mag('werk_registreren') ? `<button class="knop licht" style="margin:0 0 6px" onclick="taakFormulier(null, true)">✓ Werk registreren</button>` : ''}
     <p class="hint" style="margin:2px 0 6px">Rooien en frezen zetten de sporen op braak. Met ↩️ draai je werk terug.</p>
     ${lijst.map(x => logRegel(x)).join('') || '<p class="hint">Nog niets uitgevoerd op dit perceel in dit seizoen.</p>'}
@@ -2636,7 +2747,7 @@ async function bewerkRas(id, nieuw) {
       ${nieuw ? '<p class="hint">Nieuwe soort aangemaakt. Vul hieronder meteen de partijgegevens in (batch, NAK-nummer, klasse…), of doe het later.</p>' : ''}
       <label>Naam van de soort</label><input class="veld" id="rbNaam" value="${esc(r.naam)}" ${mag('soorten_beheren') ? '' : 'disabled'}>
       <label>📝 Aantekeningen</label><textarea class="veld" id="rbNot" rows="3" placeholder="bijv. vroeg/laat ras, gevoelig voor ziektes, opbrengst vorig jaar, leverancier…" ${mag('soorten_beheren') ? '' : 'disabled'}>${esc(r.notitie || '')}</textarea>
-      <label>🏷️ Partijen (seizoen ${esc(seizoenNaam(bekeken))})</label>
+      <label>🏷️ Partijen (teeltjaar ${esc(seizoenNaam(bekeken))})</label>
       <div id="rbPartijen">${pr.length ? partijLijstPerPerceel(pr) : '<p class="hint">Nog geen partijen van deze soort.</p>'}</div>
       ${mag('partijen_beheren') ? `<button class="knop licht" id="rbNieuw">➕ Partij toevoegen (batch, NAK, klasse…)</button>` : ''}
       <button class="knop" id="mJa">Opslaan</button><button class="knop licht" id="mNee">Sluiten</button></div>`;
@@ -4524,7 +4635,7 @@ function htmlDetail(p) {
           : `<p class="hint">Kies een plant (en eventueel de soort) en tik daarna op de sporen op de kaart. Wisselt de plant halverwege een spoor? Gebruik dan ✂️.</p>`}`;
     }
     soortenBlok = `<section class="kaartje"><h4>${zones.length ? 'Planten per spoor' : '🌱 Wat staat er'}</h4>${indelen}<table class="verdeling">${rijen}${kopRij}</table></section>`;
-    verdeling = `<section class="kaartje"><h4>🌱 Wat staat er (seizoen ${esc(seizoenNaam(bekeken))})</h4><table class="verdeling">${rijen}${kopRij}</table></section>`;
+    verdeling = `<section class="kaartje"><h4>🌱 Wat staat er (teeltjaar ${esc(seizoenNaam(bekeken))})</h4><table class="verdeling">${rijen}${kopRij}</table></section>`;
   }
   const bew = mag('percelen_bewerken'), uit = bew ? '' : 'disabled';
   const perceelRecht = PERCEEL_RECHTEN.some(r => mag(r)), notitieRecht = mag('markeringen_maken') || mag('gerooid_aangeven') || mag('kopeinden_bewerken');
@@ -4621,6 +4732,7 @@ function htmlDetail(p) {
     <div><b>${totaalSporen || '–'}</b><small>sporen</small></div>
     <div><b>${open.length}</b><small>open taken</small></div></div>
   ${p.type !== 'pand' && !p.uitgeschakeld ? opstaandHtml(p) : ''}
+  ${perceelSeizoenBlok(p)}
   ${partijSamenvatting(p)}
   ${PZ && PZ.pid === p.id ? pzPaneel(p) : `${p.type !== 'pand' && !p.uitgeschakeld && !isApparaat() ? (() => { const h = tpPerceelInfo(p); return h ? `<section class="kaartje">${h}</section>` : ''; })() : ''}${!p.uitgeschakeld && (mag('soorten_indelen') || mag('taken_toevoegen')) ? pzPerceelBlok(p) : ''}`}
   ${vgtVan(p.id) && perceelTab !== 'oogst' && perceelTab !== 'info' ? `<div class="vgtbalk">${vgtTekst(vgtVan(p.id))}</div>` : ''}
@@ -5044,7 +5156,7 @@ function renderAgenda() {
   const namen = [...medewerkers()].sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
   const mijnOpen = S.taken.filter(t => !t.klaar && isMijnTaak(t)).length;
   el.innerHTML = `<div class="agkop">
-      <div class="agtitel">📆 ${agTab === 'mij' ? 'Mijn agenda' : 'Agenda'}${archief ? ` <small>(seizoen ${esc(seizoenNaam(bekeken))})</small>` : ''}</div>
+      <div class="agtitel">📆 ${agTab === 'mij' ? 'Mijn agenda' : 'Agenda'}${archief ? ` <small>(teeltjaar ${esc(seizoenNaam(bekeken))})</small>` : ''}</div>
       <div class="schakel agschakel">${[['dag', 'Dag'], ['week', 'Week'], ['maand', 'Maand']].map(([k, l]) => `<button class="${agModus === k ? 'aan' : ''}" onclick="agZet('modus','${k}')">${l}</button>`).join('')}</div>
       <div class="plannav"><button onclick="agBladeren(-1)">‹</button><b>${titel}</b><button onclick="agBladeren(1)">›</button></div>
       <button class="knop licht klein" onclick="agZet('datum',new Date())">Vandaag</button>
@@ -5959,7 +6071,7 @@ function toonMenu() {
     <span class="mTekst"><b>${titel}</b><small>${uitleg}</small>${info ? `<span class="mInfo">${info}</span>` : ''}</span>${extra}</button>`;
   el.innerHTML = `<div class="mBinnen">
     <div class="mKop"><div><div class="mLogo">🌾 Perceel App</div><h1>${groet}, ${esc((naamMe() || '').split(' ')[0])}</h1>
-      <p>${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})} · seizoen ${esc(seizoenNaam(bekeken))}${isApparaat() ? ` · <b>🚜 tablet ${esc(tabletNaam())}</b>` : ''}</p></div>
+      <p>${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})} · teeltjaar ${esc(seizoenNaam(bekeken))}${isApparaat() ? ` · <b>🚜 tablet ${esc(tabletNaam())}</b>` : ''}</p></div>
       <button class="mUit" title="Uitloggen" onclick="${isApparaat() ? 'tmUitloggen()' : 'uitloggen()'}">🚪</button></div>
     ${klokplicht() && !isBeheerder() && !isApparaat() && !klokOpen(me?.id, naamMe()) ? '<div class="mKlok">⏰ Je bent vandaag nog niet ingeklokt. Klok in op de iPad in de kantine; dan kun je taken oppakken en afvinken.</div>' : ''}
     <div class="mTegels">
@@ -6420,7 +6532,7 @@ function htmlPartijen() {
     .sort((a, b) => (perceel(a.perceel_id)?.naam || a.perceel_tekst || '').localeCompare(perceel(b.perceel_id)?.naam || b.perceel_tekst || '', 'nl') || partijRas(a).localeCompare(partijRas(b), 'nl'));
   const soorten = [...new Set(alle.map(x => x.soort_id).filter(Boolean))].map(soort).filter(Boolean);
   const zonder = alle.filter(x => !x.perceel_id || !perceel(x.perceel_id)).length;
-  return `<section class="kaartje"><h4>🏷️ Partijen <small style="font-weight:400;color:var(--grijs)">seizoen ${esc(seizoenNaam(bekeken))}</small></h4>
+  return `<section class="kaartje"><h4>🏷️ Partijen <small style="font-weight:400;color:var(--grijs)">teeltjaar ${esc(seizoenNaam(bekeken))}</small></h4>
     ${mag('partijen_beheren') ? `<div class="rij"><button class="knop" onclick="partijenToevoegen(actief && perceel(actief) ? actief : '')">🏷️ Partijen toevoegen</button><button class="knop licht" onclick="teeltKiesBestand()">📥 Excel inladen</button>${alle.length ? `<button class="knop licht" onclick="partijenExcel()">⬇️ Excel</button>` : ''}</div>
       <p class="hint">Een Excel-lijst met per perceel de partijen (ras, batch, NAK-nummer, klasse, doel). Elk tabblad is een gewas. Je kunt het bestand ook gewoon op de app slepen. Opnieuw inladen werkt de gegevens bij.</p>` : ''}
     ${alle.length ? `<input class="veld" placeholder="🔎 Zoek perceel, ras, batch of NAK-nummer…" value="${esc(partijZoek)}" oninput="partijZoek=this.value;clearTimeout(window._pz);window._pz=setTimeout(()=>{render();const z=document.querySelector('#partijZoekVeld');if(z){z.focus();z.setSelectionRange(z.value.length,z.value.length)}},300)" id="partijZoekVeld">
@@ -6581,12 +6693,12 @@ function partijenToevoegenTeken() {
       <p class="hint">Een nieuwe regel neemt ras, klasse en doel over van de regel erboven, dus vaak hoef je alleen het batchnummer in te vullen.${mag('soorten_beheren') ? ' Een ras dat nog niet bestaat wordt meteen aangemaakt.' : ''}</p>`;
   } else {
     const z = normTekst(x.zoek);
-    const lijst = (S.partijen || []).filter(y => y.perceel_id !== x.pid && (!z || normTekst([perceel(y.perceel_id)?.naam, y.perceel_tekst, partijRas(y), soort(y.soort_id)?.naam, y.batch, y.nak, y.klasse, y.doel].join(' ')).includes(z)))
+    const lijst = (S.partijen || []).filter(y => y.perceel_id !== x.pid && (!z || normTekst([partijPerceelNaam(y), y.perceel_tekst, partijRas(y), soort(y.soort_id)?.naam, y.batch, y.nak, y.klasse, y.doel].join(' ')).includes(z)))
       .sort((a, b) => partijRas(a).localeCompare(partijRas(b), 'nl') || String(a.batch || '').localeCompare(String(b.batch || '')));
     inhoud = `<input class="veld" id="peZoek" placeholder="🔎 Zoek ras, batch, NAK of perceel…" value="${esc(x.zoek)}" oninput="PE.zoek=this.value;clearTimeout(window._pez);window._pez=setTimeout(()=>{partijenToevoegenTeken();const i=$('#peZoek');i.focus();i.setSelectionRange(i.value.length,i.value.length)},250)">
       <div class="peKies">${lijst.slice(0, 200).map(y => `<label class="peKiesRij"><input type="checkbox" ${x.gekozen.has(y.id) ? 'checked' : ''} onchange="this.checked?PE.gekozen.add('${y.id}'):PE.gekozen.delete('${y.id}');$('#peTel').textContent=PE.gekozen.size">
           <span><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${[y.batch ? 'batch ' + esc(y.batch) : '', y.klasse ? esc(y.klasse) : '', y.doel ? esc(y.doel) : ''].filter(Boolean).join(' · ')}${y.bio ? ' <span class="badge bio">BIO</span>' : ''}
-          <small>📍 ${esc(perceel(y.perceel_id)?.naam || y.perceel_tekst || 'niet gekoppeld')}</small></span></label>`).join('') || '<p class="hint">Geen partijen gevonden.</p>'}
+          <small>📍 ${esc(partijPerceelNaam(y) || y.perceel_tekst || 'niet gekoppeld')}</small></span></label>`).join('') || '<p class="hint">Geen partijen gevonden.</p>'}
         ${lijst.length > 200 ? `<p class="hint">…en nog ${lijst.length - 200}, zoek gerichter.</p>` : ''}</div>
       <label class="vinkje"><input type="checkbox" ${x.kopie ? 'checked' : ''} onchange="PE.kopie=this.checked"> Ook op het oude perceel laten staan (kopie maken)</label>`;
   }
@@ -7591,7 +7703,7 @@ function htmlResRapport() {
   const tP = tot('progTot'), tV = rij.reduce((a, y) => a + n0(y.c.verwacht ?? y.c.progTot), 0), tG = tot('gesorteerd'), tM = tot('totM'), tGM = tot('gerM');
   const teelten = [...new Set(resPartijen().map(partijTeelt).filter(Boolean))];
   const kaartje = (l, v, s) => `<div class="resTegel"><small>${l}</small><b>${v}</b>${s ? `<small>${s}</small>` : ''}</div>`;
-  return `<section class="kaartje"><h4>📊 Resultaten · seizoen ${esc(seizoenNaam(bekeken))}</h4>
+  return `<section class="kaartje"><h4>📊 Resultaten · teeltjaar ${esc(seizoenNaam(bekeken))}</h4>
     <div class="rij" style="flex-wrap:wrap;gap:6px"><input class="veld" style="flex:1;min-width:160px" placeholder="🔍 NAK, batch, ras, perceel…" value="${esc(resZoek)}" oninput="resZoek=this.value;clearTimeout(resZoek.t);setTimeout(()=>render(true),300)">
       <select class="veld" style="flex:0 0 auto;width:auto" onchange="resTeelt=this.value;render(true)"><option value="">Alle teelten</option>${teelten.map(t => `<option ${t === resTeelt ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
       <button class="knop licht" style="flex:0 0 auto;width:auto" onclick="resExcel()">📊 Excel</button></div>
@@ -10292,22 +10404,26 @@ const seizoenStart = () => { const s = S.seizoenen.find(x => x.id === bekeken); 
 const seizoenEind = () => { const lijst = [...S.seizoenen].sort((a, b) => new Date(a.gestart) - new Date(b.gestart)), i = lijst.findIndex(x => x.id === bekeken); return lijst[i + 1] ? new Date(lijst[i + 1].gestart) : new Date(8.64e15); };
 async function laadBedrijf() {
   const q = (t, f) => f(sb.from(t).select('*')).then(r => r.error ? null : r.data).catch(() => null);
-  const [md, oo, ma, ml, ko, me2, pa, mo, pm, wn, pb, rp, ppl, vbb, vbr] = await Promise.all([
+  const [md, oo, ma, ml, ko, me2, pa, mo, pm, wn, pb, rp, ppl, psz, vbb, vbr] = await Promise.all([
     q('middelen', x => x.order('naam')),
     q('oogst', x => bekeken ? x.eq('seizoen_id', bekeken).order('datum') : x.order('datum')),
     q('machines', x => x.order('naam')),
     q('machine_log', x => x.order('datum', {ascending: false}).limit(500)),
     q('kosten', x => bekeken ? x.eq('seizoen_id', bekeken).order('datum') : x.order('datum')),   // zonder recht geeft de database niets terug
     q('meldingen', x => x.order('created_at', {ascending: false}).limit(60)),
-    q('partijen', x => bekeken ? x.eq('seizoen_id', bekeken) : x),
+    q('partijen', x => bekeken ? (archief ? x.eq('seizoen_id', bekeken) : x.or(`seizoen_id.eq.${bekeken},and(afgesloten_in.is.null,perceel_id.not.is.null)`)) : x),
     q('monsters', x => x.order('datum', {ascending: false})),
     q('partij_mutaties', x => x.order('datum')),
     q('waarnemingen', x => x.order('datum', {ascending: false}).limit(2000)),
     q('plantbehoefte', x => x.order('created_at')),
     q('rooiplanning', x => x.gte('datum', new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10)).order('datum')),
-    q('plantplanning', x => bekeken ? x.eq('seizoen_id', bekeken).order('datum') : x.order('datum')),
+    q('plantplanning', x => bekeken && archief ? x.eq('seizoen_id', bekeken).order('datum') : x.is('afgesloten_in', null).order('datum')),
+    q('perceel_seizoenen', x => x.order('van')),
     q('voorraad_bestemmingen', x => x.order('created_at')), q('voorraad_reserveringen', x => x.order('created_at'))]);
-  S.voorraad_bestemmingen = vbb || []; S.voorraad_reserveringen = vbr || [];
+  S.voorraad_bestemmingen = vbb || []; S.voorraad_reserveringen = vbr || []; S.perceel_seizoenen = psz || [];
+  // partijen van een vorig teeltjaar die nog in de koelcel liggen ook laden
+  if (pa && pm && !archief) { const al = new Set(pa.map(x => x.id)), som = {}; pm.forEach(m => { if (al.has(m.partij_id)) return; som[m.partij_id] = (som[m.partij_id] || 0) + (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0) * (m.eenheid && m.eenheid !== 'planten' ? (+m.per_eenheid || 1) : 1); });
+    const ids = Object.keys(som).filter(k => som[k] > .5); if (ids.length) { const {data} = await sb.from('partijen').select('*').in('id', ids.slice(0, 300)); if (data) pa.push(...data); } }
   S.rooiplanning = rp || []; S.plantplanning = ppl || []; laadKlok(); laadResultaten().then(() => { if (/^res|gebeurtenissen|uren|mij/.test(tab)) render(true); }); setTimeout(() => rooiSyncRollen().catch(() => {}), 1500);
   S.partijen = pa || []; partijenVanSporen(); S.monsters = mo || []; S.partij_mutaties = pm || []; S.waarnemingen = wn || []; S.plantbehoefte = pb || [];
   S.middelen = md || []; S.oogst = oo || []; S.machines = ma || []; S.machine_log = ml || []; S.kosten = ko || []; S.meldingen = me2 || [];
@@ -10512,7 +10628,7 @@ function htmlMiddelen(alleenCat) {
     <p class="hint">Bij het afronden van een taak met een middel uit deze lijst gaat het verbruik (dosering × oppervlakte) automatisch van de voorraad af.</p>
   </section>
   <section class="kaartje"><h4>📒 Spuitlogboek</h4>
-    <p class="hint" style="margin-top:0">Alle bespuitingen en bemestingen van seizoen ${esc(seizoenNaam(bekeken))} met datum, perceel, gewas, middel, toelatingsnummer, dosering en wie het deed. Handig voor controles en certificering.</p>
+    <p class="hint" style="margin-top:0">Alle bespuitingen en bemestingen van teeltjaar ${esc(seizoenNaam(bekeken))} met datum, perceel, gewas, middel, toelatingsnummer, dosering en wie het deed. Handig voor controles en certificering.</p>
     <button class="knop licht" onclick="spuitlogExcel()">📊 Spuitlogboek als Excel</button></section>`;
 }
 function teeltNamen(p) { return [...teeltOppervlak(p).keys()].map(id => teelt(id)?.naam).filter(Boolean).join(', '); }
@@ -10603,7 +10719,7 @@ function htmlOogst(p) {
   const dagRijen = [...dagen.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 14).map(([d, n]) => { const u = urenOpDag(d);
     return `<tr><td>${datumLang(d + 'T12:00')}</td><td>${getal(n)}</td><td>${u ? getal(u, 1) + ' u' : '–'}</td><td>${u ? getal(n / u) : '–'}</td></tr>`; }).join('');
   return `${vgt ? `<div class="vgtbalk">${vgtTekst(vgt)}</div>` : ''}
-    <section class="kaartje"><h4>🌱 Oogst · seizoen ${esc(seizoenNaam(bekeken))}</h4>
+    <section class="kaartje"><h4>🌱 Oogst · teeltjaar ${esc(seizoenNaam(bekeken))}</h4>
     ${!archief && (reg || mag('gerooid_aangeven')) ? `<div class="rij" style="margin:0 0 10px">${reg ? `<button class="knop" style="margin:0" onclick="oogstFormulier('${p.id}')">＋ Oogst registreren</button>` : ''}
       ${mag('gerooid_aangeven') ? `<button class="knop licht" style="margin:0" onclick="gerooidAangeven('${p.id}')">⛏️ Gerooid aangeven</button>` : ''}</div>` : ''}
     <div class="oogsttotaal"><div><b>${getal(totaal)}</b><small>planten van het veld</small></div><div><b>${getal(totaal / (opp / 10000))}</b><small>planten per ha</small></div></div>
@@ -10636,7 +10752,7 @@ function htmlOogstTotaal() {
   const totaal = [...per.values()].reduce((a, b) => a + b, 0);
   const week = new Map(); (S.oogst || []).forEach(o => { const d = new Date(o.datum + 'T12:00'), k = `${d.getFullYear()}-W${String(weekNr(d)).padStart(2, '0')}`; week.set(k, (week.get(k) || 0) + oogstPlanten(o)); });
   const weken = [...week.entries()].sort().slice(-12), max = Math.max(1, ...weken.map(w => w[1]));
-  return `<section class="kaartje"><h4>🌱 Oogst · seizoen ${esc(seizoenNaam(bekeken))}</h4>
+  return `<section class="kaartje"><h4>🌱 Oogst · teeltjaar ${esc(seizoenNaam(bekeken))}</h4>
     <div class="oogsttotaal"><div><b>${getal(totaal)}</b><small>planten totaal</small></div><div><b>${per.size}</b><small>percelen</small></div></div>
     ${weken.length ? `<div class="infosub">Per week</div><div class="weekgrafiek">${weken.map(([k, n]) => `<div title="${k}: ${getal(n)} planten"><i style="height:${n / max * 100}%"></i><span>${k.split('-W')[1]}</span></div>`).join('')}</div>` : ''}
     ${[...per.entries()].sort((a, b) => b[1] - a[1]).map(([pid, n]) => `<div class="inforij" style="cursor:pointer" onclick="kies('${pid}');perceelTab='oogst';render(true)"><span>${esc(perceel(pid)?.naam || '?')}</span><b>${getal(n)} pl</b></div>`).join('') || '<p class="hint">Nog geen oogst geregistreerd. Open een perceel → tabblad 🌱 Oogst.</p>'}
@@ -10938,7 +11054,7 @@ function htmlKosten() {
   const rijen = velden.map(p => ({p, k: kostenVan(p.id)})).sort((a, b) => b.k.totaal - a.k.totaal);
   const alg = (S.kosten || []).filter(k => !k.perceel_id).reduce((s, k) => s + +k.bedrag, 0);
   const tot = rijen.reduce((s, r) => s + r.k.totaal, 0) + alg;
-  return `<section class="kaartje"><h4>💶 Kosten · seizoen ${esc(seizoenNaam(bekeken))}</h4>
+  return `<section class="kaartje"><h4>💶 Kosten · teeltjaar ${esc(seizoenNaam(bekeken))}</h4>
     <div class="oogsttotaal"><div><b>${geld(tot)}</b><small>totaal</small></div><div><b>${S.inst.uurtarief ? geld(S.inst.uurtarief) : '–'}</b><small>uurtarief${magInstellingen() ? ` · <a href="#" onclick="zetUurtarief();return false">wijzig</a>` : ''}</small></div></div>
     ${!S.inst.uurtarief ? `<p class="hint">${magInstellingen() ? 'Stel een uurtarief in' : 'De beheerder heeft nog geen uurtarief ingesteld'}, dan tellen de geklokte uren mee als arbeidskosten.</p>` : ''}
     ${!ziet('uren_bekijken') ? '<p class="hint">Je ziet alleen je eigen uren, dus de arbeidskosten zijn niet volledig.</p>' : ''}
@@ -11114,7 +11230,7 @@ function tpTotaalHtml() {
 function htmlTeeltplan() {
   if (TP.fout) return `<section class="kaartje"><p class="hint">${/teeltplanning/.test(TP.fout) ? 'Draai eerst beheer.sql opnieuw in Supabase.' : esc(TP.fout)}</p></section>`;
   if (!TP.geladen) return '<section class="kaartje"><p class="hint">Laden…</p></section>';
-  const beh = isBeheerder() || mag('taken_toevoegen') || mag('resultaten_beheren'), dis = beh ? '' : 'disabled', rs = tpRassen();
+  const beh = !archief && (isBeheerder() || mag('taken_toevoegen') || mag('resultaten_beheren')), dis = beh ? '' : 'disabled', rs = tpRassen();
   const bladen = [['uitkomst', '📊 Uitkomst'], ['verkoop', '💶 Verwachte verkoop'], ['opkweek', '🌱 Opkweek'], ['derden', '📦 Van derden'], ['indeling', '🗺️ Indeling percelen'], ['ken', '⚙️ Kengetallen']];
   const inp = (rid, pad, v, ph = '') => `<input class="tpIn" type="text" inputmode="decimal" ${dis} value="${v != null && v !== '' ? esc(tpG(v, 2)) : ''}" placeholder="${esc(ph)}" onchange="tpZet(${rid ? `'${rid}'` : 'null'},'${pad}',this.value)">`;
   const tabel = (kop, rij) => `<div class="tpScroll"><table class="tpTab"><thead><tr><th>Ras</th>${kop.map(k => `<th>${k}</th>`).join('')}</tr></thead><tbody>${rs.map(r => `<tr><td><b>${esc(r.naam)}</b></td>${rij(r)}</tr>`).join('')}</tbody></table></div>`;
@@ -11494,7 +11610,7 @@ function tpImpVoorbeeld() {
   const rn = Object.keys(rassen).sort((a, b) => (!!rassen[a] - !!rassen[b]) || a.localeCompare(b, 'nl'));
   const onb = Object.entries(uit.onbekend);
   $('#modal').innerHTML = `<div class="dialoog breed"><h3>📥 Teeltplanning inlezen</h3>
-    <p class="hint">${esc(TPI.bestand)} · seizoen ${esc(seizoenNaam(bekeken))}. Gelezen: ${uit.blad.map(esc).join(' en ')}.</p>
+    <p class="hint">${esc(TPI.bestand)} · teeltjaar ${esc(seizoenNaam(bekeken))}. Gelezen: ${uit.blad.map(esc).join(' en ')}.</p>
     ${pn.length ? `<h4 style="margin:12px 0 4px">1. Percelen (${pn.length})</h4><p class="hint">Welk perceel in de app hoort bij de naam in Excel? Dit wordt onthouden voor de volgende keer.</p>
       <div class="tpImpLijst">${pn.map(n => `<div class="tpImpRij ${koppel[n] ? '' : 'mist'}"><span><b>${esc(n)}</b><small>${tpG(ha(n), 2)} ha ingedeeld${uit.percelen[n]?.netto ? ` · ${tpG(uit.percelen[n].netto, 2)} ha netto in Excel` : ''}</small></span><select class="veld" onchange="TPI.koppel[${esc(JSON.stringify(n))}]=this.value;tpImpVoorbeeld()">${pOpt(koppel[n])}</select></div>`).join('')}</div>` : ''}
     ${Object.keys(TPI.delen).length ? `<h4 style="margin:12px 0 4px">Teeltplanning</h4><div class="tpImpLijst" style="max-height:none">${TP_IMP_DELEN.filter(([d]) => d in TPI.delen).map(([d, t]) => { const n = d === 'ken' ? Object.keys(uit.plan.ken[TPI.kenBlad]?.ras || {}).length : new Set([...(uit.plan.delen[d] || []), ...(d === 'verkoop' ? uit.plan.delen.act || [] : [])]).size;
@@ -11987,7 +12103,7 @@ function spuitregisterCsv() {
 function htmlSpuitregister() {
   const rijen = spuitRegisterRijen(), velden = S.percelen.filter(p => p.type !== 'pand').sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
   const d = x => new Date(x).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'}), tijd = x => new Date(x).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'});
-  return `<section class="kaartje"><h4>📒 Spuitregister · seizoen ${esc(seizoenNaam(bekeken))}</h4>
+  return `<section class="kaartje"><h4>📒 Spuitregister · teeltjaar ${esc(seizoenNaam(bekeken))}</h4>
     <p class="hint" style="margin-top:0">Alle toepassingen met datum en tijd, perceel, gewas, middel, toelatingsnummer, dosering, het weer op dat moment en de veiligheidstermijn. Geschikt voor Skal en GLOBALG.A.P.</p>
     <div class="rij" style="flex-wrap:wrap"><select class="veld" style="flex:1 1 150px;margin:0" onchange="srPerceel=this.value;render(true)"><option value="">Alle percelen</option>${velden.map(p => `<option value="${p.id}" ${srPerceel === p.id ? 'selected' : ''}>${esc(p.naam)}</option>`).join('')}</select>
       <select class="veld" style="flex:1 1 150px;margin:0" onchange="srSoort=this.value;render(true)">${[['spuiten', 'Gewasbescherming'], ['bemesting', 'Bemesting'], ['alles', 'Alles']].map(([k, l]) => `<option value="${k}" ${srSoort === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
@@ -12148,7 +12264,7 @@ async function mutatieFormulier(partijId, soortVast, id) {
   const vorige = mutatiesVan(m.partij_id || '').filter(x => x.soort === 'in').pop();
   const lijst = k => [...new Set((S.partij_mutaties || []).map(x => x[k]).filter(Boolean))];
   const w = await formulier(id ? '✏️ Boeking aanpassen' : MUT_SOORTEN.find(x => x[0] === m.soort)?.[1] || 'Boeking', [
-    {k: 'partij_id', label: 'Partij', type: 'select', waarde: m.partij_id || '', opties: alle.map(y => [y.id, `${partijRas(y) || soort(y.soort_id)?.naam || '?'} · ${y.batch || ''} ${y.klasse || ''} · ${perceel(y.perceel_id)?.naam || ''}`])},
+    {k: 'partij_id', label: 'Partij', type: 'select', waarde: m.partij_id || '', opties: alle.map(y => [y.id, `${partijRas(y) || soort(y.soort_id)?.naam || '?'} · ${y.batch || ''} ${y.klasse || ''} · ${partijPerceelNaam(y) || ''}`])},
     {k: 'soort', label: 'Wat', type: 'select', waarde: m.soort, opties: MUT_SOORTEN},
     {k: 'datum', label: 'Datum', type: 'date', waarde: m.datum},
     {k: 'aantal', label: 'Aantal', type: 'number', waarde: m.aantal ?? ''},
@@ -12313,11 +12429,11 @@ function htmlVoorraad() {
     const l = muts.filter(m => m.soort === 'uit').sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
     return kop + `<section class="kaartje">${l.map(m => { const pa = (S.partijen || []).find(x => x.id === m.partij_id);
       return `<div class="srRij"><div class="srDatum"><b>${new Date(m.datum).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})}</b></div><div class="t"><b>${esc(m.klant || 'klant?')}</b> · ${getal(m.aantal)} ${esc(m.eenheid)}${m.prijs ? ' · ' + geld(m.prijs * m.aantal) : ''}
-        <small>🏷️ ${esc(partijRas(pa) || '?')} ${esc(pa?.batch || '')} ${esc(pa?.klasse || '')} · ${esc(perceel(pa?.perceel_id)?.naam || '')}${m.pakbon ? ' · pakbon ' + esc(m.pakbon) : ''}${m.koelcel ? ' · uit ' + esc(m.koelcel) : ''}</small></div>
+        <small>🏷️ ${esc(partijRas(pa) || '?')} ${esc(pa?.batch || '')} ${esc(pa?.klasse || '')} · ${esc(partijPerceelNaam(pa) || '')}${m.pakbon ? ' · pakbon ' + esc(m.pakbon) : ''}${m.koelcel ? ' · uit ' + esc(m.koelcel) : ''}</small></div>
         ${beh ? `<span class="logknoppen"><button class="weg" onclick="mutatieFormulier('','', '${m.id}')">✏️</button><button class="weg" onclick="mutatieWeg('${m.id}')">✕</button></span>` : ''}</div>`; }).join('') || '<p class="hint">Nog geen leveringen.</p>'}</section>`;
   }
   if (vrWeergave === 'zoek') {
-    const z = normTekst(vrZoek), hits = !z ? [] : (S.partijen || []).filter(y => normTekst([y.batch, y.nak, partijRas(y), perceel(y.perceel_id)?.naam, ...mutatiesVan(y.id).map(m => `${m.klant} ${m.pakbon}`)].join(' ')).includes(z));
+    const z = normTekst(vrZoek), hits = !z ? [] : (S.partijen || []).filter(y => normTekst([y.batch, y.nak, partijRas(y), partijPerceelNaam(y), ...mutatiesVan(y.id).map(m => `${m.klant} ${m.pakbon}`)].join(' ')).includes(z));
     return kop + `<section class="kaartje"><input class="veld" id="vrZoek" placeholder="🔎 Batch, NAK-nummer, klant of pakbon…" value="${esc(vrZoek)}" oninput="vrZoek=this.value;clearTimeout(window._vz);window._vz=setTimeout(()=>{render(true);const i=$('#vrZoek');i.focus();i.setSelectionRange(i.value.length,i.value.length)},300)">
       ${hits.slice(0, 20).map(traceerKaart).join('') || (z ? '<p class="hint">Niets gevonden.</p>' : '<p class="hint">Zoek een partij en zie in één keer: perceel en sporen, keuringen, wat er gespoten is, inslag en aan wie het geleverd is.</p>')}</section>`;
   }
@@ -12328,7 +12444,7 @@ function htmlVoorraad() {
   const celHtml = ([...perCel].sort((a, b) => a[0].localeCompare(b[0], 'nl')).map(([cel, l]) => `<section class="kaartje"><h4>🧊 ${esc(cel)} <small>${getal(l.reduce((s, e) => s + e.x.planten, 0))} planten</small></h4>
     ${l.map(({y, x}) => { const res = vbGereserveerd(y.id, cel), vrij = x.planten - res, sl = beh && vrij > 0;
       return `<div class="srRij vbPartij ${sl ? 'sleep' : ''} ${vrij <= 0 ? 'verdeeld' : ''}" ${sl ? `onpointerdown="vbSleepStart(event,'${y.id}','${esc(cel)}')" onclick="if(!this.dataset.gesleept&&!event.target.closest('button'))vbKies('${y.id}','${esc(cel)}')"` : ''}>${sl ? '<span class="vbGreep">⠿</span>' : ''}<div class="t"><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}${y.bio ? ' <span class="badge bio">BIO</span>' : ''}
-      <small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)} · ${esc(perceel(y.perceel_id)?.naam || '')}</small>
+      <small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)} · ${esc(partijPerceelNaam(y) || '')}</small>
       ${res ? `<small class="vbStand">${vrij > 0 ? `<b>${eenhedenTekst(vrij, x.eenheid, x.per_eenheid)} vrij</b>` : '<b>helemaal verdeeld</b>'} · ${getal(res)} verdeeld (${vbRes().filter(r => r.partij_id === y.id && (r.koelcel || '—') === cel).map(r => esc(S.voorraad_bestemmingen.find(b => b.id === r.bestemming_id)?.naam || '?')).join(', ')})</small>` : ''}</div>
       ${beh ? `<span class="logknoppen"><button class="weg" title="Levering" onclick="mutatieFormulier('${y.id}','uit')">⬆️</button></span>` : ''}</div>`; }).join('')}</section>`).join('')
     || '<section class="kaartje"><p class="hint">Er staat niets in de koelcel. Boek een ⬇️ inslag als er gerooid is.</p></section>');
@@ -12667,7 +12783,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) bewaa
 
 /* ============ seizoensoverzicht ============ */
 const szOpen = {};
-function seizoenCachesLeeg() { kostenUren = null; Object.keys(urenPerceelCache).forEach(k => delete urenPerceelCache[k]); }
+function seizoenCachesLeeg() { if (typeof TP !== 'undefined') TP.geladen = false; kostenUren = null; Object.keys(urenPerceelCache).forEach(k => delete urenPerceelCache[k]); }
 const percelenNu = () => archief ? (livePercelen || []) : S.percelen;
 // Alles over het seizoen dat je bekijkt
 function seizoenData() {
@@ -12708,10 +12824,10 @@ function htmlSeizoenOverzicht() {
     [ha(d.ha_), 'hectare in gebruik'], [d.velden.length, 'percelen'], [d.klaar.length, 'taken gedaan'], [d.open.length, 'open taken'],
     ...(kanOogst ? [[getal(d.oogstTot), 'planten geoogst']] : []), [getal(d.urenTot, 0), 'uren geklokt'],
     ...(kanKosten ? [[geld(d.totaalKosten).replace(',00', ''), 'kosten']] : [])];
-  let h = `<section class="kaartje"><h4>📊 Overzicht seizoen ${naam}</h4>
+  let h = `<section class="kaartje"><h4>📊 Overzicht teeltjaar ${naam}</h4>
     <div class="sztegels">${tegels.map(([v, l]) => `<div><b>${v}</b><small>${l}</small></div>`).join('')}</div>
     ${!ziet('uren_bekijken') ? '<p class="hint">Je ziet alleen je eigen uren.</p>' : ''}
-    <button class="knop licht" onclick="seizoenExcel()">📊 Hele seizoensoverzicht als Excel</button></section>`;
+    <button class="knop licht" onclick="seizoenExcel()">📊 Hele teeltjaaroverzicht als Excel</button></section>`;
   // gewassen
   h += blok(`🌱 Gewassen (${d.perPlant.size})`, [...d.perPlant.entries()].sort((a, b) => b[1] - a[1]).map(([id, m2]) => { const s = soort(id);
     return rij(`<i class="kl" style="background:${esc(s.kleur)}"></i>${icoonHtml(plantIcoon(s))} ${esc(s.naam)}`, `${ha(m2)} ha${d.planten.get(id) ? ` · ≈ ${getal(Math.round(d.planten.get(id)))} pl` : ''} <small>(${Math.round(m2 / (d.ha_ || 1) * 100)}%)</small>`); }).join('') || '<p class="hint">Nog niets ingedeeld.</p>', true);
@@ -12767,12 +12883,12 @@ async function laadSeizoenVergelijk() {
 }
 function htmlSeizoenVergelijk() {
   if (!szVergelijk || (!szVergelijk.laden && Date.now() - szVergelijk.t > 120000)) { setTimeout(laadSeizoenVergelijk, 0); if (!szVergelijk) szVergelijk = {laden: true}; }
-  if (szVergelijk.laden) return `<section class="kaartje"><h4>📈 Seizoenen vergelijken</h4><p class="hint">Laden…</p></section>`;
+  if (szVergelijk.laden) return `<section class="kaartje"><h4>📈 Teeltjaren vergelijken</h4><p class="hint">Laden…</p></section>`;
   const r = szVergelijk.rijen, kanK = ziet('kosten_bekijken'), kanO = ziet('oogst_bekijken') || ziet('oogst_registreren');
   const kol = [['Hectare', x => ha(x.ha)], ['Percelen', x => x.percelen], ['Taken gedaan', x => x.klaar], ['Bespuitingen / bemesting', x => x.spuit],
     ...(kanO ? [['Planten geoogst', x => getal(x.oogst)]] : []), ['Uren', x => getal(x.uren, 0)], ...(kanK ? [['Kosten', x => geld(x.kosten).replace(',00', '')]] : []),
     ['Gewassen', x => [...x.perPlant.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([id, m2]) => soort(id) ? `${icoonHtml(plantIcoon(soort(id)))} ${ha(m2)}` : '').join('<br>') || '–']];
-  return `<details class="kaartje szblok" open><summary><h4>📈 Seizoenen vergelijken</h4></summary>
+  return `<details class="kaartje szblok" open><summary><h4>📈 Teeltjaren vergelijken</h4></summary>
     <div class="szscroll"><table class="verdeling szvergelijk"><tr><td></td>${r.map(x => `<td class="${x.sz.id === bekeken ? 'bekeken' : ''}"><b>${esc(x.sz.naam)}</b>${x.sz.actief ? '<br><small>huidig</small>' : ''}</td>`).join('')}</tr>
       ${kol.map(([l, f]) => `<tr><td><b>${l}</b></td>${r.map(x => `<td class="${x.sz.id === bekeken ? 'bekeken' : ''}">${f(x)}</td>`).join('')}</tr>`).join('')}</table></div>
     ${!ziet('historie_bekijken') ? '<p class="hint">Gewassen van vorige seizoenen zie je alleen met het recht "Logboek en vorige seizoenen bekijken".</p>' : ''}</details>`;
@@ -13240,7 +13356,7 @@ async function totaalVerslag() {
     if ((S.middelen || []).some(m => m.voorraad != null)) { pdf.kop2('Voorraad nu'); pdf.tabel([{t: 'Middel / product', w: 3, vet: true}, {t: 'Voorraad', w: 1.4, rechts: true}, {t: 'Let op', w: 2}],
       S.middelen.filter(m => m.voorraad != null).map(m => [m.naam, `${pdfGetal(m.voorraad, 1)} ${m.voorraad_eenheid || ''}`, voorraadLaag(m) ? 'bijna op' : ''])); }
     if (szVergelijk?.rijen?.length > 1) {
-      pdf.kop1(`${kanK ? 9 : 8}. Seizoenen vergelijken`);
+      pdf.kop1(`${kanK ? 9 : 8}. Teeltjaren vergelijken`);
       pdf.tabel([{t: 'Seizoen', w: 1, vet: true}, {t: 'ha', w: .8, rechts: true}, {t: 'Percelen', w: .9, rechts: true}, {t: 'Werk', w: .8, rechts: true}, {t: 'Bespuit.', w: .9, rechts: true}, {t: 'Geoogst', w: 1.2, rechts: true}, {t: 'Uren', w: .8, rechts: true}, ...(kanK ? [{t: 'Kosten', w: 1.2, rechts: true}] : [])],
         szVergelijk.rijen.map(x => [x.sz.naam, pdfHa(x.ha), String(x.percelen), String(x.klaar), String(x.spuit), pdfGetal(x.oogst), pdfGetal(x.uren, 0), ...(kanK ? [pdfGeld(x.kosten)] : [])]));
     }
@@ -13254,11 +13370,11 @@ function verslagenHtml(pid) {
   if (!ziet('exporteren')) return '';
   const p = pid ? perceel(pid) : null;
   if (p) return `<section class="kaartje verslagen"><h4>📄 Verslagen</h4><div class="verslagknoppen">
-    <button onclick="perceelVerslag('${p.id}')"><b>📄 Perceelverslag</b><small>alles van ${esc(p.naam)} in seizoen ${esc(seizoenNaam(bekeken))}</small></button>
+    <button onclick="perceelVerslag('${p.id}')"><b>📄 Perceelverslag</b><small>alles van ${esc(p.naam)} in teeltjaar ${esc(seizoenNaam(bekeken))}</small></button>
     <button onclick="perceelJaarverslag('${p.id}')"><b>📚 Jaarverslag</b><small>alle seizoenen van dit perceel naast elkaar</small></button></div></section>`;
   const lijst = S.percelen.filter(x => x.type !== 'pand').sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
   return `<section class="kaartje verslagen"><h4>📄 Verslagen (PDF)</h4><div class="verslagknoppen">
-    <button onclick="totaalVerslag()"><b>📘 Totaalverslag</b><small>het hele bedrijf in seizoen ${esc(seizoenNaam(bekeken))}, met per perceel een hoofdstuk</small></button></div>
+    <button onclick="totaalVerslag()"><b>📘 Totaalverslag</b><small>het hele bedrijf in teeltjaar ${esc(seizoenNaam(bekeken))}, met per perceel een hoofdstuk</small></button></div>
     <label>Of van één perceel</label><div class="rij"><select class="veld" id="verslagPerceel">${lijst.map(x => `<option value="${x.id}">${esc(x.naam)}</option>`).join('')}</select></div>
     <div class="rij" style="margin-top:6px"><button class="knop licht klein" onclick="perceelVerslag($('#verslagPerceel').value)">📄 Perceelverslag</button><button class="knop licht klein" onclick="perceelJaarverslag($('#verslagPerceel').value)">📚 Jaarverslag</button></div></section>`;
 }
