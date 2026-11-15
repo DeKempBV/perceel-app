@@ -333,6 +333,8 @@ textarea.veld{resize:vertical;font-family:inherit}
 .vbKop .logknoppen{display:flex;gap:2px}.vbRegel{display:flex;justify-content:space-between;align-items:center;gap:6px;background:#fff;border-radius:8px;padding:4px 6px;font-size:13px}.vbRegel small{display:block}.vbLeeg{color:#999;font-size:13px;padding:6px 0}
 .vbPartij.sleep{cursor:grab;user-select:none}.vbPartij.verdeeld{opacity:.55}.vbGreep{touch-action:none;font-size:20px;color:#9aa;padding:0 8px 0 2px;cursor:grab;align-self:center}.vbStand{color:#1565c0}
 .vbGhost{position:fixed;left:0;top:0;z-index:9999;pointer-events:none;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);padding:6px 10px;opacity:.95;display:flex;gap:6px}body.vbSleept{user-select:none;cursor:grabbing}
+.tpPerc{background:#f4faf3;border-radius:10px;padding:8px 10px;margin:6px 0 8px}.tpPercKop{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px}.tpPercKop small{color:#666}.tpPercRij{display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px solid #e3eee1}.tpPercRij:first-of-type{border-top:0}.tpPercRij>i{width:10px;height:10px;border-radius:50%;flex:none}.tpPercRij>span{flex:1}.tpPercRij small{display:block;color:#666}
+.tpLijsten{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}.tpChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-items:center}.tpChip{display:inline-flex;align-items:center;gap:4px;border:1px solid #dde7da;border-radius:16px;padding:3px 10px;font-size:13px;background:#fff}.tpChip small{color:#888;margin-left:4px}.tpChip.eigen{border-color:#81c784;background:#f1f8e9}.tpChip .weg{padding:0 2px}
 .tpVrLijst{display:flex;flex-wrap:wrap;gap:6px}.tpVr{border:1px solid #cfe3cc;background:#fff;border-radius:9px;padding:5px 9px;font:inherit;font-size:13px;cursor:pointer;text-align:left}.tpVr span{display:block;font-size:12px;color:#2e7d32}.tpVr.aan{border-color:#2e7d32;background:#e8f5e9}.tpVr.op span{color:#999}
 .tpImpLijst{display:flex;flex-direction:column;gap:6px;max-height:34vh;overflow:auto}.tpImpRij{display:grid;grid-template-columns:1fr minmax(150px,45%);gap:8px;align-items:center;padding:4px 6px;border-radius:8px}.tpImpRij small{display:block;color:#777}.tpImpRij.mist{background:#fff3e0}.tpImpRij.nieuw{background:#f1f8e9}
 .tpIndInfo{background:#f4faf3;border-radius:10px;padding:8px 10px;font-size:14px;display:flex;flex-direction:column;gap:4px;margin:4px 0}.tpIndInfo .knop{width:auto}.nogT{color:#e65100}.okT{color:#2e7d32}
@@ -3319,6 +3321,7 @@ function pzPaneel(p) {
   const heelVrij = vrijeMeters(p, alleZones(p).flatMap(z => banenVan(z).map(bn => pzKey(z.id, bn.nr))));
   return `<section class="kaartje pzPaneel"><h4>🌱 Plannen op de kaart <button class="link klein" style="float:right" onclick="pzStop()">✓ Klaar met plannen</button></h4>
     ${heelVrij.vrij < 1 ? '<div class="waarschuwing">🚫 <b>Dit veld is vol.</b> Op alle sporen staan al planten of er is al iets gepland. Haal eerst iets weg (rooien, braak, of een plan weghalen).</div>' : `<small class="hint">Vrij op dit veld: <b>${heelVrij.vrij.toLocaleString('nl-NL')} m</b> van ${heelVrij.tot.toLocaleString('nl-NL')} m.</small>`}
+    ${tpPerceelInfo(p, true)}
     <div class="pzStap"><b>1.</b> Tik aan wat er de grond in gaat (meerdere kan, ook hetzelfde ras nog een keer)</div>
     <div class="pzChips">${soorten.map(sr => { const rs = S.rassen.filter(x => x.soort_id === sr.id), open = PZ.open === sr.id;
       return rs.length ? `<button class="pzChip ${open ? 'open' : ''}" onclick="PZ.open=PZ.open==='${sr.id}'?null:'${sr.id}';render(true)"><i style="background:${esc(sr.kleur || '#9e9e9e')}"></i>${esc(sr.icoon || '')} ${esc(sr.naam)} ▾</button>${open ? `<span class="pzRassen">${rs.map(x => chip(x.id, x.naam, x.kleur || sr.kleur)).join('')}${chip(sr.id, sr.naam + ' (nog geen ras)', sr.kleur)}</span>` : ''}`
@@ -4619,7 +4622,7 @@ function htmlDetail(p) {
     <div><b>${open.length}</b><small>open taken</small></div></div>
   ${p.type !== 'pand' && !p.uitgeschakeld ? opstaandHtml(p) : ''}
   ${partijSamenvatting(p)}
-  ${PZ && PZ.pid === p.id ? pzPaneel(p) : !p.uitgeschakeld && (mag('soorten_indelen') || mag('taken_toevoegen')) ? pzPerceelBlok(p) : ''}
+  ${PZ && PZ.pid === p.id ? pzPaneel(p) : `${p.type !== 'pand' && !p.uitgeschakeld && !isApparaat() ? (() => { const h = tpPerceelInfo(p); return h ? `<section class="kaartje">${h}</section>` : ''; })() : ''}${!p.uitgeschakeld && (mag('soorten_indelen') || mag('taken_toevoegen')) ? pzPerceelBlok(p) : ''}`}
   ${vgtVan(p.id) && perceelTab !== 'oogst' && perceelTab !== 'info' ? `<div class="vgtbalk">${vgtTekst(vgtVan(p.id))}</div>` : ''}
   ${vruchtwisselWaarschuwing(p).map(x => `<div class="waarschuwing">${x}</div>`).join('')}
   <div class="ptabs">${tabs.map(([k, i, l]) => `<button class="${perceelTab === k ? 'aan' : ''}" onclick="perceelTab='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
@@ -10986,10 +10989,57 @@ const TP_OPK = [
 const TP_KW_STD = {HS: {A: 80, B: 20}, LS: {A: 80, B: 20}, VS: {A: 80, B: 20}, VV: {A: 70, B: 20, Stek: 10}, VL: {A: 70, B: 20, Stek: 10},
   FR: {'A-': 10, A: 50, 'A1+': 30, 'A2+': 8, 'A3+': 2}, FB: {'A--': 5, 'A-': 15, A: 50, 'A1+': 25, 'A2+': 5}};
 const TP = {geladen: false, rijen: [], blad: 'uitkomst', soort: '', open: null, timers: {}};
+// eigen planttypes en opkweekdoelen komen uit de standaard-rij (data.types / data.opk) en worden achter de vaste lijst gezet
+const TP_PROD_BASIS = TP_PROD.slice(), TP_OPK_BASIS = TP_OPK.slice();
+function tpTypesBijwerken() {
+  const d = TP.rijen.find(x => !x.ras_id && !x.seizoen_id)?.data || {};
+  const extra = (d.types || []).filter(t => t?.k && !TP_PROD_BASIS.some(p => p.k === t.k)).map(t => ({kw: ['A', 'B'], verk: ['A'], een: 'ha', mp: 0, ...t, kort: t.kort || t.naam, eigen: true}));
+  extra.forEach(t => { if (!TP_KW_STD[t.k]) TP_KW_STD[t.k] = t.kw.length === 1 ? {[t.kw[0]]: 100} : {[t.kw[0]]: 80, [t.kw[1]]: 20}; });
+  TP_PROD.splice(0, TP_PROD.length, ...TP_PROD_BASIS, ...extra);
+  if (typeof TP_VELD !== 'undefined') TP_VELD.splice(0, TP_VELD.length, ...TP_PROD.filter(p => p.een === 'ha'));
+  TP_OPK.splice(0, TP_OPK.length, ...TP_OPK_BASIS, ...(d.opk || []).filter(o => o?.k && !TP_OPK_BASIS.some(b => b.k === o.k)).map(o => ({cor: 1.1, van: 'FR', ...o, eigen: true})));
+}
+const tpStdRij = () => TP.rijen.find(x => !x.ras_id && !x.seizoen_id) || (TP.rijen.push({seizoen_id: null, ras_id: null, data: {}}), TP.rijen[TP.rijen.length - 1]);
+async function tpStdWijzig(f) { const rij = tpStdRij(), oud = rij.data; rij.data = f(JSON.parse(JSON.stringify(rij.data || {}))); tpTypesBijwerken();
+  if (!(await tpBewaarRij(rij))) { rij.data = oud; tpTypesBijwerken(); render(true); return false; } render(true); return true; }
+const tpLijst = t => String(t || '').split(/[,;]+/).map(x => x.trim()).filter(Boolean);
+async function tpTypeForm(k) {
+  const t = k ? TP_PROD.find(p => p.k === k) : null;
+  const w = await formulier(t ? `✏️ Planttype ${t.naam}` : '＋ Nieuw planttype', [
+    {k: 'naam', label: 'Naam', waarde: t?.naam || '', placeholder: 'bijv. Vers 2'},
+    {k: 'kort', label: 'Korte naam (kolomkop)', waarde: t?.kort && t.kort !== t.naam ? t.kort : '', placeholder: 'leeg = naam'},
+    {k: 'een', label: 'Waar groeit het', type: 'select', waarde: t?.een || 'ha', opties: [['ha', 'Veld (per hectare)'], ['m1', 'Kas (per strekkende meter)']]},
+    {k: 'mp', label: 'Moederplanten per ha / m1 (plantafstand)', type: 'number', waarde: t?.mp || ''},
+    {k: 'kw', label: 'Sorteringen (met komma)', waarde: (t?.kw || ['A', 'B']).join(', ')},
+    {k: 'verk', label: 'Welke sorteringen worden verkocht', waarde: (t?.verk || ['A']).join(', ')}], t ? 'Opslaan' : 'Toevoegen');
+  if (!w || !w.naam.trim()) return null;
+  const nk = k || 'X' + Date.now().toString(36), rij = {k: nk, naam: w.naam.trim(), kort: w.kort.trim() || w.naam.trim(), een: w.een, mp: leesGetal(w.mp, 0), kw: tpLijst(w.kw).length ? tpLijst(w.kw) : ['A'], verk: tpLijst(w.verk).length ? tpLijst(w.verk) : ['A']};
+  if (await tpStdWijzig(d => ({...d, types: [...(d.types || []).filter(x => x.k !== nk), rij]}))) { toast(`✓ Planttype ${rij.naam} ${k ? 'aangepast' : 'toegevoegd'}`); return nk; }
+  return null;
+}
+async function tpTypeWeg(k) { const t = TP_PROD.find(p => p.k === k); if (!t?.eigen || !await bevestig(`Planttype ${t.naam} weghalen?`, 'Ingevulde getallen voor dit planttype tellen dan niet meer mee.')) return; tpStdWijzig(d => ({...d, types: (d.types || []).filter(x => x.k !== k)})); }
+async function tpMatErbij() { const w = await formulier('＋ Uitgangsmateriaal', [{k: 'm', label: 'Naam', placeholder: 'bijv. VGS BM2, Inkoop Spanje'}], 'Toevoegen'); const m = w?.m?.trim(); if (!m) return;
+  if (tpMats().some(x => tpMatNorm(x) === tpMatNorm(m))) { toast('Die staat er al', 1); return; } tpStdWijzig(d => ({...d, mats: [...(d.mats || []), m]})); }
+async function tpMatWeg(m) { if (await bevestig(`${m} weghalen?`, 'Alleen uit de keuzelijst; wat al ingedeeld is blijft staan.')) tpStdWijzig(d => ({...d, mats: (d.mats || []).filter(x => x !== m)})); }
+async function tpOpkForm(k) {
+  const o = k ? TP_OPK.find(x => x.k === k) : null;
+  const w = await formulier(o ? `✏️ ${o.naam}` : '＋ Nieuw opkweekdoel', [{k: 'naam', label: 'Naam', waarde: o?.naam || '', placeholder: 'bijv. Potplant BIO'},
+    {k: 'van', label: 'Komt uit planttype', type: 'select', waarde: o?.van || 'FR', opties: TP_PROD.map(p => [p.k, p.naam])},
+    {k: 'cor', label: 'Correctie (×)', type: 'number', waarde: o?.cor ?? 1.1}], o ? 'Opslaan' : 'Toevoegen');
+  if (!w || !w.naam.trim()) return; const nk = k || 'o' + Date.now().toString(36);
+  tpStdWijzig(d => ({...d, opk: [...(d.opk || []).filter(x => x.k !== nk), {k: nk, naam: w.naam.trim(), van: w.van, cor: leesGetal(w.cor, 1.1)}]}));
+}
+async function tpOpkWeg(k) { const o = TP_OPK.find(x => x.k === k); if (o?.eigen && await bevestig(`${o.naam} weghalen?`, '')) tpStdWijzig(d => ({...d, opk: (d.opk || []).filter(x => x.k !== k)})); }
+async function tpRasErbij() {
+  const sid = tpRasSoort(); if (!sid) return; const w = await formulier(`＋ Nieuw ras (${soort(sid)?.naam || ''})`, [{k: 'naam', label: 'Naam', placeholder: 'bijv. Verdi'}], 'Toevoegen'); const naam = w?.naam?.trim(); if (!naam) return;
+  if (tpRassen().some(r => normTekst(r.naam) === normTekst(naam))) { toast('Dat ras bestaat al', 1); return; }
+  const {data, error} = await sb.from('rassen').insert({soort_id: sid, naam, kleur: tint(soort(sid)?.kleur || '#8bc34a', rassenVan(sid).length)}).select().single();
+  if (error) { toast('Toevoegen mislukt: ' + foutTekst(error), 1); return; } S.rassen.push(data); render(true); toast(`✓ Ras ${naam} toegevoegd`);
+}
 async function laadTeeltplan() {
   TP.geladen = true;
-  const {data, error} = await sb.from('teeltplanning').select('*').or(`seizoen_id.eq.${bekeken},seizoen_id.is.null`);
-  TP.fout = error ? error.message : null; TP.rijen = data || []; render(true);
+  let data, error; try { ({data, error} = await sb.from('teeltplanning').select('*').or(`seizoen_id.eq.${bekeken},seizoen_id.is.null`)); } catch (e) { error = e; }
+  TP.fout = error ? error.message : null; TP.rijen = data || []; tpTypesBijwerken(); render(true);
 }
 const tpRasSoort = () => TP.soort || S.soorten.find(x => /aardbei/i.test(x.naam || ''))?.id || S.soorten[0]?.id;
 const tpRassen = () => S.rassen.filter(r => r.soort_id === tpRasSoort()).sort((a, b) => (a.naam || '').localeCompare(b.naam || '', 'nl'));
@@ -11077,11 +11127,18 @@ function htmlTeeltplan() {
     ${tabel([...TP_PROD, ...TP_BM].map(p => esc(p.kort || p.naam)), r => [...TP_PROD, ...TP_BM].map(p => `<td>${inp(r.id, 'derden.' + p.k, tpData(r.id).derden?.[p.k])}</td>`).join(''))}`;
   else if (TP.blad === 'indeling') inhoud = htmlTpIndeling(beh);
   else if (TP.blad === 'ken') { const k0 = tpStd(), d0 = tpData(null);
-    inhoud = `<p class="hint">De standaard geldt voor alle rassen. Per ras kun je hieronder afwijken (leeg = standaard).</p>
+    const chip = (t, uit, aan, weg) => `<span class="tpChip ${aan ? 'eigen' : ''}">${t}${aan && beh ? `<button class="weg" onclick="${aan}">✏️</button>` : ''}${weg && beh ? `<button class="weg" onclick="${weg}">✕</button>` : ''}${uit ? `<small>${uit}</small>` : ''}</span>`;
+    inhoud = `<h4 style="margin:0 0 6px">Lijsten <small>eigen toevoegingen kun je aanpassen of weghalen</small></h4>
+    <div class="tpLijsten">
+      <div><b>Planttypes</b><div class="tpChips">${TP_PROD.map(p => chip(esc(p.naam), `${p.een === 'ha' ? 'veld' : 'kas'} · ${tpG(k0.mp[p.k])} MP/${p.een}`, p.eigen ? `tpTypeForm('${p.k}')` : '', p.eigen ? `tpTypeWeg('${p.k}')` : '')).join('')}${beh ? '<button class="knop licht klein" style="width:auto" onclick="tpTypeForm()">＋ Planttype</button>' : ''}</div></div>
+      <div><b>Uitgangsmateriaal</b><div class="tpChips">${tpMats().map(m => chip(esc(m), '', '', (d0.mats || []).includes(m) ? `tpMatWeg(${esc(JSON.stringify(m))})` : '')).join('')}${beh ? '<button class="knop licht klein" style="width:auto" onclick="tpMatErbij()">＋ Materiaal</button>' : ''}</div></div>
+      <div><b>Opkweekdoelen</b><div class="tpChips">${TP_OPK.map(o => chip(esc(o.naam), '', o.eigen ? `tpOpkForm('${o.k}')` : '', o.eigen ? `tpOpkWeg('${o.k}')` : '')).join('')}${beh ? '<button class="knop licht klein" style="width:auto" onclick="tpOpkForm()">＋ Opkweekdoel</button>' : ''}</div></div>
+    </div>
+    <p class="hint">De standaard geldt voor alle rassen. Per ras kun je hieronder afwijken (leeg = standaard).</p>
     <div class="tpScroll"><table class="tpTab"><thead><tr><th>Standaard</th>${TP_PROD.map(p => `<th>${esc(p.kort)}</th>`).join('')}</tr></thead><tbody>
       <tr><td>Opbrengst planten per ${'ha / m1'}</td>${TP_PROD.map(p => `<td>${inp(null, 'opbr.' + p.k, d0.opbr?.[p.k], p.een === 'ha' ? 'per ha' : 'per m1')}</td>`).join('')}</tr>
       <tr><td>Moederplanten per ha / m1</td>${TP_PROD.map(p => `<td>${inp(null, 'mp.' + p.k, d0.mp?.[p.k], tpG(p.mp))}</td>`).join('')}</tr>
-      ${[...new Set(TP_PROD.flatMap(p => p.kw))].map(c => `<tr><td>% ${esc(c)}</td>${TP_PROD.map(p => p.kw.includes(c) ? `<td>${inp(null, 'kw.' + p.k + '.' + c, d0.kw?.[p.k]?.[c], tpG(TP_KW_STD[p.k][c] ?? 0))}</td>` : '<td></td>').join('')}</tr>`).join('')}
+      ${[...new Set(TP_PROD.flatMap(p => p.kw))].map(c => `<tr><td>% ${esc(c)}</td>${TP_PROD.map(p => p.kw.includes(c) ? `<td>${inp(null, 'kw.' + p.k + '.' + c, d0.kw?.[p.k]?.[c], tpG(TP_KW_STD[p.k]?.[c] ?? 0))}</td>` : '<td></td>').join('')}</tr>`).join('')}
     </tbody></table></div>
     <div class="tpScroll"><table class="tpTab"><thead><tr><th>Opkweek</th>${TP_OPK.map(o => `<th>${esc(o.naam)}</th>`).join('')}</tr></thead><tbody>
       <tr><td>Correctie (×)</td>${TP_OPK.map(o => `<td>${inp(null, 'cor.' + o.k, d0.cor?.[o.k], tpG(o.cor, 2))}</td>`).join('')}</tr>
@@ -11108,7 +11165,7 @@ function htmlTeeltplan() {
   }
   return `<section class="kaartje"><h4>📊 Teeltplanning ${esc(S.seizoenen?.find?.(x => x.id === bekeken)?.naam || '')}</h4>
     <p class="hint" style="margin-top:0">Van verwachte verkoop naar hectares veld, moederplanten, kas en de PBM-bestelling. Hetzelfde als het Excel-bestand, maar alles op één plek en gekoppeld aan de kaart.</p>
-    <div class="raster2" style="max-width:420px"><div><label>Gewas</label><select class="veld" onchange="TP.soort=this.value;render(true)">${S.soorten.filter(x => S.rassen.some(r => r.soort_id === x.id)).map(x => `<option value="${x.id}" ${tpRasSoort() === x.id ? 'selected' : ''}>${esc(x.naam)}</option>`).join('')}</select></div><div></div></div>
+    <div class="raster2" style="max-width:420px"><div><label>Gewas</label><select class="veld" onchange="TP.soort=this.value;render(true)">${S.soorten.filter(x => S.rassen.some(r => r.soort_id === x.id)).map(x => `<option value="${x.id}" ${tpRasSoort() === x.id ? 'selected' : ''}>${esc(x.naam)}</option>`).join('')}</select></div><div style="align-self:end">${beh ? `<button class="knop licht" style="width:auto" onclick="tpRasErbij()">＋ Ras</button>` : ''}</div></div>
     <div class="schakel" style="flex-wrap:wrap">${bladen.map(([k, t]) => `<button class="${TP.blad === k ? 'aan' : ''}" onclick="TP.blad='${k}';render(true)">${t}</button>`).join('')}</div></section>
     <section class="kaartje">${inhoud}</section>`;
 }
@@ -11116,7 +11173,7 @@ function htmlTeeltplan() {
 const TP_VELD = TP_PROD.filter(p => p.een === 'ha');
 const TP_MAT = ['PBM', 'BM1', 'BM2', 'BM3', 'BM4', 'BM5', 'VGS PBM', 'VGS BM1', 'VGS BM4', 'Eigen moederplanten'];
 const tpIndeling = () => tpSeizoenRij().data.indeling || [];
-const tpMats = () => { const d = tpSeizoenRij().data, x = new Set(TP_MAT); (d.indeling || []).forEach(i => i.mat && x.add(i.mat)); Object.values(d.voorraad || {}).forEach(v => Object.keys(v).forEach(m => x.add(m))); return [...x]; };
+const tpMats = () => { const d = tpSeizoenRij().data, x = new Set([...TP_MAT, ...(tpData(null).mats || [])]); (d.indeling || []).forEach(i => i.mat && x.add(i.mat)); Object.values(d.voorraad || {}).forEach(v => Object.keys(v).forEach(m => x.add(m))); return [...x]; };
 // alles wat er op voorraad is (met wat er na het indelen nog over is), per ras en materiaal
 const tpOpVoorraad = behalve => tpRassen().flatMap(r => tpMats().map(m => ({r, m, ...tpVoorraadStand(r.id, m, behalve)}))).filter(x => x.voorraad > 0);
 // voorraad moederplanten per ras en uitgangsmateriaal: zelf ingevuld, anders uit de koelcel (partijen met die klasse)
@@ -11184,7 +11241,7 @@ function tpIndInfo(pid, behalve) {
   const vrij = tpPerceelVrij(pid, behalve), dit = pl ? (mp ? pl / mp : 0) : ha || 0;
   const kies = (r, m) => `const q=k=>document.querySelector('#modal [data-k='+k+']');q('ras').value='${r}';q('mat').value='${esc(m)}';q('mat').dispatchEvent(new Event('change',{bubbles:true}))`;
   if (!rid) { const l = tpOpVoorraad(behalve);
-    el.innerHTML = `<div>📍 Op dit perceel is nog <b>${tpG(vrij, 2)} ha</b> vrij.</div>
+    el.innerHTML = `<div>📍 ${vrij >= 0 ? `Op dit perceel is nog <b>${tpG(vrij, 2)} ha</b> vrij.` : `<span class="nogT">Op dit perceel is al <b>${tpG(-vrij, 2)} ha te veel</b> ingedeeld.</span>`}</div>
       <div><b>📦 Op voorraad</b> ${l.length ? '<small>(tik om te kiezen)</small>' : ''}</div>
       ${l.length ? `<div class="tpVrLijst">${l.map(x => `<button type="button" class="tpVr ${x.over <= 0 ? 'op' : ''}" onclick="${kies(x.r.id, x.m)}"><b>${esc(x.r.naam)}</b> ${esc(x.m)}<span>${x.over > 0 ? tpG(x.over) + ' over' : 'alles ingedeeld'}</span></button>`).join('')}</div>`
         : '<div class="hint">Nog geen voorraad bekend. Vul hem in bij "Voorraad moederplanten" op het blad Indeling, of lees de Excel in.</div>'}`; return; }
@@ -11194,7 +11251,7 @@ function tpIndInfo(pid, behalve) {
   el.innerHTML = `<div>📦 <b>Voorraad ${esc(nm)} ${esc(mat)}</b>: ${onbekend ? `niet bekend – geen partij ${esc(mat)} in de koelcel. Vul hem in onder "Voorraad moederplanten" op het blad Indeling.${vs.ingedeeld ? ` Al ingedeeld: ${tpG(vs.ingedeeld)}.` : ''}` : `${tpG(vs.voorraad)} planten${vs.bron === 'koelcel' ? ' (koelcel)' : ''} · al ingedeeld ${tpG(vs.ingedeeld)} · <b class="${vs.over < 0 ? 'nogT' : 'okT'}">nog ${tpG(vs.over)}</b>`}</div>
     <div>📐 <b>${esc(nm)} ${esc(pk)}</b>: nodig ${tpG(rm.berekend, 2)} ha · al ingedeeld ${tpG(rm.ingedeeld, 2)} ha · <b class="${rm.nog > .005 ? 'nogT' : 'okT'}">nog ${tpG(Math.max(0, rm.nog), 2)} ha in te delen</b>${mp && rm.nog > 0 ? ` (≈ ${tpG(rm.nog * mp)} planten)` : ''}${rm.nog < -.005 ? ` · ${tpG(-rm.nog, 2)} ha méér dan nodig` : ''}</div>
     ${(() => { const l = tpOpVoorraad(behalve).filter(x => x.r.id === rid); return l.length > 1 || (l.length === 1 && l[0].m !== mat) ? `<div class="tpVrLijst">${l.map(x => `<button type="button" class="tpVr ${x.m === mat ? 'aan' : ''} ${x.over <= 0 ? 'op' : ''}" onclick="${kies(rid, x.m)}">${esc(x.m)}<span>${tpG(Math.max(0, x.over))} over</span></button>`).join('')}</div>` : ''; })()}
-    <div>📍 Op dit perceel nog <b>${tpG(vrij, 2)} ha</b> vrij${mp ? ` (≈ ${tpG(vrij * mp)} planten)` : ''}.${mp ? ` Plantafstand: ${tpG(mp)} per ha.` : ' <span class="nogT">Geen plantafstand bekend voor dit planttype (kengetallen).</span>'}</div>
+    <div>📍 ${vrij >= 0 ? `Op dit perceel nog <b>${tpG(vrij, 2)} ha</b> vrij${mp ? ` (≈ ${tpG(vrij * mp)} planten)` : ''}.` : `<span class="nogT">Op dit perceel is al <b>${tpG(-vrij, 2)} ha te veel</b> ingedeeld.</span>`}${mp ? ` Plantafstand: ${tpG(mp)} per ha.` : ' <span class="nogT">Geen plantafstand bekend voor dit planttype (kengetallen).</span>'}</div>
     ${dit ? `<div>➡️ Dit wordt <b>${tpG(dit, 2)} ha</b>${dit > vrij + .005 ? ' <span class="nogT">– past niet op dit perceel</span>' : ''}${pl && !onbekend && pl > vs.over ? ' <span class="nogT">– meer dan er op voorraad is</span>' : ''}</div>` : ''}
     ${mp ? `<div class="rij" style="gap:6px;flex-wrap:wrap;margin-top:4px">${knop('Wat nog nodig is', Math.max(0, rm.nog) * mp)}${knop('Alle voorraad', vs.over)}${knop('Past op perceel', vrij * mp)}</div>` : ''}`;
 }
@@ -11220,6 +11277,33 @@ async function tpIndWeg(id) {
   const rij = tpSeizoenRij(); rij.data = {...rij.data, indeling: (rij.data.indeling || []).filter(x => x.id !== id)};
   if (await tpBewaarRij(rij)) render(true);
 }
+// wat er volgens de teeltplanning (of de ingelezen Excel) op dit perceel moet komen, met wat er al gepland/geplant is
+function tpPerceelInfo(p, inPlan) {
+  if (!TP.geladen) { laadTeeltplan(); return ''; }
+  const l = tpIndeling().filter(x => x.perceel_id === p.id); if (!l.length) return '';
+  const br = +p.breedte || 1.5, mVan = x => Math.round(tpIndHa(x) * 10000 / br);
+  const gepl = rid => (S.plantplanning || []).filter(x => x.perceel_id === p.id && x.ras_id === rid).reduce((a, x) => a + (+x.meters_doel || 0), 0);
+  const perRas = {}; l.forEach(x => { perRas[x.ras_id] = (perRas[x.ras_id] || 0) + mVan(x); });
+  const nogM = x => { const tot = perRas[x.ras_id] || 1, rest = Math.max(0, tot - gepl(x.ras_id)); return Math.round(mVan(x) * rest / tot); };
+  const beh = mag('soorten_indelen') || mag('taken_toevoegen'), nog = l.filter(x => nogM(x) > 0 && !(inPlan && PZ?.items.some(i => i.tpInd === x.id)));
+  return `<div class="tpPerc"><div class="tpPercKop"><b>📋 Volgens de teeltplanning</b><small>${tpG(l.reduce((a, x) => a + tpIndHa(x), 0), 2)} ha · ${tpG(perceelNettoHa(p), 2)} ha netto op de kaart</small></div>
+    ${l.map(x => { const r = ras(x.ras_id), pk = TP_PROD.find(q => q.k === x.prod), m = mVan(x), n = nogM(x);
+      return `<div class="tpPercRij"><i style="background:${esc(r?.kleur || '#999')}"></i><span><b>${esc(r?.naam || '?')}</b> ${esc(pk?.kort || x.prod)} · ${esc(x.mat || '')}
+        <small>${tpG(tpIndHa(x), 2)} ha${x.planten ? ` · ${tpG(x.planten)} planten` : ''} · ≈ ${m.toLocaleString('nl-NL')} m spoor${n < m ? ` · <b class="okT">${n ? `nog ${n.toLocaleString('nl-NL')} m` : '✓ gepland'}</b>` : ''}${x.notitie && x.notitie !== 'Uit Excel' ? ' · ' + esc(x.notitie.replace(/^Excel: /, '')) : ''}</small></span>
+        ${beh && n > 0 ? (inPlan && PZ?.items.some(i => i.tpInd === x.id) ? '<span class="okT" title="Staat klaar bij de volgorde">✓</span>' : `<button class="knop licht klein" style="width:auto" onclick="tpPercPlan('${p.id}',['${x.id}'])">${inPlan ? '＋' : '🌱'}</button>`) : ''}</div>`; }).join('')}
+    ${beh && nog.length > 1 ? `<button class="knop licht klein" style="margin-top:6px" onclick="tpPercPlan('${p.id}',${esc(JSON.stringify(nog.map(x => x.id)))})">🌱 Alles wat nog moet in de planning zetten (${nog.length})</button>` : ''}
+    ${beh && nog.length ? `<small class="hint">Dit zet het ras met de meters klaar bij "Plannen op de kaart". Daar tik je de sporen aan en kun je alles nog schuiven.</small>` : ''}</div>`;
+}
+function tpPercPlan(pid, ids) {
+  const p = perceel(pid); if (!p) return; const br = +p.breedte || 1.5;
+  if (!PZ || PZ.pid !== pid) { pzStart(pid); PZ.teeltwijze = 'vermeerdering'; }
+  const l = tpIndeling().filter(x => ids.includes(x.id));
+  l.forEach(x => { const al = (S.plantplanning || []).filter(y => y.perceel_id === pid && y.ras_id === x.ras_id).reduce((a, y) => a + (+y.meters_doel || 0), 0);
+    const tot = tpIndeling().filter(y => y.perceel_id === pid && y.ras_id === x.ras_id).reduce((a, y) => a + tpIndHa(y) * 10000 / br, 0) || 1;
+    const m = Math.round(tpIndHa(x) * 10000 / br * Math.max(0, tot - al) / tot);
+    if (m > 0 && !PZ.items.some(i => i.tpInd === x.id)) PZ.items.push({id: pzUid(), teelt: x.ras_id, m: String(m), tpInd: x.id}); });
+  PZ.voorstel = null; render(true); toast(`🌱 ${l.length === 1 ? ras(l[0].ras_id)?.naam + ' staat' : l.length + ' rassen staan'} klaar. Tik nu de sporen aan en maak een voorstel.`);
+}
 function tpIndKaart(id) {   // de indeling op de kaart uitwerken: naar het plannen met dit ras en de meters
   const x = tpIndeling().find(y => y.id === id), p = x && perceel(x.perceel_id); if (!p) return;
   const m = Math.round(tpIndHa(x) * 10000 / (+p.breedte || 1.5));
@@ -11230,13 +11314,13 @@ function tpIndKaart(id) {   // de indeling op de kaart uitwerken: naar het plann
    "Planning actueel teeltjaar": het blad "Indeling ruimte vollegrond" (per perceel per ras per partij de hectares)
    en "Voorraad basismateriaal" (voorraad + inkoop − verkoop per ras en klasse). De waarden worden gelezen zoals
    Excel ze het laatst heeft uitgerekend; percelen en rassen worden op naam gekoppeld. */
-const tpImpType = t => { const n = normTekst(t); return /stro/.test(n) ? 'VS' : /vers vroeg/.test(n) ? 'VV' : /vers laat/.test(n) ? 'VL' : /frigo bio/.test(n) ? 'FB' : /^frigo/.test(n) ? 'FR' : null; };
+const tpImpType = t => { const n = normTekst(t); return /stro/.test(n) ? 'VS' : /vers vroeg/.test(n) ? 'VV' : /vers laat/.test(n) ? 'VL' : /frigo bio/.test(n) ? 'FB' : /^frigo$/.test(n) ? 'FR' : TP_PROD.find(p => p.eigen && (normTekst(p.naam) === n || normTekst(p.kort) === n))?.k || null; };
 const tpImpGetal = v => typeof v === 'number' ? v : typeof v === 'string' && v.trim() && !isNaN(v.replace(',', '.')) ? +v.replace(',', '.') : 0;
 const tpImpRasOk = t => typeof t === 'string' && t.trim() && !/^leeg\b|^totaal|^#/i.test(t.trim());
 const tpImpMat = k => { const t = String(k ?? '').trim(); if (!t || t === '0') return ''; return TP_MAT.find(m => tpMatNorm(m) === tpMatNorm(t)) || t; };
 function tpImpLees(bladen) {
   const zoek = re => bladen.find(b => re.test(b.naam.trim()));
-  const cel = (b, r, c) => b.rijen[r]?.[c] ?? null, uit = {regels: [], voorraad: [], percelen: {}, overgeslagen: {}, blad: []};
+  const cel = (b, r, c) => b.rijen[r]?.[c] ?? null, uit = {regels: [], voorraad: [], percelen: {}, onbekend: {}, blad: []};
   // --- indeling vollegrond ---
   const ind = zoek(/^indeling ruimte vollegrond/i);
   if (ind) {
@@ -11245,7 +11329,7 @@ function tpImpLees(bladen) {
     const lots = []; rasKol.forEach((c, i) => { const eind = Math.min(c + 13, (rasKol[i + 1] ?? 1e9) - 1);
       for (let k = c + 2; k <= eind; k++) lots.push({k, ras: String(r2[c]).trim(), mat: tpImpMat(cel(ind, 2, k)), type: String(cel(ind, 3, k) ?? '').replace(/^0$/, '').trim(), sort: String(cel(ind, 4, k) ?? '').replace(/^0$/, '').trim()}); });
     // plantafstanden per planttype (rij 8-19), en de kop "Perceel"
-    const afst = {}; for (let r = 7; r < 20; r++) { const t = tpImpType(cel(ind, r, 3)); if (t && !afst[t]) afst[t] = r; }
+    const afst = {}, labelRij = {}; for (let r = 7; r < 20; r++) { const t = tpImpType(cel(ind, r, 3)), n = normTekst(cel(ind, r, 3)); if (t && !afst[t]) afst[t] = r; if (n && !(n in labelRij)) labelRij[n] = r; }
     const eerste = normTekst(cel(ind, 7, 3));
     let kop = ind.rijen.findIndex((rij, r) => r > 20 && /^perceel$/i.test(String(rij?.[0] ?? '').trim())); if (kop < 0) kop = 50;
     let naam = null;
@@ -11257,9 +11341,9 @@ function tpImpLees(bladen) {
       const prod = tpImpType(d);
       for (const l of lots) {
         const ha = tpImpGetal(cel(ind, r, l.k)); if (!(ha > 0)) continue;
-        if (!prod) { uit.overgeslagen[String(d).trim()] = (uit.overgeslagen[String(d).trim()] || 0) + ha; continue; }
-        const mp = tpImpGetal(cel(ind, afst[prod], l.k)), pl = tpImpGetal(cel(ind, r + 1, l.k)) || (mp ? ha * mp : 0);
-        uit.regels.push({perceel: naam, ras: l.ras, prod, mat: l.mat || 'BM1', ha, planten: Math.round(pl), extra: [l.type, l.sort].filter(Boolean).join(' ')});
+        const lab = String(d).trim(), mp = tpImpGetal(cel(ind, prod ? afst[prod] : labelRij[normTekst(lab)], l.k)), pl = tpImpGetal(cel(ind, r + 1, l.k)) || (mp ? ha * mp : 0);
+        if (!prod) { const o = uit.onbekend[lab] || (uit.onbekend[lab] = {ha: 0, mp: 0}); o.ha += ha; o.mp = o.mp || mp; }
+        uit.regels.push({perceel: naam, ras: l.ras, prod, typ: prod ? null : lab, mat: l.mat || 'BM1', ha, planten: Math.round(pl), extra: [l.type, l.sort].filter(Boolean).join(' ')});
       }
     }
   }
@@ -11277,7 +11361,7 @@ function tpImpLees(bladen) {
     uit.voorraad = Object.entries(som).map(([s, n]) => { const [ras, mat] = s.split('|'); return {ras, mat, n: Math.round(n)}; });
   }
   // dezelfde combinatie op hetzelfde perceel samenvoegen
-  const sam = {}; uit.regels.forEach(x => { const s = [x.perceel, x.ras, x.prod, x.mat].join('|'); if (sam[s]) { sam[s].ha += x.ha; sam[s].planten += x.planten; if (x.extra && !sam[s].extra.includes(x.extra)) sam[s].extra += ', ' + x.extra; } else sam[s] = {...x}; });
+  const sam = {}; uit.regels.forEach(x => { const s = [x.perceel, x.ras, x.prod || '?' + x.typ, x.mat].join('|'); if (sam[s]) { sam[s].ha += x.ha; sam[s].planten += x.planten; if (x.extra && !sam[s].extra.includes(x.extra)) sam[s].extra += ', ' + x.extra; } else sam[s] = {...x}; });
   uit.regels = Object.values(sam);
   return uit;
 }
@@ -11296,9 +11380,10 @@ async function tpExcelInlezen() {
   if (!uit.blad.length) { toast('Ik vind geen blad "Indeling ruimte vollegrond" of "Voorraad basismateriaal" in dit bestand', 1); return; }
   if (!uit.regels.length && !uit.voorraad.length) { toast('Het bestand is gelezen, maar er staat nog niets ingevuld (geen hectares en geen voorraad). Is het in Excel opgeslagen nadat je het invulde?', 1); return; }
   try { const {data} = await sb.from('perceel_aliassen').select('*'); S.perceel_aliassen = data || []; } catch {}
-  const koppel = {}; Object.keys(uit.percelen).filter(n => uit.regels.some(x => x.perceel === n)).forEach(n => { const z = perceelZoeken(n); koppel[n] = z.score >= 60 ? z.p.id : ''; });
+  const koppel = {}; Object.keys(uit.percelen).filter(n => uit.regels.some(x => x.perceel === n)).forEach(n => { const z = perceelZoeken(n); koppel[n] = z.score >= 60 && z.p?.type !== 'pand' ? z.p.id : ''; });
   const rassen = {}; [...new Set([...uit.regels.map(x => x.ras), ...uit.voorraad.map(x => x.ras)])].forEach(n => { rassen[n] = tpImpRas(n)?.id || ''; });
-  TPI = {bestand: f.name, uit, koppel, rassen};
+  const typen = {}; Object.keys(uit.onbekend).forEach(t => { typen[t] = 'nieuw'; });
+  TPI = {bestand: f.name, uit, koppel, rassen, typen};
   tpImpVoorbeeld();
 }
 function tpImpVoorbeeld() {
@@ -11307,14 +11392,15 @@ function tpImpVoorbeeld() {
   const rOpt = (n, sel) => `<option value="">＋ nieuw ras "${esc(String(n).replace(/\s*\(.*?\)\s*/g, ' ').trim())}"</option><option value="-" ${sel === '-' ? 'selected' : ''}>— overslaan —</option>` + tpRassen().map(r => `<option value="${r.id}" ${r.id === sel ? 'selected' : ''}>${esc(r.naam)}</option>`).join('');
   const pn = Object.keys(koppel).sort((a, b) => (!!koppel[a] - !!koppel[b]) || a.localeCompare(b, 'nl', {numeric: true}));
   const rn = Object.keys(rassen).sort((a, b) => (!!rassen[a] - !!rassen[b]) || a.localeCompare(b, 'nl'));
-  const over = Object.entries(uit.overgeslagen);
+  const onb = Object.entries(uit.onbekend);
   $('#modal').innerHTML = `<div class="dialoog breed"><h3>📥 Teeltplanning inlezen</h3>
     <p class="hint">${esc(TPI.bestand)} · seizoen ${esc(seizoenNaam(bekeken))}. Gelezen: ${uit.blad.map(esc).join(' en ')}.</p>
     ${pn.length ? `<h4 style="margin:12px 0 4px">1. Percelen (${pn.length})</h4><p class="hint">Welk perceel in de app hoort bij de naam in Excel? Dit wordt onthouden voor de volgende keer.</p>
       <div class="tpImpLijst">${pn.map(n => `<div class="tpImpRij ${koppel[n] ? '' : 'mist'}"><span><b>${esc(n)}</b><small>${tpG(ha(n), 2)} ha ingedeeld${uit.percelen[n]?.netto ? ` · ${tpG(uit.percelen[n].netto, 2)} ha netto in Excel` : ''}</small></span><select class="veld" onchange="TPI.koppel[${esc(JSON.stringify(n))}]=this.value;tpImpVoorbeeld()">${pOpt(koppel[n])}</select></div>`).join('')}</div>` : ''}
     <h4 style="margin:12px 0 4px">${pn.length ? 2 : 1}. Rassen (${rn.length})</h4>
     <div class="tpImpLijst">${rn.map(n => `<div class="tpImpRij ${rassen[n] && rassen[n] !== '-' ? '' : 'nieuw'}"><span><b>${esc(n)}</b><small>${uit.regels.filter(x => x.ras === n).length} indelingen · voorraad ${tpG(uit.voorraad.filter(x => x.ras === n).reduce((a, x) => a + x.n, 0))}</small></span><select class="veld" onchange="TPI.rassen[${esc(JSON.stringify(n))}]=this.value;tpImpVoorbeeld()">${rOpt(n, rassen[n])}</select></div>`).join('')}</div>
-    ${over.length ? `<p class="hint">⚠️ Niet ingelezen (planttype dat de app nog niet kent): ${over.map(([t, h]) => `${esc(t)} ${tpG(h, 2)} ha`).join(', ')}</p>` : ''}
+    ${onb.length ? `<h4 style="margin:12px 0 4px">${pn.length ? 3 : 2}. Planttypes die de app nog niet kent</h4>
+      <div class="tpImpLijst">${onb.map(([t, o]) => `<div class="tpImpRij ${TPI.typen[t] === 'nieuw' ? 'nieuw' : TPI.typen[t] ? '' : 'mist'}"><span><b>${esc(t)}</b><small>${tpG(o.ha, 2)} ha${o.mp ? ` · plantafstand ${tpG(o.mp)} per ha` : ''}</small></span><select class="veld" onchange="TPI.typen[${esc(JSON.stringify(t))}]=this.value;tpImpVoorbeeld()"><option value="nieuw" ${TPI.typen[t] === 'nieuw' ? 'selected' : ''}>＋ toevoegen als nieuw planttype</option>${TP_VELD.map(p => `<option value="${p.k}" ${TPI.typen[t] === p.k ? 'selected' : ''}>= ${esc(p.naam)}</option>`).join('')}<option value="" ${!TPI.typen[t] ? 'selected' : ''}>— overslaan —</option></select></div>`).join('')}</div>` : ''}
     <div class="fgStatus" style="margin-top:12px">${tpImpTel()}</div>
     ${uit.regels.length ? `<label class="vinkje"><input type="checkbox" id="tpiInd" checked> Indeling overnemen (een eerdere import uit Excel wordt vervangen, wat je zelf in de app hebt ingedeeld blijft staan)</label>` : ''}
     ${uit.voorraad.length ? `<label class="vinkje"><input type="checkbox" id="tpiVr" checked> Voorraad moederplanten overnemen</label>` : ''}
@@ -11324,17 +11410,22 @@ function tpImpVoorbeeld() {
   $('#mJa').onclick = tpImpOpslaan;
 }
 function tpImpTel() {
-  const {uit, koppel, rassen} = TPI, ok = uit.regels.filter(x => koppel[x.perceel] && rassen[x.ras] !== '-');
-  const nieuw = Object.entries(rassen).filter(([, v]) => !v).length, zonder = Object.values(koppel).filter(v => !v).length;
+  const {uit, koppel, rassen, typen} = TPI, ok = uit.regels.filter(x => koppel[x.perceel] && rassen[x.ras] !== '-' && (x.prod || typen[x.typ]));
+  const nieuw = Object.entries(rassen).filter(([, v]) => !v).length, zonder = Object.values(koppel).filter(v => !v).length, nt = Object.values(typen).filter(v => v === 'nieuw').length;
   return `<b>${ok.length}</b> indelingen · ${tpG(ok.reduce((a, x) => a + x.ha, 0), 2)} ha · ${tpG(ok.reduce((a, x) => a + x.planten, 0))} planten`
-    + `${uit.voorraad.length ? ` · voorraad van <b>${uit.voorraad.filter(x => rassen[x.ras] !== '-').length}</b> ras/klasse-combinaties` : ''}${nieuw ? ` · <b>${nieuw}</b> nieuwe rassen worden aangemaakt` : ''}`
+    + `${uit.voorraad.length ? ` · voorraad van <b>${uit.voorraad.filter(x => rassen[x.ras] !== '-').length}</b> ras/klasse-combinaties` : ''}${nieuw ? ` · <b>${nieuw}</b> nieuwe rassen worden aangemaakt` : ''}${nt ? ` · <b>${nt}</b> nieuw${nt === 1 ? ' planttype wordt' : 'e planttypes worden'} toegevoegd` : ''}`
     + `${zonder ? `<br>⚠️ ${zonder} perce${zonder === 1 ? 'el is' : 'len zijn'} niet gekoppeld: die regels worden overgeslagen` : ''}`;
 }
 async function tpImpOpslaan() {
-  const {uit, koppel, rassen} = TPI, b = $('#mJa'), metInd = $('#tpiInd')?.checked, metVr = $('#tpiVr')?.checked;
+  const {uit, koppel, rassen, typen} = TPI, b = $('#mJa'), metInd = $('#tpiInd')?.checked, metVr = $('#tpiVr')?.checked;
   b.disabled = true; b.textContent = 'Bezig…';
+  // nieuwe planttypes eerst aanmaken (met de plantafstand uit Excel)
+  const nieuweT = metInd ? Object.keys(typen).filter(t => typen[t] === 'nieuw' && uit.regels.some(x => x.typ === t && koppel[x.perceel])) : [];
+  if (nieuweT.length) { const rijen = nieuweT.map((t, i) => { const k = 'X' + Date.now().toString(36) + i; typen[t] = k; return {k, naam: t, kort: t, een: 'ha', mp: uit.onbekend[t]?.mp || 0, kw: ['A', 'B'], verk: ['A']}; });
+    if (!(await tpStdWijzig(d => ({...d, types: [...(d.types || []), ...rijen]})))) { b.disabled = false; b.textContent = '📥 Inlezen'; return; } }
+  uit.regels.forEach(x => { if (!x.prod && x.typ) x.prod = typen[x.typ] && typen[x.typ] !== 'nieuw' ? typen[x.typ] : null; });
   // nieuwe rassen aanmaken (alleen die echt gebruikt worden)
-  const sid = tpRasSoort(), nodig = new Set([...(metInd ? uit.regels.filter(x => koppel[x.perceel]).map(x => x.ras) : []), ...(metVr ? uit.voorraad.map(x => x.ras) : [])]);
+  const sid = tpRasSoort(), nodig = new Set([...(metInd ? uit.regels.filter(x => koppel[x.perceel] && x.prod).map(x => x.ras) : []), ...(metVr ? uit.voorraad.map(x => x.ras) : [])]);
   for (const n of Object.keys(rassen).filter(n => !rassen[n] && nodig.has(n))) {
     const naam = String(n).replace(/\s*\(.*?\)\s*/g, ' ').trim() || n;
     const {data, error} = await sb.from('rassen').insert({soort_id: sid, naam, kleur: tint(soort(sid)?.kleur || '#8bc34a', rassenVan(sid).length)}).select().single();
@@ -11343,7 +11434,7 @@ async function tpImpOpslaan() {
   }
   const rij = tpSeizoenRij(), data = {...rij.data};
   if (metInd) {
-    const nieuw = uit.regels.filter(x => koppel[x.perceel] && rassen[x.ras] && rassen[x.ras] !== '-').map(x => ({id: pzUid(), perceel_id: koppel[x.perceel], ras_id: rassen[x.ras], prod: x.prod, mat: x.mat,
+    const nieuw = uit.regels.filter(x => x.prod && koppel[x.perceel] && rassen[x.ras] && rassen[x.ras] !== '-').map(x => ({id: pzUid(), perceel_id: koppel[x.perceel], ras_id: rassen[x.ras], prod: x.prod, mat: x.mat,
       planten: x.planten || null, ha: Math.round(x.ha * 10000) / 10000, notitie: x.extra ? `Excel: ${x.extra}` : 'Uit Excel', bron: 'excel'}));
     data.indeling = [...(data.indeling || []).filter(x => x.bron !== 'excel'), ...nieuw];
   }
