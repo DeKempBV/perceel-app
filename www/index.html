@@ -325,6 +325,18 @@ textarea.veld{resize:vertical;font-family:inherit}
 .tpTab th:first-child,.tpTab td:first-child{text-align:left;position:sticky;left:0;background:#fff}.tpTab th{font-size:12px;color:#4a5d4c;vertical-align:bottom}.tpTab td.act{background:#fffde7}
 .tpIn{width:86px;border:1px solid #d7dccf;border-radius:7px;padding:4px 6px;font:inherit;text-align:right;background:#fff}.tpIn:focus{outline:2px solid #66bb6a}select.tpIn{text-align:left;width:auto}
 .tpTab tr.som td{background:#f4faf3;font-weight:600}.tpTot{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:6px}.tpTot div{background:#f4faf3;border-radius:12px;padding:10px;text-align:center}.tpTot b{display:block;font-size:20px}.tpTot small{color:var(--grijs)}
+.kcBalk{display:flex;flex-direction:column;gap:6px}.kcBalk .schakel{max-width:320px}
+.kcPlat{position:relative;width:100%;height:0;background:repeating-linear-gradient(0deg,#f6f8f5 0 1px,transparent 1px 20px),repeating-linear-gradient(90deg,#f6f8f5 0 1px,transparent 1px 20px);border-radius:10px}
+.kcCel{position:absolute;background:#eef7fd;border:2px solid #90caf9;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;transition:box-shadow .12s}
+.kcCel.over{border-color:#2e7d32;box-shadow:0 0 0 3px #a5d6a7;background:#e8f5e9}.kcPlat.bewerk .kcCel{border-style:dashed;cursor:move}
+.kcKop{display:flex;align-items:center;gap:6px;padding:4px 6px;background:#dbeefb;flex-wrap:wrap}.kcKop small{color:#456;font-size:11px}.kcKop .weg,.kcKop .logknoppen{margin-left:auto}
+.kcPlat.bewerk .kcKop{cursor:move;touch-action:none;background:#c5e2f7}.kcInh{flex:1;overflow:auto;padding:4px;display:flex;flex-direction:column;gap:4px}
+.kcChip{background:#fff;border:1px solid #cfd8dc;border-radius:7px;padding:3px 6px;font-size:12px;user-select:none}.kcChip small{display:block;color:#666}.kcChip.sleep{cursor:grab;touch-action:none}
+.kcChip.pallet{background:#fff8e1;border-color:#ffcc80}.kcHoog{float:right;font-size:11px;color:#8d6e00}
+.kcRand{position:absolute;right:0;bottom:0;width:18px;height:18px;background:linear-gradient(135deg,transparent 50%,#1e88e5 50%);cursor:nwse-resize;touch-action:none}
+.kcLeegPlat{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#888}
+.kcPRij{display:grid;grid-template-columns:1fr 90px 90px 28px;gap:6px;margin-bottom:6px}
+section[data-vbcel].over{outline:3px dashed #2e7d32}
 .vbGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,38%);gap:12px;align-items:start}.vbGrid>div>.kaartje{margin-top:0}.vbCellen{display:flex;flex-direction:column;gap:12px}.vbRechts{position:sticky;top:8px}
 @media (max-width:760px){.vbGrid{grid-template-columns:1fr}.vbRechts{order:-1;position:static}}
 .vbDozen{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.vbDoos{border:2px dashed #cfe3cc;border-radius:12px;padding:8px 10px;background:#fbfdfb;display:flex;flex-direction:column;gap:4px;min-height:70px;transition:.12s}
@@ -333,6 +345,7 @@ textarea.veld{resize:vertical;font-family:inherit}
 .vbKop .logknoppen{display:flex;gap:2px}.vbRegel{display:flex;justify-content:space-between;align-items:center;gap:6px;background:#fff;border-radius:8px;padding:4px 6px;font-size:13px}.vbRegel small{display:block}.vbLeeg{color:#999;font-size:13px;padding:6px 0}
 .vbPartij.sleep{cursor:grab;user-select:none}.vbPartij.verdeeld{opacity:.55}.vbGreep{touch-action:none;font-size:20px;color:#9aa;padding:0 8px 0 2px;cursor:grab;align-self:center}.vbStand{color:#1565c0}
 .vbGhost{position:fixed;left:0;top:0;z-index:9999;pointer-events:none;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);padding:6px 10px;opacity:.95;display:flex;gap:6px}body.vbSleept{user-select:none;cursor:grabbing}
+.vwJaren{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:4px 0 8px}.vwJaren span{font-size:13px;color:#666;margin-right:4px}.vwJaren button{padding:4px 10px}.vwBron{display:block;font-weight:400;color:#777}
 .psBlok{background:#f4faf3;border-radius:10px;padding:6px 10px;margin:6px 0}.psKop{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.psKop small{color:#666}.psOud summary{cursor:pointer;font-size:13px;color:#2e7d32;margin-top:4px}.psRij{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid #e3eee1}.psRij small{display:block;color:#666}.psGroep{margin:6px 0}.psChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .tpPerc{background:#f4faf3;border-radius:10px;padding:8px 10px;margin:6px 0 8px}.tpPercKop{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px}.tpPercKop small{color:#666}.tpPercRij{display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px solid #e3eee1}.tpPercRij:first-of-type{border-top:0}.tpPercRij>i{width:10px;height:10px;border-radius:50%;flex:none}.tpPercRij>span{flex:1}.tpPercRij small{display:block;color:#666}
 .tpLijsten{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}.tpChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-items:center}.tpChip{display:inline-flex;align-items:center;gap:4px;border:1px solid #dde7da;border-radius:16px;padding:3px 10px;font-size:13px;background:#fff}.tpChip small{color:#888;margin-left:4px}.tpChip.eigen{border-color:#81c784;background:#f1f8e9}.tpChip .weg{padding:0 2px}
@@ -7093,12 +7106,83 @@ async function laadVwAlle() {
     (uit[r.perceel_id] = uit[r.perceel_id] || []).push({jaar: new Date(s.gestart).getFullYear(), naam: s.naam, seizoen: s.id, planten: plantenInGegevens(r.gegevens)}); });
   vwAlle = {lijst: uit}; render(true);
 }
+// ---- vruchtwisseling: hoeveel jaar terug, en wat er volgens de BRP (RVO) stond ----
+let vwJaren = (() => { try { return localStorage.getItem('vw_jaren') || '6'; } catch { return '6'; } })();
+function vwJarenKies(v) { vwJaren = String(v); try { localStorage.setItem('vw_jaren', vwJaren); } catch {} render(true); }
+const vwJarenKnoppen = () => `<div class="schakel vwJaren"><span>Jaren terug:</span>${['3', '5', '8', '10', '15', 'alles'].map(v => `<button class="${vwJaren === v ? 'aan' : ''}" onclick="vwJarenKies('${v}')">${v === 'alles' ? 'alles' : v}</button>`).join('')}</div>`;
+const vwBinnen = jaar => vwJaren === 'alles' || jaar > new Date().getFullYear() - +vwJaren - 1;
+// BRP-gewasnaam koppelen aan een plant in de app ("Aardbeien, open grond, productie" → Aardbei)
+function brpSoort(naam) {
+  const n = ' ' + normTekst(naam) + ' ', stam = s => normTekst(s).replace(/(en|s)$/, '');
+  return S.soorten.filter(s => stam(s.naam).length > 2 && (n.includes(' ' + stam(s.naam)) || n.includes(' ' + normTekst(s.naam) + ' '))).sort((a, b) => b.naam.length - a.naam.length)[0] || null;
+}
+const BRP_HIST = 'https://services.arcgis.com/nSZVuSZjHpEZZbRo/arcgis/rest/services/BRP_Gewaspercelen_historie/FeatureServer';
+const brpVeld = (pr, re) => { const k = Object.keys(pr || {}).find(k => re.test(k)); return k ? pr[k] : null; };
+async function brpHistorieOphalen(pid, stil) {
+  const p = perceel(pid); if (!p?.geo) return null;
+  const vorm = p.geo.type === 'Feature' ? p.geo : {type: 'Feature', properties: {}, geometry: p.geo}, opp = turf.area(vorm) || 1, [x0, y0, x1, y1] = turf.bbox(vorm);
+  const gevonden = [], fouten = [];
+  const verwerk = (f, jaarStd) => {
+    const pr = f.properties || {}; let jaar = +brpVeld(pr, /^(jaar|year|brp_?jaar|peiljaar)$/i) || jaarStd;
+    if (!jaar) { const d = brpVeld(pr, /datum|date/i); if (d) jaar = new Date(isNaN(d) ? d : +d).getFullYear(); }
+    const gewas = String(brpVeld(pr, /^(gewas|gewasnaam|gws_gewas|gewas_omschrijving|omschrijving)$/i) || brpVeld(pr, /gewas(?!code|categorie)/i) || brpVeld(pr, /crop.?name/i) || '').trim();
+    if (!jaar || !gewas) return;
+    let deel = 0; try { polygonDelen(f).forEach(g => { const s = turf.intersect(vorm, g); if (s) deel += turf.area(s); }); } catch {}
+    if (deel / opp < .1) return;   // minder dan 10% van het perceel: dat is een buurperceel
+    gevonden.push({jaar, gewas, code: brpVeld(pr, /gewascode|gws_gewascode|^code$/i) || null, aandeel: Math.round(deel / opp * 100)});
+  };
+  // 1. historie (alle jaren) bij Esri Nederland
+  try {
+    const info = await (await fetch(`${BRP_HIST}?f=json`)).json(); if (info.error) throw new Error(info.error.message || 'geen toegang');
+    for (const l of info.layers || []) {
+      const q = `${BRP_HIST}/${l.id}/query?where=1%3D1&geometry=${x0},${y0},${x1},${y1}&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&outSR=4326&f=geojson&resultRecordCount=500`;
+      const j = await (await fetch(q)).json(); if (j.error) throw new Error(j.error.message || 'fout');
+      const jl = +((l.name || '').match(/(19|20)\d{2}/) || [])[0] || 0; (j.features || []).forEach(f => verwerk(f, jl));
+    }
+  } catch (e) { fouten.push('historie: ' + (e.message || e)); }
+  // 2. het nieuwste jaar bij PDOK
+  try {
+    const j = await (await fetch(`https://api.pdok.nl/rvo/gewaspercelen/ogc/v1/collections/brpgewas/items?f=json&limit=500&bbox=${x0},${y0},${x1},${y1}`)).json();
+    (j.features || []).forEach(f => verwerk(f, 0));
+  } catch (e) { fouten.push('PDOK: ' + (e.message || e)); }
+  // per jaar en gewas samenvoegen
+  const per = new Map(); gevonden.forEach(g => { const k = g.jaar + '|' + g.gewas; const o = per.get(k); if (o) o.aandeel = Math.min(100, o.aandeel + g.aandeel); else per.set(k, {...g}); });
+  const brp = [...per.values()].map(g => { const s = brpSoort(g.gewas); return {jaar: g.jaar, soort_id: s?.id || null, gewas: g.gewas, code: g.code, aandeel: g.aandeel, bron: 'brp'}; });
+  if (brp.length) {
+    const jaren = new Set(brp.map(x => x.jaar)), oud = (Array.isArray(p.teelthistorie) ? p.teelthistorie : []).filter(h => !(h.bron === 'brp' && jaren.has(+h.jaar)));
+    await wijzig(pid, {teelthistorie: [...oud, ...brp].sort((a, b) => b.jaar - a.jaar)});
+  }
+  if (!stil) toast(brp.length ? `🛰️ ${new Set(brp.map(x => x.jaar)).size} jaar uit de BRP gehaald${fouten.length ? ' (de oudere jaren waren niet bereikbaar)' : ''}` : fouten.length === 2 ? 'De BRP was niet bereikbaar. Vul het zelf in met ＋.' : 'Niets gevonden in de BRP voor dit perceel. Vul het zelf in met ＋.', !brp.length);
+  return {n: brp.length, fouten};
+}
+async function brpHistorieAlle() {
+  const l = S.percelen.filter(p => p.type !== 'pand' && p.geo); if (!l.length || !await bevestig('Vruchtwisseling ophalen uit de BRP?', `Voor ${l.length} percelen wordt opgezocht wat er de afgelopen jaren volgens de RVO stond. Wat je zelf hebt ingevuld blijft staan.`)) return;
+  let ok = 0, nul = 0; for (let i = 0; i < l.length; i++) { toast(`🛰️ BRP ophalen… ${i + 1} van ${l.length}`); const r = await brpHistorieOphalen(l[i].id, true); if (r?.n) ok++; else nul++; }
+  vwAlle = null; render(true); toast(`🛰️ Klaar: ${ok} percelen gevonden${nul ? `, ${nul} zonder gegevens` : ''}`);
+}
+async function historieWeg(pid, i) {
+  const p = perceel(pid), h = [...(Array.isArray(p?.teelthistorie) ? p.teelthistorie : [])]; if (!h[i]) return;
+  if (!await bevestig('Weghalen?', `${h[i].jaar}: ${soort(h[i].soort_id)?.naam || h[i].gewas || ''}`)) return;
+  h.splice(i, 1); await wijzig(pid, {teelthistorie: h}); render(true);
+}
+// de rijen per jaar (gedeeld door het perceel en het overzicht)
+function vwRijenHtml(p, beh) {
+  const jaren = teeltJaren(p).filter(([j]) => vwBinnen(j)), hist = Array.isArray(p.teelthistorie) ? p.teelthistorie : [];
+  return jaren.map(([j, x]) => {
+    const namen = [...[...x.ids].map(id => soort(id)?.naam).filter(Boolean), ...x.tekst];
+    const eigen = hist.map((h, i) => ({h, i})).filter(({h}) => +h.jaar === j);
+    return `<div class="inforij vwRij"><span>${j}</span><b>${namen.map(esc).join(', ') || '<small>niets bekend</small>'}
+      ${eigen.length ? `<small class="vwBron">${eigen.map(({h, i}) => `${h.bron === 'brp' ? '🛰️ BRP' : '✍️ zelf'}: ${esc(soort(h.soort_id)?.naam && h.bron !== 'brp' ? soort(h.soort_id).naam : h.gewas || soort(h.soort_id)?.naam || '')}${h.aandeel && h.aandeel < 95 ? ` (${h.aandeel}%)` : ''}${beh ? ` <button class="weg" title="Weghalen" onclick="historieWeg('${p.id}',${i})">×</button>` : ''}`).join(' · ')}</small>` : ''}</b></div>`; }).join('')
+    || `<p class="hint">Nog niets bekend${vwJaren !== 'alles' ? ` in de laatste ${vwJaren} jaar` : ''}.</p>`;
+}
 // teelt per jaar: seizoenen in de app + wat je zelf van vroeger hebt ingevuld + het huidige seizoen
 function teeltJaren(p) {
   const jaren = new Map(), zet = (jaar, ids, tekst) => { const x = jaren.get(jaar) || {ids: new Set(), tekst: []}; ids.forEach(i => x.ids.add(i)); if (tekst) x.tekst.push(tekst); jaren.set(jaar, x); };
   (vwAlle?.lijst?.[p.id] || []).forEach(x => { if (x.seizoen !== bekeken) zet(x.jaar, x.planten); });
   zet(seizoenStart().getFullYear(), plantenNu(p));
+  (S.perceel_seizoenen || []).filter(x => x.perceel_id === p.id && x.van).forEach(x => zet(new Date(x.van).getFullYear(), [x.soort_id, ...(x.partijen || []).map(y => y.soort_id), ...(x.gegevens ? plantenInGegevens(x.gegevens) : [])].filter(Boolean)));
   (Array.isArray(p.teelthistorie) ? p.teelthistorie : []).forEach(h => { const s = S.soorten.find(x => x.id === h.soort_id); zet(+h.jaar, s ? [s.id] : [], s ? '' : h.gewas); });
+  jaren.forEach(x => { x.tekst = [...new Set(x.tekst.filter(Boolean))]; });
   return [...jaren.entries()].sort((a, b) => b[0] - a[0]);
 }
 // vanaf welk jaar mag een plant hier weer (rust_jaren bij de plant)
@@ -7115,13 +7199,14 @@ function htmlVruchtwisselingAlle() {
   const beh = mag('percelen_bewerken');
   return `<section class="kaartje"><h4>🔄 Vruchtwisseling</h4>
     <p class="hint" style="margin-top:0">Per perceel wat er de afgelopen jaren stond en vanaf welk jaar een plant er weer mag. Hoeveel jaar rust een plant nodig heeft stel je in bij Planten → ✏️${rustPlanten.length ? '' : ' (nog bij geen enkele plant ingevuld)'}. Jaren van vóór de app vul je per perceel zelf in.</p></section>
-  ${velden.map(p => { const jaren = teeltJaren(p).slice(0, 6), ms = monstersVan(p.id).slice(0, 2);
+  ${vwJarenKnoppen()}${beh ? `<div class="rij" style="gap:6px;margin:6px 0"><button class="knop licht" style="width:auto" onclick="brpHistorieAlle()">🛰️ Alles ophalen uit de BRP (RVO)</button></div>` : ''}</section>
+  ${velden.map(p => { const ms = monstersVan(p.id).slice(0, 2);
     const mogelijk = rustPlanten.map(s => { const j = weerMogelijk(p, s.id); return j && j > nu ? `<span class="badge" style="background:#fdecea;color:#b71c1c">${esc(s.naam)} pas weer in ${j}</span>` : `<span class="badge" style="background:#e8f5e9;color:#1b5e20">${esc(s.naam)} kan</span>`; }).join(' ');
     return `<section class="kaartje"><h4 onclick="kies('${p.id}')" style="cursor:pointer">${esc(p.naam)} ${isBioPerceel(p) ? '<span class="badge bio">BIO</span>' : ''}</h4>
       ${mogelijk ? `<div style="margin-bottom:6px">${mogelijk}</div>` : ''}
-      ${jaren.map(([j, x]) => `<div class="inforij"><span>${j}</span><b>${[...[...x.ids].map(id => soort(id)?.naam).filter(Boolean), ...x.tekst].map(esc).join(', ') || '<small>niets</small>'}</b></div>`).join('')}
+      ${vwRijenHtml(p, beh)}
       ${ms.length ? `<small>🧪 ${ms.map(m => `${monsterSoort(m.soort)} ${new Date(m.datum).getFullYear()}: ${MONSTER_STATUS.find(x => x[0] === m.status)?.[1] || ''}`).join(' · ')}</small>` : ''}
-      ${beh ? `<button class="link klein" onclick="historieToevoegen('${p.id}')">＋ Eerder jaar invullen</button>` : ''}</section>`; }).join('')}`;
+      ${beh ? `<div class="rij" style="gap:10px"><button class="link klein" onclick="historieToevoegen('${p.id}')">＋ Zelf een jaar invullen</button><button class="link klein" onclick="brpHistorieOphalen('${p.id}').then(()=>render(true))">🛰️ Uit de BRP</button></div>` : ''}</section>`; }).join('')}`;
 }
 async function historieToevoegen(pid) {
   const p = perceel(pid); if (!p) return;
@@ -10832,13 +10917,12 @@ function plantenInGegevens(g) {
 }
 function plantenNu(p) { const ids = new Set(); teeltOppervlak(p).forEach((x, k) => { const t = teelt(k); if (t) ids.add(t.plantId); }); return ids; }
 function vruchtwisselWaarschuwing(p) {
-  const vw = vwCache[p.id]; if (!vw?.lijst) return [];
-  const eerder = vw.lijst.filter(x => x.seizoen.id !== bekeken && new Date(x.seizoen.gestart) < seizoenStart());
+  const nuJ = seizoenStart().getFullYear(), eerder = teeltJaren(p).filter(([j]) => j < nuJ);
   const uit = [];
   plantenNu(p).forEach(id => {
     const s = soort(id), r = +s?.rust_jaren; if (!r) return;
-    const binnen = eerder.slice(0, r).filter(x => x.planten.has(id));
-    if (binnen.length) uit.push(`⚠️ <b>${esc(s.naam)}</b> stond hier ook in ${binnen.map(x => esc(x.seizoen.naam)).join(', ')} (minimaal ${r} jaar rust)`);
+    const binnen = eerder.filter(([j, x]) => j >= nuJ - r && x.ids.has(id));
+    if (binnen.length) uit.push(`⚠️ <b>${esc(s.naam)}</b> stond hier ook in ${binnen.map(([j]) => j).join(', ')} (minimaal ${r} jaar rust)`);
   });
   return [...uit, ...monsterWaarschuwingen(p)];
 }
@@ -10846,7 +10930,12 @@ function htmlVruchtwisseling(p) {
   if (!ziet('historie_bekijken') || p.type === 'pand') return '';
   if (!vwCache[p.id]) { setTimeout(() => laadVruchtwisseling(p.id), 0); return ''; }
   const vw = vwCache[p.id]; if (vw.laden) return '';
-  const w = vruchtwisselWaarschuwing(p);
+  if (!vwAlle) setTimeout(laadVwAlle, 0);
+  const w = vruchtwisselWaarschuwing(p), beh = mag('percelen_bewerken');
+  return `<section class="kaartje infoblok"><h4>🔄 Vruchtwisseling</h4>${w.map(x => `<div class="waarschuwing">${x}</div>`).join('')}
+    ${vwJarenKnoppen()}${vwRijenHtml(p, beh)}
+    ${beh ? `<div class="rij" style="gap:10px;margin-top:4px"><button class="link klein" onclick="historieToevoegen('${p.id}')">＋ Zelf een jaar invullen</button><button class="link klein" onclick="brpHistorieOphalen('${p.id}').then(()=>render(true))">🛰️ Ophalen uit de BRP (RVO)</button></div>` : ''}
+    <p class="hint">Bij Planten → ✏️ stel je per plant in hoeveel jaar rust er nodig is.</p></section>`;
   const rijen = vw.lijst.filter(x => x.seizoen.id !== bekeken).slice(0, 6).map(x => `<div class="inforij"><span>${esc(x.seizoen.naam)}</span><b>${[...x.planten].map(id => soort(id) ? icoonHtml(plantIcoon(soort(id))) + ' ' + esc(soort(id).naam) : '').filter(Boolean).join(', ') || '<small>niets ingedeeld</small>'}</b></div>`).join('');
   if (!rijen && !w.length) return '';
   return `<section class="kaartje infoblok"><h4>🔄 Vruchtwisseling</h4>${w.map(x => `<div class="waarschuwing">${x}</div>`).join('')}
@@ -12268,9 +12357,10 @@ async function mutatieFormulier(partijId, soortVast, id) {
     {k: 'soort', label: 'Wat', type: 'select', waarde: m.soort, opties: MUT_SOORTEN},
     {k: 'datum', label: 'Datum', type: 'date', waarde: m.datum},
     {k: 'aantal', label: 'Aantal', type: 'number', waarde: m.aantal ?? ''},
-    {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: m.eenheid || vorige?.eenheid || 'trays', opties: [['trays', 'trays'], ['kisten', 'kisten'], ['dozen', 'dozen'], ['bossen', 'bossen'], ['planten', 'planten']]},
-    {k: 'per_eenheid', label: 'Planten per tray/kist/doos', type: 'number', waarde: m.per_eenheid ?? vorige?.per_eenheid ?? ''},
-    {k: 'koelcel', label: 'Koelcel / plek', waarde: m.koelcel || vorige?.koelcel || '', lijst: lijst('koelcel')},
+    {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: m.eenheid || vorige?.eenheid || 'trays', opties: [...KC_EENHEDEN, ...(m.eenheid && !KC_EENHEDEN.some(e => e[0] === m.eenheid) ? [[m.eenheid, m.eenheid]] : [])]},
+    {k: 'per_eenheid', label: 'Planten per tray / kistje / kuubskist', type: 'number', waarde: m.per_eenheid ?? vorige?.per_eenheid ?? ''},
+    {k: 'koelcel', label: 'Koelcel', type: 'select', waarde: m.koelcel || vorige?.koelcel || kcLijst()[0]?.naam || '', opties: [...new Set([...kcLijst().map(c => c.naam), ...lijst('koelcel'), m.koelcel].filter(Boolean))].map(c => [c, c]).concat([['', '— geen / anders —']])},
+    {k: 'pallet', label: `Pallet (nummer, max ${KC_PALLET_MAX} kistjes)`, waarde: m.pallet || '', lijst: kcPallets().map(p => p.nr), als: ['eenheid', 'kistjes'], placeholder: 'leeg = niet op een pallet'},
     {k: 'klant', label: 'Klant', waarde: m.klant || '', lijst: lijst('klant'), als: ['soort', 'uit']},
     {k: 'pakbon', label: 'Pakbon / ordernummer', waarde: m.pakbon || '', als: ['soort', 'uit']},
     {k: 'prijs', label: 'Prijs per eenheid (€)', type: 'number', waarde: m.prijs ?? '', als: ['soort', 'uit']},
@@ -12280,7 +12370,7 @@ async function mutatieFormulier(partijId, soortVast, id) {
   if (!w.partij_id || g('aantal') == null) { toast('Kies een partij en vul het aantal in', 1); return; }
   const pa = (S.partijen || []).find(x => x.id === w.partij_id);
   const rij = {partij_id: w.partij_id, seizoen_id: pa?.seizoen_id || bekeken, soort: w.soort, datum: w.datum || dKey(new Date()), aantal: g('aantal'), eenheid: w.eenheid, per_eenheid: g('per_eenheid'),
-    koelcel: w.koelcel || null, klant: w.soort === 'uit' ? w.klant || null : null, pakbon: w.soort === 'uit' ? w.pakbon || null : null, prijs: w.soort === 'uit' ? g('prijs') : null, notitie: w.notitie || null};
+    koelcel: w.koelcel || null, ...(w.eenheid === 'kistjes' && w.pallet ? {pallet: w.pallet.trim()} : id ? {pallet: null} : {}), klant: w.soort === 'uit' ? w.klant || null : null, pakbon: w.soort === 'uit' ? w.pakbon || null : null, prijs: w.soort === 'uit' ? g('prijs') : null, notitie: w.notitie || null};
   if (!id) rij.door = naamMe();
   const res = id ? await sb.from('partij_mutaties').update(rij).eq('id', id).select().single() : await sb.from('partij_mutaties').insert(rij).select().single();
   if (res.error) { toast(/does not exist|schema cache/i.test(res.error.message) ? 'Voer eerst het nieuwe beheer.sql uit' : 'Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
@@ -12380,17 +12470,160 @@ async function vbKies(pid, cel) {
   if (w) vbReserveer(pid, cel, w.b);
 }
 // slepen met muis én vinger (pointer events, werkt ook op iPad)
+/* ---------- koelcellen: plattegrond, pallets en verplaatsen ---------- */
+const KC_EENHEDEN = [['trays', 'trays'], ['kistjes', 'kistjes'], ['kuubskisten', 'kuubskisten'], ['planten', 'planten']];
+const KC_PALLET_MAX = 64;
+let kcWeergave = (() => { try { return localStorage.getItem('kc_weergave') || 'plattegrond'; } catch { return 'plattegrond'; } })(), kcBewerk = false;
+function kcZetWeergave(v) { kcWeergave = v; try { localStorage.setItem('kc_weergave', v); } catch {} render(true); }
+function kcOpgeslagen() { try { const l = JSON.parse(S.inst?.koelcellen || '[]'); return Array.isArray(l) ? l.filter(c => c?.naam) : []; } catch { return []; } }
+// alle koelcellen: de ingestelde (met plek op de plattegrond) + cellen waar iets in staat
+function kcLijst() {
+  const l = kcOpgeslagen().map(c => ({...c})), namen = new Set(l.map(c => c.naam));
+  const gebruikt = new Set(); (S.partijen || []).forEach(y => voorraadVan(y.id).forEach((x, cel) => { if (x.planten > .5) gebruikt.add(cel); }));
+  [...gebruikt].filter(c => !namen.has(c)).sort((a, b) => a.localeCompare(b, 'nl', {numeric: true})).forEach(n => l.push({naam: n}));
+  let i = 0; l.forEach(c => { if (c.x == null) { c.x = 2 + (i % 4) * 24.5; c.y = 2 + Math.floor(i / 4) * 32; c.w = 23; c.h = 30; c.nieuw = true; i++; } });
+  return l;
+}
+async function kcBewaar(l) {
+  const w = JSON.stringify(l.map(({naam, x, y, w, h}) => ({naam, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, w: Math.round(w * 10) / 10, h: Math.round(h * 10) / 10})));
+  const {error} = await sb.rpc('zet_instelling', {p_sleutel: 'koelcellen', p_waarde: w});
+  if (error) { toast(/Onbekende instelling/.test(error.message) ? 'Draai eerst beheer.sql opnieuw in Supabase' : foutTekst(error), 1); return false; }
+  S.inst = {...(S.inst || {}), koelcellen: w}; return true;
+}
+async function kcErbij() {
+  const naam = (await vraag('Naam van de koelcel', {knop: 'Toevoegen'}))?.trim(); if (!naam) return;
+  const l = kcLijst(); if (l.some(c => normTekst(c.naam) === normTekst(naam))) { toast('Die koelcel bestaat al', 1); return; }
+  const maxY = l.reduce((a, c) => Math.max(a, c.y + c.h), 0);
+  l.push({naam, x: 2, y: Math.min(maxY + 2, 160), w: 23, h: 30}); if (await kcBewaar(l)) { render(true); toast(`🧊 ${naam} toegevoegd`); }
+}
+async function kcHernoem(naam) {
+  const nieuw = (await vraag('Nieuwe naam', {waarde: naam}))?.trim(); if (!nieuw || nieuw === naam) return;
+  if (kcInhoud(naam).planten > .5) { toast('Er staat nog iets in deze koelcel. Verplaats het eerst, of houd de naam.', 1); return; }
+  const l = kcLijst().map(c => c.naam === naam ? {...c, naam: nieuw} : c); if (await kcBewaar(l)) render(true);
+}
+async function kcWeg(naam) {
+  if (kcInhoud(naam).planten > .5) { toast('Er staat nog iets in deze koelcel', 1); return; }
+  if (!await bevestig(`${naam} weghalen?`, 'De koelcel verdwijnt van de plattegrond.')) return;
+  if (await kcBewaar(kcLijst().filter(c => c.naam !== naam))) render(true);
+}
+// wat staat er in een koelcel: partijen (met eenheid) en pallets
+function kcInhoud(cel) {
+  const partijen = []; let planten = 0;
+  (S.partijen || []).forEach(y => { const x = voorraadVan(y.id).get(cel); if (x && x.planten > .5) { partijen.push({y, x}); planten += x.planten; } });
+  return {partijen, planten, pallets: kcPallets().filter(p => p.cel === cel)};
+}
+// pallets: per palletnummer welke partijen erop staan (in kistjes) en in welke koelcel hij staat
+function kcPallets() {
+  const per = new Map();
+  (S.partij_mutaties || []).filter(m => m.pallet).sort((a, b) => String(a.datum).localeCompare(String(b.datum)) || String(a.created_at).localeCompare(String(b.created_at))).forEach(m => {
+    const p = per.get(m.pallet) || {nr: m.pallet, regels: new Map(), cel: null}; per.set(m.pallet, p);
+    const t = m.soort === 'in' || m.soort === 'correctie' ? 1 : -1, n = +m.aantal || 0;
+    const k = m.partij_id + '|' + (m.koelcel || '—'), r = p.regels.get(k) || {partij_id: m.partij_id, cel: m.koelcel || '—', kistjes: 0, per: m.per_eenheid, eenheid: m.eenheid};
+    r.kistjes += t * n; if (m.per_eenheid) r.per = m.per_eenheid; p.regels.set(k, r);
+  });
+  return [...per.values()].map(p => { const regels = [...p.regels.values()].filter(r => r.kistjes > .01); const cel = regels[0]?.cel || null;
+    return {nr: p.nr, cel, regels, kistjes: regels.reduce((a, r) => a + r.kistjes, 0)}; }).filter(p => p.regels.length)
+    .sort((a, b) => String(a.nr).localeCompare(String(b.nr), 'nl', {numeric: true}));
+}
+// wat er los (niet op een pallet) van een partij in een koelcel staat, met de eenheid van die losse boekingen
+function kcLos(pid, cel) {
+  const ms = mutatiesVan(pid).filter(m => (m.koelcel || '—') === cel && !m.pallet); let planten = 0, eenheid = null, per = null;
+  ms.forEach(m => { planten += (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * mutPlanten(m); if (m.soort === 'in' || (m.soort === 'correctie' && +m.aantal > 0)) { eenheid = m.eenheid; per = m.per_eenheid; } });
+  return {planten, eenheid: eenheid || 'planten', per_eenheid: per};
+}
+const kcVolgendPallet = () => String((S.partij_mutaties || []).reduce((a, m) => Math.max(a, parseInt(m.pallet) || 0), 0) + 1);
+// een pallet inslaan: één palletnummer met één of meer partijen (kistjes)
+async function kcPalletInslag(cel) {
+  if (!mag('voorraad_beheren')) return;
+  const alle = (S.partijen || []).slice().sort((a, b) => (partijRas(a) || '').localeCompare(partijRas(b) || '', 'nl'));
+  const opt = sel => `<option value="">– kies partij –</option>${alle.map(y => `<option value="${y.id}" ${y.id === sel ? 'selected' : ''}>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')} · ${esc(y.batch || '')} ${esc(y.klasse || '')}</option>`).join('')}`;
+  const cellen = kcLijst().map(c => c.naam), laatstePer = (S.partij_mutaties || []).filter(m => m.eenheid === 'kistjes' && m.per_eenheid).pop()?.per_eenheid || '';
+  const rij = () => `<div class="kcPRij"><select class="veld" data-p>${opt('')}</select><input class="veld" data-n type="number" inputmode="numeric" placeholder="kistjes"><input class="veld" data-per type="number" inputmode="numeric" placeholder="pl./kistje" value="${esc(laatstePer)}"><button class="weg" onclick="this.parentNode.remove();kcPalletTel()">×</button></div>`;
+  $('#modal').innerHTML = `<div class="dialoog groot"><h3>🧱 Pallet inslaan</h3>
+    <div class="raster2"><div><label>Palletnummer</label><input class="veld" id="kcNr" value="${esc(kcVolgendPallet())}"></div><div><label>Datum</label><input class="veld" id="kcDat" type="date" value="${dKey(new Date())}"></div></div>
+    <label>Koelcel</label><select class="veld" id="kcCel">${cellen.length ? cellen.map(c => `<option ${c === cel ? 'selected' : ''}>${esc(c)}</option>`).join('') : '<option value="">– voeg eerst een koelcel toe –</option>'}</select>
+    <label>Wat staat er op? <small>(meerdere rassen/partijen kan)</small></label><div id="kcRijen">${rij()}</div>
+    <button class="link klein" onclick="document.getElementById('kcRijen').insertAdjacentHTML('beforeend', window._kcRij())">＋ Nog een partij op deze pallet</button>
+    <div id="kcTel" class="fgStatus" style="margin-top:8px"></div>
+    <div class="rij"><button class="knop licht" id="mNee">Annuleren</button><button class="knop" id="mJa">Inslaan</button></div></div>`;
+  window._kcRij = rij; const m = $('#modal'); m.classList.add('open'); m.oninput = kcPalletTel; kcPalletTel();
+  $('#mNee').onclick = () => { m.classList.remove('open'); m.oninput = null; };
+  $('#mJa').onclick = async () => {
+    const r = [...m.querySelectorAll('.kcPRij')].map(d => ({pid: d.querySelector('[data-p]').value, n: leesGetal(d.querySelector('[data-n]').value, 0), per: leesGetal(d.querySelector('[data-per]').value, null)})).filter(x => x.pid && x.n > 0);
+    const nr = $('#kcNr').value.trim(), c = $('#kcCel').value, tot = r.reduce((a, x) => a + x.n, 0);
+    if (!nr || !c || !r.length) { toast('Vul palletnummer, koelcel en minstens één partij met kistjes in', 1); return; }
+    if (tot > KC_PALLET_MAX) { toast(`Er passen maximaal ${KC_PALLET_MAX} kistjes op een pallet (nu ${tot})`, 1); return; }
+    if (kcPallets().some(p => p.nr === nr) && !await bevestig(`Pallet ${nr} staat er al`, 'Kistjes erbij zetten op dezelfde pallet?')) return;
+    const rijen = r.map(x => { const y = S.partijen.find(z => z.id === x.pid); return {partij_id: x.pid, seizoen_id: y?.seizoen_id || bekeken, soort: 'in', datum: $('#kcDat').value || dKey(new Date()), aantal: x.n, eenheid: 'kistjes', per_eenheid: x.per, koelcel: c, pallet: nr, door: naamMe()}; });
+    const {data, error} = await sb.from('partij_mutaties').insert(rijen).select(); if (error) { toast(/pallet/.test(error.message) ? 'Draai eerst beheer.sql opnieuw in Supabase' : foutTekst(error), 1); return; }
+    S.partij_mutaties = [...(S.partij_mutaties || []), ...(data || [])]; m.classList.remove('open'); m.oninput = null; render(true); toast(`🧱 Pallet ${nr} ingeslagen in ${c} (${tot} kistjes)`);
+  };
+}
+function kcPalletTel() { const el = $('#kcTel'); if (!el) return; const tot = [...document.querySelectorAll('#kcRijen [data-n]')].reduce((a, i) => a + leesGetal(i.value, 0), 0);
+  el.classList.toggle('fout', tot > KC_PALLET_MAX); el.innerHTML = `<b>${tot}</b> van ${KC_PALLET_MAX} kistjes${tot > KC_PALLET_MAX ? ' – te hoog!' : ''}`; }
+// verplaatsen naar een andere koelcel (een partij of een hele pallet)
+async function kcVerplaats(pid, van, naar, pallet) {
+  if (!mag('voorraad_beheren') || van === naar) return;
+  const nu = dKey(new Date()), notitie = `↔ van ${van} naar ${naar}`, rijen = [];
+  if (pallet) {
+    const p = kcPallets().find(x => x.nr === pallet); if (!p) return;
+    p.regels.forEach(r => { const y = S.partijen.find(z => z.id === r.partij_id); const b = {partij_id: r.partij_id, seizoen_id: y?.seizoen_id || bekeken, soort: 'correctie', datum: nu, eenheid: r.eenheid || 'kistjes', per_eenheid: r.per, pallet, notitie, door: naamMe()};
+      rijen.push({...b, aantal: -r.kistjes, koelcel: r.cel === '—' ? null : r.cel}, {...b, aantal: r.kistjes, koelcel: naar}); });
+  } else {
+    const x = kcLos(pid, van); if (!x || x.planten <= .5) return;
+    const per = x.eenheid && x.eenheid !== 'planten' ? +x.per_eenheid || 0 : 0;
+    const w = await formulier(`↔ Naar ${naar}`, [{type: 'uitleg', waarde: `${esc(partijRas(S.partijen.find(z => z.id === pid)) || '?')} · in ${esc(van)}: <b>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)}</b>`},
+      {k: 'n', label: per ? `Hoeveel ${x.eenheid}` : 'Hoeveel planten', type: 'number', waarde: per ? Math.round(x.planten / per * 10) / 10 : Math.round(x.planten)}], 'Verplaatsen');
+    if (!w) return; const n = leesGetal(w.n, 0); if (!(n > 0)) return;
+    const y = S.partijen.find(z => z.id === pid), b = {partij_id: pid, seizoen_id: y?.seizoen_id || bekeken, soort: 'correctie', datum: nu, eenheid: per ? x.eenheid : 'planten', per_eenheid: per || null, notitie, door: naamMe()};
+    rijen.push({...b, aantal: -n, koelcel: van === '—' ? null : van}, {...b, aantal: n, koelcel: naar});
+  }
+  const {data, error} = await sb.from('partij_mutaties').insert(rijen).select(); if (error) { toast(foutTekst(error), 1); return; }
+  S.partij_mutaties = [...(S.partij_mutaties || []), ...(data || [])];
+  // wat voor een bestemming klaarstond gaat mee
+  const ids = pallet ? [...new Set(rijen.map(r => r.partij_id))] : [pid];
+  for (const r of vbRes().filter(r => ids.includes(r.partij_id) && (r.koelcel || '—') === van && !(voorraadVan(r.partij_id).get(van)?.planten > .5))) {
+    const {data: d} = await sb.from('voorraad_reserveringen').update({koelcel: naar}).eq('id', r.id).select().single(); if (d) Object.assign(r, d); }
+  render(true); toast(`↔ ${pallet ? 'Pallet ' + pallet : 'Verplaatst'} naar ${naar}`);
+}
+// plattegrond: koelcellen als blokken; in bewerk-modus schuiven en groter/kleiner maken
+function kcPlattegrondHtml(beh) {
+  const l = kcLijst(), hoog = Math.max(60, l.reduce((a, c) => Math.max(a, c.y + c.h), 0) + 4);
+  const chip = (y, x, cel) => `<div class="kcChip ${beh ? 'sleep' : ''}" ${beh && !kcBewerk ? `onpointerdown="vbSleepStart(event,'${y.id}','${esc(cel)}')" onclick="if(!this.dataset.gesleept)vbKies('${y.id}','${esc(cel)}')"` : ''}><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}<small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)}${vbGereserveerd(y.id, cel) ? ` · ${getal(vbGereserveerd(y.id, cel))} verdeeld` : ''}</small></div>`;
+  const pal = (p, cel) => `<div class="kcChip pallet ${beh ? 'sleep' : ''}" ${beh && !kcBewerk ? `onpointerdown="vbSleepStart(event,null,'${esc(cel)}','${esc(p.nr)}')"` : ''}><b>🧱 Pallet ${esc(p.nr)}</b> <span class="kcHoog">${getal(p.kistjes)}/${KC_PALLET_MAX}</span><small>${p.regels.map(r => `${esc(partijRas(S.partijen.find(z => z.id === r.partij_id)) || '?')} ${getal(r.kistjes)}`).join(' · ')}</small></div>`;
+  return `<div class="kcPlat ${kcBewerk ? 'bewerk' : ''}" id="kcPlat" style="padding-bottom:${hoog}%">${l.map((c, i) => { const inh = kcInhoud(c.naam), opPallet = new Set(inh.pallets.flatMap(p => p.regels.map(r => r.partij_id)));
+    const los = inh.partijen.map(({y}) => ({y, x: kcLos(y.id, c.naam)})).filter(({x}) => x.planten > .5);
+    return `<div class="kcCel" data-vbcel="${esc(c.naam)}" data-i="${i}" style="left:${c.x}%;top:${c.y / hoog * 100}%;width:${c.w}%;height:${c.h / hoog * 100}%">
+      <div class="kcKop" ${kcBewerk ? `onpointerdown="kcSchuif(event,${i},'move')"` : ''}><b>🧊 ${esc(c.naam)}</b><small>${inh.planten ? getal(inh.planten) + ' pl.' : 'leeg'}${inh.pallets.length ? ` · ${inh.pallets.length} pallet${inh.pallets.length === 1 ? '' : 's'}` : ''}</small>
+        ${kcBewerk ? `<span class="logknoppen"><button class="weg" onclick="event.stopPropagation();kcHernoem(${esc(JSON.stringify(c.naam))})">✏️</button><button class="weg" onclick="event.stopPropagation();kcWeg(${esc(JSON.stringify(c.naam))})">✕</button></span>` : beh ? `<button class="weg" title="Pallet inslaan" onclick="kcPalletInslag(${esc(JSON.stringify(c.naam))})">🧱＋</button>` : ''}</div>
+      <div class="kcInh">${inh.pallets.map(p => pal(p, c.naam)).join('')}${los.map(({y, x}) => chip(y, x, c.naam)).join('')}${!inh.planten ? '<div class="vbLeeg">Leeg</div>' : ''}</div>
+      ${kcBewerk ? `<div class="kcRand" onpointerdown="kcSchuif(event,${i},'maat')"></div>` : ''}</div>`; }).join('') || ''}
+    ${!l.length ? `<div class="kcLeegPlat">Nog geen koelcellen. ${beh ? 'Tik op ＋ Koelcel om er een toe te voegen.' : ''}</div>` : ''}</div>`;
+}
+// een koelcel op de plattegrond schuiven of groter maken (in procenten van de breedte)
+function kcSchuif(e, i, wat) {
+  e.preventDefault(); e.stopPropagation();
+  const plat = $('#kcPlat'), el = plat.querySelector(`.kcCel[data-i="${i}"]`), l = kcLijst(), c = l[i], B = plat.offsetWidth / 100;
+  const st = {x: e.clientX, y: e.clientY, c: {...c}}, raster = v => Math.round(v * 2) / 2;
+  const mv = ev => { const dx = (ev.clientX - st.x) / B, dy = (ev.clientY - st.y) / B;
+    if (wat === 'move') { c.x = Math.max(0, Math.min(100 - c.w, raster(st.c.x + dx))); c.y = Math.max(0, raster(st.c.y + dy)); }
+    else { c.w = Math.max(10, Math.min(100 - c.x, raster(st.c.w + dx))); c.h = Math.max(10, raster(st.c.h + dy)); }
+    const hoog = parseFloat(plat.style.paddingBottom); el.style.left = c.x + '%'; el.style.width = c.w + '%'; el.style.top = c.y / hoog * 100 + '%'; el.style.height = c.h / hoog * 100 + '%'; };
+  const op = async () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', op); if (c.x !== st.c.x || c.y !== st.c.y || c.w !== st.c.w || c.h !== st.c.h) { if (await kcBewaar(l)) render(true); } };
+  addEventListener('pointermove', mv); addEventListener('pointerup', op);
+}
+
 let VBS = null;
-function vbSleepStart(e, pid, cel) {
-  if (!mag('voorraad_beheren') || (e.button !== undefined && e.button > 0)) return;
-  const bron = e.currentTarget; VBS = {pid, cel, x: e.clientX, y: e.clientY, bron, ghost: null, doel: null, id: e.pointerId};
+function vbSleepStart(e, pid, cel, pallet) {
+  if (!mag('voorraad_beheren') || kcBewerk || (e.button !== undefined && e.button > 0)) return;
+  e.stopPropagation(); const bron = e.currentTarget; VBS = {pid, cel, pallet, x: e.clientX, y: e.clientY, bron, ghost: null, doel: null, id: e.pointerId};
   const beweeg = ev => {
     if (!VBS || ev.pointerId !== VBS.id) return;
     if (!VBS.ghost) { if (Math.hypot(ev.clientX - VBS.x, ev.clientY - VBS.y) < 6) return;
       VBS.ghost = bron.cloneNode(true); VBS.ghost.className = 'vbGhost'; VBS.ghost.style.width = bron.offsetWidth + 'px'; document.body.appendChild(VBS.ghost); document.body.classList.add('vbSleept'); }
     ev.preventDefault();
     VBS.ghost.style.transform = `translate(${ev.clientX - 20}px, ${ev.clientY - 18}px)`;
-    const t = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('[data-vbdoel]');
+    const t = document.elementFromPoint(ev.clientX, ev.clientY)?.closest(VBS.pallet ? '[data-vbcel]' : '[data-vbdoel],[data-vbcel]');
     if (VBS.doel !== t) { VBS.doel?.classList.remove('over'); t?.classList.add('over'); VBS.doel = t; }
     // automatisch scrollen bij de rand
     const sc = document.scrollingElement, r = 60; if (ev.clientY < r) sc.scrollBy(0, -14); else if (ev.clientY > innerHeight - r) sc.scrollBy(0, 14);
@@ -12401,7 +12634,9 @@ function vbSleepStart(e, pid, cel) {
     s.ghost?.remove(); s.doel?.classList.remove('over'); document.body.classList.remove('vbSleept');
     if (!s.ghost) return;   // niet gesleept: gewoon een tik
     s.bron.dataset.gesleept = '1'; setTimeout(() => delete s.bron.dataset.gesleept, 50);
-    if (ev.type === 'pointerup' && s.doel) vbReserveer(s.pid, s.cel, s.doel.dataset.vbdoel);
+    if (ev.type !== 'pointerup' || !s.doel) return;
+    if (s.doel.dataset.vbcel != null) { if (s.doel.dataset.vbcel !== s.cel) kcVerplaats(s.pid, s.cel, s.doel.dataset.vbcel, s.pallet); }
+    else vbReserveer(s.pid, s.cel, s.doel.dataset.vbdoel);
   };
   addEventListener('pointermove', beweeg, {passive: false}); addEventListener('pointerup', los); addEventListener('pointercancel', los);
 }
@@ -12448,7 +12683,11 @@ function htmlVoorraad() {
       ${res ? `<small class="vbStand">${vrij > 0 ? `<b>${eenhedenTekst(vrij, x.eenheid, x.per_eenheid)} vrij</b>` : '<b>helemaal verdeeld</b>'} · ${getal(res)} verdeeld (${vbRes().filter(r => r.partij_id === y.id && (r.koelcel || '—') === cel).map(r => esc(S.voorraad_bestemmingen.find(b => b.id === r.bestemming_id)?.naam || '?')).join(', ')})</small>` : ''}</div>
       ${beh ? `<span class="logknoppen"><button class="weg" title="Levering" onclick="mutatieFormulier('${y.id}','uit')">⬆️</button></span>` : ''}</div>`; }).join('')}</section>`).join('')
     || '<section class="kaartje"><p class="hint">Er staat niets in de koelcel. Boek een ⬇️ inslag als er gerooid is.</p></section>');
-  return kopW + `<div class="vbGrid"><div class="vbCellen">${celHtml}</div><div class="vbRechts">${htmlBestemmingen(beh)}</div></div>`;
+  const kcKop = `<section class="kaartje kcBalk"><div class="schakel">${[['plattegrond', '🗺️ Plattegrond'], ['lijst', '📋 Lijst']].map(([k, t]) => `<button class="${kcWeergave === k ? 'aan' : ''}" onclick="kcZetWeergave('${k}')">${t}</button>`).join('')}</div>
+    ${beh ? `<div class="rij" style="gap:6px;flex-wrap:wrap"><button class="knop licht klein" style="width:auto" onclick="kcErbij()">＋ Koelcel</button><button class="knop licht klein" style="width:auto" onclick="kcPalletInslag()">🧱 Pallet inslaan</button>${kcWeergave === 'plattegrond' ? `<button class="knop ${kcBewerk ? '' : 'licht'} klein" style="width:auto" onclick="kcBewerk=!kcBewerk;render(true)">${kcBewerk ? '✓ Klaar met indelen' : '✏️ Plattegrond indelen'}</button>` : ''}</div>` : ''}
+    <small class="hint">${kcBewerk ? 'Sleep een koelcel aan de kop om hem te verplaatsen, en aan het hoekje rechtsonder om hem groter of kleiner te maken.' : beh ? 'Sleep een partij of pallet naar een andere koelcel om hem te verplaatsen, of naar een bestemming rechts.' : ''}</small></section>`;
+  const cellenLijst = kcWeergave === 'plattegrond' ? `<section class="kaartje">${kcPlattegrondHtml(beh)}</section>` : celHtml.replace(/<section class="kaartje"><h4>🧊 ([^<]*?) <small>/g, (m0, n) => `<section class="kaartje" data-vbcel="${n}"><h4>🧊 ${n} <small>`);
+  return kopW + kcKop + `<div class="vbGrid"><div class="vbCellen">${cellenLijst}</div><div class="vbRechts">${htmlBestemmingen(beh)}</div></div>`;
 }
 function traceerKaart(y) {
   const p = perceel(y.perceel_id), muts = mutatiesVan(y.id), mon = (S.monsters || []).filter(m => m.partij_id === y.id || (p && m.perceel_id === p.id));
