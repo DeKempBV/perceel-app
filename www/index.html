@@ -6178,7 +6178,7 @@ function partijSporenWis() {
    Elk tabblad is een gewas ("Aardbei vermeerdering"), de kolommen worden herkend aan hun kop,
    percelen worden op naam gekoppeld (en dat wordt onthouden), ontbrekende rassen worden aangemaakt. */
 const kolomNr = ref => { const m = /^([A-Z]+)/.exec(ref || ''); let n = 0; for (const ch of m ? m[1] : 'A') n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
-async function leesXlsx(buf) {
+async function leesXlsx(buf, ookVerborgen) {
   const dv = new DataView(buf), u8 = new Uint8Array(buf), td = new TextDecoder();
   let e = u8.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
   if (e < 0) throw new Error('Dit is geen Excel-bestand (.xlsx). Sla het in Excel op als .xlsx en probeer opnieuw.');
@@ -6201,7 +6201,7 @@ async function leesXlsx(buf) {
   const rel = {}; for (const r of rels.getElementsByTagName('Relationship')) rel[r.getAttribute('Id')] = r.getAttribute('Target');
   const bladen = [];
   for (const sh of wb.getElementsByTagName('sheet')) {
-    if (sh.getAttribute('state') === 'hidden') continue;
+    if (!ookVerborgen && /hidden/i.test(sh.getAttribute('state') || '')) continue;
     let doel = rel[sh.getAttribute('r:id')] || ''; doel = doel.startsWith('/') ? doel.slice(1) : 'xl/' + doel.replace(/^\.\//, '');
     const s = await lees(doel); if (!s) continue;
     const rijen = [];
@@ -11423,6 +11423,18 @@ function tpImpPlanning(bladen, uit) {
   if (aa) { const h = aa.rijen.findIndex((r, i) => i < 10 && (r || []).some(v => /^(stek )?hangend|^frigo$/i.test(String(v ?? '').trim())));
     if (h >= 0) { uit.blad.push(aa.naam); const kol = (aa.rijen[h] || []).map((t, c) => ({c, ks: c ? tpImpKop(t, false).concat(uit.onbekend[String(t ?? '').trim()] ? ['?' + String(t).trim()] : []) : []})).filter(x => x.ks.length);
       rasRijen(aa, h + 1).forEach(({r, naam}) => kol.forEach(x => x.ks.forEach(k => zet(naam, 'opbrA', k, num(r[x.c]), false)))); } }
+  // ontbrekende waarden: geschatte opbrengst en percentages; Excel gebruikt die als ze ingevuld zijn (dus vóór Aantallen)
+  const ow = zoek(/^ontbrekende/i);
+  if (ow) { const h = ow.rijen.findIndex((r, i) => i < 10 && (r || []).some(v => /^(stek )?hangend/i.test(String(v ?? '').trim())));
+    if (h >= 0) { const kop = ow.rijen[h] || [], kol = []; for (let c = 1; c < kop.length; c++) { const ks = tpImpKop(kop[c], false).concat(uit.onbekend[String(kop[c] ?? '').trim()] ? ['?' + String(kop[c]).trim()] : []); if (ks.length) kol.push({c, ks}); else if (String(kop[c] ?? '').trim() && !/^leeg/i.test(String(kop[c]).trim())) break; }
+      let n = 0; rasRijen(ow, h + 1).forEach(({r, naam}) => kol.forEach(x => x.ks.forEach(k => { const v = num(r[x.c]); if (v) { n++; zet(naam, 'opbrS', k, v, false); (P.delen.opbrA ||= new Set()).add(naam); } })));
+      // geschatte percentages: groepen "Geschatte percentages frigo % *" met de sorteringen op de kopregel
+      const g = groepen(ow.rijen[1], 1).map(x => ({...x, ks: tpImpKop(String(x.t).replace(/geschatte percentages/i, '').replace(/%.*$/, '').trim(), false)})).filter(x => x.ks.length);
+      g.forEach(x => rasRijen(ow, h + 1, x.c).forEach(({r, naam}) => { const v = {}; let tot = 0;
+        for (let c = x.c + 1; c <= x.eind; c++) { const s = String(kop[c] ?? '').trim(); if (!s || /^totaal/i.test(s)) continue; const w = num(r[c]); if (w) { v[s] = w; tot += w; } }
+        if (!tot) return; const f = tot <= 1.5 ? 100 : 1; Object.keys(v).forEach(s => v[s] = Math.round(v[s] * f * 10) / 10);
+        x.ks.forEach(k => { const o = P.ras[naam] || (P.ras[naam] = {}); (o.kwS ||= {})[k] = v; (P.delen.kw ||= new Set()).add(naam); n++; }); }));
+      if (n) uit.blad.push(ow.naam); } }
   // kwaliteitspercentages: per planttype een groep met de sorteringen
   const kw = zoek(/^kwaliteit/i);
   if (kw) { uit.blad.push(kw.naam); const s2 = kw.rijen[1] || [];
@@ -11460,7 +11472,7 @@ let TPI = null;
 async function tpExcelInlezen() {
   if (!(isBeheerder() || mag('taken_toevoegen') || mag('resultaten_beheren'))) { toast('Je mag de teeltplanning niet aanpassen', 1); return; }
   const f = await kiesBestand('.xlsx'); if (!f) return;
-  let bladen; try { if (!/\.xlsx$/i.test(f.name)) throw new Error('Kies het Excel-bestand (.xlsx). Een oud .xls-bestand eerst in Excel opslaan als .xlsx.'); toast('📥 Bestand lezen…'); bladen = await leesXlsx(await f.arrayBuffer()); }
+  let bladen; try { if (!/\.xlsx$/i.test(f.name)) throw new Error('Kies het Excel-bestand (.xlsx). Een oud .xls-bestand eerst in Excel opslaan als .xlsx.'); toast('📥 Bestand lezen…'); bladen = await leesXlsx(await f.arrayBuffer(), true); }
   catch (e) { toast(e.message || String(e), 1); return; }
   const uit = tpImpLees(bladen);
   const P = uit.plan, kenB = Object.keys(P.ken), heeftPlan = Object.keys(P.delen).length || kenB.length;
@@ -11523,7 +11535,7 @@ async function tpImpOpslaan() {
   if (K) { const rl = Object.values(K.ras);
     TP_PROD.forEach(p => { const m = modus(rl.map(o => o.mp[p.k]).filter(Boolean)); if (m != null && +m !== kStd.mp[p.k]) (std.mp ||= {})[p.k] = +m; });
     ['bmM2', 'mpM2', 'plMP'].forEach(f => { const m = modus(rl.map(o => o[f]).filter(Boolean)); if (m != null && +m !== kStd[f]) std[f] = +m; }); }
-  if (D.kw) TP_PROD.forEach(p => { const m = modus(Object.values(P.ras).map(o => o.kw?.[p.k]).filter(Boolean).map(v => JSON.stringify({...Object.fromEntries(p.kw.map(c => [c, 0])), ...v})));
+  if (D.kw) TP_PROD.forEach(p => { const m = modus(Object.values(P.ras).map(o => o.kw?.[p.k] || o.kwS?.[p.k]).filter(Boolean).map(v => JSON.stringify({...Object.fromEntries(p.kw.map(c => [c, 0])), ...v})));
     if (m && m !== JSON.stringify({...Object.fromEntries(p.kw.map(c => [c, 0])), ...kStd.kw[p.k]})) (std.kw ||= {})[p.k] = JSON.parse(m); });
   const stdTekst = [...Object.entries(std.mp || {}).map(([k, v]) => `MP ${TP_PROD.find(p => p.k === k)?.kort} ${tpG(v)}`), ...['bmM2', 'mpM2', 'plMP'].filter(f => f in std).map(f => `${{bmM2: 'BM/m²', mpM2: 'MP/m²', plMP: 'Pl/MP'}[f]} ${tpG(std[f], 2)}`), ...Object.keys(std.kw || {}).map(k => `kwaliteit ${TP_PROD.find(p => p.k === k)?.kort}`)];
   if (nieuweT.length || nieuweO.length || Object.keys(cor).length || Object.keys(std).length) {
@@ -11564,8 +11576,8 @@ async function tpImpOpslaan() {
       if (D.verkoop) { d.verkoop = map(o.verkoop); d.act = map(o.act); }
       if (D.opkweek) d.opkweek = map(o.opkweek, ok);
       if (D.derden) d.derden = map(o.derden);
-      if (D.kw && o.kw) Object.entries(o.kw).forEach(([k, v0]) => { const pk = rk(k); if (!pk) return; const v = {...Object.fromEntries((TP_PROD.find(q => q.k === pk)?.kw || []).map(c => [c, 0])), ...v0}; if (JSON.stringify(v) === JSON.stringify(k0.kw[pk])) { if (d.kw) delete d.kw[pk]; } else d.kw = {...(d.kw || {}), [pk]: v}; });
-      if (D.opbrA && o.opbrA) Object.entries(o.opbrA).forEach(([k, a]) => { const pk = rk(k), p = TP_PROD.find(q => q.k === pk); if (!p) return;
+      if (D.kw && (o.kw || o.kwS)) Object.entries({...(o.kwS || {}), ...(o.kw || {})}).forEach(([k, v0]) => { const pk = rk(k); if (!pk) return; const v = {...Object.fromEntries((TP_PROD.find(q => q.k === pk)?.kw || []).map(c => [c, 0])), ...v0}; if (JSON.stringify(v) === JSON.stringify(k0.kw[pk])) { if (d.kw) delete d.kw[pk]; } else d.kw = {...(d.kw || {}), [pk]: v}; });
+      if (D.opbrA && (o.opbrA || o.opbrS)) Object.entries({...(o.opbrA || {}), ...(o.opbrS || {})}).forEach(([k, a]) => { const pk = rk(k), p = TP_PROD.find(q => q.k === pk); if (!p) return;
         const kwr = {...(k0.kw[pk] || {}), ...(d.kw?.[pk] || {})}, pct = p.verk.reduce((s, c) => s + tpN(kwr[c]), 0) / 100, v = Math.round(pct > 0 ? a / pct : a);
         if (k0.opbr[pk] && Math.abs(v - k0.opbr[pk]) / k0.opbr[pk] < .005) { if (d.opbr) delete d.opbr[pk]; } else d.opbr = {...(d.opbr || {}), [pk]: v}; });
       const kr2 = K?.ras[n];
