@@ -644,6 +644,28 @@ details.szblok summary h4{margin:6px 0}
 .bsKiesKop{font-size:12px;font-weight:800;color:var(--groen);text-transform:uppercase;letter-spacing:.03em;margin:10px 0 2px}
 .bsArtRegel{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--rand);padding:9px 2px;cursor:pointer;font:inherit;color:var(--tekst)}
 .bsArtRegel:hover{background:var(--licht)}.bsArtRegel b{display:block;font-size:15px}.bsArtRegel small{color:var(--grijs);font-size:12.5px}.bsUitArt{opacity:.5}
+.pnoFilters{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center}
+.pnoChip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rand);background:var(--licht);border-radius:20px;padding:5px 10px;font-size:13px;cursor:pointer;color:var(--tekst);font:inherit;font-size:13px}
+.pnoChip b{color:var(--grijs);font-weight:700;padding-left:2px}.pnoChip.plus{background:#fff;border-style:dashed;color:var(--groen);font-weight:700}
+.pnoOpties{max-height:50vh;overflow:auto;border:1px solid var(--rand);border-radius:10px;padding:6px 10px;margin-top:6px}.pnoOpties label{display:flex;gap:8px;align-items:center;padding:5px 0;margin:0;color:var(--tekst);font-size:14px}
+.pnoKpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.pnoKpi{background:var(--licht);border-radius:12px;padding:10px 12px}.pnoKpi small{display:block;color:var(--grijs);font-size:12px}.pnoKpi b{display:block;font-size:24px;line-height:1.25}.pnoKpi span{font-size:12px;color:var(--grijs)}
+.pnoSvg{width:100%;height:auto;display:block}.pnoRaster{stroke:#e3e8df;stroke-width:1}.pnoAs{font-size:11px;fill:#7a8576}
+.pnoLegenda{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;margin-top:4px}.pnoLegenda i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.pnoStaven{display:flex;flex-direction:column;gap:5px}.pnoStaaf{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;gap:8px;align-items:center;font-size:13px}
+.pnoStaaf .l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pnoStaaf .b{background:var(--licht);border-radius:4px;height:16px;overflow:hidden}.pnoStaaf .b i{display:block;height:100%;border-radius:4px}.pnoStaaf .w{font-variant-numeric:tabular-nums;font-weight:700;min-width:54px;text-align:right}
+.pnoTwee{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0 12px}
+.pnoTabelWrap{overflow:auto;max-height:70vh;border:1px solid var(--rand);border-radius:10px}
+.pnoT{border-collapse:collapse;font-size:12.5px;width:max-content;min-width:100%}.pnoT th,.pnoT td{padding:5px 8px;border-bottom:1px solid var(--rand);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pnoT th{position:sticky;top:0;background:#f3f6f1;z-index:1;font-weight:700}.pnoT thead tr:nth-child(2) th{top:27px}.pnoT th.bj{text-align:center;color:var(--groen)}
+.pnoT td:first-child,.pnoT th:first-child{text-align:left;position:sticky;left:0;background:#fff;z-index:2;max-width:320px;overflow:hidden;text-overflow:ellipsis}.pnoT th:first-child{background:#f3f6f1;z-index:3}
+.pnoT tr.niv0 td{font-weight:700;background:#f8faf6;cursor:pointer}.pnoT tr.niv0 td:first-child{background:#f8faf6}.pnoT tr.niv1 td:first-child{padding-left:22px}.pnoT tr.niv1{cursor:pointer}.pnoT tr.niv2 td:first-child{padding-left:40px;color:var(--grijs)}
+.pnoT tr.tot td{font-weight:800;border-top:2px solid var(--groen)}.pnoT tr.kosten td{background:#fffaf0}.pnoT tr.kosten td:first-child{background:#fffaf0;font-weight:700}
+.pnoT td.b,.pnoT th.b{color:var(--grijs)}.pnoT td.p{color:var(--grijs);font-size:11.5px}.pnoT .rood,.pnoKpi .rood,.pnoAnalyse .rood{color:var(--rood)}.pnoT .groenT,.pnoKpi .groenT,.pnoAnalyse .groenT{color:#2e7d32}
+.pnoT.budget td:nth-child(4n+1):not(:first-child),.pnoT.budget th:nth-child(4n+1){border-right:1px solid #cfd8cb}
+.pnoSeg{display:inline-flex;border:1px solid var(--rand);border-radius:10px;overflow:hidden}.pnoSeg button{border:0;background:#fff;padding:7px 11px;font:inherit;font-size:13px;cursor:pointer;color:var(--tekst)}.pnoSeg button.aan{background:var(--groen);color:#fff;font-weight:700}
+.pnoAnalyse{border:1px solid var(--rand);border-radius:12px;padding:10px 12px;margin-top:8px;cursor:pointer}.pnoAnalyse .k{display:flex;justify-content:space-between;gap:8px}.pnoAnalyse small{color:var(--grijs);display:block;margin-top:2px}
+.pnoStappen{margin:6px 0 0;padding-left:20px;line-height:1.55}.pnoStappen li{margin-bottom:6px}.pnoStappen code{background:var(--licht);padding:1px 5px;border-radius:5px;font-size:12px;word-break:break-all}
 .bsKnoppen{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.bsKnoppen:empty{display:none}
 .srRij.wn1{border-left:4px solid #fbc02d}.srRij.wn2{border-left:4px solid #fb8c00}.srRij.wn3{border-left:4px solid #e53935}
 .wpWrap{overflow-x:auto;margin:0 0 12px}.wpTabel{border-collapse:collapse;width:100%;min-width:720px;background:#fff;border-radius:12px;overflow:hidden;font-size:12px}
@@ -1235,6 +1257,8 @@ const RECHTEN = [
   ['etiketten_printen', 'Etiketten (pallet- en boxkaarten) afdrukken', 'Bedrijf'],
   ['bestellen', 'Iets aanvragen om te bestellen (gereedschap, onderdelen, materiaal …)', 'Bestellen'],
   ['bestellingen_goedkeuren', 'Bestellingen goedkeuren of afkeuren en als besteld zetten', 'Bestellen'],
+  ['pno_bekijken', 'P&O-dashboard bekijken (uren per werknemer, productiviteit, budget)', 'P&O'],
+  ['pno_beheren', 'P&O: budget, tarieven, toelichtingen, personeelskosten en werknemergroepen aanpassen', 'P&O'],
   ['resultaten_invoeren', 'Resultaten invoeren: rooien, kiepen, telling koelcel', 'Resultaten'],
   ['resultaten_bekijken', 'Resultaten-rapport en prognose bekijken', 'Resultaten'],
   ['resultaten_beheren', 'Resultaten beheren: SSOR inlezen, corrigeren, prognose en instellingen', 'Resultaten'],
@@ -1252,7 +1276,7 @@ const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, spuitsporen_
   middelen_beheren: false, oogst_registreren: true, oogst_bekijken: true, machines_beheren: false, kosten_bekijken: false,
   percelen_aanpassen: false, kopeinden_bewerken: true, gerooid_aangeven: true,
   plattegrond_beheren: false, ai_gebruiken: false, film_bekijken: true, film_beheren: false, exporteren: true, instellingen_beheren: false, team_beheren: false,
-  monsters_beheren: false, voorraad_bekijken: true, voorraad_beheren: false, etiketten_printen: false, bestellen: true, bestellingen_goedkeuren: false, resultaten_invoeren: true, resultaten_bekijken: false, resultaten_beheren: false,
+  monsters_beheren: false, voorraad_bekijken: true, voorraad_beheren: false, etiketten_printen: false, bestellen: true, bestellingen_goedkeuren: false, pno_bekijken: false, pno_beheren: false, resultaten_invoeren: true, resultaten_bekijken: false, resultaten_beheren: false,
   blok_vandaag: true, blok_velden: true, blok_werk: true, blok_oogst: true, blok_voorraad: true, blok_mensen: true, blok_instellingen: true};
 const PERCEEL_RECHTEN = ['percelen_tekenen', 'percelen_bewerken', 'spuitsporen_bewerken', 'deelvelden_bewerken', 'percelen_uitschakelen', 'percelen_verwijderen', 'soorten_indelen', 'kopeinden_bewerken', 'plattegrond_beheren'];
 const recht = r => { if (isBeheerder()) return true; const x = {...STANDAARD, ...(mijnProfiel()?.rechten || {})}; return !!x[r] && (!PERCEEL_RECHTEN.includes(r) || !!x.percelen_aanpassen); };
@@ -4310,7 +4334,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['pno', 'bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -4367,6 +4391,7 @@ function renderPaneel() {
   else if (tab === 'voorraad') h = bedrijfGeladen ? seizoenKnop() + htmlVoorraad() : '<p class="hint">Laden…</p>';
   else if (tab === 'etiketten') h = bedrijfGeladen ? htmlEtiketten() : '<p class="hint">Laden…</p>';
   else if (tab === 'bestellingen') h = htmlBestellingen();
+  else if (tab === 'pno') h = htmlPno();
   else if (tab === 'waarnemingen') h = htmlWaarnemingen();
   else if (tab === 'monsters') h = htmlMonstersAlle();
   else if (tab === 'vruchtwisseling') h = htmlVruchtwisselingAlle();
@@ -6100,7 +6125,7 @@ function sectieTabsBasis(s) {
     oogst: resIn ? [['resinvoer', '✍️', 'Invoer'], ['reskiep', '🧺', 'Kieplijst'], ...(resBek ? [['resrapport', '📊', 'Rapport'], ['resprognose', '📈', 'Prognose']] : []), ['respoten', '🌱', 'Poten'],
       ['reskisten', '📦', 'Kistjes'], ...(magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])] : [],
     voorraad: [...(ziet('voorraad_bekijken') || mag('voorraad_beheren') ? [['voorraad', '❄️', 'Koelcel']] : []), ...(ziet('voorraad_bekijken') || magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ['middelen', '🧪', 'Middelen']],
-    mensen: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Uren'], ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])],
+    mensen: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Uren'], ...(ziet('pno_bekijken') ? [['pno', '📊', 'P&O-dashboard']] : []), ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])],
     instellingen: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ['dossier', '📁', 'Bio-dossier'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])],
     werken: [['percelen', '🗺️', 'Kaart'], ['taken', '📋', 'Taken'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
     spuiten: [['spuittaken', '📋', 'Taken'], ['spuitregister', '📒', 'Spuitregister'], ['middelen', '🧪', 'Middelen']],
@@ -6412,7 +6437,7 @@ function partijSporenWis() {
    Elk tabblad is een gewas ("Aardbei vermeerdering"), de kolommen worden herkend aan hun kop,
    percelen worden op naam gekoppeld (en dat wordt onthouden), ontbrekende rassen worden aangemaakt. */
 const kolomNr = ref => { const m = /^([A-Z]+)/.exec(ref || ''); let n = 0; for (const ch of m ? m[1] : 'A') n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
-async function leesXlsx(buf, ookVerborgen) {
+async function leesXlsx(buf, ookVerborgen, alleenBlad) {
   const dv = new DataView(buf), u8 = new Uint8Array(buf), td = new TextDecoder();
   let e = u8.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
   if (e < 0) throw new Error('Dit is geen Excel-bestand (.xlsx). Sla het in Excel op als .xlsx en probeer opnieuw.');
@@ -6436,6 +6461,7 @@ async function leesXlsx(buf, ookVerborgen) {
   const bladen = [];
   for (const sh of wb.getElementsByTagName('sheet')) {
     if (!ookVerborgen && /hidden/i.test(sh.getAttribute('state') || '')) continue;
+    if (alleenBlad && !alleenBlad(sh.getAttribute('name') || '')) continue;
     let doel = rel[sh.getAttribute('r:id')] || ''; doel = doel.startsWith('/') ? doel.slice(1) : 'xl/' + doel.replace(/^\.\//, '');
     const s = await lees(doel); if (!s) continue;
     const rijen = [];
@@ -8651,7 +8677,7 @@ const TAB_INFO = {
   resinvoer: ['✍️', 'Invoer', 'Rooien, kiepen, telling en scans'], reskiep: ['🧺', 'Kieplijst', 'Wat er nog gekiept moet worden'],
   resrapport: ['📊', 'Rapport', 'Resultaat ten opzichte van de prognose'], resprognose: ['📈', 'Prognose', 'Verwachting per partij'],
   respoten: ['🌱', 'Poten', 'Het basisbestand per partij'], reskisten: ['📦', 'Kistjes', 'Planten per kistje per kwaliteit'],
-  resinstel: ['⚙️', 'Instellingen', 'Kwaliteiten, wagens en grenzen'], voorraad: ['❄️', 'Koelcel', 'Wat er ligt, leveringen en terugzoeken'], etiketten: ['🏷️', 'Etiketten', 'Pallet- en boxkaarten afdrukken en scannen'], bestellingen: ['🛒', 'Bestellen', 'Iets aanvragen; goedkeuren en bijhouden'],
+  resinstel: ['⚙️', 'Instellingen', 'Kwaliteiten, wagens en grenzen'], voorraad: ['❄️', 'Koelcel', 'Wat er ligt, leveringen en terugzoeken'], etiketten: ['🏷️', 'Etiketten', 'Pallet- en boxkaarten afdrukken en scannen'], bestellingen: ['🛒', 'Bestellen', 'Iets aanvragen; goedkeuren en bijhouden'], pno: ['📊', 'P&O-dashboard', 'Uren, productiviteit en budget uit SSOR'],
   middelen: ['🧪', 'Middelen', 'Gewasbescherming en meststoffen op voorraad'], mij: ['👤', 'Mijn gegevens', 'Gegevens, wachtwoord en ziek melden'],
   uren: ['⏱️', 'Uren', 'Klok, uren en correctieverzoeken'], team: ['👥', 'Team', 'Accounts en rechten'],
   bedrijf: ['📦', 'Bedrijf', 'Middelen, machines, oogst en kosten'], soorten: ['🌱', 'Planten', 'Gewassen en rassen'],
@@ -13519,7 +13545,7 @@ async function bsFormulier(id, kopieVan, naamVoor) {
     prijs: leesGetal(w.prijs, null), fotos: w.fotos || []};
   if (!id) {
     const al = (S.bestellingen || []).find(x => BS_OPEN.includes(x.status) && normTekst(x.wat) === normTekst(rij.wat));
-    if (al && !await bevestigJa('Staat al aangevraagd', `${al.aanvrager || 'Iemand'} heeft op ${bsDatum(al.created_at)} al "${al.wat}" aangevraagd (${BS_STATUS[al.status]?.[1].toLowerCase()}). Toch nog een keer aanvragen?`, 'Toch aanvragen')) { fotosOpruimen(rij.fotos, []); return; }
+    if (al && !await bevestigJa('Staat al aangevraagd', `${esc(al.aanvrager || 'Iemand')} heeft op ${bsDatum(al.created_at)} al "${esc(al.wat)}" aangevraagd (${BS_STATUS[al.status]?.[1].toLowerCase()}). Toch nog een keer aanvragen?`, 'Toch aanvragen')) { fotosOpruimen(rij.fotos, []); return; }
     Object.assign(rij, {aangevraagd_door: me.id, aanvrager: naamMe()});
   }
   const res = id ? await sb.from('bestellingen').update(rij).eq('id', id).select().single() : await sb.from('bestellingen').insert(rij).select().single();
@@ -13695,7 +13721,7 @@ async function bsAanvraagArtikel(artId) {
     ...(machines.length ? [{k: 'machine_id', label: 'Voor welke machine? (optioneel)', type: 'select', waarde: '', opties: [['', '— geen —'], ...machines.map(m => [m.id, m.naam])]}] : [])], 'Aanvragen');
   if (!w) return;
   const al = (S.bestellingen || []).find(x => BS_OPEN.includes(x.status) && x.artikel_id === artId);
-  if (al && !await bevestigJa('Staat al aangevraagd', `${al.aanvrager || 'Iemand'} heeft op ${bsDatum(al.created_at)} al ${getal(al.aantal || 1, 2)} ${al.eenheid || ''} "${al.wat}" aangevraagd (${BS_STATUS[al.status]?.[1].toLowerCase()}). Toch nog een keer aanvragen?`, 'Toch aanvragen')) return;
+  if (al && !await bevestigJa('Staat al aangevraagd', `${esc(al.aanvrager || 'Iemand')} heeft op ${bsDatum(al.created_at)} al ${getal(al.aantal || 1, 2)} ${esc(al.eenheid || '')} "${esc(al.wat)}" aangevraagd (${BS_STATUS[al.status]?.[1].toLowerCase()}). Toch nog een keer aanvragen?`, 'Toch aanvragen')) return;
   const rij = {artikel_id: artId, wat: a.naam, aantal: leesGetal(w.aantal, 1), eenheid: a.eenheid || null, categorie: a.categorie || null, toelichting: w.toelichting?.trim() || null,
     nodig_op: w.nodig_op || null, spoed: w.spoed === 'ja', machine_id: w.machine_id || null, aangevraagd_door: me.id, aanvrager: naamMe()};
   const {data, error} = await sb.from('bestellingen').insert(rij).select().single();
@@ -13736,6 +13762,544 @@ async function bsArtikelForm(id) {
   if (res.error) { toast(/does not exist|schema cache/i.test(res.error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(res.error), 1); return; }
   S.bestel_artikelen = [res.data, ...(S.bestel_artikelen || []).filter(x => x.id !== res.data.id)]; render(true); toast('📚 Opgeslagen');
 }
+
+/* ================================================================
+   P&O-DASHBOARD (overgenomen uit "Dashboard - P&O - Algemeen.xlsx")
+   📊 Uren (Dashboard 1) · ⚡ Productiviteit (Dashboard 2) · 🧮 Urentabel (Dashboard 5)
+   🎯 Budget vs werkelijk (Budget 2026, verschilbladen, analyse) · 🔌 Koppeling met SSOR
+   De uren en eenheden komen uit SSOR via het sync-programma; de database rekent, de app tekent.
+   ================================================================ */
+const PNO_MND = ['okt', 'nov', 'dec', 'jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep'];
+const PNO_MND_LANG = ['oktober', 'november', 'december', 'januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september'];
+const PNO_KLEUR = ['#1e88e5', '#e53935', '#43a047', '#fb8c00', '#8e24aa', '#00897b', '#6d4c41'];
+const PNO_FILTERS = [['boekjaar', '📅 Boekjaar'], ['periode', '🗓️ Periode (maand)'], ['week', '#️⃣ Week'], ['groep', '🗂️ Activiteitengroep'], ['activiteit', '🛠️ Activiteit'],
+  ['medewerker', '👤 Werknemer'], ['werknemergroep', '👥 Werknemergroep'], ['kostenplaats', '💶 Kostenplaats'], ['locatie', '📍 Locatie'], ['datum', '📆 Datum van/tot']];
+let pnoView = 'uren', pnoF = null, pnoOpen = new Set(), pnoKolom = 'maand', pnoBj = null, pnoTm = null, pnoBView = 'groep', pnoAnalyseMin = 50;
+const PNO = {dims: null, status: null, data: {}, bezig: {}, budget: {}, kosten: {}, tarief: {}, toel: {}};
+const pnoMag = () => !isApparaat() && ziet('pno_bekijken');
+const pnoBeh = () => !isApparaat() && mag('pno_beheren');
+const pnoBjNu = (d = new Date()) => d.getMonth() >= 9 ? `${d.getFullYear()}-${d.getFullYear() + 1}` : `${d.getFullYear() - 1}-${d.getFullYear()}`;
+const pnoBjMaandNu = (d = new Date()) => ((d.getMonth() + 3) % 12) + 1;   // okt = 1 … sep = 12
+const pnoNr = x => String(x ?? '').trim().replace(/^0+(?=\d)/, '');
+const pnoU = (x, d = 0) => (+x || 0).toLocaleString('nl-NL', {minimumFractionDigits: d, maximumFractionDigits: d});
+const pnoDatum = d => d ? new Date(d + 'T12:00').toLocaleDateString('nl-NL', {day: 'numeric', month: 'short', year: 'numeric'}) : '';
+const pnoPct = x => x == null || !isFinite(x) ? '' : (x > 0 ? '+' : '') + Math.round(x * 100) + '%';
+// alle regels van een tabel (Supabase geeft er max. 1000 per keer)
+async function pnoAlles(tabel, kol = '*', bouw = q => q) {
+  const uit = []; for (let van = 0; ; van += 1000) { const {data, error} = await bouw(sb.from(tabel).select(kol)).range(van, van + 999); if (error) throw error; uit.push(...(data || [])); if (!data || data.length < 1000) break; }
+  return uit;
+}
+async function pnoLaadDims(opnieuw) {
+  if (PNO.dims && !opnieuw) return; if (PNO.bezig.dims) return; PNO.bezig.dims = true;
+  try {
+    const [st, gr, act, kp, loc, mw, wg] = await Promise.all([sb.rpc('ssor_status'), pnoAlles('ssor_activiteitgroepen', 'id,nummer,naam'), pnoAlles('ssor_activiteiten', 'id,nummer,naam,groep_id,norm'),
+      pnoAlles('ssor_kostenplaatsen', 'id,nummer,naam'), pnoAlles('ssor_locaties', 'id,nummer,naam'), pnoAlles('ssor_medewerkers', 'id,nummer,naam,actief,contracttype'), pnoAlles('pno_medewerkersgroepen')]);
+    if (st.error) throw st.error;
+    const map = l => new Map(l.map(x => [String(x.id), x]));
+    PNO.status = st.data; PNO.dims = {groep: map(gr), activiteit: map(act), kostenplaats: map(kp), locatie: map(loc), medewerker: map(mw), wg};
+    if (!pnoF) { const bj = (PNO.status.boekjaren || []).slice(-2); pnoF = bj.length ? {boekjaar: bj} : {}; }
+    PNO.fout = null;
+  } catch (e) { PNO.fout = /does not exist|schema cache|Could not find/i.test(e.message || '') ? 'Draai eerst het nieuwe beheer.sql in Supabase.' : foutTekst(e); PNO.dims = null; }
+  PNO.bezig.dims = false; if (tab === 'pno') render(true);
+}
+function pnoNaam(soort, id) {
+  if (id == null || id === '') return '(leeg)';
+  const x = PNO.dims?.[soort]?.get(String(id)); if (!x) return `(${soort} ${id})`;
+  return [x.nummer, x.naam].filter(v => v != null && v !== '').join(' ');
+}
+const pnoWerkgroep = mwId => { const m = PNO.dims?.medewerker.get(String(mwId)); return PNO.dims?.wg.find(g => g.contract === m?.contracttype)?.werknemergroep || '(geen groep)'; };
+// gegevens ophalen (één aanroep per scherm en filter; daarna uit het geheugen)
+async function pnoHaal(soort, rpc, args) {
+  const sl = soort + '|' + JSON.stringify(args); if (PNO.data[sl] || PNO.bezig[sl]) return PNO.data[sl];
+  PNO.bezig[sl] = true;
+  const {data, error} = await sb.rpc(rpc, args);
+  PNO.bezig[sl] = false; PNO.data[sl] = error ? {fout: foutTekst(error)} : data;
+  if (tab === 'pno') render(true); return PNO.data[sl];
+}
+const pnoGet = (soort, rpc, args) => { const d = PNO.data[soort + '|' + JSON.stringify(args)]; if (d === undefined) pnoHaal(soort, rpc, args); return d; };
+const pnoArgs = () => { const p = {}; Object.entries(pnoF || {}).forEach(([k, v]) => { if (Array.isArray(v) ? v.length : v) p[k] = v; }); return p; };
+function pnoVernieuw() { PNO.data = {}; PNO.budget = {}; PNO.kosten = {}; PNO.toel = {}; PNO.tarief = {}; pnoLaadDims(true); render(true); }
+
+/* ---------- grafieken (SVG, schaalt mee met het scherm) ---------- */
+function pnoWeekAs(wk) { return [...new Set(wk)].sort(); }   // "01/40" < "01/52" < "02/01" … sorteert vanzelf goed
+function pnoLijn(x, series, {hoogte = 230, fmt = v => pnoU(v), eenheid = ''} = {}) {
+  if (!x.length || !series.length) return '<p class="hint">Geen gegevens voor deze selectie.</p>';
+  const smal = innerWidth < 640, W = smal ? 400 : 720, H = smal ? Math.round(hoogte * .8) : hoogte, L = smal ? 46 : 54, R = 10, T = 10, B = 28, alle = series.flatMap(s => s.w.filter(v => v != null && isFinite(v)));
+  const max = Math.max(1, ...alle) * 1.05, min = Math.min(0, ...alle);
+  const xp = i => L + (x.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (x.length - 1)), yp = v => T + (H - T - B) * (1 - (v - min) / (max - min));
+  const stap = Math.ceil(x.length / (smal ? 6 : 12));
+  let s = `<svg viewBox="0 0 ${W} ${H}" class="pnoSvg" role="img">`;
+  for (let i = 0; i <= 4; i++) { const v = min + (max - min) * i / 4, y = yp(v); s += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" class="pnoRaster"/><text x="${L - 6}" y="${y + 4}" text-anchor="end" class="pnoAs">${esc(fmt(v))}</text>`; }
+  x.forEach((l, i) => { if ((i % stap === 0 && x.length - 1 - i >= stap * .7) || i === x.length - 1) s += `<text x="${xp(i)}" y="${H - 8}" text-anchor="middle" class="pnoAs">${esc(l)}</text>`; });
+  series.forEach(se => {
+    let d = '', pen = false; se.w.forEach((v, i) => { if (v == null || !isFinite(v)) { pen = false; return; } d += `${pen ? 'L' : 'M'}${xp(i).toFixed(1)} ${yp(v).toFixed(1)}`; pen = true; });
+    s += `<path d="${d}" fill="none" stroke="${se.kleur}" stroke-width="2.4" stroke-linejoin="round"/>`;
+    se.w.forEach((v, i) => { if (v != null && isFinite(v)) s += `<circle cx="${xp(i).toFixed(1)}" cy="${yp(v).toFixed(1)}" r="${smal ? 2.2 : 3.2}" fill="${se.kleur}"><title>${esc(se.naam)} · ${esc(x[i])}: ${esc(fmt(v))}${eenheid}</title></circle>`; });
+  });
+  return s + `</svg><div class="pnoLegenda">${series.map(se => `<span><i style="background:${se.kleur}"></i>${esc(se.naam)}</span>`).join('')}</div>`;
+}
+function pnoStaven(rijen, {kleur = 'var(--groen)', fmt = v => pnoU(v), klik} = {}) {
+  if (!rijen.length) return '<p class="hint">Geen gegevens voor deze selectie.</p>';
+  const max = Math.max(...rijen.map(r => r[1]), 1);
+  return `<div class="pnoStaven">${rijen.map(([l, w, id]) => `<div class="pnoStaaf" ${klik && id != null ? `onclick="${klik}('${id}')" style="cursor:pointer"` : ''} title="${esc(l)}: ${esc(fmt(w))}"><span class="l">${esc(l)}</span><span class="b"><i style="width:${Math.max(.5, w / max * 100)}%;background:${kleur}"></i></span><span class="w">${esc(fmt(w))}</span></div>`).join('')}</div>`;
+}
+// reeks per boekjaar langs de weken; cum = optellen
+function pnoReeksen(rijen, {cum = false} = {}) {
+  const x = pnoWeekAs(rijen.map(r => r[1])), bjs = [...new Set(rijen.map(r => r[0]))].sort();
+  return {x, series: bjs.map((bj, i) => { const m = new Map(rijen.filter(r => r[0] === bj).map(r => [r[1], +r[2]])); let t = 0;
+    return {naam: bj, kleur: PNO_KLEUR[i % PNO_KLEUR.length], w: x.map(w => { if (cum) { t += m.get(w) || 0; return t; } return m.has(w) ? m.get(w) : null; })}; })};
+}
+
+/* ---------- filters (de "slicers" uit Excel) ---------- */
+function pnoFilterBalk() {
+  const f = pnoF || {}, chips = [];
+  PNO_FILTERS.forEach(([k, t]) => {
+    if (k === 'datum') { if (f.van || f.tot) chips.push(`<span class="pnoChip" onclick="pnoKiesFilter('datum')">📆 ${esc(f.van ? bsDatum(f.van) : '…')} t/m ${esc(f.tot ? bsDatum(f.tot) : '…')}<b onclick="event.stopPropagation();delete pnoF.van;delete pnoF.tot;render(true)">✕</b></span>`); return; }
+    const l = f[k] || []; if (!l.length) return;
+    const naam = v => k === 'periode' ? PNO_MND[v - 1] : k === 'week' ? 'wk ' + v : k === 'boekjaar' || k === 'werknemergroep' ? v : pnoNaam(k, v);
+    chips.push(`<span class="pnoChip" onclick="pnoKiesFilter('${k}')">${t.split(' ')[0]} ${esc(l.length > 2 ? `${naam(l[0])} +${l.length - 1}` : l.map(naam).join(', '))}<b onclick="event.stopPropagation();pnoF['${k}']=[];render(true)">✕</b></span>`);
+  });
+  return `<div class="pnoFilters">${chips.join('')}<button class="pnoChip plus" onclick="pnoFilterMenu()">＋ Filter</button>${chips.length ? `<button class="link klein" onclick="pnoF={};render(true)">alles wissen</button>` : ''}</div>`;
+}
+function pnoFilterMenu() {
+  $('#modal').innerHTML = `<div class="dialoog"><h3>＋ Filter</h3>${PNO_FILTERS.map(([k, t]) => `<button class="knop licht" style="margin-top:6px;text-align:left" onclick="pnoKiesFilter('${k}')">${t}${(pnoF?.[k] || []).length ? ` <small>(${pnoF[k].length})</small>` : ''}</button>`).join('')}
+    <div class="rij"><button class="knop licht" onclick="$('#modal').classList.remove('open')">Sluiten</button></div></div>`;
+  $('#modal').classList.add('open');
+}
+async function pnoKiesFilter(k) {
+  pnoF = pnoF || {};
+  if (k === 'datum') {
+    const w = await formulier('📆 Datum van / tot', [{k: 'van', label: 'Van', type: 'date', waarde: pnoF.van || ''}, {k: 'tot', label: 'Tot en met', type: 'date', waarde: pnoF.tot || ''}], 'Toepassen');
+    if (w) { pnoF.van = w.van || ''; pnoF.tot = w.tot || ''; render(true); } return;
+  }
+  const D = PNO.dims; let opties = [];
+  if (k === 'boekjaar') opties = (PNO.status?.boekjaren || []).map(b => [b, b]);
+  else if (k === 'periode') opties = PNO_MND_LANG.map((m, i) => [i + 1, `${String(i + 1).padStart(2, '0')} · ${m}`]);
+  else if (k === 'week') opties = [...Array(53)].map((_, i) => [i + 1, `week ${i + 1}`]);
+  else if (k === 'werknemergroep') opties = [...new Set([...(D?.wg || []).map(g => g.werknemergroep).filter(Boolean), '(geen groep)'])].map(g => [g, g]);
+  else opties = [...(D?.[k]?.values() || [])].filter(x => k !== 'medewerker' || x.actief !== false || (pnoF.medewerker || []).includes(x.id)).map(x => [x.id, pnoNaam(k, x.id)])
+    .sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'nl', {numeric: true}));
+  const gekozen = new Set((pnoF[k] || []).map(String)), titel = PNO_FILTERS.find(f => f[0] === k)[1];
+  $('#modal').innerHTML = `<div class="dialoog groot"><h3>${titel}</h3>
+    ${opties.length > 12 ? `<input class="veld" id="pnoZk" placeholder="🔎 Zoeken…" oninput="const z=normTekst(this.value);document.querySelectorAll('#pnoOpt label').forEach(l=>l.style.display=!z||normTekst(l.textContent).includes(z)?'':'none')">` : ''}
+    ${k === 'medewerker' ? '<p class="hint" style="margin:4px 0">Alleen actieve werknemers; oud-werknemers vind je via zoeken op naam.</p>' : ''}
+    <div id="pnoOpt" class="pnoOpties">${opties.map(([w, l]) => `<label><input type="checkbox" value="${esc(w)}" ${gekozen.has(String(w)) ? 'checked' : ''}> ${esc(l)}</label>`).join('') || '<p class="hint">Nog niets beschikbaar (nog geen gegevens uit SSOR).</p>'}</div>
+    <div class="rij"><button class="knop licht" onclick="document.querySelectorAll('#pnoOpt input').forEach(i=>i.checked=false)">Niets</button><button class="knop licht" onclick="$('#modal').classList.remove('open')">Annuleren</button><button class="knop" id="pnoOk">Toepassen</button></div></div>`;
+  $('#modal').classList.add('open');
+  if (k === 'medewerker') {   // ook oud-werknemers vindbaar via zoeken
+    const alle = [...(D?.medewerker?.values() || [])].filter(x => x.actief === false && !gekozen.has(String(x.id)));
+    $('#pnoZk')?.addEventListener('input', ev => { const z = normTekst(ev.target.value), box = $('#pnoOpt'); box.querySelectorAll('label.oud').forEach(l => l.remove());
+      if (z.length < 2) return; alle.filter(x => normTekst(pnoNaam('medewerker', x.id)).includes(z)).slice(0, 30).forEach(x => box.insertAdjacentHTML('beforeend', `<label class="oud"><input type="checkbox" value="${x.id}"> ${esc(pnoNaam('medewerker', x.id))} <small>(niet actief)</small></label>`)); });
+  }
+  $('#pnoOk').onclick = () => { const w = [...document.querySelectorAll('#pnoOpt input:checked')].map(i => ['boekjaar', 'werknemergroep'].includes(k) ? i.value : +i.value);
+    pnoF[k] = w; $('#modal').classList.remove('open'); render(true); };
+}
+// klik op een staaf = filteren op die waarde
+function pnoKlikFilter(k, id) { pnoF = pnoF || {}; pnoF[k] = [+id]; render(true); toast(`Filter: ${pnoNaam(k, id)}`); }
+
+/* ---------- hoofdscherm ---------- */
+function htmlPno() {
+  if (!pnoMag()) return '<section class="kaartje"><p class="hint">Je hebt geen toegang tot het P&amp;O-dashboard. Vraag een beheerder om het recht "P&amp;O-dashboard bekijken". Op gedeelde apparaten (kantine-iPad, trekkertablet) is het nooit te zien.</p></section>';
+  if (!PNO.dims && !PNO.fout) { pnoLaadDims(); return '<p class="hint">Laden…</p>'; }
+  const tabs = [['uren', '📊', 'Uren'], ['productie', '⚡', 'Productiviteit'], ['tabel', '🧮', 'Urentabel'], ['budget', '🎯', 'Budget'], ['koppeling', '🔌', 'Koppeling']];
+  let h = `<section class="kaartje"><h4>📊 P&amp;O-dashboard <small>uren uit SSOR · boekjaar okt–sep</small><button class="link klein" style="float:right" onclick="pnoVernieuw()">↻ vernieuwen</button></h4>
+    <div class="ptabs" style="grid-template-columns:repeat(5,1fr)">${tabs.map(([k, i, l]) => `<button class="${pnoView === k ? 'aan' : ''}" onclick="pnoView='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
+    ${PNO.fout ? `<div class="fgStatus" style="margin-top:8px">⚠️ ${esc(PNO.fout)}</div>` : ''}
+    ${['uren', 'productie', 'tabel'].includes(pnoView) && PNO.dims ? pnoFilterBalk() : ''}</section>`;
+  if (PNO.fout) return h;
+  const leeg = !PNO.status?.uren;
+  if (leeg && pnoView !== 'koppeling' && pnoView !== 'budget') return h + `<section class="kaartje"><p class="hint">Er staan nog geen uren uit SSOR in de app. Zodra het koppelprogramma draait, verschijnen hier dezelfde grafieken en tabellen als in de Excel. Kijk bij <a href="#" onclick="pnoView='koppeling';render(true);return false">🔌 Koppeling</a> hoe dat werkt.</p></section>`;
+  if (pnoView === 'uren') h += htmlPnoUren();
+  else if (pnoView === 'productie') h += htmlPnoProductie();
+  else if (pnoView === 'tabel') h += htmlPnoTabel();
+  else if (pnoView === 'budget') h += htmlPnoBudget();
+  else h += htmlPnoKoppeling();
+  return h;
+}
+
+/* ---------- 📊 Uren (Dashboard 1) ---------- */
+function htmlPnoUren() {
+  const d = pnoGet('dash', 'pno_dashboard', {p: pnoArgs()}); if (!d) return '<section class="kaartje"><p class="hint">Uren optellen…</p></section>';
+  if (d.fout) return `<section class="kaartje"><p class="hint">⚠️ ${esc(d.fout)}</p></section>`;
+  const bj = Object.entries(d.boekjaar || {}).sort(), fy = d.fytd || {}, verschil = fy.vorig ? (fy.nu - fy.vorig) / fy.vorig : null;
+  const wk = pnoReeksen(d.week || []), cum = pnoReeksen(d.week || [], {cum: true});
+  const kpRijen = new Map(); (d.kp_maand || []).forEach(([kp, m, s]) => { const r = kpRijen.get(kp) || Array(12).fill(0); r[m - 1] += +s; kpRijen.set(kp, r); });
+  const kpLijst = [...kpRijen.entries()].map(([kp, r]) => [kp, r, r.reduce((a, b) => a + b, 0)]).sort((a, b) => b[2] - a[2]);
+  const top = (lijst, soort) => pnoStaven((lijst || []).map(([id, s]) => [pnoNaam(soort, id), +s, id]), {klik: `pnoKlikFilter.bind(null,'${soort}')`});
+  return `<section class="kaartje"><div class="pnoKpis">
+      <div class="pnoKpi"><small>Uren (selectie)</small><b>${pnoU(d.totaal)}</b><span>${pnoU(d.medewerkers)} werknemers · ${pnoU(d.dagen)} dagen</span></div>
+      ${bj.map(([b, s], i) => `<div class="pnoKpi"><small>Boekjaar ${esc(b)}</small><b style="color:${PNO_KLEUR[i % PNO_KLEUR.length]}">${pnoU(s)}</b><span>uur</span></div>`).join('')}
+      <div class="pnoKpi"><small>${esc(fy.boekjaar || '')} t/m vandaag</small><b>${pnoU(fy.nu)}</b><span>vorig jaar zelfde moment ${pnoU(fy.vorig)}${verschil != null ? ` · <b class="${verschil > 0 ? 'rood' : 'groenT'}">${pnoPct(verschil)}</b>` : ''}</span></div></div></section>
+    <section class="kaartje"><h4>Uren per week</h4>${pnoLijn(wk.x, wk.series)}</section>
+    <section class="kaartje"><h4>Cumulatief uren per week</h4>${pnoLijn(cum.x, cum.series)}</section>
+    <section class="kaartje"><h4>Uren per activiteitengroep</h4>${top(d.groep, 'groep')}</section>
+    <div class="pnoTwee"><section class="kaartje"><h4>Top 15 uren per activiteit</h4>${top(d.activiteit, 'activiteit')}</section>
+      <section class="kaartje"><h4>Top 15 uren per werknemer</h4>${top(d.medewerker, 'medewerker')}</section>
+      <section class="kaartje"><h4>Top 15 uren per kostenplaats</h4>${top(d.kostenplaats, 'kostenplaats')}</section>
+      <section class="kaartje"><h4>Top 15 uren per locatie</h4>${top(d.locatie, 'locatie')}</section></div>
+    <section class="kaartje"><h4>Uren per kostenplaats per maand <small>maanden van het boekjaar, opgeteld over de gekozen boekjaren</small></h4>
+      <div class="pnoTabelWrap"><table class="pnoT"><thead><tr><th>Kostenplaats</th>${PNO_MND.map(m => `<th>${m}</th>`).join('')}<th>Totaal</th></tr></thead><tbody>
+      ${kpLijst.map(([kp, r, t]) => `<tr><td>${esc(pnoNaam('kostenplaats', kp))}</td>${r.map(v => `<td>${v ? pnoU(v) : ''}</td>`).join('')}<td><b>${pnoU(t)}</b></td></tr>`).join('')}
+      <tr class="tot"><td>Totaal</td>${PNO_MND.map((_, i) => `<td>${pnoU(kpLijst.reduce((a, x) => a + x[1][i], 0))}</td>`).join('')}<td>${pnoU(kpLijst.reduce((a, x) => a + x[2], 0))}</td></tr></tbody></table></div></section>
+    <p class="hint">Tip: tik op een balk om daarop te filteren.</p>`;
+}
+
+/* ---------- ⚡ Productiviteit (Dashboard 2) ---------- */
+function htmlPnoProductie() {
+  const d = pnoGet('prod', 'pno_productie', {p: pnoArgs()}); if (!d) return '<section class="kaartje"><p class="hint">Eenheden en uren optellen…</p></section>';
+  if (d.fout) return `<section class="kaartje"><p class="hint">⚠️ ${esc(d.fout)}</p></section>`;
+  const e = d.eenheden || [], u = d.uren || [];
+  if (!e.length) return `<section class="kaartje"><p class="hint">Geen geproduceerde eenheden (scans) in deze selectie. Kies bijvoorbeeld bij ＋ Filter een sorteer- of inpakactiviteit.</p></section>`;
+  const x = pnoWeekAs([...e, ...u].map(r => r[1])), bjs = [...new Set([...e, ...u].map(r => r[0]))].sort();
+  const reeks = (bron, cum) => bjs.map((bj, i) => { const m = new Map(bron.filter(r => r[0] === bj).map(r => [r[1], +r[2]])); let t = 0;
+    return {naam: bj, kleur: PNO_KLEUR[i % PNO_KLEUR.length], w: x.map(w => cum ? (t += m.get(w) || 0) : (m.has(w) ? m.get(w) : null))}; });
+  const eW = reeks(e), uW = reeks(u), eC = reeks(e, true), uC = reeks(u, true);
+  const perUur = eW.map((s, i) => ({...s, w: s.w.map((v, j) => v != null && uW[i].w[j] ? v / uW[i].w[j] : null)}));
+  const rollend = eC.map((s, i) => ({...s, w: s.w.map((v, j) => { const h = uC[i].w[j]; return (e.some(r => r[0] === s.naam && r[1] === x[j])) && h ? v / h : null; })}));
+  const tE = e.reduce((a, r) => a + +r[2], 0), tU = u.reduce((a, r) => a + +r[2], 0);
+  const act = (d.activiteit || []).map(([id, ee, uu]) => ({id, e: +ee, u: +uu, norm: +PNO.dims.activiteit.get(String(id))?.norm || null})).sort((a, b) => b.e - a.e);
+  return `<section class="kaartje"><div class="pnoKpis">
+      <div class="pnoKpi"><small>Eenheden</small><b>${pnoU(tE)}</b><span>in de selectie</span></div>
+      <div class="pnoKpi"><small>Uren</small><b>${pnoU(tU)}</b><span>zelfde filters</span></div>
+      <div class="pnoKpi"><small>Eenheden per uur</small><b>${tU ? pnoU(tE / tU) : '–'}</b><span>${tE ? pnoU(3600 * tU / tE, 1) + ' sec per eenheid' : ''}</span></div></div>
+      <p class="hint" style="margin:6px 0 0">Let op: de uren tellen alles mee wat aan de filters voldoet. Filter dus op de sorteer-/inpakactiviteit(en), anders tellen ook andere uren mee.</p></section>
+    <div class="pnoTwee"><section class="kaartje"><h4>Aantal eenheden per week</h4>${pnoLijn(x, eW)}</section>
+      <section class="kaartje"><h4>Eenheden per week cumulatief</h4>${pnoLijn(x, eC)}</section>
+      <section class="kaartje"><h4>Aantal uren per week</h4>${pnoLijn(x, uW)}</section>
+      <section class="kaartje"><h4>Uren cumulatief</h4>${pnoLijn(x, uC)}</section>
+      <section class="kaartje"><h4>Eenheden per uur</h4>${pnoLijn(x, perUur, {fmt: v => pnoU(v)})}</section>
+      <section class="kaartje"><h4>Eenheden per uur · lopend gemiddelde <small>cumulatief eenheden ÷ cumulatief uren</small></h4>${pnoLijn(x, rollend, {fmt: v => pnoU(v)})}</section></div>
+    <section class="kaartje"><h4>Per activiteit</h4><div class="pnoTabelWrap"><table class="pnoT"><thead><tr><th>Activiteit</th><th>Eenheden</th><th>Uren</th><th>Per uur</th><th>Sec / eenheid</th><th>Norm</th></tr></thead><tbody>
+      ${act.map(a => `<tr><td>${esc(pnoNaam('activiteit', a.id))}</td><td>${pnoU(a.e)}</td><td>${pnoU(a.u, 1)}</td><td><b>${a.u ? pnoU(a.e / a.u) : '–'}</b></td><td>${a.e ? pnoU(3600 * a.u / a.e, 1) : ''}</td><td>${a.norm ? pnoU(a.norm, 2) : ''}</td></tr>`).join('')}</tbody></table></div></section>`;
+}
+
+/* ---------- 🧮 Urentabel (Dashboard 5) ---------- */
+function htmlPnoTabel() {
+  const args = {p: pnoArgs(), p_kolom: pnoKolom, p_medewerker: true}, d = pnoGet('tab', 'pno_tabel', args);
+  const kolKnop = [['maand', 'Maand'], ['kostenplaats', 'Kostenplaats'], ['locatie', 'Locatie'], ['boekjaar', 'Boekjaar']].map(([k, l]) => `<button class="${pnoKolom === k ? 'aan' : ''}" onclick="pnoKolom='${k}';render(true)">${l}</button>`).join('');
+  let h = `<section class="kaartje"><div class="rij" style="margin:0;align-items:center;flex-wrap:wrap;gap:6px"><span class="hint" style="margin:0">Kolommen:</span><div class="pnoSeg">${kolKnop}</div>
+    <button class="link klein" onclick="pnoOpen=new Set();render(true)">alles dicht</button><button class="link klein" onclick="pnoAllesOpen()">alles open</button><button class="link klein" onclick="pnoCsv()">📥 CSV</button></div></section>`;
+  if (!d) return h + '<section class="kaartje"><p class="hint">Uren optellen…</p></section>';
+  if (d.fout) return h + `<section class="kaartje"><p class="hint">⚠️ ${esc(d.fout)}</p></section>`;
+  const {kols, kolNaam, boom} = pnoBoom(d);
+  if (!boom.length) return h + '<section class="kaartje"><p class="hint">Geen uren in deze selectie.</p></section>';
+  const cel = v => `<td>${v ? pnoU(v, v < 10 ? 1 : 0) : ''}</td>`, tot = o => kols.reduce((a, k) => a + (o.w[k] || 0), 0);
+  let rijen = '';
+  boom.forEach(g => { const gk = 'g' + g.id, go = pnoOpen.has(gk);
+    rijen += `<tr class="niv0" onclick="pnoKlap('${gk}')"><td>${go ? '▾' : '▸'} ${esc(pnoNaam('groep', g.id))}</td>${kols.map(k => cel(g.w[k])).join('')}<td><b>${pnoU(tot(g))}</b></td></tr>`;
+    if (go) g.kind.forEach(a => { const ak = gk + 'a' + a.id, ao = pnoOpen.has(ak);
+      rijen += `<tr class="niv1" onclick="pnoKlap('${ak}')"><td>${ao ? '▾' : '▸'} ${esc(pnoNaam('activiteit', a.id))}</td>${kols.map(k => cel(a.w[k])).join('')}<td><b>${pnoU(tot(a))}</b></td></tr>`;
+      if (ao) a.kind.forEach(m => { rijen += `<tr class="niv2"><td>${esc(pnoNaam('medewerker', m.id))}</td>${kols.map(k => cel(m.w[k])).join('')}<td>${pnoU(tot(m))}</td></tr>`; }); }); });
+  const alles = {w: {}}; boom.forEach(g => kols.forEach(k => alles.w[k] = (alles.w[k] || 0) + (g.w[k] || 0)));
+  // kop met boekjaar boven de maanden
+  const bjKop = pnoKolom === 'maand' ? `<tr><th></th>${[...new Set(kols.map(k => k.split('|')[0]))].map(bj => `<th colspan="${kols.filter(k => k.startsWith(bj + '|')).length}" class="bj">${esc(bj)}</th>`).join('')}<th></th></tr>` : '';
+  return h + `<section class="kaartje"><div class="pnoTabelWrap"><table class="pnoT boom"><thead>${bjKop}<tr><th>Activiteitengroep › activiteit › werknemer</th>${kols.map(k => `<th>${esc(kolNaam(k))}</th>`).join('')}<th>Totaal</th></tr></thead>
+    <tbody>${rijen}<tr class="tot"><td>Totaal</td>${kols.map(k => `<td>${pnoU(alles.w[k])}</td>`).join('')}<td>${pnoU(tot(alles))}</td></tr></tbody></table></div></section>`;
+}
+function pnoBoom(d) {
+  const kols = [...new Set(d.map(r => r[3]))];
+  if (pnoKolom === 'maand') kols.sort((a, b) => a.split('|')[0].localeCompare(b.split('|')[0]) || +a.split('|')[1] - +b.split('|')[1]);
+  else if (pnoKolom === 'boekjaar') kols.sort();
+  else { const t = {}; d.forEach(r => t[r[3]] = (t[r[3]] || 0) + +r[4]); kols.sort((a, b) => t[b] - t[a]); }
+  const kolNaam = k => pnoKolom === 'maand' ? PNO_MND[+k.split('|')[1] - 1] : pnoKolom === 'boekjaar' ? k : pnoNaam(pnoKolom, k);
+  const G = new Map();
+  d.forEach(([g, a, m, k, s]) => { s = +s;
+    const go = G.get(g) || {id: g, w: {}, A: new Map()}; G.set(g, go); go.w[k] = (go.w[k] || 0) + s;
+    const ao = go.A.get(a) || {id: a, w: {}, M: new Map()}; go.A.set(a, ao); ao.w[k] = (ao.w[k] || 0) + s;
+    const mo = ao.M.get(m) || {id: m, w: {}}; ao.M.set(m, mo); mo.w[k] = (mo.w[k] || 0) + s; });
+  const som = o => Object.values(o.w).reduce((a, b) => a + b, 0), num = id => +String(PNO.dims.groep.get(String(id))?.nummer || 1e9);
+  const boom = [...G.values()].sort((a, b) => num(a.id) - num(b.id)).map(g => ({...g, kind: [...g.A.values()].sort((a, b) => +pnoNr(PNO.dims.activiteit.get(String(a.id))?.nummer || 1e9) - +pnoNr(PNO.dims.activiteit.get(String(b.id))?.nummer || 1e9))
+    .map(a => ({...a, kind: [...a.M.values()].sort((x, y) => som(y) - som(x))}))}));
+  return {kols, kolNaam, boom};
+}
+function pnoKlap(k) { pnoOpen.has(k) ? pnoOpen.delete(k) : pnoOpen.add(k); render(true); }
+function pnoAllesOpen() { const d = PNO.data['tab|' + JSON.stringify({p: pnoArgs(), p_kolom: pnoKolom, p_medewerker: true})]; if (!Array.isArray(d)) return;
+  pnoBoom(d).boom.forEach(g => { pnoOpen.add('g' + g.id); g.kind.forEach(a => pnoOpen.add('g' + g.id + 'a' + a.id)); }); render(true); }
+function pnoCsv() {
+  const d = PNO.data['tab|' + JSON.stringify({p: pnoArgs(), p_kolom: pnoKolom, p_medewerker: true})]; if (!Array.isArray(d)) return;
+  const {kols, kolNaam, boom} = pnoBoom(d), q = s => `"${String(s ?? '').replace(/"/g, '""')}"`, n = v => v ? String(Math.round(v * 100) / 100).replace('.', ',') : '';
+  const regels = [['Activiteitengroep', 'Activiteit', 'Werknemer', ...kols.map(k => pnoKolom === 'maand' ? k.split('|')[0] + ' ' + kolNaam(k) : kolNaam(k)), 'Totaal'].map(q).join(';')];
+  boom.forEach(g => g.kind.forEach(a => a.kind.forEach(m => regels.push([q(pnoNaam('groep', g.id)), q(pnoNaam('activiteit', a.id)), q(pnoNaam('medewerker', m.id)), ...kols.map(k => n(m.w[k])), n(Object.values(m.w).reduce((x, y) => x + y, 0))].join(';')))));
+  bewaarBestand(`urentabel-${new Date().toISOString().slice(0, 10)}.csv`, new TextEncoder().encode('\ufeff' + regels.join('\r\n')), 'text/csv');
+}
+
+/* ---------- 🎯 Budget tegenover werkelijk ---------- */
+async function pnoLaadBudget(bj) {
+  if (PNO.budget[bj] || PNO.bezig['b' + bj]) return; PNO.bezig['b' + bj] = true;
+  try {
+    const [b, t, k, tr] = await Promise.all([pnoAlles('pno_budget', '*', q => q.eq('boekjaar', bj)), pnoAlles('pno_toelichting', '*', q => q.eq('boekjaar', bj)),
+      pnoAlles('pno_kosten', '*', q => q.eq('boekjaar', bj).order('soort').order('volgorde')), sb.from('pno_tarieven').select('*').eq('boekjaar', bj).maybeSingle()]);
+    PNO.budget[bj] = b; PNO.toel[bj] = new Map(t.map(x => [pnoNr(x.activiteit_nr), x])); PNO.kosten[bj] = k;
+    PNO.tarief[bj] = tr.data || {boekjaar: bj, uurtarief: Array(12).fill(22.5), derden: Array(12).fill(25.8), analyse_tarief: 20, nieuw: true};
+  } catch (e) { PNO.budget[bj] = {fout: /does not exist|schema cache/i.test(e.message || '') ? 'Draai eerst het nieuwe beheer.sql in Supabase.' : foutTekst(e)}; }
+  PNO.bezig['b' + bj] = false; if (tab === 'pno') render(true);
+}
+// realisatie per activiteit-nummer per maand (alleen het boekjaar telt hier, de andere filters niet)
+function pnoBudgetRegels(bj) {
+  const B = PNO.budget[bj], R = PNO.data['tab|' + JSON.stringify({p: {boekjaar: [bj]}, p_kolom: 'maand', p_medewerker: false})];
+  if (!Array.isArray(B) || !Array.isArray(R)) return null;
+  const A = new Map(), act = PNO.dims?.activiteit, grp = PNO.dims?.groep;
+  const regel = nr => { if (!A.has(nr)) A.set(nr, {nr, naam: '', groep: '', b: Array(12).fill(0), r: Array(12).fill(0)}); return A.get(nr); };
+  B.forEach(x => { const o = regel(pnoNr(x.activiteit_nr)); o.b[x.bjmaand - 1] += +x.uren || 0; o.naam ||= x.naam || ''; o.groep ||= x.groep || ''; });
+  R.forEach(([g, a, , k, s]) => { const ad = act?.get(String(a)), nr = ad ? pnoNr(ad.nummer) : `?${a}`, o = regel(nr), m = +String(k).split('|')[1];
+    o.r[m - 1] += +s; if (ad) { o.naam = ad.naam || o.naam; const gd = grp?.get(String(ad.groep_id ?? g)); if (gd) o.groep = [gd.nummer, gd.naam].filter(Boolean).join(' '); } });
+  return [...A.values()].map(o => ({...o, groep: o.groep || '(zonder groep)'})).sort((a, b) => (+a.nr || 1e9) - (+b.nr || 1e9));
+}
+function htmlPnoBudget() {
+  const bjs = [...new Set([...(PNO.status?.boekjaren || []), pnoBjNu()])].sort();
+  pnoBj ||= pnoBjNu(); if (pnoTm == null) pnoTm = pnoBj === pnoBjNu() ? pnoBjMaandNu() : 12;
+  pnoLaadBudget(pnoBj); const rArgs = {p: {boekjaar: [pnoBj]}, p_kolom: 'maand', p_medewerker: false};
+  pnoGet('tab', 'pno_tabel', rArgs);
+  const subs = [['groep', 'Per groep'], ['activiteit', 'Per activiteit'], ['analyse', 'Analyse'], ['kosten', 'Personeelskosten'], ['invoer', 'Budget invoeren']];
+  let h = `<section class="kaartje"><div class="raster2"><div><label>Boekjaar</label><select class="veld" onchange="pnoBj=this.value;pnoTm=null;render(true)">${bjs.map(b => `<option ${b === pnoBj ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
+    <div><label>Tot en met maand</label><select class="veld" onchange="pnoTm=+this.value;render(true)">${PNO_MND_LANG.map((m, i) => `<option value="${i + 1}" ${i + 1 === pnoTm ? 'selected' : ''}>${m}</option>`).join('')}</select></div></div>
+    <div class="pnoSeg" style="margin-top:8px;flex-wrap:wrap">${subs.map(([k, l]) => `<button class="${pnoBView === k ? 'aan' : ''}" onclick="pnoBView='${k}';render(true)">${l}</button>`).join('')}</div>
+    <p class="hint" style="margin:6px 0 0">Hier telt alleen het boekjaar; de filters van de andere tabbladen gelden niet.</p></section>`;
+  const B = PNO.budget[pnoBj]; if (B?.fout) return h + `<section class="kaartje"><p class="hint">⚠️ ${esc(B.fout)}</p></section>`;
+  if (pnoBView === 'kosten') return h + htmlPnoKosten();
+  if (pnoBView === 'invoer') return h + htmlPnoInvoer();
+  const regels = pnoBudgetRegels(pnoBj); if (!regels) return h + '<section class="kaartje"><p class="hint">Budget en uren laden…</p></section>';
+  if (!regels.length) return h + `<section class="kaartje"><p class="hint">Nog geen budget en geen uren voor ${esc(pnoBj)}. Lees het budget in bij <a href="#" onclick="pnoBView='invoer';render(true);return false">Budget invoeren</a>.</p></section>`;
+  if (pnoBView === 'analyse') return h + htmlPnoAnalyse(regels);
+  return h + htmlPnoVerschil(regels, pnoBView === 'activiteit');
+}
+const pnoTot = (a, tm) => a.slice(0, tm).reduce((x, y) => x + y, 0);
+function htmlPnoVerschil(regels, detail) {
+  const tm = pnoTm, T = PNO.tarief[pnoBj] || {uurtarief: Array(12).fill(22.5), derden: Array(12).fill(25.8)};
+  const groepen = new Map(); regels.forEach(o => { const g = groepen.get(o.groep) || {naam: o.groep, b: Array(12).fill(0), r: Array(12).fill(0), kind: []}; o.b.forEach((v, i) => { g.b[i] += v; g.r[i] += o.r[i]; }); g.kind.push(o); groepen.set(o.groep, g); });
+  const lijst = [...groepen.values()].sort((a, b) => (parseInt(a.naam) || 1e9) - (parseInt(b.naam) || 1e9));
+  const tot = {b: Array(12).fill(0), r: Array(12).fill(0)}; lijst.forEach(g => g.b.forEach((v, i) => { tot.b[i] += v; tot.r[i] += g.r[i]; }));
+  const derden = lijst.find(g => /^2000\b/.test(g.naam)) || {b: Array(12).fill(0), r: Array(12).fill(0)};
+  const cel = (b, r) => { const v = r - b, p = b ? v / b : null; return `<td class="b">${b ? pnoU(b) : ''}</td><td>${r ? pnoU(r) : ''}</td><td class="${v > 0.5 ? 'rood' : v < -0.5 ? 'groenT' : ''}">${b || r ? pnoU(v) : ''}</td><td class="p">${pnoPct(p)}</td>`; };
+  const rij = (cls, naam, o, extra = '') => `<tr class="${cls}" ${extra}><td>${naam}</td>${o.b.slice(0, tm).map((b, i) => cel(b, o.r[i])).join('')}${cel(pnoTot(o.b, tm), pnoTot(o.r, tm))}</tr>`;
+  let body = '';
+  lijst.forEach(g => { const gk = 'bg' + g.naam;
+    body += rij('niv0', `${detail ? (pnoOpen.has(gk) ? '▾ ' : '▸ ') : ''}${esc(g.naam)}`, g, detail ? `onclick="pnoKlap(${esc(JSON.stringify(gk))})"` : '');
+    if (detail && pnoOpen.has(gk)) g.kind.forEach(o => { body += rij('niv1', `${esc(o.nr)} ${esc(o.naam)}${PNO.toel[pnoBj]?.get(o.nr)?.tekst ? ' 💬' : ''}`, o, `onclick="pnoToelichting(${esc(JSON.stringify(o.nr))})" style="cursor:pointer"`); }); });
+  body += rij('tot', 'Totaal uren', tot);
+  // kosten van het verschil (zoals onder de tabel in Excel): verschil × uurtarief, min werk bij derden × derdentarief
+  const kU = tot.b.map((b, i) => (tot.r[i] - b) * (+T.uurtarief[i] || 0)), kD = derden.b.map((b, i) => -(derden.r[i] - b) * (+T.derden[i] || 0));
+  const kRij = (naam, w) => `<tr class="kosten"><td>${naam}</td>${w.slice(0, tm).map(v => `<td colspan="4" class="${v > 0 ? 'rood' : 'groenT'}">${geld(v)}</td>`).join('')}<td colspan="4" class="${pnoTot(w, tm) > 0 ? 'rood' : 'groenT'}"><b>${geld(pnoTot(w, tm))}</b></td></tr>`;
+  body += kRij('Kosten verschil (× uurtarief)', kU) + kRij('Correctie werk bij derden', kD) + kRij('Totaal kosten verschil', kU.map((v, i) => v + kD[i]));
+  return `<section class="kaartje"><h4>${detail ? 'Per activiteit' : 'Per activiteitengroep'} · ${esc(pnoBj)} <small>B = budget, R = realisatie, V = verschil (rood = meer uren dan begroot)</small></h4>
+    ${detail ? '<p class="hint" style="margin:0 0 6px">Tik op een groep om de activiteiten te zien, en op een activiteit voor een toelichting.</p>' : ''}
+    <div class="pnoTabelWrap"><table class="pnoT budget"><thead><tr><th rowspan="2">${detail ? 'Groep › activiteit' : 'Activiteitengroep'}</th>${PNO_MND_LANG.slice(0, tm).map(m => `<th colspan="4">${m}</th>`).join('')}<th colspan="4">Totaal t/m ${PNO_MND_LANG[tm - 1]}</th></tr>
+      <tr>${[...Array(tm + 1)].map(() => '<th class="b">B</th><th>R</th><th>V</th><th>%</th>').join('')}</tr></thead><tbody>${body}</tbody></table></div>
+    <p class="hint">Uurtarief en tarief derden pas je aan bij "Budget invoeren".</p></section>`;
+}
+function htmlPnoAnalyse(regels) {
+  const tm = pnoTm, T = PNO.tarief[pnoBj] || {analyse_tarief: 20}, tar = +T.analyse_tarief || 20, toel = PNO.toel[pnoBj] || new Map();
+  const prod = pnoGet('prod', 'pno_productie', {p: {boekjaar: [pnoBj]}});
+  const eenh = new Map(); (prod?.activiteit || []).forEach(([id, e]) => { const ad = PNO.dims.activiteit.get(String(id)); if (ad) eenh.set(pnoNr(ad.nummer), (eenh.get(pnoNr(ad.nummer)) || 0) + +e); });
+  const l = regels.map(o => { const b = pnoTot(o.b, tm), r = pnoTot(o.r, tm); return {...o, B: b, R: r, V: r - b, P: b ? (r - b) / b : null}; })
+    .filter(o => toel.get(o.nr)?.tekst || ((o.B || o.R) && o.V >= pnoAnalyseMin)).sort((a, b) => b.V - a.V);
+  const totV = l.reduce((a, o) => a + Math.max(0, o.V), 0);
+  return `<section class="kaartje"><h4>Analyse budget – werkelijk · ${esc(pnoBj)} t/m ${PNO_MND_LANG[tm - 1]}</h4>
+    <div class="raster2"><div><label>Laat zien vanaf (uur meer dan begroot)</label><input class="veld" type="number" value="${pnoAnalyseMin}" onchange="pnoAnalyseMin=+this.value||0;render(true)"></div>
+      <div><label>Rekentarief (€ per uur)</label><input class="veld" type="number" value="${tar}" ${pnoBeh() ? `onchange="pnoZetTarief('analyse_tarief',+this.value)"` : 'disabled'}></div></div>
+    <div class="pnoKpis" style="margin-top:8px"><div class="pnoKpi"><small>Meer uren dan begroot</small><b>${pnoU(totV)}</b><span>bij ${l.filter(o => o.V > 0).length} activiteiten</span></div><div class="pnoKpi"><small>Kosten</small><b class="rood">${geld(totV * tar)}</b><span>× ${geld(tar)} per uur</span></div></div>
+    ${l.map(o => { const t = toel.get(o.nr), be = t?.budget_eenheden, re = eenh.get(o.nr);
+      return `<div class="pnoAnalyse" onclick="pnoToelichting(${esc(JSON.stringify(o.nr))})"><div class="k"><b>${esc(o.nr)} ${esc(o.naam)}</b><span class="${o.V > 0 ? 'rood' : 'groenT'}">${o.V > 0 ? '+' : ''}${pnoU(o.V)} uur · ${geld(o.V * tar)}</span></div>
+        <small>budget ${pnoU(o.B)} · realisatie ${pnoU(o.R)}${o.P != null ? ' · ' + pnoPct(o.P) : ''}${be || re ? ` · eenheden: budget ${be ? pnoU(be) : '?'} / realisatie ${re ? pnoU(re) : '–'}${be && re ? ` (${pnoPct(re / be - 1)})` : ''}` : ''}</small>
+        <div class="${t?.tekst ? 'bsTekst' : 'hint'}" style="margin-top:4px">${t?.tekst ? '💬 ' + esc(t.tekst) : (pnoBeh() ? '＋ toelichting toevoegen' : '')}</div></div>`; }).join('') || '<p class="hint">Geen activiteiten boven deze grens.</p>'}</section>`;
+}
+async function pnoToelichting(nr) {
+  const t = PNO.toel[pnoBj]?.get(nr), o = (pnoBudgetRegels(pnoBj) || []).find(x => x.nr === nr), tm = pnoTm;
+  const info = o ? `Budget ${pnoU(pnoTot(o.b, tm))} uur · realisatie ${pnoU(pnoTot(o.r, tm))} uur (t/m ${PNO_MND_LANG[tm - 1]})` : '';
+  if (!pnoBeh()) { if (t?.tekst) await bevestigJa(`${nr} ${o?.naam || ''}`, `${info}<br><br>💬 ${esc(t.tekst)}`, 'Sluiten'); return; }
+  const w = await formulier(`💬 ${nr} ${o?.naam || ''}`, [{type: 'uitleg', waarde: esc(info)},
+    {k: 'tekst', label: 'Toelichting (waarom wijkt het af?)', type: 'textarea', waarde: t?.tekst || ''},
+    {k: 'budget_eenheden', label: 'Begroot aantal eenheden (optioneel, om te vergelijken met de scans)', type: 'number', waarde: t?.budget_eenheden ?? ''}], 'Opslaan');
+  if (!w) return;
+  const rij = {boekjaar: pnoBj, activiteit_nr: nr, tekst: w.tekst?.trim() || null, budget_eenheden: leesGetal(w.budget_eenheden, null), door: naamMe(), bijgewerkt: new Date().toISOString()};
+  const {data, error} = await sb.from('pno_toelichting').upsert(rij).select().single(); if (error) { toast(foutTekst(error), 1); return; }
+  PNO.toel[pnoBj].set(nr, data); render(true); toast('💬 Opgeslagen');
+}
+async function pnoZetTarief(veld, waarde) {
+  if (!pnoBeh()) return; const T = {...PNO.tarief[pnoBj]}; delete T.nieuw; T[veld] = waarde; T.boekjaar = pnoBj;
+  const {data, error} = await sb.from('pno_tarieven').upsert(T).select().single(); if (error) { toast(foutTekst(error), 1); return; }
+  PNO.tarief[pnoBj] = data; render(true); toast('Opgeslagen');
+}
+function htmlPnoKosten() {
+  const K = PNO.kosten[pnoBj]; if (!Array.isArray(K)) return '<section class="kaartje"><p class="hint">Laden…</p></section>';
+  const sectie = (soort, titel) => { const l = K.filter(k => k.soort === soort), tot = Array(12).fill(0); l.forEach(k => k.bedragen.forEach((v, i) => tot[i] += +v || 0));
+    return {tot, html: `<tr class="niv0"><td colspan="14">${titel}${pnoBeh() ? ` <button class="link klein" onclick="event.stopPropagation();pnoKostRegel(null,'${soort}')">＋ regel</button>` : ''}</td></tr>`
+      + l.map(k => `<tr class="niv1" ${pnoBeh() ? `onclick="pnoKostRegel('${k.id}')" style="cursor:pointer"` : ''}><td>${esc(k.regel)}</td>${k.bedragen.map(v => `<td>${+v ? pnoU(v) : ''}</td>`).join('')}<td><b>${pnoU(k.bedragen.reduce((a, v) => a + (+v || 0), 0))}</b></td></tr>`).join('')
+      + `<tr class="tot"><td>Totaal ${titel.toLowerCase()}</td>${tot.map(v => `<td>${pnoU(v)}</td>`).join('')}<td>${pnoU(tot.reduce((a, v) => a + v, 0))}</td></tr>`}; };
+  const b = sectie('budget', 'Budget'), w = sectie('werkelijk', 'Werkelijk (bijv. uit Exact)'), v = w.tot.map((x, i) => x - b.tot[i]);
+  return `<section class="kaartje"><h4>Personeelskosten · ${esc(pnoBj)} <small>budget tegenover werkelijk, per maand (€)</small></h4>
+    <div class="pnoTabelWrap"><table class="pnoT"><thead><tr><th></th>${PNO_MND.map(m => `<th>${m}</th>`).join('')}<th>Totaal</th></tr></thead><tbody>${b.html}${w.html}
+    <tr class="kosten"><td>Werkelijk − budget</td>${v.map(x => `<td class="${x > 0 ? 'rood' : 'groenT'}">${pnoU(x)}</td>`).join('')}<td class="${v.reduce((a, x) => a + x, 0) > 0 ? 'rood' : 'groenT'}"><b>${pnoU(v.reduce((a, x) => a + x, 0))}</b></td></tr></tbody></table></div>
+    ${!K.length ? `<p class="hint">Nog geen regels. In de Excel stonden bijvoorbeeld bij budget "Inpakken planten", "Vaste personeelskosten" en "Variabele personeelskosten", en bij werkelijk de bedragen per bedrijf uit Exact.${pnoBeh() ? '' : ' Vraag iemand met het recht "P&O beheren" om ze in te vullen.'}</p>` : ''}</section>`;
+}
+async function pnoKostRegel(id, soort) {
+  if (!pnoBeh()) return; const k = id ? PNO.kosten[pnoBj].find(x => x.id === id) : {soort, regel: '', bedragen: Array(12).fill(0), volgorde: PNO.kosten[pnoBj].filter(x => x.soort === soort).length};
+  const w = await formulier(id ? `✏️ ${k.regel}` : `＋ Regel ${soort}`, [{k: 'regel', label: 'Omschrijving', waarde: k.regel},
+    ...PNO_MND_LANG.map((m, i) => ({k: 'm' + i, label: `${m} (€)`, type: 'number', waarde: +k.bedragen[i] || ''})),
+    ...(id ? [{k: 'weg', label: 'Regel verwijderen?', type: 'select', waarde: 'nee', opties: [['nee', 'Nee'], ['ja', '🗑️ Ja, verwijderen']]}] : [])], 'Opslaan');
+  if (!w) return;
+  if (w.weg === 'ja') { const {error} = await sb.from('pno_kosten').delete().eq('id', id); if (error) { toast(foutTekst(error), 1); return; } PNO.kosten[pnoBj] = PNO.kosten[pnoBj].filter(x => x.id !== id); render(true); return; }
+  if (!w.regel?.trim()) { toast('Vul een omschrijving in', 1); return; }
+  const rij = {boekjaar: pnoBj, soort: k.soort, regel: w.regel.trim(), volgorde: k.volgorde || 0, bedragen: PNO_MND_LANG.map((_, i) => leesGetal(w['m' + i], 0) || 0)};
+  const res = id ? await sb.from('pno_kosten').update(rij).eq('id', id).select().single() : await sb.from('pno_kosten').insert(rij).select().single();
+  if (res.error) { toast(foutTekst(res.error), 1); return; }
+  PNO.kosten[pnoBj] = [...PNO.kosten[pnoBj].filter(x => x.id !== res.data.id), res.data].sort((a, b) => a.soort.localeCompare(b.soort) || a.volgorde - b.volgorde); render(true);
+}
+function htmlPnoInvoer() {
+  const B = PNO.budget[pnoBj], T = PNO.tarief[pnoBj]; if (!Array.isArray(B) || !T) return '<section class="kaartje"><p class="hint">Laden…</p></section>';
+  const nAct = new Set(B.map(x => x.activiteit_nr)).size, tot = B.reduce((a, x) => a + (+x.uren || 0), 0);
+  return `<section class="kaartje"><h4>Budget ${esc(pnoBj)} <small>uren per activiteit per maand</small></h4>
+    <p>${nAct ? `${nAct} activiteiten, samen <b>${pnoU(tot)}</b> uur begroot.` : 'Nog geen budget voor dit boekjaar.'}</p>
+    ${pnoBeh() ? `<div class="rij" style="flex-wrap:wrap"><button class="knop" onclick="pnoBudgetInlezen()">📥 Budget inlezen uit Excel</button><button class="knop licht" onclick="pnoBudgetActiviteit()">✏️ Eén activiteit aanpassen</button></div>
+      <p class="hint">Inlezen werkt met een blad zoals "Budget 2026": per regel het activiteitnummer (kolom A of B), de naam en de groep, en daarnaast de kolommen oktober t/m september. Het budget van ${esc(pnoBj)} wordt dan vervangen.</p>` : '<p class="hint">Alleen wie "P&amp;O beheren" mag, kan het budget aanpassen.</p>'}</section>
+    <section class="kaartje"><h4>Tarieven ${esc(pnoBj)} <small>om het verschil in uren in euro's om te rekenen</small></h4>
+      <div class="pnoTabelWrap"><table class="pnoT"><thead><tr><th></th>${PNO_MND.map(m => `<th>${m}</th>`).join('')}</tr></thead><tbody>
+        <tr><td>Uurtarief (€)</td>${T.uurtarief.map(v => `<td>${pnoU(v, 2)}</td>`).join('')}</tr><tr><td>Tarief werk bij derden (€)</td>${T.derden.map(v => `<td>${pnoU(v, 2)}</td>`).join('')}</tr></tbody></table></div>
+      ${pnoBeh() ? '<button class="knop licht" style="margin-top:8px" onclick="pnoTarievenForm()">✏️ Tarieven aanpassen</button>' : ''}
+      ${T.nieuw ? '<p class="hint">Dit zijn de standaardwaarden uit de Excel (€ 22,50 en € 25,80); ze zijn nog niet opgeslagen.</p>' : ''}</section>`;
+}
+async function pnoTarievenForm() {
+  const T = PNO.tarief[pnoBj];
+  const w = await formulier(`Tarieven ${pnoBj}`, [{type: 'uitleg', waarde: 'In de Excel was dit € 22,50 (okt–apr) en € 23,50 (vanaf mei); werk bij derden € 25,80 en later € 26,40.'},
+    ...PNO_MND_LANG.map((m, i) => ({k: 'u' + i, label: `Uurtarief ${m}`, type: 'number', waarde: T.uurtarief[i]})),
+    ...PNO_MND_LANG.map((m, i) => ({k: 'd' + i, label: `Derden ${m}`, type: 'number', waarde: T.derden[i]}))], 'Opslaan');
+  if (!w) return;
+  const T2 = {boekjaar: pnoBj, uurtarief: PNO_MND.map((_, i) => leesGetal(w['u' + i], 0) || 0), derden: PNO_MND.map((_, i) => leesGetal(w['d' + i], 0) || 0), analyse_tarief: +T.analyse_tarief || 20};
+  const {data, error} = await sb.from('pno_tarieven').upsert(T2).select().single(); if (error) { toast(foutTekst(error), 1); return; }
+  PNO.tarief[pnoBj] = data; render(true); toast('Tarieven opgeslagen');
+}
+// budgetblad herkennen: een kopregel met oktober … september, daaronder per regel nummer, naam, groep en 12 maanden
+function pnoBudgetUitBladen(bladen) {
+  const vondst = [];
+  for (const bl of bladen) {
+    for (let r = 0; r < Math.min(bl.rijen.length, 30); r++) {
+      const rij = bl.rijen[r] || [], kol = {};
+      rij.forEach((v, c) => { const i = PNO_MND_LANG.indexOf(normTekst(v)); if (i >= 0) (kol[i] ||= []).push(c); });
+      if (Object.keys(kol).length < 12 || Object.values(kol).some(l => l.length !== 1)) continue;
+      const mk = PNO_MND_LANG.map((_, i) => kol[i][0]), eerste = Math.min(...mk), regels = [];
+      for (let rr = r + 1; rr < bl.rijen.length; rr++) {
+        const x = bl.rijen[rr] || []; let nr = null;
+        // nummer uit kolom B (100), anders uit kolom A (0100); totaalregels overslaan
+        const sB = String(x[1] ?? '').trim(), sA = String(x[0] ?? '').trim();
+        if (/^\d{1,5}$/.test(sB) && +sB > 0) nr = pnoNr(sB); else if (/^\d{3,5}$/.test(sA) && +sA > 0) nr = pnoNr(sA);
+        if (!nr || x.slice(0, eerste).some(v => /^\s*totaal\b/i.test(String(v ?? '')))) continue;
+        const teksten = x.slice(0, eerste).filter(v => typeof v === 'string' && v.trim() && !/^\d+$/.test(v.trim()));
+        const groep = teksten.find(t => /^\d+\s+\S/.test(t)) || '', naam = teksten.find(t => t !== groep) || '';
+        const m = mk.map(c => +x[c] || 0); if (!m.some(Boolean)) continue;
+        regels.push({nr, naam, groep, m});
+      }
+      if (regels.length) vondst.push({blad: bl.naam, regels});
+      break;
+    }
+  }
+  return vondst;
+}
+async function pnoBudgetInlezen() {
+  if (!pnoBeh()) return; const f = await kiesBestand('.xlsx'); if (!f) return;
+  let bladen; try { toast('📥 Bestand lezen…'); const buf = await f.arrayBuffer(); bladen = await leesXlsx(buf, true, n => /budget/i.test(n)); if (!pnoBudgetUitBladen(bladen).length) bladen = await leesXlsx(buf, true); }
+  catch (e) { toast(e.message || String(e), 1); return; }
+  const v = pnoBudgetUitBladen(bladen); if (!v.length) { toast('Ik vind geen budgetblad: een blad met de kolommen oktober t/m september en daaronder activiteitnummers', 1); return; }
+  const bjs = [...new Set([...(PNO.status?.boekjaren || []), pnoBjNu(), pnoBj])].sort();
+  const jaarUitNaam = n => { const m = String(n).match(/20(\d\d)/); return m ? `20${+m[1] - 1}-20${m[1]}` : null; };
+  const w = await formulier('📥 Budget inlezen', [
+    {k: 'blad', label: 'Welk blad?', type: 'select', waarde: v[0].blad, opties: v.map(x => [x.blad, `${x.blad} (${x.regels.length} activiteiten, ${pnoU(x.regels.reduce((a, r) => a + r.m.reduce((p, q) => p + q, 0), 0))} uur)`])},
+    {k: 'bj', label: 'Voor welk boekjaar?', type: 'select', waarde: jaarUitNaam(v[0].blad) && bjs.includes(jaarUitNaam(v[0].blad)) ? jaarUitNaam(v[0].blad) : pnoBj, opties: [...new Set([...bjs, jaarUitNaam(v[0].blad)].filter(Boolean))].sort().map(b => [b, b])},
+    {type: 'uitleg', waarde: '"Budget 2026" hoort bij boekjaar 2025-2026 (oktober 2025 t/m september 2026). Het bestaande budget van dat boekjaar wordt vervangen.'}], 'Inlezen');
+  if (!w) return;
+  const keuze = v.find(x => x.blad === w.blad), rijen = [];
+  keuze.regels.forEach(r => r.m.forEach((u, i) => { if (u) rijen.push({boekjaar: w.bj, activiteit_nr: r.nr, bjmaand: i + 1, uren: Math.round(u * 100) / 100, naam: r.naam || null, groep: r.groep || null}); }));
+  // dubbele regels (zelfde activiteit) optellen
+  const samen = new Map(); rijen.forEach(r => { const s = `${r.activiteit_nr}|${r.bjmaand}`, o = samen.get(s); if (o) o.uren += r.uren; else samen.set(s, {...r}); });
+  const del = await sb.from('pno_budget').delete().eq('boekjaar', w.bj); if (del.error) { toast(foutTekst(del.error), 1); return; }
+  const l = [...samen.values()]; for (let i = 0; i < l.length; i += 1000) { const {error} = await sb.from('pno_budget').insert(l.slice(i, i + 1000)); if (error) { toast(foutTekst(error), 1); return; } }
+  delete PNO.budget[w.bj]; pnoBj = w.bj; pnoBView = 'groep'; render(true); toast(`📥 Budget ${w.bj} ingelezen: ${keuze.regels.length} activiteiten`);
+}
+async function pnoBudgetActiviteit() {
+  if (!pnoBeh()) return; const B = PNO.budget[pnoBj] || [];
+  const acts = [...(PNO.dims?.activiteit?.values() || [])].map(a => [pnoNr(a.nummer), `${a.nummer} ${a.naam || ''}`]).filter(a => a[0]);
+  B.forEach(x => { if (!acts.some(a => a[0] === pnoNr(x.activiteit_nr))) acts.push([pnoNr(x.activiteit_nr), `${x.activiteit_nr} ${x.naam || ''}`]); });
+  acts.sort((a, b) => +a[0] - +b[0]);
+  const k = await formulier('Welke activiteit?', [{k: 'nr', label: 'Activiteit', type: 'select', waarde: acts[0]?.[0] || '', opties: acts}], 'Verder'); if (!k?.nr) return;
+  const huidig = Array(12).fill(0); B.filter(x => pnoNr(x.activiteit_nr) === k.nr).forEach(x => huidig[x.bjmaand - 1] += +x.uren || 0);
+  const naam = acts.find(a => a[0] === k.nr)?.[1] || k.nr;
+  const w = await formulier(`Budget ${naam}`, PNO_MND_LANG.map((m, i) => ({k: 'm' + i, label: `${m} (uur)`, type: 'number', waarde: huidig[i] || ''})), 'Opslaan'); if (!w) return;
+  const ad = [...(PNO.dims?.activiteit?.values() || [])].find(a => pnoNr(a.nummer) === k.nr), gd = ad && PNO.dims.groep.get(String(ad.groep_id));
+  await sb.from('pno_budget').delete().eq('boekjaar', pnoBj).eq('activiteit_nr', k.nr);
+  const rijen = PNO_MND.map((_, i) => ({boekjaar: pnoBj, activiteit_nr: k.nr, bjmaand: i + 1, uren: leesGetal(w['m' + i], 0) || 0, naam: ad?.naam || null, groep: gd ? `${gd.nummer} ${gd.naam}` : null})).filter(r => r.uren);
+  if (rijen.length) { const {error} = await sb.from('pno_budget').insert(rijen); if (error) { toast(foutTekst(error), 1); return; } }
+  delete PNO.budget[pnoBj]; render(true); toast('Budget opgeslagen');
+}
+
+/* ---------- 🔌 Koppeling met SSOR ---------- */
+function htmlPnoKoppeling() {
+  const s = PNO.status || {}, info = s.info || {}, beh = isBeheerder(), dt = t => t ? new Date(t).toLocaleString('nl-NL', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}) : '–';
+  const oud = s.laatst && (Date.now() - new Date(s.laatst)) > 3 * 3600e3;
+  return `<section class="kaartje"><h4>🔌 Koppeling met SSOR</h4>
+    <div class="pnoKpis"><div class="pnoKpi"><small>Laatst bijgewerkt</small><b class="${oud ? 'rood' : ''}" style="font-size:18px">${dt(s.laatst)}</b><span>${s.ingesteld ? (oud ? '⚠️ al een tijd niets ontvangen' : 'koppeling actief') : 'nog niet ingesteld'}</span></div>
+      <div class="pnoKpi"><small>Urenregels</small><b>${pnoU(s.uren)}</b><span>${s.uren_van ? `${pnoDatum(s.uren_van)} t/m ${pnoDatum(s.uren_tot)}` : ''}</span></div>
+      <div class="pnoKpi"><small>Eenheden (scans)</small><b>${pnoU(s.eenheden)}</b><span>${s.eenheden_tot ? 't/m ' + pnoDatum(s.eenheden_tot) : ''}</span></div>
+      <div class="pnoKpi"><small>Stamgegevens</small><b style="font-size:18px">${pnoU(s.activiteiten)} act. · ${pnoU(s.medewerkers)} pers.</b><span>${pnoU(s.kostenplaatsen)} kostenplaatsen · ${pnoU(s.locaties)} locaties</span></div></div></section>
+    <section class="kaartje"><h4>Hoe het werkt</h4><ol class="pnoStappen">
+      <li>Op jullie server (of een pc die altijd aan staat) waar de Excel nu ververst wordt, staat de ODBC-gegevensbron <b>SSOR-Firebird32</b>. Die gebruikt de koppeling ook.</li>
+      <li>Een klein programma (<b>ssor-sync.ps1</b>, PowerShell, zit al in Windows) leest elke 15 minuten de uren, de scans en de stamgegevens uit SSOR en stuurt ze naar de app. Het leest alleen; SSOR wordt nooit aangepast. Adressen, BSN, IBAN en dergelijke worden niet meegestuurd.</li>
+      <li>De eerste keer haalt hij alles op vanaf de gekozen datum; daarna steeds de laatste 3 weken (ook gewijzigde en verwijderde regels).</li>
+      <li>De app rekent alles in de database uit, dus ook op een telefoon is het snel.</li></ol></section>
+    ${beh ? `<section class="kaartje"><h4>Instellen <small>alleen beheerders</small></h4>
+      <label>ODBC-verbinding</label><input class="veld" id="pnoDsn" value="DSN=SSOR-Firebird32">
+      <p class="hint" style="margin:4px 0">Staat het wachtwoord niet in de gegevensbron, zet er dan <code>;UID=gebruiker;PWD=wachtwoord</code> achter. Tip: maak in SSOR/Firebird een aparte gebruiker die alleen mag lezen.</p>
+      <label>Eerste keer alles ophalen vanaf</label><input class="veld" id="pnoVanaf" type="date" value="2024-10-01">
+      <div class="rij" style="flex-wrap:wrap"><button class="knop" onclick="pnoScript()">📥 Koppelprogramma downloaden</button>${s.ingesteld ? '<button class="knop licht" onclick="pnoScript(true)">🔑 Nieuwe sleutel (oude stopt)</button>' : ''}</div>
+      <p class="hint">Het programma bevat een geheime sleutel waarmee het alleen SSOR-gegevens naar de app mag sturen. Raak je hem kwijt of wil je hem intrekken, maak dan een nieuwe sleutel.</p>
+      <h4 style="margin-top:12px">Daarna op de server</h4><ol class="pnoStappen">
+        <li>Zet <b>ssor-sync.ps1</b> in een vaste map, bijvoorbeeld <code>C:\\SSOR-koppeling</code>.</li>
+        <li>Test hem één keer: open een opdrachtprompt en typ<br><code>C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy Bypass -File C:\\SSOR-koppeling\\ssor-sync.ps1</code><br>De eerste keer duurt het even (alle uren sinds de gekozen datum). In <code>ssor-sync.log</code> zie je wat hij gedaan heeft.</li>
+        <li>Werkt het, plan hem dan in: zelfde regel met <code>-Installeer</code> erachter (als administrator). Dan draait hij elke 15 minuten.</li>
+        <li>Is de gegevensbron een <i>Gebruikers-DSN</i>, maak hem dan ook als <i>Systeem-DSN</i> aan (32-bits ODBC-beheer), want de geplande taak draait als systeem.</li></ol></section>` : '<section class="kaartje"><p class="hint">Een beheerder kan hier de koppeling instellen.</p></section>'}
+    <section class="kaartje"><h4>👥 Werknemergroepen <small>contracttype → groep (en tarief)</small></h4>
+      <p class="hint" style="margin-top:0">Dit stond in "Personeel - Dimension table - Medewerkersgroep.xlsx". Het contracttype komt uit SSOR; hier bepaal je in welke groep dat valt (voor het filter "Werknemergroep").</p>
+      ${(PNO.dims?.wg || []).length ? `<div class="pnoTabelWrap"><table class="pnoT"><thead><tr><th>Contract</th><th>Werknemergroep</th><th>Tarief</th></tr></thead><tbody>${PNO.dims.wg.map(g => `<tr ${pnoBeh() ? `onclick="pnoGroepForm(${esc(JSON.stringify(g.contract))})" style="cursor:pointer"` : ''}><td>${esc(g.contract)}</td><td>${esc(g.werknemergroep || '')}</td><td>${g.tarief != null ? geld(g.tarief) : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Nog geen groepen.</p>'}
+      ${(() => { const zonder = [...new Set([...(PNO.dims?.medewerker?.values() || [])].map(m => m.contracttype).filter(c => c && !(PNO.dims.wg || []).some(g => g.contract === c)))]; return zonder.length ? `<p class="hint">Contracttypes uit SSOR zonder groep: ${zonder.map(esc).join(', ')}</p>` : ''; })()}
+      ${pnoBeh() ? '<div class="rij" style="flex-wrap:wrap"><button class="knop licht" onclick="pnoGroepForm()">＋ Groep</button><button class="knop licht" onclick="pnoGroepenInlezen()">📥 Inlezen uit Excel</button></div>' : ''}</section>`;
+}
+async function pnoScript(nieuw) {
+  if (!isBeheerder()) return; const c = config(); if (!c) return;
+  let sleutel = null;
+  if (!nieuw) { const {data} = await sb.from('ssor_koppeling').select('sleutel').eq('id', 1).maybeSingle(); sleutel = data?.sleutel; }
+  if (nieuw && !await bevestigJa('Nieuwe sleutel maken?', 'Het koppelprogramma dat nu op de server staat werkt dan niet meer, tot je het nieuwe programma daar neerzet.', 'Nieuwe sleutel')) return;
+  if (!sleutel) { const {data, error} = await sb.rpc('ssor_nieuwe_sleutel'); if (error) { toast(/Could not find|does not exist/i.test(error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(error), 1); return; } sleutel = data; }
+  const vul = s => s.replace('__URL__', c.u.trim().replace(/\/+$/, '')).replace('__ANON__', c.k.trim()).replace('__SLEUTEL__', sleutel)
+    .replace('__VERBINDING__', ($('#pnoDsn')?.value || 'DSN=SSOR-Firebird32').replace(/'/g, "''")).replace('__VANAF__', $('#pnoVanaf')?.value || '2024-10-01');
+  // met BOM en Windows-regeleinden, zodat PowerShell de tekens goed leest
+  bewaarBestand('ssor-sync.ps1', new TextEncoder().encode('\ufeff' + vul(PNO_SCRIPT).replace(/\r?\n/g, '\r\n')), 'text/plain');
+  pnoLaadDims(true);
+}
+async function pnoGroepForm(contract) {
+  if (!pnoBeh()) return; const g = contract ? PNO.dims.wg.find(x => x.contract === contract) : {};
+  const w = await formulier(contract ? `✏️ ${contract}` : '＋ Werknemergroep', [{k: 'contract', label: 'Contracttype (zoals in SSOR)', waarde: g.contract || ''}, {k: 'werknemergroep', label: 'Werknemergroep', waarde: g.werknemergroep || '', lijst: [...new Set(PNO.dims.wg.map(x => x.werknemergroep).filter(Boolean))]},
+    {k: 'tarief', label: 'Tarief (€ per uur, optioneel)', type: 'number', waarde: g.tarief ?? ''}, ...(contract ? [{k: 'weg', label: 'Verwijderen?', type: 'select', waarde: 'nee', opties: [['nee', 'Nee'], ['ja', '🗑️ Ja']]}] : [])], 'Opslaan');
+  if (!w) return;
+  if (w.weg === 'ja') { await sb.from('pno_medewerkersgroepen').delete().eq('contract', contract); }
+  else { if (!w.contract?.trim()) return; if (contract && contract !== w.contract.trim()) await sb.from('pno_medewerkersgroepen').delete().eq('contract', contract);
+    const {error} = await sb.from('pno_medewerkersgroepen').upsert({contract: w.contract.trim(), werknemergroep: w.werknemergroep?.trim() || null, tarief: leesGetal(w.tarief, null)}); if (error) { toast(foutTekst(error), 1); return; } }
+  PNO.data = {}; pnoLaadDims(true);
+}
+async function pnoGroepenInlezen() {
+  if (!pnoBeh()) return; const f = await kiesBestand('.xlsx'); if (!f) return;
+  let bladen; try { bladen = await leesXlsx(await f.arrayBuffer(), true); } catch (e) { toast(e.message || String(e), 1); return; }
+  const rijen = [];
+  bladen.forEach(bl => { const r0 = bl.rijen.findIndex(r => (r || []).some(v => normTekst(v) === 'contract') && (r || []).some(v => normTekst(v) === 'werknemergroep')); if (r0 < 0) return;
+    const kop = bl.rijen[r0].map(normTekst), cC = kop.indexOf('contract'), cG = kop.indexOf('werknemergroep'), cT = kop.indexOf('tarief');
+    bl.rijen.slice(r0 + 1).forEach(r => { const c = String(r?.[cC] ?? '').trim(); if (c) rijen.push({contract: c, werknemergroep: String(r[cG] ?? '').trim() || null, tarief: cT >= 0 ? leesGetal(r[cT], null) : null}); }); });
+  if (!rijen.length) { toast('Geen tabel gevonden met de kolommen "contract" en "werknemergroep"', 1); return; }
+  const uniek = [...new Map(rijen.map(r => [r.contract, r])).values()];
+  if (!await bevestigJa('Werknemergroepen inlezen?', `${uniek.length} contracttypes gevonden. De huidige lijst wordt vervangen.`, 'Inlezen')) return;
+  await sb.from('pno_medewerkersgroepen').delete().neq('contract', '');
+  const {error} = await sb.from('pno_medewerkersgroepen').insert(uniek); if (error) { toast(foutTekst(error), 1); return; }
+  PNO.data = {}; pnoLaadDims(true); toast(`👥 ${uniek.length} groepen ingelezen`);
+}
+
+// het koppelprogramma (wordt bij het downloaden ingevuld met het adres en de sleutel)
+const PNO_SCRIPT = "# =====================================================================\n#  SSOR -> Perceel App\n#  Leest uren, eenheden en stamgegevens uit SSOR (Firebird, via de bestaande\n#  ODBC-gegevensbron) en stuurt ze naar de app. Alleen lezen in SSOR, en alleen\n#  de kolommen die nodig zijn (geen adressen, BSN, IBAN, paspoort e.d.).\n#\n#  Draaien met de 32-bits PowerShell (want de ODBC-bron is 32-bits):\n#    C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy Bypass -File ssor-sync.ps1\n#  Eenmalig als taak inplannen (elke 15 minuten):\n#    ... -File ssor-sync.ps1 -Installeer\n#  Alles opnieuw inlezen vanaf $Vanaf:\n#    ... -File ssor-sync.ps1 -Volledig\n# =====================================================================\nparam([switch]$Installeer, [switch]$Volledig)\n\n$Url     = '__URL__'          # Supabase-adres van de app\n$Anon    = '__ANON__'         # publieke sleutel van de app (dezelfde als in de app)\n$Sleutel = '__SLEUTEL__'      # geheime koppelsleutel (aangemaakt in de app bij P&O -> Koppeling)\n$Verbinding = '__VERBINDING__'  # ODBC-verbinding; staat het wachtwoord niet in de gegevensbron, zet er dan ;UID=...;PWD=... achter\n$Vanaf   = '__VANAF__'        # eerste keer alles inlezen vanaf deze datum\n$Venster = 21                 # elke keer de laatste zoveel dagen opnieuw vergelijken (wijzigingen en verwijderde regels)\n$Blok    = 2000               # regels per keer versturen\n\n$ErrorActionPreference = 'Stop'\n$Map = Split-Path -Parent $MyInvocation.MyCommand.Path\n$Log = Join-Path $Map 'ssor-sync.log'\n$Status = Join-Path $Map 'ssor-sync.status'\nfunction Schrijf($tekst) { $regel = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  ' + $tekst; Write-Host $regel; Add-Content -Path $Log -Value $regel -Encoding UTF8 }\n\nif ($Installeer) {\n  $ps = \"$env:WINDIR\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe\"\n  $actie = \"`\"$ps`\" -NoProfile -ExecutionPolicy Bypass -File `\"$($MyInvocation.MyCommand.Path)`\"\"\n  schtasks /Create /SC MINUTE /MO 15 /TN \"SSOR naar Perceel App\" /TR $actie /RU SYSTEM /F | Out-Null\n  Schrijf 'Taak \"SSOR naar Perceel App\" ingepland: elke 15 minuten.'\n  exit 0\n}\nif ([IntPtr]::Size -ne 4) { Schrijf 'Let op: dit is de 64-bits PowerShell. Gebruik C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe (32-bits), anders vindt hij de ODBC-bron niet.' }\n\n[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12\n$Kop = @{ apikey = $Anon; Authorization = \"Bearer $Anon\" }\n\nfunction Lees([string]$sql) {\n  $cmd = $script:con.CreateCommand(); $cmd.CommandText = $sql; $cmd.CommandTimeout = 900\n  $rd = $cmd.ExecuteReader(); $lijst = New-Object System.Collections.Generic.List[object]\n  while ($rd.Read()) {\n    $o = [ordered]@{}\n    for ($i = 0; $i -lt $rd.FieldCount; $i++) {\n      $w = $rd.GetValue($i)\n      if ($w -is [DBNull]) { $w = $null }\n      elseif ($w -is [DateTime]) { $w = $w.ToString('yyyy-MM-dd') }\n      elseif ($w -is [TimeSpan]) { $w = $w.ToString() }\n      else { $w = [string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0}', $w).Trim() }\n      $o[$rd.GetName($i).ToLower()] = $w\n    }\n    $lijst.Add([pscustomobject]$o)\n  }\n  $rd.Close(); return ,$lijst\n}\nfunction Stuur([string]$tabel, $rijen, [string]$van = $null, [string]$tot = $null) {\n  $n = 0\n  for ($i = 0; $i -lt [Math]::Max($rijen.Count, 1); $i += $Blok) {\n    $deel = @(); if ($rijen.Count -gt 0) { $deel = @($rijen[$i..([Math]::Min($i + $Blok, $rijen.Count) - 1)]) }\n    $body = @{ p_sleutel = $Sleutel; p_tabel = $tabel; p_rijen = $deel }\n    if ($van) { $body.p_van = $van; $body.p_tot = $tot }\n    $json = ConvertTo-Json -InputObject $body -Depth 4 -Compress\n    if ($deel.Count -eq 0) { $json = $json -replace '\"p_rijen\":(null|\\{\\})', '\"p_rijen\":[]' }\n    $r = Invoke-RestMethod -Method Post -Uri \"$Url/rest/v1/rpc/ssor_sync\" -Headers $Kop -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($json))\n    $n += [int]$r.rijen\n    if ($rijen.Count -le $Blok) { break }\n  }\n  return $n\n}\n# alleen id's (voor het opruimen van regels die in SSOR verwijderd zijn)\nfunction StuurIds([string]$tabel, $ids, [string]$van, [string]$tot) {\n  $json = ConvertTo-Json -InputObject @{ p_sleutel = $Sleutel; p_tabel = $tabel; p_rijen = @($ids); p_van = $van; p_tot = $tot } -Depth 3 -Compress\n  if ($ids.Count -eq 0) { $json = $json -replace '\"p_rijen\":(null|\\{\\})', '\"p_rijen\":[]' }\n  $r = Invoke-RestMethod -Method Post -Uri \"$Url/rest/v1/rpc/ssor_sync\" -Headers $Kop -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($json))\n  return [int]$r.rijen\n}\n\n$SqlUren = @\"\nSELECT h.ID AS \"id\", CAST(h.DATE_ AS DATE) AS \"datum\", DATEDIFF(SECOND FROM h.STARTTIME TO h.ENDTIME) / 3600.000 AS \"uren\",\n       h.ACTIVITYID AS \"activiteit_id\", h.COSTCENTERID AS \"kostenplaats_id\", h.DAYJOBID AS \"dagtaak_id\", h.EMPLOYEEID AS \"medewerker_id\",\n       h.LOCATIONID AS \"locatie_id\", h.SUBLOCATIONID AS \"sublocatie_id\"\n  FROM HOURS h WHERE h.DATE_ >= '{0}' AND h.DATE_ <= '{1}'\n\"@\n$SqlEenheden = @\"\nSELECT u.ID AS \"id\", CAST(u.PRODUCTIONDATETIME AS DATE) AS \"datum\", CAST(CAST(u.PRODUCTIONDATETIME AS TIME) AS VARCHAR(8)) AS \"tijd\", u.AMOUNT AS \"aantal\",\n       u.ACTIVITYID AS \"activiteit_id\", u.COSTCENTERID AS \"kostenplaats_id\", u.DAYJOBID AS \"dagtaak_id\", u.EMPLOYEEID AS \"medewerker_id\",\n       u.LOCATIONID AS \"locatie_id\", u.SUBLOCATIONID AS \"sublocatie_id\", u.SORTINGID AS \"sortering_id\"\n  FROM UNIT u WHERE u.PRODUCTIONDATETIME >= '{0}' AND u.PRODUCTIONDATETIME < DATEADD(1 DAY TO CAST('{1}' AS DATE))\n\"@\n\ntry {\n  $script:con = New-Object System.Data.Odbc.OdbcConnection($Verbinding); $script:con.Open()\n  Schrijf (\"Verbonden met \" + ($Verbinding -replace 'PWD=[^;]*', 'PWD=***'))\n\n  # stamgegevens (klein, elke keer helemaal)\n  $n = Stuur 'activiteitgroepen' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\" FROM ACTIVITYGROUP')\n  $n += Stuur 'activiteiten' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\", ACTIVITYGROUP AS \"groep_id\", DEFAULTNORM AS \"norm\" FROM ACTIVITY')\n  $n += Stuur 'kostenplaatsen' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\" FROM COSTCENTERS')\n  $n += Stuur 'locaties' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\" FROM LOCATION WHERE BUSINESSID IS NOT NULL')\n  $n += Stuur 'medewerkers' (Lees @\"\nSELECT e.ID AS \"id\", e.NUMBER AS \"nummer\",\n       TRIM(COALESCE(e.FIRSTNAME, '') || ' ' || COALESCE(e.SMALLNAME, '') || ' ' || COALESCE(e.LASTNAME, '')) AS \"naam\",\n       e.ISACTIVE AS \"actief\",\n       (SELECT FIRST 1 c.NAME FROM EMPLOYEECONTRACT ec JOIN CONTRACT c ON c.ID = ec.CONTRACTID\n         WHERE ec.EMPLOYEEID = e.ID ORDER BY ec.ACTIVE DESC, ec.FIRSTWORKDATE DESC) AS \"contracttype\"\n  FROM EMPLOYEE e\n\"@)\n  Schrijf \"Stamgegevens bijgewerkt ($n regels)\"\n\n  # uren en eenheden: de eerste keer per maand alles, daarna alleen het laatste venster\n  $vandaag = (Get-Date).Date\n  if ($Volledig -or -not (Test-Path $Status)) { $begin = [DateTime]::ParseExact($Vanaf, 'yyyy-MM-dd', $null) } else { $begin = $vandaag.AddDays(-$Venster) }\n  $van = $begin\n  while ($van -le $vandaag) {\n    $tot = $van.AddMonths(1).AddDays(-1); if ($tot -gt $vandaag) { $tot = $vandaag }\n    $a = $van.ToString('yyyy-MM-dd'); $b = $tot.ToString('yyyy-MM-dd')\n    $uren = Lees ([string]::Format($SqlUren, $a, $b)); $nu = Stuur 'uren' $uren\n    $weg = StuurIds 'uren_opruimen' ($uren | ForEach-Object { $_.id }) $a $b\n    $eenh = Lees ([string]::Format($SqlEenheden, $a, $b)); $ne = Stuur 'eenheden' $eenh\n    $weg += StuurIds 'eenheden_opruimen' ($eenh | ForEach-Object { $_.id }) $a $b\n    Schrijf \"$a t/m $b : $nu uren-regels, $ne eenheden-regels, $weg verwijderd\"\n    $van = $tot.AddDays(1)\n  }\n  Set-Content -Path $Status -Value (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') -Encoding UTF8\n  Schrijf 'Klaar.'\n} catch {\n  Schrijf ('FOUT: ' + $_.Exception.Message)\n  exit 1\n} finally {\n  if ($script:con) { $script:con.Close() }\n}\n";
 
 /* ---------- 8. SATELLIETBEELDEN (Sentinel-2, gratis via Earth Search) ---------- */
 function naarUtm(lat, lng, zone) {   // WGS84 → UTM (meters)
