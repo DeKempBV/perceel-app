@@ -624,6 +624,12 @@ details.szblok summary h4{margin:6px 0}
 .mTegel:hover{transform:translateY(-2px)}.mTegel:active{transform:scale(.98)}
 .mTegel.werken{grid-column:1/-1;background:#fffbe9}
 .mTegel.spuiten{background:#eef6ff}.mTegel.kunstmest{background:#f1f8e9}.mTegel.monsters{background:#fff3e0}.mTegel.opslag{background:#e0f7fa}.mTegel.resultaten{background:#ede7f6}
+.etVbB{overflow:hidden;background:#e9ece6;border-radius:10px;padding:0}.etVb{transform-origin:top left;width:max-content}.etVb .etPagina{box-shadow:0 1px 6px #0003}
+.etKleurtje{flex:0 0 14px;height:34px;border-radius:5px;border:1px solid #0002;margin-top:2px}
+.etScanVak{background:#000;border-radius:12px;overflow:hidden;aspect-ratio:4/3}.etScanVak video{width:100%;height:100%;object-fit:cover;display:block}
+.etOpenBand{border-radius:10px;padding:12px;text-align:center;font-size:26px;font-weight:800;margin:4px 0 8px;border:1px solid #0002}.etOpenBand small{font-size:15px;background:#fff;color:#2e7d32;border-radius:6px;padding:1px 6px;vertical-align:middle}
+.etKleuren{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 10px;max-height:34vh;overflow:auto;border:1px solid var(--rand);border-radius:10px;padding:8px}
+.etKl{display:flex;align-items:center;gap:8px;font-size:13.5px;margin:0;color:var(--tekst)}.etKl input{width:34px;height:26px;border:0;padding:0;background:none;flex:0 0 34px}
 .srRij.wn1{border-left:4px solid #fbc02d}.srRij.wn2{border-left:4px solid #fb8c00}.srRij.wn3{border-left:4px solid #e53935}
 .wpWrap{overflow-x:auto;margin:0 0 12px}.wpTabel{border-collapse:collapse;width:100%;min-width:720px;background:#fff;border-radius:12px;overflow:hidden;font-size:12px}
 .wpTabel th,.wpTabel td{border:1px solid #e3e8e0;padding:4px;vertical-align:top;text-align:left}.wpTabel th{background:#f3f7f1;font-weight:600}
@@ -1211,6 +1217,7 @@ const RECHTEN = [
   ['monsters_beheren', 'Grondmonsters en keuringen invoeren', 'Bedrijf'],
   ['voorraad_bekijken', 'Koelcel, leveringen en terugzoeken bekijken', 'Bedrijf'],
   ['voorraad_beheren', 'Inslag, leveringen en uitval boeken', 'Bedrijf'],
+  ['etiketten_printen', 'Etiketten (pallet- en boxkaarten) afdrukken', 'Bedrijf'],
   ['resultaten_invoeren', 'Resultaten invoeren: rooien, kiepen, telling koelcel', 'Resultaten'],
   ['resultaten_bekijken', 'Resultaten-rapport en prognose bekijken', 'Resultaten'],
   ['resultaten_beheren', 'Resultaten beheren: SSOR inlezen, corrigeren, prognose en instellingen', 'Resultaten'],
@@ -1228,7 +1235,7 @@ const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, spuitsporen_
   middelen_beheren: false, oogst_registreren: true, oogst_bekijken: true, machines_beheren: false, kosten_bekijken: false,
   percelen_aanpassen: false, kopeinden_bewerken: true, gerooid_aangeven: true,
   plattegrond_beheren: false, ai_gebruiken: false, film_bekijken: true, film_beheren: false, exporteren: true, instellingen_beheren: false, team_beheren: false,
-  monsters_beheren: false, voorraad_bekijken: true, voorraad_beheren: false, resultaten_invoeren: true, resultaten_bekijken: false, resultaten_beheren: false,
+  monsters_beheren: false, voorraad_bekijken: true, voorraad_beheren: false, etiketten_printen: false, resultaten_invoeren: true, resultaten_bekijken: false, resultaten_beheren: false,
   blok_vandaag: true, blok_velden: true, blok_werk: true, blok_oogst: true, blok_voorraad: true, blok_mensen: true, blok_instellingen: true};
 const PERCEEL_RECHTEN = ['percelen_tekenen', 'percelen_bewerken', 'spuitsporen_bewerken', 'deelvelden_bewerken', 'percelen_uitschakelen', 'percelen_verwijderen', 'soorten_indelen', 'kopeinden_bewerken', 'plattegrond_beheren'];
 const recht = r => { if (isBeheerder()) return true; const x = {...STANDAARD, ...(mijnProfiel()?.rechten || {})}; return !!x[r] && (!PERCEEL_RECHTEN.includes(r) || !!x.percelen_aanpassen); };
@@ -1536,6 +1543,7 @@ async function opstarten() {
   const tmLink = /[?&]trekker=1/.test(location.search);
   if (veilig) { TM.aan = false; toonMenu(); window.opstartWeg?.(); toast('🛟 Veilige start: de kaart wordt pas getekend als je een perceel kiest'); stap('veilige start klaar'); opstartGelukt(); toonVorigeVastloper(); return; }
   stap('menu of trekker'); if (isPrikklok()) { TM.aan = false; await toonKlok(); } else if (isKiep()) { TM.aan = false; await toonKiep(); } else if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else toonMenu();
+  try { etUitLink(); } catch {}
   stap('gps'); apparaatGPS(); stap('klaar'); requestAnimationFrame(() => setTimeout(() => window.opstartWeg?.(), 150)); opstartGelukt(); toonVorigeVastloper();   // trekker-tablet: locatie van de gekoppelde trekker delen zolang hij aan staat      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
   setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
 }
@@ -4285,7 +4293,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -4340,6 +4348,7 @@ function renderPaneel() {
   else if (tab === 'mestregister') { srSoort = 'bemesting'; h = seizoenKnop() + `<div class="rij" style="margin:0 0 10px;flex-wrap:wrap">${mag('taken_toevoegen') ? `<button class="knop" style="margin:0" onclick="werkTaakFormulier('bemesten')">＋ Bemesten plannen</button>` : ''}${mag('middelen_beheren') ? `<button class="knop licht" style="margin:0" onclick="middelFormulier(null,'meststof')">＋ Meststof toevoegen</button>` : ''}</div>` + htmlBemesting() + htmlSpuitregister(); }
   else if (tab === 'middelen') h = bedrijfGeladen ? htmlMiddelen() : '<p class="hint">Laden…</p>';
   else if (tab === 'voorraad') h = bedrijfGeladen ? seizoenKnop() + htmlVoorraad() : '<p class="hint">Laden…</p>';
+  else if (tab === 'etiketten') h = bedrijfGeladen ? htmlEtiketten() : '<p class="hint">Laden…</p>';
   else if (tab === 'waarnemingen') h = htmlWaarnemingen();
   else if (tab === 'monsters') h = htmlMonstersAlle();
   else if (tab === 'vruchtwisseling') h = htmlVruchtwisselingAlle();
@@ -6071,15 +6080,15 @@ function sectieTabsBasis(s) {
     werk: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['teeltplan', '📊', 'Teeltplanning'], ['plantzaai', '🌱', 'Planten en zaaien'], ['rooiplanning', '🚜', 'Rooiplanning'], ['spuiten', '🧪', 'Spuiten'], ['bemesten', '🌱', 'Bemesten'],
       ...(trek ? [['tractoren', '🚜', 'Trekkers']] : []), ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : [])],
     oogst: resIn ? [['resinvoer', '✍️', 'Invoer'], ['reskiep', '🧺', 'Kieplijst'], ...(resBek ? [['resrapport', '📊', 'Rapport'], ['resprognose', '📈', 'Prognose']] : []), ['respoten', '🌱', 'Poten'],
-      ['reskisten', '📦', 'Kistjes'], ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])] : [],
-    voorraad: [...(ziet('voorraad_bekijken') || mag('voorraad_beheren') ? [['voorraad', '❄️', 'Koelcel']] : []), ['middelen', '🧪', 'Middelen']],
+      ['reskisten', '📦', 'Kistjes'], ...(magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])] : [],
+    voorraad: [...(ziet('voorraad_bekijken') || mag('voorraad_beheren') ? [['voorraad', '❄️', 'Koelcel']] : []), ...(ziet('voorraad_bekijken') || magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ['middelen', '🧪', 'Middelen']],
     mensen: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Uren'], ...(magTeam() ? [['team', '👥', 'Team']] : [])],
     instellingen: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ['dossier', '📁', 'Bio-dossier'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])],
     werken: [['percelen', '🗺️', 'Kaart'], ['taken', '📋', 'Taken'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
     spuiten: [['spuittaken', '📋', 'Taken'], ['spuitregister', '📒', 'Spuitregister'], ['middelen', '🧪', 'Middelen']],
     kunstmest: [['mesttaken', '📋', 'Taken'], ['mestregister', '🌱', 'Bemesting'], ['middelen', '🌾', 'Meststoffen']],
     monsters: [['waarnemingen', '🐛', 'Ziektes & plagen'], ['monsters', '🧪', 'Monsters']],
-    opslag: [['voorraad', '❄️', 'Koelcel'], ['middelen', '🧪', 'Middelenvoorraad']],
+    opslag: [['voorraad', '❄️', 'Koelcel'], ...(ziet('voorraad_bekijken') || magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ['middelen', '🧪', 'Middelenvoorraad']],
     resultaten: [['resinvoer', '✍️', 'Invoer'], ...(ziet('resultaten_bekijken') || mag('resultaten_beheren') ? [['resrapport', '📊', 'Rapport'], ['resprognose', '📈', 'Prognose']] : []), ['respoten', '🌱', 'Poten'], ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])],
     taken: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['rooiplanning', '🚜', 'Rooiplanning'], ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek'], ['gebeurtenissen', '🔔', 'Gebeurtenissen']] : []), ['uren', '⏱️', 'Uren']],
     percelen: [['percelen', '🗺️', 'Kaart'], ['partijen', '🏷️', 'Partijen'], ['prognose', '📈', 'Prognose'], ['plantplan', '🧮', 'Plantplan'], ['vruchtwisseling', '🔄', 'Wisseling'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
@@ -8624,7 +8633,7 @@ const TAB_INFO = {
   resinvoer: ['✍️', 'Invoer', 'Rooien, kiepen, telling en scans'], reskiep: ['🧺', 'Kieplijst', 'Wat er nog gekiept moet worden'],
   resrapport: ['📊', 'Rapport', 'Resultaat ten opzichte van de prognose'], resprognose: ['📈', 'Prognose', 'Verwachting per partij'],
   respoten: ['🌱', 'Poten', 'Het basisbestand per partij'], reskisten: ['📦', 'Kistjes', 'Planten per kistje per kwaliteit'],
-  resinstel: ['⚙️', 'Instellingen', 'Kwaliteiten, wagens en grenzen'], voorraad: ['❄️', 'Koelcel', 'Wat er ligt, leveringen en terugzoeken'],
+  resinstel: ['⚙️', 'Instellingen', 'Kwaliteiten, wagens en grenzen'], voorraad: ['❄️', 'Koelcel', 'Wat er ligt, leveringen en terugzoeken'], etiketten: ['🏷️', 'Etiketten', 'Pallet- en boxkaarten afdrukken en scannen'],
   middelen: ['🧪', 'Middelen', 'Gewasbescherming en meststoffen op voorraad'], mij: ['👤', 'Mijn gegevens', 'Gegevens, wachtwoord en ziek melden'],
   uren: ['⏱️', 'Uren', 'Klok, uren en correctieverzoeken'], team: ['👥', 'Team', 'Accounts en rechten'],
   bedrijf: ['📦', 'Bedrijf', 'Middelen, machines, oogst en kosten'], soorten: ['🌱', 'Planten', 'Gewassen en rassen'],
@@ -12442,15 +12451,15 @@ async function mutatieFormulier(partijId, soortVast, id, voor = {}) {
     {k: 'partij_id', label: 'Partij', type: 'select', waarde: m.partij_id || '', opties: alle.map(y => [y.id, `${partijRas(y) || soort(y.soort_id)?.naam || '?'} · ${y.batch || ''} ${y.klasse || ''} · ${partijPerceelNaam(y) || ''}`])},
     {k: 'soort', label: 'Wat', type: 'select', waarde: m.soort, opties: MUT_SOORTEN},
     {k: 'datum', label: 'Datum', type: 'date', waarde: m.datum},
-    {k: 'aantal', label: 'Aantal', type: 'number', waarde: m.aantal ?? ''},
+    {k: 'aantal', label: 'Aantal', type: 'number', waarde: m.aantal ?? voor.aantal ?? ''},
     {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: voor.eenheid || m.eenheid || vorige?.eenheid || 'trays', opties: [...KC_EENHEDEN, ...(m.eenheid && !KC_EENHEDEN.some(e => e[0] === m.eenheid) ? [[m.eenheid, m.eenheid]] : [])]},
-    {k: 'per_eenheid', label: 'Planten per tray / kistje / kuubskist', type: 'number', waarde: m.per_eenheid ?? vorige?.per_eenheid ?? ''},
+    {k: 'per_eenheid', label: 'Planten per tray / kistje / kuubskist', type: 'number', waarde: m.per_eenheid ?? voor.per ?? vorige?.per_eenheid ?? ''},
     {k: 'koelcel', label: 'Koelcel', type: 'select', waarde: m.koelcel || vorige?.koelcel || kcLijst()[0]?.naam || '', opties: [...new Set([...kcLijst().map(c => c.naam), ...lijst('koelcel'), m.koelcel].filter(Boolean))].map(c => [c, c]).concat([['', '— geen / anders —']])},
-    {k: 'pallet', label: `Pallet (nummer, max ${KC_PALLET_MAX} kistjes)`, waarde: m.pallet || '', lijst: kcPallets().map(p => p.nr), als: ['eenheid', 'kistjes'], placeholder: 'leeg = niet op een pallet'},
+    {k: 'pallet', label: `Pallet (nummer, max ${KC_PALLET_MAX} kistjes)`, waarde: m.pallet || voor.pallet || '', lijst: kcPallets().map(p => p.nr), als: ['eenheid', 'kistjes'], placeholder: 'leeg = niet op een pallet'},
     {k: 'klant', label: 'Klant', waarde: m.klant || '', lijst: lijst('klant'), als: ['soort', 'uit']},
     {k: 'pakbon', label: 'Pakbon / ordernummer', waarde: m.pakbon || '', als: ['soort', 'uit']},
     {k: 'prijs', label: 'Prijs per eenheid (€)', type: 'number', waarde: m.prijs ?? '', als: ['soort', 'uit']},
-    {k: 'notitie', label: 'Aantekeningen', type: 'textarea', waarde: m.notitie || ''}], id ? 'Opslaan' : 'Boeken');
+    {k: 'notitie', label: 'Aantekeningen', type: 'textarea', waarde: m.notitie || voor.notitie || ''}], id ? 'Opslaan' : 'Boeken');
   if (!w) return;
   const g = k => { const x = parseFloat(String(w[k]).replace(',', '.')); return isNaN(x) ? null : x; };
   if (!w.partij_id || g('aantal') == null) { toast('Kies een partij en vul het aantal in', 1); return; }
@@ -12733,7 +12742,7 @@ function kcLos(pid, cel) {
   ms.forEach(m => { planten += (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * mutPlanten(m); if (m.soort === 'in' || (m.soort === 'correctie' && +m.aantal > 0)) { eenheid = m.eenheid; per = m.per_eenheid; } });
   return {planten, eenheid: eenheid || 'planten', per_eenheid: per};
 }
-const kcVolgendPallet = () => String((S.partij_mutaties || []).reduce((a, m) => Math.max(a, parseInt(m.pallet) || 0), 0) + 1);
+const kcVolgendPallet = () => String(Math.max((S.partij_mutaties || []).reduce((a, m) => Math.max(a, parseInt(m.pallet) || 0), 0), ...(S.etiketten || []).filter(e => e.soort === 'pallet').map(e => +e.nr || 0)) + 1);
 // een pallet inslaan: één palletnummer met één of meer partijen (kistjes)
 async function kcPalletInslag(cel) {
   if (!mag('voorraad_beheren')) return;
@@ -12814,7 +12823,8 @@ function htmlVoorraad() {
   const beh = mag('voorraad_beheren'), muts = S.partij_mutaties || [];
   const kop = `<section class="kaartje"><h4>📦 Van partij tot klant</h4>
     <div class="ptabs" style="grid-template-columns:repeat(3,1fr)">${[['voorraad', '🧊', 'In de koelcel'], ['leveringen', '🚚', 'Leveringen'], ['zoek', '🔎', 'Terugzoeken']].map(([k, i, l]) => `<button class="${vrWeergave === k ? 'aan' : ''}" onclick="vrWeergave='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
-    ${beh ? `<div class="rij"><button class="knop licht" onclick="mutatieFormulier('', 'in')">⬇️ Inslag</button><button class="knop licht" onclick="mutatieFormulier('', 'uit')">⬆️ Levering</button><button class="knop licht" onclick="mutatieFormulier('', 'uitval')">🗑️ Uitval</button></div>` : ''}</section>`;
+    ${beh ? `<div class="rij"><button class="knop licht" onclick="mutatieFormulier('', 'in')">⬇️ Inslag</button><button class="knop licht" onclick="mutatieFormulier('', 'uit')">⬆️ Levering</button><button class="knop licht" onclick="mutatieFormulier('', 'uitval')">🗑️ Uitval</button></div>` : ''}
+    <div class="rij"><button class="knop licht" onclick="zetTab('etiketten')">🏷️ Etiketten</button><button class="knop licht" onclick="etScan()">📷 Scannen</button></div></section>`;
   if (vrWeergave === 'leveringen') {
     const l = muts.filter(m => m.soort === 'uit').sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
     return kop + `<section class="kaartje">${l.map(m => { const pa = (S.partijen || []).find(x => x.id === m.partij_id);
@@ -12942,6 +12952,439 @@ async function normenPerceel(id) {
   const g = k => { const x = parseFloat(String(w[k]).replace(',', '.')); return isNaN(x) ? null : x; };
   wijzig(id, {norm_n: g('norm_n'), norm_p: g('norm_p'), bio: w.bio === 'ja'});
 }
+
+/* ================================================================
+   ETIKETTEN: palletkaart (gesorteerde kistjes, 1 per A4) en boxkaart (rooibox, 2 onder elkaar op A4),
+   zoals de oude Excel "Aardbeien - Strawberry", maar met een QR-code. Scannen opent het etiket in de app:
+   inslaan in de koelcel, verplaatsen, leveren en terugzoeken.
+   ================================================================ */
+/* ---------- QR-code maken (byte-modus, foutcorrectie M, versie 1–10), zonder externe bibliotheek ---------- */
+const QR_M = [null, [10, 1, 16, 0, 0], [16, 1, 28, 0, 0], [26, 1, 44, 0, 0], [18, 2, 32, 0, 0], [24, 2, 43, 0, 0], [16, 4, 27, 0, 0], [18, 4, 31, 0, 0], [22, 2, 38, 2, 39], [22, 3, 36, 2, 37], [26, 4, 43, 1, 44]];   // [ec per blok, blokken1, data1, blokken2, data2]
+const QR_ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50]];
+function qrMatrix(tekst) {
+  const bytes = [...new TextEncoder().encode(tekst)];
+  let v = 1; for (; v <= 10; v++) { const t = QR_M[v], cap = t[1] * t[2] + t[3] * t[4]; if (4 + (v < 10 ? 8 : 16) + bytes.length * 8 <= cap * 8) break; }
+  if (v > 10) throw new Error('Tekst te lang voor de QR-code');
+  const [ecn, b1, d1, b2, d2] = QR_M[v], cap = b1 * d1 + b2 * d2;
+  // bits: modus 0100, lengte, data, eindmarkering, opvullen
+  const bits = []; const zet = (x, n) => { for (let i = n - 1; i >= 0; i--) bits.push((x >>> i) & 1); };
+  zet(4, 4); zet(bytes.length, v < 10 ? 8 : 16); bytes.forEach(b => zet(b, 8));
+  zet(0, Math.min(4, cap * 8 - bits.length)); while (bits.length % 8) bits.push(0);
+  const data = []; for (let i = 0; i < bits.length; i += 8) data.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+  for (let p = 0; data.length < cap; p++) data.push(p % 2 ? 0x11 : 0xEC);
+  // Reed-Solomon in GF(256)
+  const EXP = new Array(512), LOG = new Array(256); for (let i = 0, x = 1; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 256) x ^= 0x11D; } for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  const mul = (a, b) => a && b ? EXP[LOG[a] + LOG[b]] : 0;
+  let gen = [1]; for (let i = 0; i < ecn; i++) { const g = new Array(gen.length + 1).fill(0); gen.forEach((c, j) => { g[j] ^= c; g[j + 1] ^= mul(c, EXP[i]); }); gen = g; }
+  const rs = blok => { const r = [...blok, ...new Array(ecn).fill(0)]; for (let i = 0; i < blok.length; i++) { const f = r[i]; if (f) gen.forEach((g, j) => { r[i + j] ^= mul(g, f); }); } return r.slice(blok.length); };
+  const blokken = []; let pos = 0; for (let i = 0; i < b1 + b2; i++) { const n = i < b1 ? d1 : d2; const d = data.slice(pos, pos + n); pos += n; blokken.push({d, e: rs(d)}); }
+  const alles = []; for (let i = 0; i < Math.max(d1, d2); i++) blokken.forEach(b => { if (i < b.d.length) alles.push(b.d[i]); });
+  for (let i = 0; i < ecn; i++) blokken.forEach(b => alles.push(b.e[i]));
+  // matrix opbouwen
+  const n = 17 + 4 * v, M = [...Array(n)].map(() => new Array(n).fill(null)), vast = [...Array(n)].map(() => new Array(n).fill(false));
+  const zetV = (r, c, w) => { if (r >= 0 && r < n && c >= 0 && c < n) { M[r][c] = w; vast[r][c] = true; } };
+  const vinder = (r, c) => { for (let i = -1; i <= 7; i++) for (let j = -1; j <= 7; j++) zetV(r + i, c + j, i >= 0 && i <= 6 && j >= 0 && j <= 6 && (i === 0 || i === 6 || j === 0 || j === 6 || (i >= 2 && i <= 4 && j >= 2 && j <= 4))); };
+  vinder(0, 0); vinder(0, n - 7); vinder(n - 7, 0);
+  for (let i = 8; i < n - 8; i++) { zetV(6, i, i % 2 === 0); zetV(i, 6, i % 2 === 0); }
+  const al = QR_ALIGN[v], la = al.length - 1; al.forEach((r, i) => al.forEach((c, j) => { if ((i === 0 && j === 0) || (i === 0 && j === la) || (i === la && j === 0)) return; for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) zetV(r + i, c + j, Math.max(Math.abs(i), Math.abs(j)) !== 1); }));
+  zetV(n - 8, 8, true);   // vaste donkere module
+  for (let i = 0; i < 9; i++) { if (!vast[8][i]) { vast[8][i] = true; } if (!vast[i][8]) { vast[i][8] = true; } }   // plek voor formaatinformatie
+  for (let i = 0; i < 8; i++) { vast[8][n - 1 - i] = true; vast[n - 1 - i][8] = true; }
+  if (v >= 7) for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) { vast[i][n - 11 + j] = true; vast[n - 11 + j][i] = true; }
+  // data plaatsen (zigzag van rechtsonder)
+  const dbits = []; alles.forEach(b => { for (let i = 7; i >= 0; i--) dbits.push((b >>> i) & 1); });
+  let k = 0;
+  for (let c = n - 1; c > 0; c -= 2) { if (c === 6) c--; const omhoog = ((c + 1) & 2) === 0;
+    for (let s = 0; s < n; s++) { const r = omhoog ? n - 1 - s : s; for (let j = 0; j < 2; j++) { const cc = c - j; if (vast[r][cc]) continue; M[r][cc] = k < dbits.length ? dbits[k] === 1 : false; k++; } } }
+  const MASKERS = [(r, c) => (r + c) % 2 === 0, r => r % 2 === 0, (r, c) => c % 3 === 0, (r, c) => (r + c) % 3 === 0, (r, c) => ((r >> 1) + Math.floor(c / 3)) % 2 === 0,
+    (r, c) => (r * c) % 2 + (r * c) % 3 === 0, (r, c) => ((r * c) % 2 + (r * c) % 3) % 2 === 0, (r, c) => ((r + c) % 2 + (r * c) % 3) % 2 === 0];
+  const bch = (x, g, lg) => { let d = x << lg; const hb = y => 31 - Math.clz32(y); while (d && hb(d) >= lg) d ^= g << (hb(d) - lg); return (x << lg) | d; };
+  const metMasker = m => {
+    const A = M.map((rij, r) => rij.map((x, c) => vast[r][c] ? x : x !== MASKERS[m](r, c)));
+    const f = bch((0 << 3) | m, 0x537, 10) ^ 0x5412;   // niveau M = 00
+    const fb = i => ((f >>> i) & 1) === 1;
+    for (let i = 0; i <= 5; i++) A[i][8] = fb(i);
+    A[7][8] = fb(6); A[8][8] = fb(7); A[8][7] = fb(8);
+    for (let i = 9; i <= 14; i++) A[8][14 - i] = fb(i);
+    for (let i = 0; i <= 7; i++) A[8][n - 1 - i] = fb(i);
+    for (let i = 8; i <= 14; i++) A[n - 15 + i][8] = fb(i);
+    A[n - 8][8] = true;
+    if (v >= 7) { const vi = bch(v, 0x1F25, 12); for (let i = 0; i < 18; i++) { const b = ((vi >>> i) & 1) === 1, r = Math.floor(i / 3), c = n - 11 + (i % 3); A[r][c] = b; A[c][r] = b; } }
+    return A;
+  };
+  const straf = A => {
+    let p = 0;
+    for (let r = 0; r < n; r++) for (const lijn of [A[r], A.map(x => x[r])]) {
+      let run = 1; for (let c = 1; c <= n; c++) { if (c < n && lijn[c] === lijn[c - 1]) run++; else { if (run >= 5) p += run - 2; run = 1; } }
+      const s = lijn.map(x => x ? 1 : 0).join(''); p += 40 * ((s.match(/(?=10111010000|00001011101)/g) || []).length);
+    }
+    for (let r = 0; r < n - 1; r++) for (let c = 0; c < n - 1; c++) { const x = A[r][c]; if (x === A[r][c + 1] && x === A[r + 1][c] && x === A[r + 1][c + 1]) p += 3; }
+    const zwart = A.flat().filter(Boolean).length; p += 10 * Math.floor(Math.abs(zwart * 100 / (n * n) - 50) / 5);
+    return p;
+  };
+  let beste = null, bs = Infinity; for (let m = 0; m < 8; m++) { const A = metMasker(m), s = straf(A); if (s < bs) { bs = s; beste = A; } }
+  return beste;
+}
+// QR als SVG (schaalbaar, scherp bij afdrukken)
+function qrSvg(tekst, mm = 30) {
+  let A; try { A = qrMatrix(tekst); } catch { return ''; }
+  const n = A.length, q = 4, z = n + 2 * q; let d = '';
+  A.forEach((rij, r) => rij.forEach((x, c) => { if (x) d += `M${c + q} ${r + q}h1v1h-1z`; }));
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${z} ${z}" width="${mm}mm" height="${mm}mm" shape-rendering="crispEdges"><rect width="${z}" height="${z}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+const ET_LOGO = 'data:image/png;base64,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';
+const ET_EU = 'data:image/png;base64,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';
+const ET_STD = {
+  sortering: ["Frigo A--", "Frigo A-", "Frigo A", "Frigo A1+", "Frigo A2+", "Frigo A3+", "Mini Tray A", "Mini Tray B", "Misted tip A", "Misted tip B", "Misted tip C", "Modules B", "Ambient A", "Frigo Mis A", "Frigo Mis B", "Frigo Plug A", "Bio Plug A", "Plug A", "Bio MIS A", "Vers A", "Vers B", "Stek A", "Stek B", "Stek C", "Tray A", "Tray A Bloem", "Tray B", "Frigo", "WBA-", "WBA", "WBH", "WBL", "WBM"], klasse: ["CAC", "GECERTIFICEERD", "BM5", "BM4", "BM3", "BM2", "BM1", "VGS", "VGS-CM", "VGS-BM1", "VGS-BM2", "VGS-BM3", "VGS-BM4", "VGS-BM5", "VGS-CAC", "CM"], fust: ["AKK", "HT-AKK", "KKG", "Z.K.P.", "PKK", "DKG"],
+  rassen: ["67/5", "Allegro", "Altess", "Balada", "Bravura", "Cadenza", "Calinda", "Clery", "Dahli", "Darselect", "Elsanta", "Faith", "Falco", "Fandango", "Favori", "FE1714", "FE2015", "FE2016", "FE2117", "FE2118", "FE2131", "Ravellia", "FF22S36", "Flair", "Florence", "Florice", "FS1901", "FS1902", "FS2107", "FS2108", "FS2109", "Furore", "Hademar", "Honeoye", "Jenkka", "Jive", "Karima", "Korona", "L19111(Roadrunner)", "Lambada", "Limalexia", "Limvalnera", "M. Ace", "M. Allure", "M. Centenary", "M. Champion", "Magnus", "Malwina", "Opera", "Ostara", "Parlando", "Polka", "Ritmo", "Rumba", "Salsa", "Sonata", "Sonsation", "Soprano", "Twist", "Verdi", "Murano", "Fardao", "Flynt"],
+  kleuren: {"M. Allure": "#00b0f0", "Sonata": "#99ccff", "Salsa": "#9900cc", "Rumba": "#dddddd", "Ostara": "#00cc99", "Opera": "#cc0000", "Malwina": "#ff0dc0", "M. Champion": "#808080", "M. Centenary": "#ccff99", "M. Ace": "#cc0099", "Limvalnera": "#ccccff", "Limalexia": "#ff99ff", "Lambada": "#009900", "Korona": "#ff0000", "Honeoye": "#0066cc", "Florence": "#008000", "Ritmo": "#16365c", "Verdi": "#ff9966", "Soprano": "#ffffcc", "Elsanta": "#ffff00", "Darselect": "#ff6600", "Calinda": "#ffcccc", "Allegro": "#cccc00", "FF22S36": "#ffff00", "Hademar": "#ff0064", "Florice": "#ffff96", "Karima": "#283ce6", "Twist": "#82f0dc", "FE2117": "#ff3200", "FE2118": "#32c800", "Jenkka": "#c87d5a", "FE2131": "#ffc8ff", "FE2132": "#ffc896", "Cadenza": "#326496", "Parlando": "#ff3200", "FS2109": "#ffc800", "FE1714": "#00c800", "Bravura": "#649600", "Sonsation": "#92c850", "Magnus": "#ee3900", "FS1902": "#960032", "Balada": "#c8ffff", "FS1901": "#c8ffff", "FE2016": "#dcaa96", "FE2015": "#82f0da", "Furore": "#0096c8", "Flair": "#ff64ff", "Fandango": "#b871ff", "Favori": "#646432", "Falco": "#3264c8", "Faith": "#5d84ff", "Dahli": "#64ff32", "Altess": "#ff6496", "67/5": "#82ffff"},
+  skal: 'SKAL 102521', biocode: 'NL-BIO-01', adres: ''};
+const ET_ONBEKEND = '#fb5bfb';   // zo kleurde de Excel een ras zonder eigen kleur
+function etInst() {
+  let x = {}; try { x = JSON.parse(S.inst?.etiket || '{}') || {}; } catch {}
+  return {...ET_STD, ...x, kleuren: {...ET_STD.kleuren, ...(x.kleuren || {})}};
+}
+const etLogo = () => S.inst?.etiket_logo || ET_LOGO;
+const magEtiket = () => mag('voorraad_beheren') || mag('etiketten_printen');
+function etKleur(rasNaam) {
+  const k = etInst().kleuren, n = String(rasNaam || '').trim().toLowerCase(); if (!n) return '#e0e0e0';
+  const hit = Object.keys(k).find(x => x.toLowerCase() === n) || Object.keys(k).filter(x => x.length >= 3 && n.includes(x.toLowerCase())).sort((a, b) => b.length - a.length)[0];
+  return hit ? k[hit] : (S.rassen || []).find(r => (r.naam || '').toLowerCase() === n)?.kleur || ET_ONBEKEND;
+}
+const etTekstKleur = hex => { const h = String(hex || '').replace('#', ''); if (h.length < 6) return '#000'; const [r, g, b] = [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)); return r * .299 + g * .587 + b * .114 > 150 ? '#111' : '#fff'; };
+// het adres van de app voor in de QR-code (de camera van een telefoon opent dan meteen het etiket)
+function etAdres() {
+  const a = (etInst().adres || '').trim(); if (a) return a.replace(/[?#].*$/, '');
+  if (/^https?:$/.test(location.protocol) && !/^(localhost|127\.|10\.|192\.168\.)/.test(location.hostname)) return location.origin + location.pathname;
+  return '';
+}
+const etQrTekst = code => { const a = etAdres(); return a ? `${a}?etiket=${encodeURIComponent(code)}` : 'PA:' + code; };
+const etCodeUit = t => { const s = String(t || '').trim(), m = s.match(/[?&]etiket=([^&#]+)/); if (m) return decodeURIComponent(m[1]).toUpperCase();
+  const p = s.match(/^(?:PA:)?([PB]\d+)$/i); return p ? p[1].toUpperCase() : null; };
+const etDatum = d => { if (!d) return ''; const x = new Date(d + 'T12:00'); return isNaN(x) ? '' : `${x.getDate()}-${x.getMonth() + 1}-${x.getFullYear()}`; };
+const etWeek = d => { if (!d) return ''; const x = new Date(d + 'T12:00'); return isNaN(x) ? '' : weekNr(x); };
+const etPt = (t, basis, max) => Math.max(14, Math.round(basis * Math.min(1, max / Math.max(1, String(t || '').length))));   // lange tekst kleiner
+
+/* ---------- het etiket zelf (mm en pt, net als in Excel) ---------- */
+const ET_CSS = `
+.etPagina{width:194mm;height:279mm;box-sizing:border-box;overflow:hidden;font-family:Calibri,Carlito,'Segoe UI',Arial,sans-serif;color:#000;background:#fff}
+.etPagina+.etPagina{page-break-before:always;break-before:page}
+.etBlad{height:100%;display:flex;flex-direction:column}
+.etHalf{height:136mm;display:flex;flex-direction:column;overflow:hidden}
+.etKnip{border-top:.3mm dashed #888;margin:3.5mm 0}
+.etKop{display:flex;height:24mm;border:.6mm solid #000;border-bottom:0}
+.etHalf .etKop{height:19mm}
+.etVak{display:flex;flex-direction:column;border-right:.5mm solid #000;min-width:0}
+.etVak small{font-size:10.5pt;font-style:italic;border-bottom:.3mm solid #000;padding:.3mm 1.5mm;white-space:nowrap;overflow:hidden}
+.etVak b{flex:1;display:flex;align-items:center;justify-content:center;font-size:30pt}
+.etHalf .etVak b{font-size:26pt}
+.etDat{flex:0 0 56%}.etWk{flex:0 0 13%}
+.etLogo{flex:1;display:flex;align-items:center;justify-content:center;padding:1mm 2mm;min-width:0}.etLogo img{max-width:100%;max-height:100%}
+.etBand{height:40mm;display:flex;align-items:stretch;border:.6mm solid #000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.etHalf .etBand{height:28mm}
+.etRas{flex:1;display:flex;align-items:center;justify-content:center;font-weight:700;line-height:1;white-space:nowrap;overflow:hidden}
+.etBio{flex:0 0 24%;display:flex;align-items:center;justify-content:center;background:#fff;color:#000;font-weight:700;font-size:50pt;border-right:.6mm solid #000}
+.etHalf .etBio{font-size:38pt}
+.etSkal{display:flex;align-items:center;height:15mm;border:.6mm solid #000;border-top:0;padding:0 3mm;font-size:19pt;gap:8mm}.etSkal img{height:11mm;margin-left:auto}
+.etHalf .etSkal{height:11mm;font-size:15pt}.etHalf .etSkal img{height:8.5mm}
+.etT{width:100%;border-collapse:collapse;table-layout:fixed}
+.etT td{border:.6mm solid #000;text-align:center;vertical-align:middle;padding:0 1.5mm;overflow:hidden;white-space:nowrap}
+.etT td.l{font-style:italic;font-size:17pt;white-space:normal;line-height:1.05}.etT td.l2{font-style:italic;font-size:11.5pt;white-space:normal;line-height:1.05}
+.etT td.w{font-weight:700}
+.etBlad .etT tr{height:31mm}.etBlad.bio .etT tr{height:28mm}
+.etT td.groen{background:#92d050;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.etVoet{display:flex;align-items:center;gap:5mm;margin-top:auto;padding-top:2mm}
+.etVoet b{font-size:28pt;display:block}.etVoet small{font-size:10pt;color:#444;display:block}
+.etRijen{display:flex;flex:1;min-height:0}.etRijen .etT{flex:1}.etHalf .etT tr{height:15mm}.etHalf.bio .etT tr{height:13.5mm}
+.etHalf .etT td.l{font-size:15pt}
+.etQr{flex:0 0 44mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1mm;border:.6mm solid #000;border-left:0;font-size:12pt;font-weight:700}
+.etQrLeeg{width:30mm;height:30mm;border:.5mm dashed #999;display:flex;align-items:center;justify-content:center;color:#999;font-size:12pt}`;
+
+function etKopHtml(v, soort) {
+  const titel = soort === 'pallet' ? 'Sorteerdatum / Data Sortowania' : 'Rooidatum / Data Kopania';
+  return `<div class="etKop"><div class="etVak etDat"><small>${titel}</small><b>${esc(etDatum(v.datum))}</b></div><div class="etVak etWk"><small>Week</small><b>${esc(etWeek(v.datum))}</b></div><div class="etLogo"><img src="${etLogo()}" alt=""></div></div>`;
+}
+function etBandHtml(v, half) {
+  const kl = etKleur(v.ras), basis = half ? 70 : 80;
+  return `<div class="etBand" style="background:${kl};color:${etTekstKleur(kl)}">${v.bio ? `<div class="etBio">BIO</div>` : ''}<div class="etRas" style="font-size:${etPt(v.ras, basis, v.bio ? 9 : 12)}pt">${esc(v.ras || '')}</div></div>`
+    + (v.bio ? `<div class="etSkal"><span>${esc(etInst().skal)}</span><span>${esc(etInst().biocode)}</span><img src="${ET_EU}" alt=""></div>` : '');
+}
+function etPalletHtml(v, code, nr) {
+  const sort = [v.sortering, v.maat].filter(Boolean).join(' ');
+  const qr = code ? qrSvg(etQrTekst(code), 46) : '<div class="etQrLeeg">QR</div>';
+  return `<div class="etBlad ${v.bio ? 'bio' : ''}">${etKopHtml(v, 'pallet')}${etBandHtml(v)}
+    <table class="etT"><colgroup><col style="width:23%"><col style="width:17%"><col style="width:40%"><col style="width:20%"></colgroup>
+      <tr><td class="l">Planttype &amp; Sortering</td><td class="l2">Maat</td><td class="w groen" colspan="2" style="font-size:${etPt(sort, 50, 10)}pt">${esc(sort)}</td></tr>
+      <tr><td class="l">Type fust</td><td class="l2">per kist/<br>ilosc sztuk</td><td class="w" style="font-size:${etPt(v.fust, 44, 7)}pt">${esc(v.fust || '')}</td><td class="w" style="font-size:${etPt(v.per_kist, 44, 4)}pt">${esc(v.per_kist ?? '')}</td></tr>
+      <tr><td class="l" colspan="2">Batchnummer</td><td class="w" colspan="2" style="font-size:${etPt(v.batch, 40, 12)}pt">${esc(v.batch || '')}</td></tr>
+      <tr><td class="l" colspan="2">Klasse / Klasa</td><td class="w" colspan="2" style="font-size:${etPt(v.klasse, 40, 12)}pt">${esc(v.klasse || '')}</td></tr>
+      <tr><td class="l" colspan="2">Perceel/Imie pola</td><td class="w" colspan="2" style="font-size:${etPt(v.perceel, 34, 14)}pt">${esc(v.perceel || '')}</td></tr></table>
+    <div class="etVoet">${qr}<div><b>Pallet ${esc(nr ?? '…')}</b><small>Scan de code om de pallet in te slaan, te verplaatsen of terug te zoeken.</small></div></div></div>`;
+}
+function etBoxHtml(v, code, nr) {
+  const qr = code ? qrSvg(etQrTekst(code), 34) : '<div class="etQrLeeg">QR</div>';
+  return `<div class="etHalf ${v.bio ? 'bio' : ''}">${etKopHtml(v, 'box')}${etBandHtml(v, true)}
+    <div class="etRijen"><table class="etT"><colgroup><col style="width:40%"><col style="width:60%"></colgroup>
+      <tr><td class="l">Batchnummer</td><td class="w" style="font-size:${etPt(v.batch, 36, 9)}pt">${esc(v.batch || '')}</td></tr>
+      <tr><td class="l">Klasse / Klasa</td><td class="w" style="font-size:${etPt(v.klasse, 30, 10)}pt">${esc(v.klasse || '')}</td></tr>
+      <tr><td class="l">Perceel/Imie pola</td><td class="w" style="font-size:${etPt(v.perceel, 34, 9)}pt">${esc(v.perceel || '')}</td></tr>
+      <tr><td class="l">Opmerking /Uwagi</td><td class="w" style="font-size:${etPt(v.opmerking, 30, 10)}pt">${esc(v.opmerking || '')}</td></tr></table>
+      <div class="etQr">${qr}<span>Box ${esc(nr ?? '…')}</span></div></div></div>`;
+}
+// bladen om af te drukken: palletkaart 1 per A4, boxkaarten 2 onder elkaar
+function etBladen(rijen) {
+  const pal = rijen.filter(r => r.soort === 'pallet'), box = rijen.filter(r => r.soort === 'box'), uit = [];
+  pal.forEach(r => uit.push(`<div class="etPagina">${etPalletHtml(r.data || {}, r.code, r.nr)}</div>`));
+  for (let i = 0; i < box.length; i += 2) uit.push(`<div class="etPagina">${etBoxHtml(box[i].data || {}, box[i].code, box[i].nr)}${box[i + 1] ? `<div class="etKnip"></div>${etBoxHtml(box[i + 1].data || {}, box[i + 1].code, box[i + 1].nr)}` : ''}</div>`);
+  return uit.join('');
+}
+function etPrintVenster(bladen) {
+  const html = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Etiketten</title><style>@page{size:A4 portrait;margin:8mm}html,body{margin:0;background:#fff}${ET_CSS}
+    .knoppen{position:sticky;top:0;background:#fff;padding:8px;text-align:center;border-bottom:1px solid #ddd;font-family:sans-serif}.knoppen button{font-size:16px;padding:8px 16px}
+    @media screen{body{background:#eee}.etPagina{margin:10px auto;box-shadow:0 1px 6px #0003;padding:0}}@media print{.knoppen{display:none}}</style></head>
+    <body><div class="knoppen"><button onclick="print()">🖨️ Afdrukken</button></div>${bladen}</body></html>`;
+  const win = window.open('', '_blank');
+  if (win) { win.document.write(html); win.document.close(); setTimeout(() => { try { win.focus(); win.print(); } catch {} }, 600); return; }
+  const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(fr);
+  fr.contentDocument.write(html); fr.contentDocument.close(); setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch {} setTimeout(() => fr.remove(), 3000); }, 600);
+}
+
+/* ---------- scherm: invullen, voorbeeld, afdrukken ---------- */
+let etVorm = null, etSoort = 'pallet', etGeladen = false;
+const etNieuweVorm = () => { let o = {}; try { o = JSON.parse(localStorage.getItem('etiket_laatst') || '{}') || {}; } catch {}
+  return {partij_id: '', datum: dKey(new Date()), ras: '', sortering: o.sortering || '', maat: '', klasse: o.klasse || '', fust: o.fust || 'AKK', per_kist: o.per_kist || '', batch: '', perceel: '', opmerking: '', bio: false, aantal: 1, kistjes: '', koelcel: ''}; };
+async function etLaad() {
+  etGeladen = true;
+  const {data, error} = await sb.from('etiketten').select('*').order('created_at', {ascending: false}).limit(300);
+  if (error) { S.etiketten = []; if (/does not exist|schema cache/i.test(error.message)) toast('Draai eerst het nieuwe beheer.sql in Supabase voor de etiketten', 1); }
+  else S.etiketten = data || [];
+  if (tab === 'etiketten') render(true);
+}
+function etZet(k, w) { if (!etVorm) etVorm = etNieuweVorm(); etVorm[k] = w; etVoorbeeldBij(); }
+function etKiesPartij(id) {
+  const y = (S.partijen || []).find(x => x.id === id); etVorm.partij_id = id || '';
+  if (y) Object.assign(etVorm, {ras: partijRas(y) || soort(y.soort_id)?.naam || '', batch: y.batch || '', perceel: partijPerceelNaam(y) || y.perceel_tekst || '',
+    klasse: y.klasse || etVorm.klasse, bio: !!(y.bio || isBioPerceel(perceel(y.perceel_id)))});
+  render(true);
+}
+const etVoorbeeldHtml = () => etSoort === 'pallet' ? `<div class="etPagina">${etPalletHtml(etVorm, null, null)}</div>` : `<div class="etPagina">${etBoxHtml(etVorm, null, null)}<div class="etKnip"></div>${etBoxHtml(etVorm, null, null)}</div>`;
+function etVoorbeeldBij() { const el = $('#etVoorbeeld'); if (el) { el.innerHTML = etVoorbeeldHtml(); etSchaal(); } const w = $('#etWeekTxt'); if (w) w.textContent = etVorm.datum ? 'week ' + etWeek(etVorm.datum) : ''; }
+function etSchaal() {
+  const b = $('#etVbB'), v = $('#etVoorbeeld'); if (!b || !v) return;
+  const bl = v.firstElementChild; if (!bl) return; v.style.width = bl.offsetWidth + 'px'; v.style.transformOrigin = 'top left';
+  const s = Math.min(1, (b.clientWidth || 300) / bl.offsetWidth); v.style.transform = `scale(${s})`; b.style.height = Math.ceil(bl.offsetHeight * s) + 'px';
+}
+addEventListener('resize', () => { if (tab === 'etiketten') etSchaal(); });
+function etStatus(e) {
+  if (e.soort !== 'pallet') { const m = (S.partij_mutaties || []).filter(x => (x.notitie || '').includes(`Box ${e.nr}`)).pop(); return m ? `🧊 ${esc(m.koelcel || '')}` : ''; }
+  const p = kcPallets().find(x => x.nr === String(e.nr)); if (p) return `🧊 ${esc(p.cel || '')} · ${getal(p.kistjes)} kistjes`;
+  return (S.partij_mutaties || []).some(x => x.pallet === String(e.nr)) ? '✓ weg / geleverd' : 'nog niet ingeslagen';
+}
+function htmlEtiketten() {
+  if (!etVorm) etVorm = etNieuweVorm();
+  if (!etGeladen) etLaad();
+  const v = etVorm, inst = etInst(), pal = etSoort === 'pallet', kan = magEtiket();
+  const dl = (id, l) => `<datalist id="${id}">${[...new Set(l.filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('')}</datalist>`;
+  const veld = (k, label, lijst, extra = '') => `<div><label>${label}</label><input class="veld" value="${esc(v[k] ?? '')}" ${lijst ? `list="etDL_${k}"` : ''} oninput="etZet('${k}',this.value)" ${extra}>${lijst ? dl('etDL_' + k, lijst) : ''}</div>`;
+  const partijen = (S.partijen || []).slice().sort((a, b) => (partijRas(a) || '').localeCompare(partijRas(b) || '', 'nl') || String(a.batch || '').localeCompare(String(b.batch || ''), 'nl', {numeric: true}));
+  const rassen = [...(S.rassen || []).map(r => r.naam), ...inst.rassen, ...Object.keys(inst.kleuren)].sort((a, b) => a.localeCompare(b, 'nl'));
+  const cellen = kcLijst().map(c => c.naam);
+  // recent afgedrukt, één regel per afdruk-opdracht
+  const groepen = []; (S.etiketten || []).forEach(e => { const g = groepen[groepen.length - 1], sl = `${e.soort}|${e.partij_id}|${JSON.stringify(e.data)}|${String(e.created_at).slice(0, 19)}`;
+    if (g && g.sl === sl && Math.abs(g.l[g.l.length - 1].nr - e.nr) === 1) g.l.push(e); else groepen.push({sl, l: [e]}); });
+  const recent = groepen.slice(0, 40).map(({l}) => { const e = l[0], d = e.data || {}, nrs = l.map(x => x.nr).sort((a, b) => a - b), code = e.soort === 'pallet' ? 'Pallet' : 'Box';
+    const titel = l.length > 1 ? `${code} ${nrs[0]}–${nrs[nrs.length - 1]} <small style="display:inline">(${l.length}×)</small>` : `${code} ${e.nr}`;
+    return `<div class="srRij" onclick="${l.length === 1 ? `etOpen('${e.code}')` : ''}"><span class="etKleurtje" style="background:${etKleur(d.ras)}"></span><div class="t"><b>${titel} · ${esc(d.ras || '?')}</b>
+      <small>${[d.sortering, d.klasse, d.batch && 'batch ' + d.batch, d.perceel, etDatum(d.datum)].filter(Boolean).map(esc).join(' · ')}${l.length === 1 ? ' · ' + etStatus(e) : ''}</small></div>
+      <span class="logknoppen"><button class="weg" title="Opnieuw afdrukken" onclick="event.stopPropagation();etOpnieuw(${esc(JSON.stringify(l.map(x => x.code)))})">🖨️</button></span></div>`; }).join('');
+  setTimeout(etSchaal, 30);
+  return `<section class="kaartje"><h4>🏷️ Etiketten <small>palletkaart en boxkaart met QR-code</small></h4>
+    <div class="ptabs" style="grid-template-columns:1fr 1fr">${[['pallet', '🧱', 'Palletkaart (gesorteerd)'], ['box', '📦', 'Boxkaart (rooibox)']].map(([k, i, l]) => `<button class="${etSoort === k ? 'aan' : ''}" onclick="etSoort='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
+    ${kan ? `<label>Partij <small>(vult ras, batch, perceel, klasse en bio in)</small></label><select class="veld" onchange="etKiesPartij(this.value)"><option value="">– geen / zelf invullen –</option>${partijen.map(y => `<option value="${y.id}" ${y.id === v.partij_id ? 'selected' : ''}>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')} · ${esc(y.batch || '')} ${esc(y.klasse || '')} · ${esc(partijPerceelNaam(y) || '')}${y.bio ? ' · BIO' : ''}</option>`).join('')}</select>
+    <div class="raster2"><div><label>${pal ? 'Sorteerdatum' : 'Rooidatum'} <small id="etWeekTxt">${v.datum ? 'week ' + etWeek(v.datum) : ''}</small></label><input class="veld" type="date" value="${esc(v.datum)}" oninput="etZet('datum',this.value)"></div>${veld('ras', 'Ras', rassen)}</div>
+    ${pal ? `<div class="raster2">${veld('sortering', 'Planttype &amp; sortering', inst.sortering)}${veld('maat', 'Maat', null, 'placeholder="bijv. 15+"')}</div>
+      <div class="raster2">${veld('fust', 'Type fust', inst.fust)}${veld('per_kist', 'Per kist (planten)', null, 'inputmode="numeric"')}</div>` : ''}
+    <div class="raster2">${veld('batch', 'Batchnummer')}${veld('klasse', 'Klasse', inst.klasse)}</div>
+    <div class="raster2">${veld('perceel', 'Perceel', (S.percelen || []).map(p => p.naam))}${pal ? '<div></div>' : veld('opmerking', 'Opmerking')}</div>
+    <label class="vinkje" style="margin-top:8px"><input type="checkbox" ${v.bio ? 'checked' : ''} onchange="etZet('bio',this.checked)"> 🌿 Bio (met SKAL-nummer en EU-blad)</label>
+    <div class="raster2"><div><label>Hoeveel ${pal ? 'palletkaarten' : 'boxkaarten'}?</label><input class="veld" type="number" inputmode="numeric" min="1" value="${esc(v.aantal)}" oninput="etZet('aantal',this.value)"></div>
+      ${pal && mag('voorraad_beheren') ? `<div><label>Kistjes op de pallet <small>(voor het inslaan)</small></label><input class="veld" type="number" inputmode="numeric" value="${esc(v.kistjes)}" oninput="etZet('kistjes',this.value)"></div>` : '<div></div>'}</div>
+    ${pal && mag('voorraad_beheren') ? `<label>Meteen inslaan in koelcel? <small>(kan ook later door de QR-code te scannen)</small></label><select class="veld" onchange="etZet('koelcel',this.value)"><option value="">– nee, later –</option>${cellen.map(c => `<option ${c === v.koelcel ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>` : ''}
+    <div class="rij" style="flex-wrap:wrap"><button class="knop" onclick="etAfdrukken()">🖨️ Afdrukken</button><button class="knop licht" onclick="etScan()">📷 Scannen</button>${mag('voorraad_beheren') || magBeheer() ? '<button class="knop licht" onclick="etInstellingen()">⚙️ Lijsten en kleuren</button>' : ''}</div>
+    ${!etAdres() ? '<p class="hint">⚠️ De QR-code bevat nog geen adres van de app, dus een gewone telefooncamera opent hem niet. Vul bij ⚙️ het adres van de app in (de link van de website).</p>' : ''}`
+    : `<div class="rij"><button class="knop" onclick="etScan()">📷 Etiket scannen</button></div><p class="hint">Je mag geen etiketten afdrukken; je kunt ze wel scannen.</p>`}</section>
+    ${kan ? `<section class="kaartje"><h4>Voorbeeld <small>${pal ? '1 per A4' : '2 onder elkaar op A4'}</small></h4><div class="etVbB" id="etVbB"><div class="etVb" id="etVoorbeeld">${etVoorbeeldHtml()}</div></div></section>` : ''}
+    <section class="kaartje"><h4>Laatst afgedrukt</h4>${recent || '<p class="hint">Nog niets afgedrukt.</p>'}</section>`;
+}
+async function etVolgendNr(soort) {
+  const {data} = await sb.from('etiketten').select('nr').eq('soort', soort).order('nr', {ascending: false}).limit(1);
+  let m = data?.[0]?.nr || 0;
+  if (soort === 'pallet') m = Math.max(m, ...(S.partij_mutaties || []).map(x => parseInt(x.pallet) || 0));
+  return m + 1;
+}
+async function etAfdrukken() {
+  if (!magEtiket()) return;
+  const v = {...etVorm}, n = Math.max(1, Math.min(200, parseInt(v.aantal) || 1)), pal = etSoort === 'pallet';
+  if (!v.ras?.trim()) { toast('Kies een partij of vul het ras in', 1); return; }
+  if (n > 30 && !await bevestigJa(`${n} ${pal ? 'palletkaarten' : 'boxkaarten'} afdrukken?`, 'Elk etiket krijgt een eigen nummer.')) return;
+  try { localStorage.setItem('etiket_laatst', JSON.stringify({sortering: v.sortering, klasse: v.klasse, fust: v.fust, per_kist: v.per_kist})); } catch {}
+  const data = {datum: v.datum || null, ras: v.ras.trim(), batch: v.batch || '', klasse: v.klasse || '', perceel: v.perceel || '', bio: !!v.bio,
+    ...(pal ? {sortering: v.sortering || '', maat: v.maat || '', fust: v.fust || '', per_kist: v.per_kist || '', kistjes: leesGetal(v.kistjes, null)} : {opmerking: v.opmerking || ''})};
+  const soortE = pal ? 'pallet' : 'box', letter = pal ? 'P' : 'B';
+  let rijen = null, fout = null, start = await etVolgendNr(soortE);
+  for (let poging = 0; poging < 4; poging++) {
+    const nieuw = [...Array(n)].map((_, i) => ({code: letter + (start + i), soort: soortE, nr: start + i, partij_id: v.partij_id || null, seizoen_id: bekeken || null, data, door: naamMe()}));
+    const res = await sb.from('etiketten').insert(nieuw).select();
+    if (!res.error) { rijen = res.data; fout = null; break; }
+    fout = res.error; if (!/duplicate|unique/i.test(fout.message)) break; start = await etVolgendNr(soortE) + poging;
+  }
+  if (fout || !rijen) { toast(/does not exist|schema cache/i.test(fout?.message || '') ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(fout), 1); return; }
+  rijen.sort((a, b) => a.nr - b.nr); S.etiketten = [...rijen, ...(S.etiketten || [])];
+  // meteen inslaan
+  const kist = leesGetal(v.kistjes, 0);
+  if (pal && v.koelcel && mag('voorraad_beheren')) {
+    if (!v.partij_id || !(kist > 0)) toast('Niet ingeslagen: kies een partij en vul het aantal kistjes in (of scan de pallet later)', 1);
+    else if (kist > KC_PALLET_MAX) toast(`Niet ingeslagen: maximaal ${KC_PALLET_MAX} kistjes op een pallet`, 1);
+    else {
+      const y = S.partijen.find(z => z.id === v.partij_id);
+      const muts = rijen.map(r => ({partij_id: v.partij_id, seizoen_id: y?.seizoen_id || bekeken, soort: 'in', datum: v.datum || dKey(new Date()), aantal: kist, eenheid: 'kistjes', per_eenheid: leesGetal(v.per_kist, null), koelcel: v.koelcel, pallet: String(r.nr), notitie: `etiket ${r.code}`, door: naamMe()}));
+      const {data: d, error} = await sb.from('partij_mutaties').insert(muts).select(); if (error) toast('Inslaan mislukt: ' + foutTekst(error), 1); else { S.partij_mutaties = [...(S.partij_mutaties || []), ...(d || [])]; toast(`🧱 ${rijen.length} pallet${rijen.length > 1 ? 's' : ''} ingeslagen in ${v.koelcel}`); }
+    }
+  }
+  etPrintVenster(etBladen(rijen)); render(true);
+}
+async function etOpnieuw(codes) {
+  const l = (S.etiketten || []).filter(e => codes.includes(e.code)).sort((a, b) => a.nr - b.nr); if (!l.length) return;
+  etPrintVenster(etBladen(l));
+}
+
+/* ---------- scannen en openen ---------- */
+let etStroom = null, etScanTimer = null;
+function etScanStop() { clearTimeout(etScanTimer); try { etStroom?.getTracks().forEach(t => t.stop()); } catch {} etStroom = null; }
+async function etScan() {
+  const m = $('#modal');
+  m.innerHTML = `<div class="dialoog"><h3>📷 Etiket scannen</h3><div class="etScanVak"><video id="etVideo" playsinline muted></video></div>
+    <p class="hint" id="etScanTip">Houd de QR-code van de pallet- of boxkaart voor de camera.</p>
+    <label>Of typ het nummer</label><div class="rij" style="margin-top:0"><input class="veld" id="etCodeIn" placeholder="bijv. P17 of B230" onkeydown="if(event.key==='Enter')$('#etCodeOk').click()"><button class="knop" id="etCodeOk" style="width:auto" onclick="const c=etCodeUit($('#etCodeIn').value)||$('#etCodeIn').value;etScanStop();etOpen(c)">Openen</button></div>
+    <div class="rij"><button class="knop licht" onclick="etScanStop();$('#modal').classList.remove('open')">Sluiten</button></div></div>`;
+  m.classList.add('open');
+  if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) {
+    $('.etScanVak').style.display = 'none';
+    $('#etScanTip').innerHTML = 'Scannen in de app werkt op dit apparaat niet. Open de <b>camera-app</b> van je telefoon en richt die op de QR-code: dan opent het etiket vanzelf. Of typ hieronder het nummer.'; return;
+  }
+  try {
+    const det = new BarcodeDetector({formats: ['qr_code']});
+    etStroom = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}, audio: false});
+    const vid = $('#etVideo'); if (!vid) { etScanStop(); return; } vid.srcObject = etStroom; await vid.play();
+    const kijk = async () => { if (!etStroom || !$('#etVideo')) { etScanStop(); return; }
+      try { const r = await det.detect(vid), code = r.map(x => etCodeUit(x.rawValue)).find(Boolean); if (code) { etScanStop(); try { navigator.vibrate?.(80); } catch {} etOpen(code); return; } } catch {}
+      etScanTimer = setTimeout(kijk, 200); };
+    kijk();
+  } catch (e) { $('.etScanVak').style.display = 'none'; $('#etScanTip').textContent = 'De camera kon niet worden geopend (' + (e.message || e) + '). Gebruik de camera-app van je telefoon of typ het nummer.'; }
+}
+async function etZoek(code) {
+  code = String(code || '').trim().toUpperCase().replace(/^PA:/, ''); if (!code) return null;
+  let e = (S.etiketten || []).find(x => x.code === code);
+  if (!e) { const {data} = await sb.from('etiketten').select('*').eq('code', code).maybeSingle(); e = data || null; if (e) S.etiketten = [e, ...(S.etiketten || [])]; }
+  return e;
+}
+async function etOpen(code) {
+  const e = await etZoek(code); if (!e) { toast(`Etiket ${String(code || '').toUpperCase()} niet gevonden`, 1); return; }
+  const d = e.data || {}, beh = mag('voorraad_beheren'), pal = e.soort === 'pallet', y = (S.partijen || []).find(x => x.id === e.partij_id);
+  const p = pal ? kcPallets().find(x => x.nr === String(e.nr)) : null, weg = pal && !p && (S.partij_mutaties || []).some(x => x.pallet === String(e.nr));
+  const rij = (l, w) => w ? `<div class="inforij"><span>${l}</span><b>${esc(w)}</b></div>` : '';
+  const knop = (t, f, licht = true) => `<button class="knop ${licht ? 'licht' : ''} klein" onclick="$('#modal').classList.remove('open');${f}">${t}</button>`;
+  const kl = etKleur(d.ras);
+  $('#modal').innerHTML = `<div class="dialoog"><h3>${pal ? '🧱 Pallet' : '📦 Box'} ${esc(e.nr)}</h3>
+    <div class="etOpenBand" style="background:${kl};color:${etTekstKleur(kl)}">${d.bio ? '<small>BIO</small> ' : ''}${esc(d.ras || '?')}</div>
+    ${rij('Sortering', [d.sortering, d.maat].filter(Boolean).join(' '))}${rij('Klasse', d.klasse)}${rij('Batch', d.batch)}${rij('Perceel', d.perceel)}
+    ${rij('Fust', [d.fust, d.per_kist && d.per_kist + ' per kist'].filter(Boolean).join(' · '))}${rij(pal ? 'Sorteerdatum' : 'Rooidatum', etDatum(d.datum) && `${etDatum(d.datum)} (week ${etWeek(d.datum)})`)}${rij('Opmerking', d.opmerking)}
+    ${rij('Afgedrukt', `${new Date(e.created_at).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})} door ${e.door || '?'}`)}
+    ${pal ? `<div class="fgStatus" style="margin-top:8px">${p ? `🧊 Staat in <b>${esc(p.cel)}</b> · ${getal(p.kistjes)} kistjes` : weg ? '✓ Deze pallet is al uit de koelcel (geleverd of verplaatst)' : '⏳ Nog niet in de koelcel'}</div>` : ''}
+    ${!e.partij_id ? '<p class="hint">Dit etiket is niet aan een partij gekoppeld; bij inslaan kies je de partij.</p>' : ''}
+    <div class="rij" style="flex-wrap:wrap;gap:6px">
+      ${beh && pal && !p ? knop('⬇️ Inslaan', `etPalletIn('${e.code}')`, false) : ''}
+      ${beh && pal && p ? knop('↔ Verplaatsen', `etVerplaats('${e.code}')`, false) + knop('⬆️ Leveren', `mutatieFormulier('${p.regels[0]?.partij_id || e.partij_id || ''}','uit',null,{koelcel:${esc(JSON.stringify(p.cel))},eenheid:'kistjes',pallet:${esc(JSON.stringify(p.nr))},aantal:${p.kistjes}})`) : ''}
+      ${beh && !pal ? knop('⬇️ In koelcel zetten', `mutatieFormulier('${e.partij_id || ''}','in',null,{eenheid:'kuubskisten',aantal:1,notitie:'Box ${e.nr}'})`, false) : ''}
+      ${magEtiket() ? knop('🖨️ Opnieuw afdrukken', `etOpnieuw(['${e.code}'])`) : ''}
+      ${(ziet('voorraad_bekijken') || beh) && (d.batch || y) ? knop('🔎 Terugzoeken', `vrZoek=${esc(JSON.stringify(d.batch || y?.batch || ''))};vrWeergave='zoek';zetTab('voorraad')`) : ''}
+    </div>
+    <div class="rij"><button class="knop licht" onclick="$('#modal').classList.remove('open')">Sluiten</button>${magEtiket() || ziet('voorraad_bekijken') ? `<button class="knop" onclick="etScan()">📷 Volgende scannen</button>` : ''}</div></div>`;
+  $('#modal').classList.add('open');
+}
+async function etPalletIn(code) {
+  const e = await etZoek(code); if (!e || !mag('voorraad_beheren')) return; const d = e.data || {};
+  const cellen = kcLijst().map(c => c.naam); if (!cellen.length) { toast('Voeg eerst een koelcel toe (Koelcel → plattegrond)', 1); return; }
+  const alle = (S.partijen || []).slice().sort((a, b) => (partijRas(a) || '').localeCompare(partijRas(b) || '', 'nl'));
+  const gok = e.partij_id || alle.find(y => d.batch && y.batch === d.batch)?.id || '';
+  const w = await formulier(`⬇️ Pallet ${e.nr} inslaan`, [
+    ...(e.partij_id ? [] : [{k: 'partij_id', label: 'Partij', type: 'select', waarde: gok, opties: [['', '– kies –'], ...alle.map(y => [y.id, `${partijRas(y) || '?'} · ${y.batch || ''} ${y.klasse || ''} · ${partijPerceelNaam(y) || ''}`])]}]),
+    {k: 'koelcel', label: 'Koelcel', type: 'select', waarde: cellen[0], opties: cellen.map(c => [c, c])},
+    {k: 'kistjes', label: `Aantal kistjes (max ${KC_PALLET_MAX})`, type: 'number', waarde: d.kistjes ?? ''},
+    {k: 'per', label: 'Planten per kistje', type: 'number', waarde: d.per_kist ?? ''},
+    {k: 'datum', label: 'Datum', type: 'date', waarde: dKey(new Date())}], 'Inslaan');
+  if (!w) return;
+  const pid = e.partij_id || w.partij_id, n = leesGetal(w.kistjes, 0);
+  if (!pid || !(n > 0)) { toast('Kies de partij en vul het aantal kistjes in', 1); return; }
+  if (n > KC_PALLET_MAX) { toast(`Maximaal ${KC_PALLET_MAX} kistjes op een pallet`, 1); return; }
+  const y = S.partijen.find(z => z.id === pid);
+  const {data, error} = await sb.from('partij_mutaties').insert({partij_id: pid, seizoen_id: y?.seizoen_id || bekeken, soort: 'in', datum: w.datum || dKey(new Date()), aantal: n, eenheid: 'kistjes', per_eenheid: leesGetal(w.per, null), koelcel: w.koelcel, pallet: String(e.nr), notitie: `etiket ${e.code}`, door: naamMe()}).select().single();
+  if (error) { toast(foutTekst(error), 1); return; }
+  S.partij_mutaties = [...(S.partij_mutaties || []), data];
+  if (!e.partij_id) { const {data: d2} = await sb.from('etiketten').update({partij_id: pid}).eq('id', e.id).select().single(); if (d2) Object.assign(e, d2); }
+  render(true); toast(`🧱 Pallet ${e.nr} staat in ${w.koelcel}`);
+}
+async function etVerplaats(code) {
+  const e = await etZoek(code), p = e && kcPallets().find(x => x.nr === String(e.nr)); if (!p) return;
+  const naar = kcLijst().map(c => c.naam).filter(c => c !== p.cel); if (!naar.length) { toast('Er is geen andere koelcel', 1); return; }
+  const w = await formulier(`↔ Pallet ${p.nr} verplaatsen`, [{type: 'uitleg', waarde: `Staat nu in <b>${esc(p.cel)}</b>.`}, {k: 'naar', label: 'Naar', type: 'select', waarde: naar[0], opties: naar.map(c => [c, c])}], 'Verder');
+  if (w?.naar) kcVerplaats(null, p.cel, w.naar, p.nr);
+}
+// geopend via de QR-code (link met ?etiket=P17)
+function etUitLink() {
+  const m = location.search.match(/[?&]etiket=([^&#]+)/); if (!m) return;
+  const code = decodeURIComponent(m[1]);
+  try { const q = location.search.replace(/([?&])etiket=[^&#]*&?/, '$1').replace(/[?&]$/, ''); history.replaceState(null, '', location.pathname + q + location.hash); } catch {}
+  setTimeout(() => etOpen(code), 500);
+}
+
+/* ---------- instellingen: lijsten, kleuren per ras, SKAL, logo en adres ---------- */
+function etInstellingen() {
+  const i = etInst(), rassen = [...new Set([...Object.keys(i.kleuren), ...(S.rassen || []).map(r => r.naam), ...i.rassen].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'nl'));
+  const ta = (k, l) => `<label>${l} <small>(één per regel)</small></label><textarea class="veld" id="etI_${k}" rows="5">${esc(i[k].join('\n'))}</textarea>`;
+  $('#modal').innerHTML = `<div class="dialoog groot"><h3>⚙️ Etiketten instellen</h3>
+    <div class="raster2"><div>${ta('sortering', 'Planttype &amp; sortering')}</div><div>${ta('klasse', 'Klasse')}</div></div>
+    ${ta('fust', 'Type fust')}
+    <div class="raster2"><div><label>SKAL-nummer (bio)</label><input class="veld" id="etI_skal" value="${esc(i.skal)}"></div><div><label>Controlecode (bio)</label><input class="veld" id="etI_biocode" value="${esc(i.biocode)}"></div></div>
+    <label>Adres van de app <small>(voor de QR-code; leeg = automatisch)</small></label><input class="veld" id="etI_adres" value="${esc(i.adres || '')}" placeholder="https://…github.io/perceel-app/">
+    <label>Logo op het etiket</label><div class="rij" style="margin-top:0;align-items:center"><img src="${etLogo()}" id="etI_logoImg" style="height:44px;max-width:160px;object-fit:contain;background:#fff;border:1px solid var(--rand);border-radius:8px;padding:3px">
+      <input type="file" accept="image/*" id="etI_logo" style="flex:1"><button class="link klein" onclick="$('#etI_logoImg').src=ET_LOGO;$('#etI_logo').dataset.terug='1'">standaard</button></div>
+    <label>Kleur per ras <small>(de balk met de rasnaam)</small></label>
+    <div class="etKleuren">${rassen.map(r => `<label class="etKl"><input type="color" data-ras="${esc(r)}" value="${esc(etKleur(r))}"><span>${esc(r)}</span></label>`).join('')}</div>
+    <div class="rij"><button class="knop licht" id="mNee">Annuleren</button><button class="knop" id="mJa">Opslaan</button></div></div>`;
+  const m = $('#modal'); m.classList.add('open'); $('#mNee').onclick = () => m.classList.remove('open');
+  let nieuwLogo = null;
+  $('#etI_logo').onchange = async ev => { const f = ev.target.files?.[0]; if (!f) return; nieuwLogo = await etVerklein(f); if (nieuwLogo) $('#etI_logoImg').src = nieuwLogo; };
+  $('#mJa').onclick = async () => {
+    const lijst = k => [...new Set($('#etI_' + k).value.split('\n').map(x => x.trim()).filter(Boolean))];
+    // alleen kleuren bewaren die afwijken van de standaard (Excel-kleur, anders de kleur van het ras in de app)
+    const std = r => (ET_STD.kleuren[r] || (S.rassen || []).find(x => (x.naam || '').toLowerCase() === r.toLowerCase())?.kleur || ET_ONBEKEND).toLowerCase();
+    const kleuren = {}; m.querySelectorAll('[data-ras]').forEach(x => { const r = x.dataset.ras, c = x.value.toLowerCase(); if (c !== std(r)) kleuren[r] = c; });
+    const w = {sortering: lijst('sortering'), klasse: lijst('klasse'), fust: lijst('fust'), skal: $('#etI_skal').value.trim(), biocode: $('#etI_biocode').value.trim(), adres: $('#etI_adres').value.trim(), kleuren};
+    const {error} = await sb.rpc('zet_instelling', {p_sleutel: 'etiket', p_waarde: JSON.stringify(w)});
+    if (error) { toast(/Onbekende instelling/.test(error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(error), 1); return; }
+    if (nieuwLogo || $('#etI_logo').dataset.terug) { const r2 = await sb.rpc('zet_instelling', {p_sleutel: 'etiket_logo', p_waarde: nieuwLogo || ''}); if (r2.error) toast('Logo opslaan mislukt: ' + foutTekst(r2.error), 1); }
+    await laadInstellingen(); m.classList.remove('open'); render(true); toast('🏷️ Etiketten opgeslagen');
+  };
+}
+function etVerklein(f) {   // logo verkleinen tot max. 480 px breed (blijft scherp op A4, maar klein in de database)
+  return new Promise(klaar => { const r = new FileReader(); r.onload = () => { const img = new Image(); img.onload = () => {
+    const s = Math.min(1, 480 / img.width), c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); klaar(c.toDataURL('image/png')); };
+    img.onerror = () => { toast('Dit plaatje kan ik niet lezen', 1); klaar(null); }; img.src = r.result; }; r.readAsDataURL(f); });
+}
+
+document.head.insertAdjacentHTML('beforeend', `<style>${ET_CSS}</style>`);
 
 /* ---------- 8. SATELLIETBEELDEN (Sentinel-2, gratis via Earth Search) ---------- */
 function naarUtm(lat, lng, zone) {   // WGS84 → UTM (meters)
