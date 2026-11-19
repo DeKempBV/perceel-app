@@ -636,6 +636,14 @@ details.szblok summary h4{margin:6px 0}
 .bsKaart>small{display:block;color:var(--grijs);font-size:12.5px;margin-top:3px}.bsKaart small .rood{color:var(--rood);font-weight:700}
 .bsTekst{font-size:14px;margin-top:6px;white-space:pre-wrap}
 .bsVerloop{font-size:12.5px;color:var(--grijs);background:var(--licht);border-radius:8px;padding:6px 8px;margin-top:8px;line-height:1.5}
+.bsRegel{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--rand);margin:0;cursor:pointer;color:var(--tekst)}.bsRegel:last-of-type{border-bottom:0}
+.bsRegel input{width:20px;height:20px;flex:0 0 20px}.bsRegel .t{flex:1;min-width:0}.bsRegel .t small{display:block;color:var(--grijs);font-size:12px}.bsRegel.uit{opacity:.45}
+.bsAantal{font-weight:800;min-width:34px;text-align:right}.bsOpen{font-size:18px;text-decoration:none;padding:2px 6px}
+.bsWinkel .bsKnoppen a.knop{text-decoration:none;display:inline-flex;align-items:center}
+.bsKiesLijst{max-height:52vh;overflow:auto;margin-top:8px;border:1px solid var(--rand);border-radius:12px;padding:4px 8px}
+.bsKiesKop{font-size:12px;font-weight:800;color:var(--groen);text-transform:uppercase;letter-spacing:.03em;margin:10px 0 2px}
+.bsArtRegel{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--rand);padding:9px 2px;cursor:pointer;font:inherit;color:var(--tekst)}
+.bsArtRegel:hover{background:var(--licht)}.bsArtRegel b{display:block;font-size:15px}.bsArtRegel small{color:var(--grijs);font-size:12.5px}.bsUitArt{opacity:.5}
 .bsKnoppen{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.bsKnoppen:empty{display:none}
 .srRij.wn1{border-left:4px solid #fbc02d}.srRij.wn2{border-left:4px solid #fb8c00}.srRij.wn3{border-left:4px solid #e53935}
 .wpWrap{overflow-x:auto;margin:0 0 12px}.wpTabel{border-collapse:collapse;width:100%;min-width:720px;background:#fff;border-radius:12px;overflow:hidden;font-size:12px}
@@ -13414,8 +13422,8 @@ const magBestellen = () => !archief && !!me && (isBeheerder() || (mijnProfiel()?
 const magKeuren = () => mag('bestellingen_goedkeuren');
 const bsEigen = b => b.aangevraagd_door === me?.id && (!isApparaat() || !b.aanvrager || b.aanvrager === naamMe());
 async function laadBestellingen() {
-  const {data, error} = await sb.from('bestellingen').select('*').order('created_at', {ascending: false}).limit(500);
-  S.bestellingen = error ? (S.bestellingen || []) : (data || []);
+  const [r, ra] = await Promise.all([sb.from('bestellingen').select('*').order('created_at', {ascending: false}).limit(500), sb.from('bestel_artikelen').select('*').order('naam')]);
+  S.bestellingen = r.error ? (S.bestellingen || []) : (r.data || []); S.bestel_artikelen = ra.error ? (S.bestel_artikelen || []) : (ra.data || []);
   if (tab === 'bestellingen' || $('#hoofdmenu.open')) render(true);
 }
 const bsTeKeuren = () => (S.bestellingen || []).filter(b => b.status === 'aangevraagd' && (!bsEigen(b) || isBeheerder()));
@@ -13433,8 +13441,9 @@ function bsKaart(b) {
   const telaat = b.nodig_op && BS_OPEN.includes(b.status) && b.nodig_op < vandaag();
   return `<div class="bsKaart" style="border-left-color:${kl}">
     <div class="bsKop"><b>${b.spoed ? '🔥 ' : ''}${b.aantal != null ? `${getal(b.aantal, 2)} ${esc(+b.aantal === 1 && b.eenheid === 'stuks' ? 'stuk' : b.eenheid || '')} ` : ''}${esc(b.wat)}</b><span class="bsStatus" style="background:${kl}">${ic} ${lab}</span></div>
-    <small>${[cat, `door ${esc(b.aanvrager || '?')}`, bsDatum(b.created_at), b.nodig_op && `<span class="${telaat ? 'rood' : ''}">nodig ${bsDatum(b.nodig_op)}</span>`, bsBedrag(b) && '≈ ' + bsBedrag(b), machine && '🚜 ' + esc(machine.naam)].filter(Boolean).join(' · ')}</small>
+    <small>${[cat, `door ${esc(b.aanvrager || '?')}`, bsDatum(b.created_at), b.nodig_op && `<span class="${telaat ? 'rood' : ''}">nodig ${bsDatum(b.nodig_op)}</span>`, bsBedrag(b) && '≈ ' + bsBedrag(b), machine && '🚜 ' + esc(machine.naam), !b.artikel_id && keur && BS_OPEN.includes(b.status) && '🆕 nieuw, niet uit de lijst'].filter(Boolean).join(' · ')}</small>
     ${b.toelichting ? `<div class="bsTekst">💬 ${esc(b.toelichting)}</div>` : ''}
+    ${b.bestel_link ? `<small>🛒 bestellen via <a href="${esc(bsUrl(b.bestel_link))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(bsDomein(b.bestel_link) || b.bestel_link)}</a>${b.artikelnummer ? ' · art. ' + esc(b.artikelnummer) : ''}</small>` : b.artikelnummer ? `<small>art. ${esc(b.artikelnummer)}</small>` : ''}
     ${b.leverancier && !b.besteld_door ? `<small>🏪 ${esc(b.leverancier)}</small>` : ''}${b.link ? `<small><a href="${esc(/^https?:\/\//i.test(b.link) ? b.link : 'https://' + b.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 ${esc(b.link.replace(/^https?:\/\//i, '').slice(0, 50))}</a></small>` : ''}
     ${fotoRij(b.fotos)}
     ${verloop.length ? `<div class="bsVerloop">${verloop.join('<br>')}</div>` : ''}
@@ -13442,10 +13451,11 @@ function bsKaart(b) {
       ${keur && b.status === 'aangevraagd' && (!eigen || isBeheerder()) ? knop('✅ Goedkeuren', `bsZet('${b.id}','goedgekeurd')`, '') + knop('❌ Afkeuren', `bsZet('${b.id}','afgekeurd')`) : ''}
       ${keur && ['goedgekeurd', 'besteld'].includes(b.status) ? knop(b.status === 'besteld' ? '✏️ Bestelgegevens' : '📦 Besteld', `bsBesteld('${b.id}')`, b.status === 'besteld' ? 'licht' : '') : ''}
       ${(keur || eigen) && ['goedgekeurd', 'besteld'].includes(b.status) ? knop('📥 Binnen', `bsZet('${b.id}','binnen')`) : ''}
+      ${keur && BS_OPEN.includes(b.status) ? knop(b.bestel_link ? '🔗 Bestellink' : '🔗 Link toevoegen', `bsLinkForm('${b.id}')`) : ''}
       ${keur && b.status === 'afgekeurd' && (!eigen || isBeheerder()) ? knop('↺ Toch goedkeuren', `bsZet('${b.id}','goedgekeurd')`) : ''}
       ${eigen && b.status === 'aangevraagd' ? knop('✏️ Aanpassen', `bsFormulier('${b.id}')`) : ''}
       ${(eigen || isBeheerder()) && ['aangevraagd', 'goedgekeurd'].includes(b.status) ? knop('↩️ Intrekken', `bsZet('${b.id}','geannuleerd')`) : ''}
-      ${magBestellen() && ['binnen', 'afgekeurd', 'geannuleerd'].includes(b.status) ? knop('🔁 Opnieuw aanvragen', `bsFormulier(null,'${b.id}')`) : ''}
+      ${magBestellen() && ['binnen', 'afgekeurd', 'geannuleerd'].includes(b.status) ? knop('🔁 Opnieuw aanvragen', bsArt(b)?.actief !== false && bsArt(b) ? `bsAanvraagArtikel('${b.artikel_id}')` : `bsFormulier(null,'${b.id}')`) : ''}
     </div></div>`;
 }
 function htmlBestellingen() {
@@ -13455,15 +13465,20 @@ function htmlBestellingen() {
   const sorteer = l => l.slice().sort((a, b) => (b.spoed - a.spoed) || String(a.nodig_op || '9').localeCompare(String(b.nodig_op || '9')) || String(b.created_at).localeCompare(String(a.created_at)));
   const groep = (titel, l, leeg = '') => l.length ? `<section class="kaartje"><h4>${titel} <small>(${l.length})</small></h4>${sorteer(l).map(bsKaart).join('')}</section>` : leeg;
   const tk = bsTeKeuren(), mijnOpen = alle.filter(b => bsEigen(b) && BS_OPEN.includes(b.status)).length;
-  const tabs = [['open', '📋', `Open (${alle.filter(b => BS_OPEN.includes(b.status)).length})`], ['mijn', '👤', 'Mijn aanvragen'], ['klaar', '✔️', 'Afgerond']];
+  const nLijst = alle.filter(b => b.status === 'goedgekeurd').length;
+  const tabs = [['open', '📋', `Open (${alle.filter(b => BS_OPEN.includes(b.status)).length})`], ...(keur ? [['lijst', '🛒', `Lijst${nLijst ? ` (${nLijst})` : ''}`], ['artikelen', '📚', 'Artikelen']] : []), ['mijn', '👤', keur ? 'Mijn' : 'Mijn aanvragen'], ['klaar', '✔️', 'Afgerond']];
+  if (['lijst', 'artikelen'].includes(bsWeergave) && !keur) bsWeergave = 'open';
   let h = `<section class="kaartje"><h4>🛒 Bestellen <small>iets nodig? vraag het hier aan</small></h4>
-    ${magBestellen() ? `<button class="knop" onclick="bsFormulier()">＋ Iets aanvragen</button>` : '<p class="hint">Je kunt hier niets aanvragen. Vraag een beheerder om het recht "Iets aanvragen om te bestellen".</p>'}
+    ${magBestellen() ? `<button class="knop" onclick="bsKiezer()">＋ Iets aanvragen</button>` : '<p class="hint">Je kunt hier niets aanvragen. Vraag een beheerder om het recht "Iets aanvragen om te bestellen".</p>'}
     ${keur && tk.length ? `<div class="fgStatus" style="margin-top:10px">⏳ <b>${tk.length}</b> aanvra${tk.length === 1 ? 'ag wacht' : 'gen wachten'} op jouw goedkeuring</div>` : ''}
     ${!keur && mijnOpen ? `<div class="fgStatus" style="margin-top:10px">Je hebt ${mijnOpen} aanvra${mijnOpen === 1 ? 'ag' : 'gen'} open staan.</div>` : ''}
-    <div class="ptabs" style="grid-template-columns:repeat(3,1fr);margin-top:10px">${tabs.map(([k, i, l]) => `<button class="${bsWeergave === k ? 'aan' : ''}" onclick="bsWeergave='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
-    <input class="veld" id="bsZoek" placeholder="🔎 Zoeken (wat, wie, leverancier…)" value="${esc(bsZoek)}" oninput="bsZoek=this.value;clearTimeout(window._bz);window._bz=setTimeout(()=>{render(true);const i=$('#bsZoek');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},300)"></section>`;
-  if (bsWeergave === 'open') {
+    <div class="ptabs" style="grid-template-columns:repeat(${tabs.length},1fr);margin-top:10px">${tabs.map(([k, i, l]) => `<button class="${bsWeergave === k ? 'aan' : ''}" onclick="bsWeergave='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
+    ${['lijst', 'artikelen'].includes(bsWeergave) ? '' : `<input class="veld" id="bsZoek" placeholder="🔎 Zoeken (wat, wie, leverancier…)" value="${esc(bsZoek)}" oninput="bsZoek=this.value;clearTimeout(window._bz);window._bz=setTimeout(()=>{render(true);const i=$('#bsZoek');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},300)">`}</section>`;
+  if (bsWeergave === 'lijst') h += htmlBestellijst();
+  else if (bsWeergave === 'artikelen') h += htmlBsArtikelen();
+  else if (bsWeergave === 'open') {
     const o = alle.filter(b => BS_OPEN.includes(b.status) && pas(b));
+    if (keur && o.some(b => b.status === 'goedgekeurd')) h += `<section class="kaartje"><button class="knop" onclick="bsWeergave='lijst';render(true)">🛒 Bestellijst per winkel (${o.filter(b => b.status === 'goedgekeurd').length})</button></section>`;
     h += groep(keur ? '⏳ Wacht op goedkeuring' : '⏳ Aangevraagd', o.filter(b => b.status === 'aangevraagd'))
       + groep(keur ? '✅ Goedgekeurd · nog bestellen' : '✅ Goedgekeurd', o.filter(b => b.status === 'goedgekeurd'))
       + groep('📦 Besteld · onderweg', o.filter(b => b.status === 'besteld'));
@@ -13478,9 +13493,9 @@ function htmlBestellingen() {
   }
   return h;
 }
-async function bsFormulier(id, kopieVan) {
+async function bsFormulier(id, kopieVan, naamVoor) {
   if (!id && !magBestellen()) return;
-  const b = id ? S.bestellingen.find(x => x.id === id) : kopieVan ? {...S.bestellingen.find(x => x.id === kopieVan), fotos: [], nodig_op: null} : {aantal: 1, eenheid: 'stuks', categorie: 'overig'};
+  const b = id ? S.bestellingen.find(x => x.id === id) : kopieVan ? {...S.bestellingen.find(x => x.id === kopieVan), fotos: [], nodig_op: null} : {aantal: 1, eenheid: 'stuks', categorie: 'overig', wat: (naamVoor || '').trim()};
   if (!b) return;
   const lijst = k => [...new Set((S.bestellingen || []).map(x => x[k]).filter(Boolean))].slice(0, 40);
   const machines = (S.machines || []).slice().sort((x, y) => String(x.naam).localeCompare(String(y.naam), 'nl'));
@@ -13539,6 +13554,187 @@ async function bsBesteld(id) {
   if (!w) return;
   const r = await bsRpc(id, 'besteld', null, {leverancier: w.leverancier?.trim() || '', bestelnummer: w.bestelnummer?.trim() || '', verwacht_op: w.verwacht_op || '', prijs: w.prijs === '' ? '' : String(leesGetal(w.prijs, ''))});
   if (r) toast('📦 Als besteld gezet · de aanvrager krijgt een melding');
+}
+
+/* ---------- bestellijst: alles wat goedgekeurd is, per winkel, in één keer bestellen ---------- */
+const bsUrl = u => { const s = String(u || '').trim(); if (!s) return ''; return /^https?:\/\//i.test(s) ? s : 'https://' + s; };
+const bsWinkelLink = b => bsUrl(b.bestel_link || bsArt(b)?.link || b.link);
+const bsDomein = u => { try { return new URL(bsUrl(u)).hostname.replace(/^www\./i, '').toLowerCase(); } catch { return ''; } };
+const bsAantal = b => Math.max(1, Math.round(+b.aantal || 1));
+let bsUit = new Set();   // in de bestellijst uitgevinkt (dus nu niet meebestellen)
+// per winkel: op domein van de link, anders op leverancier, anders "zonder link"
+function bsGroepen() {
+  const per = new Map();
+  (S.bestellingen || []).filter(b => b.status === 'goedgekeurd').forEach(b => {
+    const d = bsDomein(bsWinkelLink(b)), sl = d || (b.leverancier ? 'lev:' + normTekst(b.leverancier) : 'zonder');
+    const g = per.get(sl) || {sl, domein: d, naam: d || b.leverancier || 'Zonder link of winkel', l: []}; g.l.push(b); per.set(sl, g);
+  });
+  return [...per.values()].sort((a, b) => (a.sl === 'zonder') - (b.sl === 'zonder') || b.l.length - a.l.length || a.naam.localeCompare(b.naam, 'nl'));
+}
+// sommige winkels hebben een link die meerdere producten in één keer in het winkelmandje zet
+function bsMandjeUrl(g, l) {
+  if (!g.domein || !l.length) return null;
+  const links = l.map(bsWinkelLink);
+  if (/(^|\.)amazon\.[a-z.]+$/.test(g.domein)) {   // Amazon: ASIN uit /dp/… of /gp/product/…
+    const asins = links.map(u => (u.match(/\/(?:dp|gp\/product|gp\/aw\/d)\/([A-Z0-9]{10})/i) || [])[1]);
+    if (asins.every(Boolean)) return `https://www.${g.domein}/gp/aws/cart/add.html?` + asins.map((a, i) => `ASIN.${i + 1}=${a.toUpperCase()}&Quantity.${i + 1}=${bsAantal(l[i])}`).join('&');
+  }
+  const varianten = links.map(u => (u.match(/\/products\/[^?#]+\?(?:[^#]*&)?variant=(\d+)/) || [])[1]);   // Shopify-winkels
+  if (varianten.every(Boolean)) { const host = new URL(links[0]).host; return `https://${host}/cart/` + varianten.map((v, i) => `${v}:${bsAantal(l[i])}`).join(','); }
+  return null;
+}
+function htmlBestellijst() {
+  const gr = bsGroepen();
+  if (!gr.length) return `<section class="kaartje"><p class="hint">Er staat niets klaar om te bestellen. Zodra iets is goedgekeurd, komt het hier te staan, gegroepeerd per winkel.</p></section>`;
+  const totaal = gr.reduce((a, g) => a + g.l.length, 0);
+  return `<section class="kaartje"><p class="hint" style="margin:0">🛒 <b>${totaal}</b> ding${totaal === 1 ? '' : 'en'} goedgekeurd, bij <b>${gr.length}</b> winkel${gr.length === 1 ? '' : 's'}. Vink uit wat je nu niet bestelt.
+    Na het bestellen tik je op <b>📦 Als besteld zetten</b>.</p></section>` + gr.map(g => {
+    const aan = g.l.filter(b => !bsUit.has(b.id)), mandje = bsMandjeUrl(g, aan), bedrag = aan.reduce((a, b) => a + (b.prijs != null && b.prijs !== '' ? (+b.prijs || 0) * (+b.aantal || 1) : 0), 0);
+    const ids = esc(JSON.stringify(aan.map(b => b.id)));
+    return `<section class="kaartje bsWinkel"><h4>${g.domein ? '🌐' : g.sl === 'zonder' ? '❓' : '🏪'} ${esc(g.naam)} <small>(${g.l.length})${bedrag ? ' · ≈ ' + geld(bedrag) : ''}</small></h4>
+      ${g.l.map(b => { const u = bsWinkelLink(b);
+        return `<label class="bsRegel ${bsUit.has(b.id) ? 'uit' : ''}"><input type="checkbox" ${bsUit.has(b.id) ? '' : 'checked'} onchange="bsUit[this.checked ? 'delete' : 'add']('${b.id}');render(true)">
+          <span class="bsAantal">${bsAantal(b)}×</span><span class="t"><b>${b.spoed ? '🔥 ' : ''}${esc(b.wat)}</b><small>${[b.artikelnummer && 'art. ' + esc(b.artikelnummer), b.eenheid && b.eenheid !== 'stuks' && `${getal(b.aantal, 2)} ${esc(b.eenheid)}`, 'voor ' + esc(b.aanvrager || '?'), b.nodig_op && 'nodig ' + bsDatum(b.nodig_op)].filter(Boolean).join(' · ')}</small></span>
+          ${u ? `<a class="bsOpen" href="${esc(u)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Productpagina openen">↗</a>` : ''}
+          <button class="weg" title="Link en artikelnummer" onclick="event.preventDefault();bsLinkForm('${b.id}')">🔗</button></label>`; }).join('')}
+      <div class="bsKnoppen">
+        ${mandje ? `<a class="knop klein" href="${esc(mandje)}" target="_blank" rel="noopener">🛒 Alles in winkelmandje (${aan.length})</a>`
+          : g.domein && aan.some(b => bsWinkelLink(b)) ? `<button class="knop klein" onclick="bsOpenAlle(${ids})">${aan.filter(b => bsWinkelLink(b)).length === 1 ? '↗ Product openen' : `↗ Open alle ${aan.filter(b => bsWinkelLink(b)).length} producten`}</button>` : ''}
+        ${aan.length ? `<button class="knop licht klein" onclick="bsKopieer(${ids})">📋 Kopieer lijst</button><button class="knop licht klein" onclick="bsAllesBesteld(${ids},${esc(JSON.stringify(g.domein || (g.sl === 'zonder' ? '' : g.naam)))})">📦 Als besteld zetten</button>` : ''}
+      </div>
+      ${!mandje && g.domein && aan.length > 1 ? `<p class="hint" style="margin:6px 0 0">Deze winkel heeft geen link om alles in één keer in het mandje te zetten; de knop opent alle productpagina's tegelijk. Blokkeert je browser dat, sta dan pop-ups toe voor de app.</p>` : ''}
+      ${g.sl === 'zonder' ? `<p class="hint" style="margin:6px 0 0">Tik op 🔗 om een link toe te voegen waar het besteld wordt; dan komt het bij die winkel te staan.</p>` : ''}</section>`; }).join('');
+}
+function bsOpenAlle(ids) {
+  const l = ids.map(id => S.bestellingen.find(b => b.id === id)).filter(b => b && bsWinkelLink(b));
+  let geblokt = 0; l.forEach(b => { const w = window.open(bsWinkelLink(b), '_blank'); if (!w) geblokt++; else try { w.opener = null; } catch {} });
+  if (geblokt) toast(`Je browser hield ${geblokt} tabblad${geblokt === 1 ? '' : 'en'} tegen: sta pop-ups toe voor de app en probeer opnieuw`, 1);
+}
+async function bsKopieer(ids) {
+  const l = ids.map(id => S.bestellingen.find(b => b.id === id)).filter(Boolean);
+  const tekst = l.map(b => `${bsAantal(b)}x ${b.artikelnummer ? b.artikelnummer + ' ' : ''}${b.wat}${bsWinkelLink(b) ? ' - ' + bsWinkelLink(b) : ''}`).join('\n');
+  try { await navigator.clipboard.writeText(tekst); toast('📋 Lijst gekopieerd'); }
+  catch { await vraag('Kopieer deze lijst', {waarde: tekst.replace(/\n/g, ' | '), knop: 'Sluiten'}); }
+}
+async function bsAllesBesteld(ids, winkel) {
+  const l = ids.map(id => S.bestellingen.find(b => b.id === id)).filter(b => b && b.status === 'goedgekeurd'); if (!l.length) return;
+  const w = await formulier(`📦 ${l.length} ding${l.length === 1 ? '' : 'en'} als besteld zetten`, [
+    {type: 'uitleg', waarde: l.map(b => `${bsAantal(b)}× ${esc(b.wat)}`).join('<br>')},
+    {k: 'leverancier', label: 'Bij wie besteld?', waarde: winkel || l[0].leverancier || ''},
+    {k: 'bestelnummer', label: 'Bestel- of ordernummer (optioneel)', waarde: ''},
+    {k: 'verwacht_op', label: 'Verwacht op', type: 'date', waarde: ''}], 'Als besteld zetten');
+  if (!w) return;
+  let goed = 0;
+  for (const b of l) {
+    const {data, error} = await sb.rpc('bestelling_status', {p_id: b.id, p_status: 'besteld', p_reden: null, p_naam: naamMe(),
+      p_extra: {leverancier: w.leverancier?.trim() || '', bestelnummer: w.bestelnummer?.trim() || '', verwacht_op: w.verwacht_op || ''}});
+    if (error) { toast(`${b.wat}: ${foutTekst(error)}`, 1); continue; }
+    const r = Array.isArray(data) ? data[0] : data; if (r) { S.bestellingen = S.bestellingen.map(x => x.id === r.id ? r : x); goed++; }
+  }
+  render(true); if (goed) toast(`📦 ${goed} als besteld gezet · de aanvragers krijgen een melding`);
+}
+async function bsLinkForm(id) {
+  const b = (S.bestellingen || []).find(x => x.id === id); if (!b || !magKeuren()) return;
+  const lev = [...new Set((S.bestellingen || []).map(x => x.leverancier).filter(Boolean))];
+  const w = await formulier(`🔗 Waar bestellen: ${b.wat}`, [
+    {type: 'uitleg', waarde: b.link ? `De aanvrager gaf deze link: <a href="${esc(bsUrl(b.link))}" target="_blank" rel="noopener">${esc(b.link.slice(0, 60))}</a>` : 'De aanvrager gaf geen link.'},
+    {k: 'bestel_link', label: 'Link naar het product in de webshop', waarde: b.bestel_link || b.link || '', placeholder: 'https://…'},
+    {k: 'artikelnummer', label: 'Artikelnummer (optioneel)', waarde: b.artikelnummer || ''},
+    {k: 'leverancier', label: 'Winkel / leverancier', waarde: b.leverancier || bsDomein(b.bestel_link || b.link) || '', lijst: lev},
+    {k: 'aantal', label: 'Aantal', type: 'number', waarde: b.aantal ?? ''},
+    {k: 'prijs', label: 'Prijs per stuk (€, optioneel)', type: 'number', waarde: b.prijs ?? ''},
+    {k: 'opslaan', type: 'vinkjes', waarde: ['ja'], opties: [['ja', b.artikel_id ? '📚 Ook het artikel in de lijst bijwerken' : '📚 Opslaan in de artikellijst, zodat iedereen het de volgende keer kan aanklikken']]},
+    ...(b.artikel_id ? [] : [{k: 'naam', label: 'Naam in de artikellijst', waarde: b.wat}])], 'Opslaan');
+  if (!w) return;
+  const opslaan = (w.opslaan || []).includes('ja');
+  const {data, error} = await sb.rpc('bestelling_info', {p_id: id, p_info: {bestel_link: w.bestel_link?.trim() || '', artikelnummer: w.artikelnummer?.trim() || '', leverancier: w.leverancier?.trim() || '',
+    aantal: w.aantal === '' ? '' : String(leesGetal(w.aantal, '')), prijs: w.prijs === '' ? '' : String(leesGetal(w.prijs, '')), opslaan, naam: w.naam?.trim() || ''}});
+  if (opslaan && !error) setTimeout(laadBestellingen, 300);
+  if (error) { toast(/Could not find|does not exist/i.test(error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(error), 1); return; }
+  const r = Array.isArray(data) ? data[0] : data; if (r) S.bestellingen = S.bestellingen.map(x => x.id === r.id ? r : x);
+  render(true); toast('🔗 Opgeslagen');
+}
+
+/* ---------- artikellijst: aanklikken wat er al is, of iets nieuws aanvragen ---------- */
+const bsArt = b => b?.artikel_id ? (S.bestel_artikelen || []).find(a => a.id === b.artikel_id) : null;
+const bsArtikelen = () => (S.bestel_artikelen || []).filter(a => a.actief !== false);
+// hoe vaak een artikel is aangevraagd (vaak gebruikte bovenaan)
+const bsGebruik = () => { const n = {}; (S.bestellingen || []).forEach(b => { if (b.artikel_id) n[b.artikel_id] = (n[b.artikel_id] || 0) + 1; }); return n; };
+let bsKiesZoek = '';
+function bsKiezer() {
+  if (!magBestellen()) return;
+  bsKiesZoek = '';
+  $('#modal').innerHTML = `<div class="dialoog groot"><h3>🛒 Wat heb je nodig?</h3>
+    <input class="veld" id="bsKiesZoek" placeholder="🔎 Zoek een artikel…" oninput="bsKiesZoek=this.value;bsKiezerLijst()" autocomplete="off">
+    <div id="bsKiesLijst" class="bsKiesLijst"></div>
+    <button class="knop licht" style="margin-top:8px" onclick="bsFormulier(null,null,$('#bsKiesZoek').value)">＋ Staat er niet tussen: iets nieuws aanvragen</button>
+    <div class="rij"><button class="knop licht" onclick="$('#modal').classList.remove('open')">Annuleren</button></div></div>`;
+  $('#modal').classList.add('open'); bsKiezerLijst(); setTimeout(() => $('#bsKiesZoek')?.focus(), 80);
+}
+function bsKiezerLijst() {
+  const el = $('#bsKiesLijst'); if (!el) return;
+  const z = normTekst(bsKiesZoek), n = bsGebruik();
+  const l = bsArtikelen().filter(a => !z || normTekst([a.naam, a.omschrijving, a.winkel, a.artikelnummer, BS_CAT.find(c => c[0] === a.categorie)?.[1]].join(' ')).includes(z));
+  if (!bsArtikelen().length) { el.innerHTML = '<p class="hint">De artikellijst is nog leeg. Vraag iets nieuws aan; als het besteld wordt, komt het in de lijst zodat je het de volgende keer kunt aanklikken.</p>'; return; }
+  if (!l.length) { el.innerHTML = `<p class="hint">Niets gevonden voor "${esc(bsKiesZoek)}". Vraag het hieronder als iets nieuws aan.</p>`; return; }
+  const vaak = !z ? l.filter(a => n[a.id] >= 2).sort((a, b) => n[b.id] - n[a.id]).slice(0, 6) : [];
+  const per = new Map(); l.forEach(a => { const c = a.categorie || 'overig'; per.set(c, [...(per.get(c) || []), a]); });
+  const regel = a => `<button class="bsArtRegel" onclick="bsAanvraagArtikel('${a.id}')"><b>${esc(a.naam)}</b><small>${[a.eenheid, a.winkel || bsDomein(a.link), a.prijs != null && a.prijs !== '' ? '≈ ' + geld(a.prijs) : ''].filter(Boolean).map(esc).join(' · ')}</small></button>`;
+  el.innerHTML = (vaak.length ? `<div class="bsKiesKop">⭐ Vaak aangevraagd</div>${vaak.map(regel).join('')}` : '')
+    + BS_CAT.filter(([c]) => per.has(c)).map(([c, t]) => `<div class="bsKiesKop">${t}</div>${per.get(c).sort((a, b) => a.naam.localeCompare(b.naam, 'nl')).map(regel).join('')}`).join('');
+}
+async function bsAanvraagArtikel(artId) {
+  const a = (S.bestel_artikelen || []).find(x => x.id === artId); if (!a || !magBestellen()) return;
+  const machines = (S.machines || []).slice().sort((x, y) => String(x.naam).localeCompare(String(y.naam), 'nl'));
+  const w = await formulier(`🛒 ${a.naam}`, [
+    ...(a.omschrijving ? [{type: 'uitleg', waarde: esc(a.omschrijving)}] : []),
+    {k: 'aantal', label: `Hoeveel${a.eenheid ? ` (${a.eenheid})` : ''}?`, type: 'number', waarde: 1},
+    {k: 'toelichting', label: 'Waarvoor? (optioneel)', type: 'textarea', waarde: ''},
+    {k: 'nodig_op', label: 'Uiterlijk nodig op', type: 'date', waarde: ''},
+    {k: 'spoed', label: 'Haast?', type: 'select', waarde: 'nee', opties: [['nee', 'Normaal'], ['ja', '🔥 Spoed']]},
+    ...(machines.length ? [{k: 'machine_id', label: 'Voor welke machine? (optioneel)', type: 'select', waarde: '', opties: [['', '— geen —'], ...machines.map(m => [m.id, m.naam])]}] : [])], 'Aanvragen');
+  if (!w) return;
+  const al = (S.bestellingen || []).find(x => BS_OPEN.includes(x.status) && x.artikel_id === artId);
+  if (al && !await bevestigJa('Staat al aangevraagd', `${al.aanvrager || 'Iemand'} heeft op ${bsDatum(al.created_at)} al ${getal(al.aantal || 1, 2)} ${al.eenheid || ''} "${al.wat}" aangevraagd (${BS_STATUS[al.status]?.[1].toLowerCase()}). Toch nog een keer aanvragen?`, 'Toch aanvragen')) return;
+  const rij = {artikel_id: artId, wat: a.naam, aantal: leesGetal(w.aantal, 1), eenheid: a.eenheid || null, categorie: a.categorie || null, toelichting: w.toelichting?.trim() || null,
+    nodig_op: w.nodig_op || null, spoed: w.spoed === 'ja', machine_id: w.machine_id || null, aangevraagd_door: me.id, aanvrager: naamMe()};
+  const {data, error} = await sb.from('bestellingen').insert(rij).select().single();
+  if (error) { toast(/artikel_id|does not exist|schema cache/i.test(error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(error), 1); return; }
+  S.bestellingen = [data, ...(S.bestellingen || [])]; bsWeergave = 'open'; render(true); toast('🛒 Aangevraagd · de goedkeurders krijgen een melding');
+}
+// beheer van de artikellijst (goedkeurders)
+let bsArtZoek = '';
+function htmlBsArtikelen() {
+  const z = normTekst(bsArtZoek), n = bsGebruik();
+  const l = (S.bestel_artikelen || []).filter(a => !z || normTekst([a.naam, a.winkel, a.artikelnummer, a.link].join(' ')).includes(z)).sort((a, b) => (b.actief !== false) - (a.actief !== false) || a.naam.localeCompare(b.naam, 'nl'));
+  return `<section class="kaartje"><h4>📚 Artikelen <small>(${bsArtikelen().length}) wat mensen kunnen aanklikken</small></h4>
+    <div class="rij" style="margin-top:0"><button class="knop" onclick="bsArtikelForm()">＋ Artikel toevoegen</button></div>
+    <input class="veld" id="bsArtZoek" placeholder="🔎 Zoek in de artikelen…" value="${esc(bsArtZoek)}" oninput="bsArtZoek=this.value;clearTimeout(window._baz);window._baz=setTimeout(()=>{render(true);const i=$('#bsArtZoek');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},300)">
+    ${l.map(a => `<div class="srRij ${a.actief === false ? 'bsUitArt' : ''}" onclick="bsArtikelForm('${a.id}')"><div class="t"><b>${esc(a.naam)}${a.actief === false ? ' <small style="display:inline">(verborgen)</small>' : ''}</b>
+      <small>${[BS_CAT.find(c => c[0] === a.categorie)?.[1], a.eenheid, a.winkel || bsDomein(a.link), a.artikelnummer && 'art. ' + a.artikelnummer, a.prijs != null && a.prijs !== '' ? geld(a.prijs) : '', n[a.id] ? `${n[a.id]}× aangevraagd` : ''].filter(Boolean).map(esc).join(' · ')}${!a.link ? ' · <b style="color:var(--rood)">nog geen link</b>' : ''}</small></div>
+      ${a.link ? `<a class="bsOpen" href="${esc(bsUrl(a.link))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗</a>` : ''}</div>`).join('') || `<p class="hint">${z ? 'Niets gevonden.' : 'Nog geen artikelen. Voeg ze hier toe, of sla een nieuwe aanvraag op via 🔗 Link toevoegen.'}</p>`}</section>`;
+}
+async function bsArtikelForm(id) {
+  if (!magKeuren()) return;
+  const a = id ? S.bestel_artikelen.find(x => x.id === id) : {eenheid: 'stuks', categorie: 'overig'}; if (!a) return;
+  const lev = [...new Set([...(S.bestel_artikelen || []).map(x => x.winkel), ...(S.bestellingen || []).map(x => x.leverancier)].filter(Boolean))];
+  const w = await formulier(id ? `✏️ ${a.naam}` : '＋ Artikel toevoegen', [
+    {k: 'naam', label: 'Naam (zoals mensen het zoeken)', waarde: a.naam || ''},
+    {k: 'categorie', label: 'Soort', type: 'select', waarde: a.categorie || 'overig', opties: BS_CAT},
+    {k: 'eenheid', label: 'Eenheid', waarde: a.eenheid || '', lijst: ['stuks', 'dozen', 'pakken', 'rollen', 'paar', 'liter', 'kg', 'meter', 'pallets']},
+    {k: 'omschrijving', label: 'Omschrijving (optioneel, bijv. maat of type)', waarde: a.omschrijving || ''},
+    {k: 'link', label: 'Link naar het product in de webshop', waarde: a.link || '', placeholder: 'https://…'},
+    {k: 'winkel', label: 'Winkel / leverancier', waarde: a.winkel || '', lijst: lev},
+    {k: 'artikelnummer', label: 'Artikelnummer (optioneel)', waarde: a.artikelnummer || ''},
+    {k: 'prijs', label: 'Prijs per stuk (€, optioneel)', type: 'number', waarde: a.prijs ?? ''},
+    ...(id ? [{k: 'actief', label: 'Zichtbaar voor iedereen?', type: 'select', waarde: a.actief === false ? 'nee' : 'ja', opties: [['ja', 'Ja, kan aangeklikt worden'], ['nee', 'Nee, verbergen']]}] : [])], 'Opslaan');
+  if (!w) return;
+  if (!w.naam?.trim()) { toast('Vul een naam in', 1); return; }
+  const rij = {naam: w.naam.trim(), categorie: w.categorie || null, eenheid: w.eenheid?.trim() || null, omschrijving: w.omschrijving?.trim() || null, link: w.link?.trim() || null,
+    winkel: w.winkel?.trim() || bsDomein(w.link) || null, artikelnummer: w.artikelnummer?.trim() || null, prijs: leesGetal(w.prijs, null), ...(id ? {actief: w.actief !== 'nee'} : {door: naamMe()})};
+  const res = id ? await sb.from('bestel_artikelen').update(rij).eq('id', id).select().single() : await sb.from('bestel_artikelen').insert(rij).select().single();
+  if (res.error) { toast(/does not exist|schema cache/i.test(res.error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(res.error), 1); return; }
+  S.bestel_artikelen = [res.data, ...(S.bestel_artikelen || []).filter(x => x.id !== res.data.id)]; render(true); toast('📚 Opgeslagen');
 }
 
 /* ---------- 8. SATELLIETBEELDEN (Sentinel-2, gratis via Earth Search) ---------- */
