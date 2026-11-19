@@ -630,6 +630,13 @@ details.szblok summary h4{margin:6px 0}
 .etOpenBand{border-radius:10px;padding:12px;text-align:center;font-size:26px;font-weight:800;margin:4px 0 8px;border:1px solid #0002}.etOpenBand small{font-size:15px;background:#fff;color:#2e7d32;border-radius:6px;padding:1px 6px;vertical-align:middle}
 .etKleuren{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 10px;max-height:34vh;overflow:auto;border:1px solid var(--rand);border-radius:10px;padding:8px}
 .etKl{display:flex;align-items:center;gap:8px;font-size:13.5px;margin:0;color:var(--tekst)}.etKl input{width:34px;height:26px;border:0;padding:0;background:none;flex:0 0 34px}
+.bsKaart{border:1px solid var(--rand);border-left:5px solid #999;border-radius:12px;padding:10px 12px;margin:8px 0;background:#fff}
+.bsKop{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.bsKop b{font-size:15.5px}
+.bsStatus{flex:0 0 auto;color:#fff;font-size:11.5px;font-weight:700;border-radius:20px;padding:3px 9px;white-space:nowrap}
+.bsKaart>small{display:block;color:var(--grijs);font-size:12.5px;margin-top:3px}.bsKaart small .rood{color:var(--rood);font-weight:700}
+.bsTekst{font-size:14px;margin-top:6px;white-space:pre-wrap}
+.bsVerloop{font-size:12.5px;color:var(--grijs);background:var(--licht);border-radius:8px;padding:6px 8px;margin-top:8px;line-height:1.5}
+.bsKnoppen{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.bsKnoppen:empty{display:none}
 .srRij.wn1{border-left:4px solid #fbc02d}.srRij.wn2{border-left:4px solid #fb8c00}.srRij.wn3{border-left:4px solid #e53935}
 .wpWrap{overflow-x:auto;margin:0 0 12px}.wpTabel{border-collapse:collapse;width:100%;min-width:720px;background:#fff;border-radius:12px;overflow:hidden;font-size:12px}
 .wpTabel th,.wpTabel td{border:1px solid #e3e8e0;padding:4px;vertical-align:top;text-align:left}.wpTabel th{background:#f3f7f1;font-weight:600}
@@ -1218,6 +1225,8 @@ const RECHTEN = [
   ['voorraad_bekijken', 'Koelcel, leveringen en terugzoeken bekijken', 'Bedrijf'],
   ['voorraad_beheren', 'Inslag, leveringen en uitval boeken', 'Bedrijf'],
   ['etiketten_printen', 'Etiketten (pallet- en boxkaarten) afdrukken', 'Bedrijf'],
+  ['bestellen', 'Iets aanvragen om te bestellen (gereedschap, onderdelen, materiaal …)', 'Bestellen'],
+  ['bestellingen_goedkeuren', 'Bestellingen goedkeuren of afkeuren en als besteld zetten', 'Bestellen'],
   ['resultaten_invoeren', 'Resultaten invoeren: rooien, kiepen, telling koelcel', 'Resultaten'],
   ['resultaten_bekijken', 'Resultaten-rapport en prognose bekijken', 'Resultaten'],
   ['resultaten_beheren', 'Resultaten beheren: SSOR inlezen, corrigeren, prognose en instellingen', 'Resultaten'],
@@ -1235,7 +1244,7 @@ const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, spuitsporen_
   middelen_beheren: false, oogst_registreren: true, oogst_bekijken: true, machines_beheren: false, kosten_bekijken: false,
   percelen_aanpassen: false, kopeinden_bewerken: true, gerooid_aangeven: true,
   plattegrond_beheren: false, ai_gebruiken: false, film_bekijken: true, film_beheren: false, exporteren: true, instellingen_beheren: false, team_beheren: false,
-  monsters_beheren: false, voorraad_bekijken: true, voorraad_beheren: false, etiketten_printen: false, resultaten_invoeren: true, resultaten_bekijken: false, resultaten_beheren: false,
+  monsters_beheren: false, voorraad_bekijken: true, voorraad_beheren: false, etiketten_printen: false, bestellen: true, bestellingen_goedkeuren: false, resultaten_invoeren: true, resultaten_bekijken: false, resultaten_beheren: false,
   blok_vandaag: true, blok_velden: true, blok_werk: true, blok_oogst: true, blok_voorraad: true, blok_mensen: true, blok_instellingen: true};
 const PERCEEL_RECHTEN = ['percelen_tekenen', 'percelen_bewerken', 'spuitsporen_bewerken', 'deelvelden_bewerken', 'percelen_uitschakelen', 'percelen_verwijderen', 'soorten_indelen', 'kopeinden_bewerken', 'plattegrond_beheren'];
 const recht = r => { if (isBeheerder()) return true; const x = {...STANDAARD, ...(mijnProfiel()?.rechten || {})}; return !!x[r] && (!PERCEEL_RECHTEN.includes(r) || !!x.percelen_aanpassen); };
@@ -4293,7 +4302,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'resprognose', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -4349,6 +4358,7 @@ function renderPaneel() {
   else if (tab === 'middelen') h = bedrijfGeladen ? htmlMiddelen() : '<p class="hint">Laden…</p>';
   else if (tab === 'voorraad') h = bedrijfGeladen ? seizoenKnop() + htmlVoorraad() : '<p class="hint">Laden…</p>';
   else if (tab === 'etiketten') h = bedrijfGeladen ? htmlEtiketten() : '<p class="hint">Laden…</p>';
+  else if (tab === 'bestellingen') h = htmlBestellingen();
   else if (tab === 'waarnemingen') h = htmlWaarnemingen();
   else if (tab === 'monsters') h = htmlMonstersAlle();
   else if (tab === 'vruchtwisseling') h = htmlVruchtwisselingAlle();
@@ -6078,11 +6088,11 @@ function sectieTabsBasis(s) {
     vandaag: [['vandaag', '☀️', 'Vandaag'], ...(ziet('historie_bekijken') ? [['gebeurtenissen', '🔔', 'Gebeurtenissen']] : []), ...(ziet('historie_bekijken') || isBeheerder() ? [['wijzigingen', '↶', 'Wijzigingen']] : [])],
     velden: [['percelen', '🗺️', 'Kaart'], ['watstaatwaar', '🌱', 'Wat staat waar'], ['partijen', '🏷️', 'Partijen'], ['prognose', '📈', 'Prognose'], ['plantplan', '🧮', 'Plantplan'], ['vruchtwisseling', '🔄', 'Wisseling'], ['waarnemingen', '🐛', 'Ziektes'], ['monsters', '🧪', 'Monsters']],
     werk: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['teeltplan', '📊', 'Teeltplanning'], ['plantzaai', '🌱', 'Planten en zaaien'], ['rooiplanning', '🚜', 'Rooiplanning'], ['spuiten', '🧪', 'Spuiten'], ['bemesten', '🌱', 'Bemesten'],
-      ...(trek ? [['tractoren', '🚜', 'Trekkers']] : []), ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : [])],
+      ...(trek ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : [])],
     oogst: resIn ? [['resinvoer', '✍️', 'Invoer'], ['reskiep', '🧺', 'Kieplijst'], ...(resBek ? [['resrapport', '📊', 'Rapport'], ['resprognose', '📈', 'Prognose']] : []), ['respoten', '🌱', 'Poten'],
       ['reskisten', '📦', 'Kistjes'], ...(magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])] : [],
-    voorraad: [...(ziet('voorraad_bekijken') || mag('voorraad_beheren') ? [['voorraad', '❄️', 'Koelcel']] : []), ...(ziet('voorraad_bekijken') || magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ['middelen', '🧪', 'Middelen']],
-    mensen: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Uren'], ...(magTeam() ? [['team', '👥', 'Team']] : [])],
+    voorraad: [...(ziet('voorraad_bekijken') || mag('voorraad_beheren') ? [['voorraad', '❄️', 'Koelcel']] : []), ...(ziet('voorraad_bekijken') || magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ['middelen', '🧪', 'Middelen']],
+    mensen: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Uren'], ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])],
     instellingen: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ['dossier', '📁', 'Bio-dossier'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])],
     werken: [['percelen', '🗺️', 'Kaart'], ['taken', '📋', 'Taken'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
     spuiten: [['spuittaken', '📋', 'Taken'], ['spuitregister', '📒', 'Spuitregister'], ['middelen', '🧪', 'Middelen']],
@@ -6092,7 +6102,7 @@ function sectieTabsBasis(s) {
     resultaten: [['resinvoer', '✍️', 'Invoer'], ...(ziet('resultaten_bekijken') || mag('resultaten_beheren') ? [['resrapport', '📊', 'Rapport'], ['resprognose', '📈', 'Prognose']] : []), ['respoten', '🌱', 'Poten'], ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])],
     taken: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['rooiplanning', '🚜', 'Rooiplanning'], ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek'], ['gebeurtenissen', '🔔', 'Gebeurtenissen']] : []), ['uren', '⏱️', 'Uren']],
     percelen: [['percelen', '🗺️', 'Kaart'], ['partijen', '🏷️', 'Partijen'], ['prognose', '📈', 'Prognose'], ['plantplan', '🧮', 'Plantplan'], ['vruchtwisseling', '🔄', 'Wisseling'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
-    persoonlijk: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Mijn uren']],
+    persoonlijk: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Mijn uren'], ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : [])],
     beheer: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['dossier', '📁', 'Bio-dossier'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])]
   })[s] || [];
 }
@@ -8633,7 +8643,7 @@ const TAB_INFO = {
   resinvoer: ['✍️', 'Invoer', 'Rooien, kiepen, telling en scans'], reskiep: ['🧺', 'Kieplijst', 'Wat er nog gekiept moet worden'],
   resrapport: ['📊', 'Rapport', 'Resultaat ten opzichte van de prognose'], resprognose: ['📈', 'Prognose', 'Verwachting per partij'],
   respoten: ['🌱', 'Poten', 'Het basisbestand per partij'], reskisten: ['📦', 'Kistjes', 'Planten per kistje per kwaliteit'],
-  resinstel: ['⚙️', 'Instellingen', 'Kwaliteiten, wagens en grenzen'], voorraad: ['❄️', 'Koelcel', 'Wat er ligt, leveringen en terugzoeken'], etiketten: ['🏷️', 'Etiketten', 'Pallet- en boxkaarten afdrukken en scannen'],
+  resinstel: ['⚙️', 'Instellingen', 'Kwaliteiten, wagens en grenzen'], voorraad: ['❄️', 'Koelcel', 'Wat er ligt, leveringen en terugzoeken'], etiketten: ['🏷️', 'Etiketten', 'Pallet- en boxkaarten afdrukken en scannen'], bestellingen: ['🛒', 'Bestellen', 'Iets aanvragen; goedkeuren en bijhouden'],
   middelen: ['🧪', 'Middelen', 'Gewasbescherming en meststoffen op voorraad'], mij: ['👤', 'Mijn gegevens', 'Gegevens, wachtwoord en ziek melden'],
   uren: ['⏱️', 'Uren', 'Klok, uren en correctieverzoeken'], team: ['👥', 'Team', 'Accounts en rechten'],
   bedrijf: ['📦', 'Bedrijf', 'Middelen, machines, oogst en kosten'], soorten: ['🌱', 'Planten', 'Gewassen en rassen'],
@@ -8647,7 +8657,8 @@ function blokTellers() {
   return {taken: open.length, tractoren: S.tractoren.filter(isLive).length || '', uren: S.taken.filter(t => t.bezig_door && !t.klaar).length || '',
     rooiplanning: (S.rooiplanning || []).filter(r => r.datum >= vandaag()).length || '', plantzaai: (S.plantplanning || []).filter(x => x.status === 'gepland').length || '', reskiep: kiepLijst().reduce((a, y) => a + y.nog, 0) || '',
     spuiten: open.filter(t => { try { return isSpuitTaak(t); } catch { return false; } }).length || '', waarnemingen: (S.waarnemingen || []).filter(x => x.status !== 'behandeld').length || '',
-    gebeurtenissen: (S.gebeurtenissen || []).filter(g => new Date(g.tijd) >= vandaagBegin()).length || ''};
+    gebeurtenissen: (S.gebeurtenissen || []).filter(g => new Date(g.tijd) >= vandaagBegin()).length || '',
+    bestellingen: (magKeuren() ? bsTeKeuren().length : (S.bestellingen || []).filter(b => bsEigen(b) && BS_OPEN.includes(b.status)).length) || ''};
 }
 function htmlBlokOverzicht(s) {
   const tel = blokTellers();
@@ -10606,6 +10617,7 @@ async function laadBedrijf() {
     const ids = Object.keys(som).filter(k => som[k] > .5); if (ids.length) { const {data} = await sb.from('partijen').select('*').in('id', ids.slice(0, 300)); if (data) pa.push(...data); } }
   S.rooiplanning = rp || []; S.plantplanning = ppl || []; laadKlok(); laadResultaten().then(() => { if (/^res|gebeurtenissen|uren|mij/.test(tab)) render(true); }); setTimeout(() => rooiSyncRollen().catch(() => {}), 1500);
   S.partijen = pa || []; partijenVanSporen(); S.monsters = mo || []; S.partij_mutaties = pm || []; S.waarnemingen = wn || []; S.plantbehoefte = pb || [];
+  laadBestellingen();
   S.middelen = md || []; S.oogst = oo || []; S.machines = ma || []; S.machine_log = ml || []; S.kosten = ko || []; S.meldingen = me2 || [];
   bedrijfGeladen = !!md;
 }
@@ -11990,7 +12002,7 @@ function openMeldingen() {
   const kanMelden = 'Notification' in window, aan = kanMelden && Notification.permission === 'granted';
   $('#modal').innerHTML = `<div class="dialoog groot"><h3>🔔 Meldingen</h3>
     ${w.map(x => `<div class="melding let" ${x.klik ? `onclick="$('#modal').classList.remove('open');${x.klik}"` : ''}><span>${x.icoon}</span><div>${x.tekst}</div></div>`).join('')}
-    ${lijst.map(m => `<div class="melding ${m.gelezen ? '' : 'nieuw'}" onclick="meldingKlik('${m.id}')"><span>${m.soort === 'taak' ? '📋' : '🔔'}</span><div>${esc(m.tekst)}<small>${new Date(m.created_at).toLocaleString('nl-NL', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'})}</small></div></div>`).join('')}
+    ${lijst.map(m => `<div class="melding ${m.gelezen ? '' : 'nieuw'}" onclick="meldingKlik('${m.id}')"><span>${m.soort === 'taak' ? '📋' : m.soort === 'bestelling' ? '🛒' : '🔔'}</span><div>${esc(m.tekst)}<small>${new Date(m.created_at).toLocaleString('nl-NL', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'})}</small></div></div>`).join('')}
     ${!w.length && !lijst.length ? '<p class="hint">Geen meldingen.</p>' : ''}
     ${kanMelden && !aan ? `<button class="knop licht" onclick="meldingenAanzetten()">🔔 Meldingen op dit apparaat aanzetten</button>` : ''}
     ${magInstellingen() ? `<button class="knop licht" onclick="weerInstellingen()">⚙️ Vorst- en spuitweer-waarschuwingen instellen</button>` : ''}
@@ -12001,7 +12013,8 @@ async function meldingKlik(id) {
   const m = S.meldingen.find(x => x.id === id); if (!m) return;
   $('#modal').classList.remove('open');
   if (!m.gelezen) { m.gelezen = true; belTeken(); sb.from('meldingen').update({gelezen: true}).eq('id', id).then(() => {}); }
-  if (m.taak_id && S.taken.find(t => t.id === m.taak_id)) { zetTab('taken'); focusTaak(m.taak_id); }
+  if (m.soort === 'bestelling') { if (typeof verbergMenu === 'function' && $('#hoofdmenu.open')) verbergMenu(); bsWeergave = 'open'; zetTab('bestellingen'); }
+  else if (m.taak_id && S.taken.find(t => t.id === m.taak_id)) { zetTab('taken'); focusTaak(m.taak_id); }
   else if (m.perceel_id && perceel(m.perceel_id)) kies(m.perceel_id);
 }
 async function allesGelezen() {
@@ -13385,6 +13398,148 @@ function etVerklein(f) {   // logo verkleinen tot max. 480 px breed (blijft sche
 }
 
 document.head.insertAdjacentHTML('beforeend', `<style>${ET_CSS}</style>`);
+
+/* ================================================================
+   BESTELLEN: iemand vraagt iets aan (gereedschap, onderdeel, materiaal …), een goedkeurder keurt het goed of af,
+   daarna: besteld → binnen. Aanvrager en goedkeurders krijgen een melding (via de database).
+   ================================================================ */
+const BS_STATUS = {aangevraagd: ['⏳', 'Wacht op goedkeuring', '#f9a825'], goedgekeurd: ['✅', 'Goedgekeurd', '#43a047'], afgekeurd: ['❌', 'Afgekeurd', '#e53935'],
+  besteld: ['📦', 'Besteld', '#1e88e5'], binnen: ['📥', 'Binnen', '#6d4c41'], geannuleerd: ['↩️', 'Ingetrokken', '#9e9e9e']};
+const BS_CAT = [['gereedschap', '🔧 Gereedschap'], ['onderdelen', '⚙️ Onderdelen / machines'], ['middelen', '🧪 Gewasbescherming / meststoffen'], ['fust', '📦 Fust / verpakking'],
+  ['teelt', '🌱 Teeltmateriaal (folie, potgrond, trays …)'], ['kleding', '🦺 Werkkleding / PBM'], ['kantoor', '☕ Kantoor / kantine'], ['overig', '📌 Overig']];
+const BS_OPEN = ['aangevraagd', 'goedgekeurd', 'besteld'];
+let bsWeergave = 'open', bsZoek = '';
+// zelfde regel als in de database: standaard mag iedereen aanvragen, behalve een gedeeld apparaat (tenzij aangezet)
+const magBestellen = () => !archief && !!me && (isBeheerder() || (mijnProfiel()?.rechten?.bestellen ?? !isApparaat()));
+const magKeuren = () => mag('bestellingen_goedkeuren');
+const bsEigen = b => b.aangevraagd_door === me?.id && (!isApparaat() || !b.aanvrager || b.aanvrager === naamMe());
+async function laadBestellingen() {
+  const {data, error} = await sb.from('bestellingen').select('*').order('created_at', {ascending: false}).limit(500);
+  S.bestellingen = error ? (S.bestellingen || []) : (data || []);
+  if (tab === 'bestellingen' || $('#hoofdmenu.open')) render(true);
+}
+const bsTeKeuren = () => (S.bestellingen || []).filter(b => b.status === 'aangevraagd' && (!bsEigen(b) || isBeheerder()));
+const bsBedrag = b => b.prijs != null && b.prijs !== '' ? geld((+b.prijs || 0) * (+b.aantal || 1)) : '';
+const bsDatum = d => d ? new Date(String(d).length <= 10 ? d + 'T12:00' : d).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'}) : '';
+function bsKaart(b) {
+  const [ic, lab, kl] = BS_STATUS[b.status] || ['', b.status, '#999'], keur = magKeuren(), eigen = bsEigen(b);
+  const knop = (t, f, soort = 'licht') => `<button class="knop ${soort} klein" onclick="event.stopPropagation();${f}">${t}</button>`;
+  const machine = b.machine_id && (S.machines || []).find(m => m.id === b.machine_id), cat = BS_CAT.find(c => c[0] === b.categorie)?.[1];
+  const verloop = [
+    b.beoordeeld_door && `${b.status === 'afgekeurd' ? '❌ Afgekeurd' : '✅ Goedgekeurd'} door ${esc(b.beoordeeld_door)} · ${bsDatum(b.beoordeeld_op)}${b.reden ? ` · <i>${esc(b.reden)}</i>` : ''}`,
+    b.besteld_door && `📦 Besteld door ${esc(b.besteld_door)} · ${bsDatum(b.besteld_op)}${b.leverancier ? ' bij ' + esc(b.leverancier) : ''}${b.bestelnummer ? ' · #' + esc(b.bestelnummer) : ''}${b.verwacht_op ? ' · verwacht ' + bsDatum(b.verwacht_op) : ''}`,
+    b.binnen_door && `📥 Binnen gemeld door ${esc(b.binnen_door)} · ${bsDatum(b.binnen_op)}`,
+    b.status === 'geannuleerd' && `↩️ Ingetrokken${b.reden ? ` · <i>${esc(b.reden)}</i>` : ''}`].filter(Boolean);
+  const telaat = b.nodig_op && BS_OPEN.includes(b.status) && b.nodig_op < vandaag();
+  return `<div class="bsKaart" style="border-left-color:${kl}">
+    <div class="bsKop"><b>${b.spoed ? '🔥 ' : ''}${b.aantal != null ? `${getal(b.aantal, 2)} ${esc(+b.aantal === 1 && b.eenheid === 'stuks' ? 'stuk' : b.eenheid || '')} ` : ''}${esc(b.wat)}</b><span class="bsStatus" style="background:${kl}">${ic} ${lab}</span></div>
+    <small>${[cat, `door ${esc(b.aanvrager || '?')}`, bsDatum(b.created_at), b.nodig_op && `<span class="${telaat ? 'rood' : ''}">nodig ${bsDatum(b.nodig_op)}</span>`, bsBedrag(b) && '≈ ' + bsBedrag(b), machine && '🚜 ' + esc(machine.naam)].filter(Boolean).join(' · ')}</small>
+    ${b.toelichting ? `<div class="bsTekst">💬 ${esc(b.toelichting)}</div>` : ''}
+    ${b.leverancier && !b.besteld_door ? `<small>🏪 ${esc(b.leverancier)}</small>` : ''}${b.link ? `<small><a href="${esc(/^https?:\/\//i.test(b.link) ? b.link : 'https://' + b.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 ${esc(b.link.replace(/^https?:\/\//i, '').slice(0, 50))}</a></small>` : ''}
+    ${fotoRij(b.fotos)}
+    ${verloop.length ? `<div class="bsVerloop">${verloop.join('<br>')}</div>` : ''}
+    <div class="bsKnoppen">
+      ${keur && b.status === 'aangevraagd' && (!eigen || isBeheerder()) ? knop('✅ Goedkeuren', `bsZet('${b.id}','goedgekeurd')`, '') + knop('❌ Afkeuren', `bsZet('${b.id}','afgekeurd')`) : ''}
+      ${keur && ['goedgekeurd', 'besteld'].includes(b.status) ? knop(b.status === 'besteld' ? '✏️ Bestelgegevens' : '📦 Besteld', `bsBesteld('${b.id}')`, b.status === 'besteld' ? 'licht' : '') : ''}
+      ${(keur || eigen) && ['goedgekeurd', 'besteld'].includes(b.status) ? knop('📥 Binnen', `bsZet('${b.id}','binnen')`) : ''}
+      ${keur && b.status === 'afgekeurd' && (!eigen || isBeheerder()) ? knop('↺ Toch goedkeuren', `bsZet('${b.id}','goedgekeurd')`) : ''}
+      ${eigen && b.status === 'aangevraagd' ? knop('✏️ Aanpassen', `bsFormulier('${b.id}')`) : ''}
+      ${(eigen || isBeheerder()) && ['aangevraagd', 'goedgekeurd'].includes(b.status) ? knop('↩️ Intrekken', `bsZet('${b.id}','geannuleerd')`) : ''}
+      ${magBestellen() && ['binnen', 'afgekeurd', 'geannuleerd'].includes(b.status) ? knop('🔁 Opnieuw aanvragen', `bsFormulier(null,'${b.id}')`) : ''}
+    </div></div>`;
+}
+function htmlBestellingen() {
+  if (!S.bestellingen) { laadBestellingen(); return '<p class="hint">Laden…</p>'; }
+  const alle = S.bestellingen, keur = magKeuren(), z = normTekst(bsZoek);
+  const pas = b => !z || normTekst([b.wat, b.aanvrager, b.toelichting, b.leverancier, b.bestelnummer, BS_CAT.find(c => c[0] === b.categorie)?.[1]].join(' ')).includes(z);
+  const sorteer = l => l.slice().sort((a, b) => (b.spoed - a.spoed) || String(a.nodig_op || '9').localeCompare(String(b.nodig_op || '9')) || String(b.created_at).localeCompare(String(a.created_at)));
+  const groep = (titel, l, leeg = '') => l.length ? `<section class="kaartje"><h4>${titel} <small>(${l.length})</small></h4>${sorteer(l).map(bsKaart).join('')}</section>` : leeg;
+  const tk = bsTeKeuren(), mijnOpen = alle.filter(b => bsEigen(b) && BS_OPEN.includes(b.status)).length;
+  const tabs = [['open', '📋', `Open (${alle.filter(b => BS_OPEN.includes(b.status)).length})`], ['mijn', '👤', 'Mijn aanvragen'], ['klaar', '✔️', 'Afgerond']];
+  let h = `<section class="kaartje"><h4>🛒 Bestellen <small>iets nodig? vraag het hier aan</small></h4>
+    ${magBestellen() ? `<button class="knop" onclick="bsFormulier()">＋ Iets aanvragen</button>` : '<p class="hint">Je kunt hier niets aanvragen. Vraag een beheerder om het recht "Iets aanvragen om te bestellen".</p>'}
+    ${keur && tk.length ? `<div class="fgStatus" style="margin-top:10px">⏳ <b>${tk.length}</b> aanvra${tk.length === 1 ? 'ag wacht' : 'gen wachten'} op jouw goedkeuring</div>` : ''}
+    ${!keur && mijnOpen ? `<div class="fgStatus" style="margin-top:10px">Je hebt ${mijnOpen} aanvra${mijnOpen === 1 ? 'ag' : 'gen'} open staan.</div>` : ''}
+    <div class="ptabs" style="grid-template-columns:repeat(3,1fr);margin-top:10px">${tabs.map(([k, i, l]) => `<button class="${bsWeergave === k ? 'aan' : ''}" onclick="bsWeergave='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
+    <input class="veld" id="bsZoek" placeholder="🔎 Zoeken (wat, wie, leverancier…)" value="${esc(bsZoek)}" oninput="bsZoek=this.value;clearTimeout(window._bz);window._bz=setTimeout(()=>{render(true);const i=$('#bsZoek');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},300)"></section>`;
+  if (bsWeergave === 'open') {
+    const o = alle.filter(b => BS_OPEN.includes(b.status) && pas(b));
+    h += groep(keur ? '⏳ Wacht op goedkeuring' : '⏳ Aangevraagd', o.filter(b => b.status === 'aangevraagd'))
+      + groep(keur ? '✅ Goedgekeurd · nog bestellen' : '✅ Goedgekeurd', o.filter(b => b.status === 'goedgekeurd'))
+      + groep('📦 Besteld · onderweg', o.filter(b => b.status === 'besteld'));
+    if (!o.length) h += `<section class="kaartje"><p class="hint">${z ? 'Niets gevonden.' : 'Er staat niets open. 👍'}</p></section>`;
+  } else if (bsWeergave === 'mijn') {
+    const m = alle.filter(b => bsEigen(b) && pas(b));
+    h += groep('Open', m.filter(b => BS_OPEN.includes(b.status))) + groep('Afgerond', m.filter(b => !BS_OPEN.includes(b.status)).slice(0, 60));
+    if (!m.length) h += `<section class="kaartje"><p class="hint">${z ? 'Niets gevonden.' : 'Je hebt nog niets aangevraagd.'}</p></section>`;
+  } else {
+    const k = alle.filter(b => !BS_OPEN.includes(b.status) && pas(b)).sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at))).slice(0, 150);
+    h += k.length ? `<section class="kaartje"><h4>Afgerond <small>binnen, afgekeurd en ingetrokken</small></h4>${k.map(bsKaart).join('')}</section>` : `<section class="kaartje"><p class="hint">${z ? 'Niets gevonden.' : 'Nog niets afgerond.'}</p></section>`;
+  }
+  return h;
+}
+async function bsFormulier(id, kopieVan) {
+  if (!id && !magBestellen()) return;
+  const b = id ? S.bestellingen.find(x => x.id === id) : kopieVan ? {...S.bestellingen.find(x => x.id === kopieVan), fotos: [], nodig_op: null} : {aantal: 1, eenheid: 'stuks', categorie: 'overig'};
+  if (!b) return;
+  const lijst = k => [...new Set((S.bestellingen || []).map(x => x[k]).filter(Boolean))].slice(0, 40);
+  const machines = (S.machines || []).slice().sort((x, y) => String(x.naam).localeCompare(String(y.naam), 'nl'));
+  const w = await formulier(id ? '✏️ Aanvraag aanpassen' : '🛒 Iets aanvragen', [
+    {k: 'wat', label: 'Wat heb je nodig?', waarde: b.wat || '', placeholder: 'bijv. snoeischaar, V-snaar maaier, rol afdekfolie', lijst: lijst('wat')},
+    {k: 'aantal', label: 'Hoeveel', type: 'number', waarde: b.aantal ?? ''},
+    {k: 'eenheid', label: 'Eenheid', waarde: b.eenheid || 'stuks', lijst: ['stuks', 'dozen', 'pakken', 'rollen', 'paar', 'liter', 'kg', 'meter', 'pallets', ...lijst('eenheid')]},
+    {k: 'categorie', label: 'Soort', type: 'select', waarde: b.categorie || 'overig', opties: BS_CAT},
+    {k: 'toelichting', label: 'Waarvoor? (kapot, op, nieuw nodig …)', type: 'textarea', waarde: b.toelichting || ''},
+    {k: 'nodig_op', label: 'Uiterlijk nodig op', type: 'date', waarde: b.nodig_op || ''},
+    {k: 'spoed', label: 'Haast?', type: 'select', waarde: b.spoed ? 'ja' : 'nee', opties: [['nee', 'Normaal'], ['ja', '🔥 Spoed']]},
+    ...(machines.length ? [{k: 'machine_id', label: 'Voor welke machine? (optioneel)', type: 'select', waarde: b.machine_id || '', opties: [['', '— geen —'], ...machines.map(m => [m.id, m.naam])]}] : []),
+    {k: 'leverancier', label: 'Waar te koop? (optioneel)', waarde: b.leverancier || '', lijst: lijst('leverancier')},
+    {k: 'link', label: 'Link naar het product (optioneel)', waarde: b.link || '', placeholder: 'https://…'},
+    {k: 'prijs', label: 'Prijs per stuk, ongeveer (€, optioneel)', type: 'number', waarde: b.prijs ?? ''},
+    fotoVeld(id ? b.fotos : [], "📷 Foto (bijv. van het kapotte onderdeel)")], id ? 'Opslaan' : 'Aanvragen');
+  if (!w) return;
+  if (!w.wat?.trim()) { toast('Vul in wat je nodig hebt', 1); return; }
+  const rij = {wat: w.wat.trim(), aantal: leesGetal(w.aantal, null), eenheid: w.eenheid?.trim() || null, categorie: w.categorie || null, toelichting: w.toelichting?.trim() || null,
+    nodig_op: w.nodig_op || null, spoed: w.spoed === 'ja', machine_id: w.machine_id || null, leverancier: w.leverancier?.trim() || null, link: w.link?.trim() || null,
+    prijs: leesGetal(w.prijs, null), fotos: w.fotos || []};
+  if (!id) {
+    const al = (S.bestellingen || []).find(x => BS_OPEN.includes(x.status) && normTekst(x.wat) === normTekst(rij.wat));
+    if (al && !await bevestigJa('Staat al aangevraagd', `${al.aanvrager || 'Iemand'} heeft op ${bsDatum(al.created_at)} al "${al.wat}" aangevraagd (${BS_STATUS[al.status]?.[1].toLowerCase()}). Toch nog een keer aanvragen?`, 'Toch aanvragen')) { fotosOpruimen(rij.fotos, []); return; }
+    Object.assign(rij, {aangevraagd_door: me.id, aanvrager: naamMe()});
+  }
+  const res = id ? await sb.from('bestellingen').update(rij).eq('id', id).select().single() : await sb.from('bestellingen').insert(rij).select().single();
+  if (res.error) { toast(/does not exist|schema cache/i.test(res.error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : /row-level/i.test(res.error.message) ? 'Dat mag niet (meer): misschien is hij al beoordeeld' : foutTekst(res.error), 1); return; }
+  if (id) fotosOpruimen(b.fotos || [], rij.fotos);
+  S.bestellingen = [res.data, ...(S.bestellingen || []).filter(x => x.id !== res.data.id)];
+  if (!id) bsWeergave = 'open';
+  render(true); toast(id ? 'Opgeslagen' : '🛒 Aangevraagd · de goedkeurders krijgen een melding');
+}
+async function bsRpc(id, status, reden = null, extra = {}) {
+  const {data, error} = await sb.rpc('bestelling_status', {p_id: id, p_status: status, p_reden: reden, p_extra: extra, p_naam: naamMe()});
+  if (error) { toast(/Could not find|does not exist/i.test(error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(error), 1); return null; }
+  const r = Array.isArray(data) ? data[0] : data; if (r) S.bestellingen = (S.bestellingen || []).map(x => x.id === r.id ? r : x);
+  render(true); return r;
+}
+async function bsZet(id, status) {
+  const b = (S.bestellingen || []).find(x => x.id === id); if (!b) return;
+  let reden = null;
+  if (status === 'afgekeurd') { reden = (await vraag(`❌ "${b.wat}" afkeuren`, {uitleg: 'Waarom? De aanvrager krijgt dit te zien.', knop: 'Afkeuren'}))?.trim(); if (!reden) { if (reden === '') toast('Geef een reden', 1); return; } }
+  if (status === 'geannuleerd') { const r = await vraag(`↩️ "${b.wat}" intrekken`, {uitleg: 'Waarom (optioneel)?', knop: 'Intrekken'}); if (r === null || r === undefined) return; reden = r.trim() || null; }
+  const r = await bsRpc(id, status, reden);
+  if (r) toast({goedgekeurd: '✅ Goedgekeurd', afgekeurd: '❌ Afgekeurd', binnen: '📥 Binnen gemeld', geannuleerd: '↩️ Ingetrokken'}[status] || 'Opgeslagen');
+}
+async function bsBesteld(id) {
+  const b = (S.bestellingen || []).find(x => x.id === id); if (!b) return;
+  const lev = [...new Set((S.bestellingen || []).map(x => x.leverancier).filter(Boolean))];
+  const w = await formulier(`📦 Besteld: ${b.wat}`, [
+    {k: 'leverancier', label: 'Bij wie besteld?', waarde: b.leverancier || '', lijst: lev},
+    {k: 'bestelnummer', label: 'Bestel- of ordernummer (optioneel)', waarde: b.bestelnummer || ''},
+    {k: 'verwacht_op', label: 'Verwacht op', type: 'date', waarde: b.verwacht_op || ''},
+    {k: 'prijs', label: 'Prijs per stuk (€, optioneel)', type: 'number', waarde: b.prijs ?? ''}], 'Opslaan');
+  if (!w) return;
+  const r = await bsRpc(id, 'besteld', null, {leverancier: w.leverancier?.trim() || '', bestelnummer: w.bestelnummer?.trim() || '', verwacht_op: w.verwacht_op || '', prijs: w.prijs === '' ? '' : String(leesGetal(w.prijs, ''))});
+  if (r) toast('📦 Als besteld gezet · de aanvrager krijgt een melding');
+}
 
 /* ---------- 8. SATELLIETBEELDEN (Sentinel-2, gratis via Earth Search) ---------- */
 function naarUtm(lat, lng, zone) {   // WGS84 → UTM (meters)
