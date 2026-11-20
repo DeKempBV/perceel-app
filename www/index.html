@@ -4383,6 +4383,12 @@ const isVol = () => VOL_TABS.has(tab) ? !kaartErbij : kaartWeg;
 function zetTab(t) { if (TAB_ALIAS[t]) { werkSub[TAB_ALIAS[t][0]] = TAB_ALIAS[t][1]; t = TAB_ALIAS[t][0]; } if (t === 'uren' && tab !== 'uren') laadUren(); if (t !== tab) { kaartErbij = false; kaartWeg = false; } tab = t; if (t !== 'percelen') { kwast = undefined; gekozenPlant = undefined; } render(true); $('#inhoud').scrollTop = 0; }
 
 // na het laden van extra gegevens: alleen het paneel opnieuw, niet de kaart (en niet in trekkermodus)
+const veiligHtml = (f, ...a) => { try { return f(...a) || ''; } catch (e) { console.warn(e); meldFout(e); return ''; } };
+// fouten zichtbaar maken (één keer per minuut), zodat je ze kunt doorgeven
+let foutGemeld = 0;
+function meldFout(e) { const t = (e?.message || String(e || '')).slice(0, 160); if (!t || Date.now() - foutGemeld < 60000) return; foutGemeld = Date.now(); try { toast('⚠️ Foutje in de app: ' + t, 1); } catch {} }
+window.addEventListener('error', e => meldFout(e.error || e.message));
+window.addEventListener('unhandledrejection', e => { const m = String(e.reason?.message || e.reason || ''); if (!/fetch|network|Load failed|abort/i.test(m)) meldFout(e.reason); });
 function paneelVerversen() { if (typeof TM !== 'undefined' && TM.aan) return; try { renderPaneel(); } catch (e) { console.warn(e); } }
 function renderPaneel() {
   if (TAB_ALIAS[tab]) { werkSub[TAB_ALIAS[tab][0]] = TAB_ALIAS[tab][1]; tab = TAB_ALIAS[tab][0]; }
@@ -4596,7 +4602,7 @@ function opstaandHtml(p) {
 }
 /* ---- alles over het perceel op één plek ---- */
 function htmlInfo(p) {
-  return verslagenHtml(p.id) + htmlGebouw(p) + htmlInfoInhoud(p) + htmlWaterPerceel(p) + htmlOndergrond(p) + htmlBemestingPerceel(p) + htmlSatelliet(p);
+  return verslagenHtml(p.id) + htmlGebouw(p) + htmlInfoInhoud(p) + veiligHtml(htmlWaterPerceel, p) + veiligHtml(htmlOndergrond, p) + htmlBemestingPerceel(p) + htmlSatelliet(p);
 }
 function htmlInfoInhoud(p) {
   const rij = (k, v) => v === '' || v == null ? '' : `<div class="inforij"><span>${k}</span><b>${v}</b></div>`;
@@ -8406,7 +8412,7 @@ function htmlVandaag() {
       ${tegel('Trekkers live', live.length, '', "kiesSectie('werk');zetTab('tractoren')")}
       ${tegel('Gerooid vandaag', `${fmt(bakR)} bakken`, `${wagens} wagen${wagens === 1 ? '' : 's'} · ${fmt(mR)} m`, "kiesSectie('oogst');zetTab('resinvoer')")}
       ${tegel('Kiepen', `${fmt(bakK)} gekiept`, `${fmt(teKiepen)} staan nog`, "kiesSectie('oogst');zetTab('reskiep')")}</div></section>
-    ${htmlOchtend()}
+    ${veiligHtml(htmlOchtend)}
     ${letop.length ? `<section class="kaartje"><h4>⚠️ Let op (${letop.length})</h4>${letop.slice(0, 20).map(x => `<div class="resLet ${x.z} vdLet" onclick="${x.ga}">${esc(x.t)} <span>›</span></div>`).join('')}</section>` : '<section class="kaartje"><p class="hint" style="margin:0">✅ Niets bijzonders: geen waarschuwingen.</p></section>'}
     <section class="kaartje"><h4>🟡 Nu bezig (${bezig.length})</h4>${bezig.length ? bezig.map(t => taakHtml(t, true)).join('') : '<p class="hint">Niemand is nu met een taak bezig.</p>'}</section>
     <section class="kaartje"><h4>📋 Gepland voor vandaag (${gepland.length})</h4>${gepland.length ? gepland.slice(0, 25).map(t => taakHtml(t, true)).join('') : '<p class="hint">Niets gepland voor vandaag.</p>'}
