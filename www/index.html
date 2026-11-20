@@ -4085,8 +4085,10 @@ const NL_OMTREK = [[3.36, 51.37], [3.38, 51.27], [3.90, 51.20], [4.25, 51.32], [
   [4.05, 52.05], [3.55, 51.75], [3.30, 51.55]];
 function inNL(lon, lat) { let in_ = false; for (let i = 0, j = NL_OMTREK.length - 1; i < NL_OMTREK.length; j = i++) { const [xi, yi] = NL_OMTREK[i], [xj, yj] = NL_OMTREK[j];
   if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) in_ = !in_; } return in_; }
-// alleen de PDOK-foto als het hele kaartstukje in Nederland ligt (anders zie je wit over de grens)
-function tegelInNL(z, x, y) { if (z < 7) return false; const n = 2 ** z, lon = v => v / n * 360 - 180, lat = v => Math.atan(Math.sinh(Math.PI * (1 - 2 * v / n))) * 180 / Math.PI;
+// PDOK pas als je ingezoomd bent (uitgezoomd geeft het anders een lappendeken met de Esri-kaart),
+// en alleen als het hele kaartstukje in Nederland ligt (anders zie je wit over de grens)
+const PDOK_VANAF_ZOOM = 15;
+function tegelInNL(z, x, y) { if (z < PDOK_VANAF_ZOOM) return false; const n = 2 ** z, lon = v => v / n * 360 - 180, lat = v => Math.atan(Math.sinh(Math.PI * (1 - 2 * v / n))) * 180 / Math.PI;
   return [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].every(([a, b]) => inNL(lon(a), lat(b))); }
 const satTegelUrl = (z, x, y) => tegelInNL(z, x, y) ? PDOK_SAT(z, x, y) : ESRI_SAT(z, x, y);
 function initKaart() {
