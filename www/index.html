@@ -3065,7 +3065,7 @@ function alleLagen() {
     ${rij('kwOmtrek', '⬜ Omtrekken van velden', aan('_omtrek'))}
     ${rij('kwTrekkers', '🚜 Tractoren', aan('_tractoren'))}
     <div class="aiVelden" style="margin:0 0 6px 28px"><span>Grootte trekkers</span><input type="range" id="kwTrGrootte" min="0.5" max="3" step="0.25" value="${trekkerGrootte()}" style="flex:1"><b id="kwTrG">${Math.round(trekkerGrootte() * 100)}%</b></div>
-    ${typeof TM !== 'undefined' && TM.aan ? rij('kwZiektes', '🐛 Ziektes en plagen', aan('_ziektes')) + rij('kwTmVol', '🗺️ Alle velden met alle info (uit = alleen het veld waar je nu bent, de rest alleen de omtrek; lichter voor de tablet)', aan('_tmVol')) : ''}
+    ${typeof TM !== 'undefined' && TM.aan ? rij('kwZiektes', '🐛 Ziektes en plagen', aan('_ziektes')) + rij('kwTmVol', '🗺️ Alle velden met alle info (uit = alleen het veld waar je nu bent, de rest alleen de omtrek; lichter voor de tablet)', aan('_tmVol', false)) : ''}
     <div style="font-weight:700;font-size:13px;margin:10px 0 6px">🛰️ Luchtfoto</div>
     <div class="pnoSeg" style="flex-wrap:wrap">${[['esri', 'Esri (licht)'], ['pdok', 'PDOK (scherper, zwaarder)']].map(([k, l]) => `<button class="${(pdokGebruiken() ? 'pdok' : 'esri') === k ? 'aan' : ''}" onclick="zetLuchtfoto('${k}');alleLagen()">${l}</button>`).join('')}</div>
     <div style="font-weight:700;font-size:13px;margin:10px 0 6px">🌍 Ondergrond (PDOK, alleen in Nederland)</div>
@@ -4234,7 +4234,7 @@ function renderKaart() {
   laag.clearLayers(); pijlLaag.clearLayers(); tractorLaag.clearLayers();
   const toonNamen = weergave._namen !== false, toonOmtrek = weergave._omtrek !== false, toonGewas = weergave._gewasIcoon !== false;
   S.percelen.forEach(p => { if (!p?.geo) return;
-    const licht = tmAan && p.id !== TM.pid && weergave._tmVol === false;   // trekker-kaart: via 🗂️ Lagen in te stellen   // trekker-kaart: van de andere percelen alleen de omtrek en de naam (scheelt geheugen)
+    const licht = tmAan && p.id !== TM.pid && weergave._tmVol !== true;   // trekker-kaart: via 🗂️ Lagen in te stellen   // trekker-kaart: van de andere percelen alleen de omtrek en de naam (scheelt geheugen)
     try {
     const isA = p.id === actief;
     const T = typeVan(p);
