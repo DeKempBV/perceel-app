@@ -4382,6 +4382,8 @@ function kaartTonen(aan) { if (VOL_TABS.has(tab)) kaartErbij = aan; else kaartWe
 const isVol = () => VOL_TABS.has(tab) ? !kaartErbij : kaartWeg;
 function zetTab(t) { if (TAB_ALIAS[t]) { werkSub[TAB_ALIAS[t][0]] = TAB_ALIAS[t][1]; t = TAB_ALIAS[t][0]; } if (t === 'uren' && tab !== 'uren') laadUren(); if (t !== tab) { kaartErbij = false; kaartWeg = false; } tab = t; if (t !== 'percelen') { kwast = undefined; gekozenPlant = undefined; } render(true); $('#inhoud').scrollTop = 0; }
 
+// na het laden van extra gegevens: alleen het paneel opnieuw, niet de kaart (en niet in trekkermodus)
+function paneelVerversen() { if (typeof TM !== 'undefined' && TM.aan) return; try { renderPaneel(); } catch (e) { console.warn(e); } }
 function renderPaneel() {
   if (TAB_ALIAS[tab]) { werkSub[TAB_ALIAS[tab][0]] = TAB_ALIAS[tab][1]; tab = TAB_ALIAS[tab][0]; }
   const open = S.taken.filter(t => !t.klaar).length;
@@ -8064,7 +8066,7 @@ async function laadResJaren() {
     if (!klaar && !(telling && !gs) && gs && gerM && gerB && kB && totM) { eind = gs / (gerM * kB / gerB) * totM; geschat = true; }
     rijen.push({x, sz: x.seizoen_id, ras: partijRas(x) || soort(x.soort_id)?.naam || 'onbekend ras', teelt: partijTeelt(x), pid: x.perceel_id, ha: +x.ha || 0, totM, eind, geschat, perSort, gs, zonder});
   }
-  rjData = {rijen, t: Date.now()}; if (tab === 'resjaren') render(true);
+  rjData = {rijen, t: Date.now()}; if (tab === 'resjaren') paneelVerversen();
 }
 const RJ_MATEN = [['plha', 'Planten per ha'], ['plm', 'Planten per meter'], ['totaal', 'Totaal planten'], ['ha', 'Hectare'], ['beste', 'Aandeel beste sortering']];
 // de "beste" sortering: de eerste in de volgorde van de instellingen die voorkomt
@@ -8335,7 +8337,7 @@ function ochtendWeer() {
   if (!ziet('weer_bekijken')) return '';
   const p = ochtendPerceel(); if (!p) return '';
   const c = weerCache[p.id];
-  if (!c || Date.now() - c.t > 10 * 60 * 1000) { if (!window._ochtendWeer) { window._ochtendWeer = 1; setTimeout(async () => { await laadWeer(p.id); window._ochtendWeer = 0; if (tab === 'vandaag') render(true); }, 0); } }
+  if (!c || Date.now() - c.t > 10 * 60 * 1000) { if (!window._ochtendWeer) { window._ochtendWeer = 1; setTimeout(async () => { await laadWeer(p.id); window._ochtendWeer = 0; if (tab === 'vandaag') paneelVerversen(); }, 0); } }
   const d = c?.d; if (!d) return `<div class="ovRij"><span>🌦️</span><div>${c ? 'Weer is nu niet beschikbaar' : 'Weer laden…'}</div></div>`;
   const dg = d.daily || {}, nu = d.current || {}, v = vorstVan(d);
   const mor = dg.time?.length > 1 ? ` · morgen ${WEERICOON(dg.weather_code[1])} ${Math.round(dg.temperature_2m_max[1])}°/${Math.round(dg.temperature_2m_min[1])}° ${mm(dg.precipitation_sum[1])} mm` : '';
@@ -8346,6 +8348,7 @@ function ochtendWeer() {
 }
 function kiesPerceelWeer(id) { perceelTab = 'weer'; kies(id); }
 function htmlOchtend() {
+  if (typeof TM !== 'undefined' && TM.aan) return '';   // in de trekker niet nodig (en scheelt rekenwerk)
   const nu = vandaag(), r = [];
   const regel = (ic, t, s, ga, z) => r.push(`<div class="ovRij ${z || ''}"${ga ? ` onclick="${ga}"` : ''}><span>${ic}</span><div><b>${t}</b>${s ? `<small>${s}</small>` : ''}</div>${ga ? '<i>›</i>' : ''}</div>`);
   // wie doet wat vandaag
@@ -14549,7 +14552,7 @@ async function ondergrondOpzoeken(id, stil) {
   const {error} = await sb.rpc('perceel_ondergrond', {p_id: id, p_data: o});
   if (error && !stil) toast(/function|schema cache/i.test(error.message) ? 'Opgezocht, maar niet bewaard: draai eerst het nieuwe beheer.sql' : foutTekst(error), 1);
   else if (!stil) toast('✓ Bodem en hoogte bijgewerkt');
-  render(true);
+  paneelVerversen();
 }
 async function ondergrondAlle() {
   const l = S.percelen.filter(p => p.geo && p.type !== 'pand' && !p.ondergrond); if (!l.length) return;
@@ -14587,14 +14590,15 @@ async function laadBeregening() {
 const waterSleutel = (lat, lng) => `${(Math.round(lat * 50) / 50).toFixed(2)},${(Math.round(lng * 50) / 50).toFixed(2)}`;
 async function waterWeer(lat, lng) {
   const k = waterSleutel(lat, lng), c = waterCache.get(k);
-  if (c && (c.laden || Date.now() - c.t < 3 * 3600000)) return c.laden || c.d;
+  if (c && (c.laden || Date.now() - c.t < (c.fout ? 15 * 60000 : 3 * 3600000))) { if (c.fout) throw new Error('weer niet beschikbaar'); return c.laden || c.d; }
   const p = (async () => {
     const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lng.toFixed(3)}&daily=precipitation_sum,et0_fao_evapotranspiration&past_days=30&forecast_days=7&timezone=Europe%2FAmsterdam`);
     const d = await r.json(); if (d.error) throw new Error(d.reason); return d.daily;
   })();
   waterCache.set(k, {laden: p});
-  try { const d = await p; waterCache.set(k, {t: Date.now(), d}); return d; } catch (e) { waterCache.delete(k); throw e; }
+  try { const d = await p; waterCache.set(k, {t: Date.now(), d}); return d; } catch (e) { waterCache.set(k, {t: Date.now(), d: null, fout: true}); throw e; }
 }
+const waterFout = p => { if (!p?.geo) return true; const [lng, lat] = turf.centroid(p.geo).geometry.coordinates; const c = waterCache.get(waterSleutel(lat, lng)); return !!c?.fout && Date.now() - c.t < 15 * 60000; };
 const waterKlaar = p => { if (!p?.geo) return null; const [lng, lat] = turf.centroid(p.geo).geometry.coordinates; const c = waterCache.get(waterSleutel(lat, lng)); return c?.d || null; };
 const beregendOp = (pid, dag) => (S.beregening || []).filter(b => b.perceel_id === pid && b.datum === dag && b.doel !== 'spuiten').reduce((a, b) => a + (+b.mm || 0), 0);
 // de balans per dag: 30 dagen terug (start: grond op veldcapaciteit) tot 7 dagen vooruit
@@ -14606,13 +14610,16 @@ function waterBalans(p) {
   const vandaagI = dagen.findIndex(x => x.t === nu), hier = dagen[vandaagI] || dagen.filter(x => !x.toekomst).pop();
   return {dagen, nu: hier?.tekort ?? 0, straks: dagen[dagen.length - 1]?.tekort ?? 0, regen7: dagen.filter(x => x.toekomst).reduce((a, x) => a + x.regen, 0)};
 }
-const waterPercelen = () => S.percelen.filter(p => p.geo && p.type !== 'pand' && !p.uitgeschakeld && (() => { try { return plantenNu(p).size > 0; } catch { return true; } })());
-let waterLaadt = false;
+// welke percelen een teelt hebben (zwaar om uit te rekenen: 1 minuut onthouden)
+let waterPsCache = {t: 0, l: []};
+const waterPercelen = () => { if (Date.now() - waterPsCache.t > 60000 || waterPsCache.n !== S.percelen.length) waterPsCache = {t: Date.now(), n: S.percelen.length, l: S.percelen.filter(p => p.geo && p.type !== 'pand' && !p.uitgeschakeld && (() => { try { return plantenNu(p).size > 0; } catch { return true; } })())}; return waterPsCache.l; };
+let waterLaadt = false, waterGeprobeerd = 0;
 async function laadWaterAlle() {
-  if (waterLaadt || !navigator.onLine) return; waterLaadt = true;
-  try { for (const p of waterPercelen()) { if (waterKlaar(p)) continue; const [lng, lat] = turf.centroid(p.geo).geometry.coordinates; try { await waterWeer(lat, lng); } catch {} } }
+  if (waterLaadt || !navigator.onLine || Date.now() - waterGeprobeerd < 10 * 60000) return;   // hoogstens elke 10 minuten
+  waterLaadt = true; waterGeprobeerd = Date.now(); let nieuw = 0;
+  try { for (const p of waterPercelen()) { if (waterKlaar(p) || waterFout(p)) continue; const [lng, lat] = turf.centroid(p.geo).geometry.coordinates; try { await waterWeer(lat, lng); nieuw++; } catch {} } }
   finally { waterLaadt = false; }
-  if (['water', 'vandaag'].includes(tab) || (tab === 'percelen' && perceelTab === 'info')) render(true);
+  if (nieuw && ['water', 'vandaag'].includes(tab)) paneelVerversen();
 }
 const tekortKleur = mmT => mmT >= droogteGrens() ? 'var(--rood)' : mmT >= droogteGrens() * .6 ? '#ef6c00' : '#2e7d32';
 function waterGrafiek(b) {
@@ -14634,14 +14641,14 @@ function waterGrafiek(b) {
 function htmlWaterPerceel(p) {
   if (p.type === 'pand' || !ziet('weer_bekijken')) return '';
   const b = waterBalans(p);
-  if (!b) { const [lng, lat] = turf.centroid(p.geo).geometry.coordinates; setTimeout(() => waterWeer(lat, lng).then(() => { if (actief === p.id) render(true); }).catch(() => {}), 0); }
+  if (!b && !waterFout(p) && !(typeof TM !== 'undefined' && TM.aan)) { const [lng, lat] = turf.centroid(p.geo).geometry.coordinates; setTimeout(() => waterWeer(lat, lng).then(() => { if (actief === p.id && tab === 'percelen' && perceelTab === 'info') paneelVerversen(); }).catch(() => {}), 0); }
   const ber = (S.beregening || []).filter(x => x.perceel_id === p.id).slice(0, 4);
   return `<section class="kaartje infoblok"><h4>💧 Waterbalans</h4>
     ${b ? `<div class="inforij"><span>Neerslagtekort nu</span><b style="color:${tekortKleur(b.nu)}">${Math.round(b.nu)} mm</b></div>
       <div class="inforij"><span>Over 7 dagen (verwachting)</span><b style="color:${tekortKleur(b.straks)}">${Math.round(b.straks)} mm <small>(${mm(b.regen7)} mm regen verwacht)</small></b></div>
       ${waterGrafiek(b)}
       ${b.nu >= droogteGrens() ? `<p class="hint" style="margin:6px 0 0">💧 Droog: het tekort is groter dan ${droogteGrens()} mm.${p.ondergrond?.soort === 'zand' ? ' Op zand houdt de grond weinig water vast.' : ''}</p>` : ''}`
-      : '<p class="hint" style="margin:0">Laden…</p>'}
+      : `<p class="hint" style="margin:0">${waterFout(p) ? 'Weergegevens nu niet beschikbaar.' : 'Laden…'}</p>`}
     ${ber.length ? `<p class="hint" style="margin:8px 0 0">Laatst beregend: ${ber.map(x => `${datumKort(x.datum)}${x.mm ? ' ' + mm(+x.mm) + ' mm' : ''}`).join(' · ')}</p>` : ''}
     <div class="rij" style="margin-top:6px">${magBeregenen() ? `<button class="knop licht klein" onclick="beregeningForm(null,'${p.id}')">💧 Beregening registreren</button>` : ''}<button class="knop licht klein" onclick="zetTab('water')">Alle percelen ›</button></div>
     <small class="bron">Tekort = verdamping (Makkink/FAO, Open-Meteo) − regen − beregening over de laatste 30 dagen. Een schatting: kijk ook zelf in de grond.</small></section>`;
@@ -14678,7 +14685,7 @@ async function beregeningWeg(id) {
 }
 let waterJaar = new Date().getFullYear();
 function htmlWater() {
-  const ps = waterPercelen(); if (ps.some(p => !waterKlaar(p))) setTimeout(laadWaterAlle, 0);
+  const ps = waterPercelen(); if (ps.some(p => !waterKlaar(p) && !waterFout(p))) setTimeout(laadWaterAlle, 0);
   const rijen = ps.map(p => ({p, b: waterBalans(p)})).sort((a, c) => (c.b?.nu ?? -1) - (a.b?.nu ?? -1));
   const jaarR = (S.beregening || []).filter(x => String(x.datum).startsWith(String(waterJaar)));
   const m3Bron = {}; jaarR.forEach(x => { m3Bron[x.bron] = (m3Bron[x.bron] || 0) + (+x.m3 || 0); });
@@ -14716,8 +14723,8 @@ async function waterInstellingen() {
 }
 // voor het ochtendoverzicht en "Let op": percelen die te droog zijn
 function droogtePercelen() {
-  if (!ziet('weer_bekijken')) return [];
-  const ps = waterPercelen(); if (ps.some(p => !waterKlaar(p))) setTimeout(laadWaterAlle, 500);
+  if (!ziet('weer_bekijken') || (typeof TM !== 'undefined' && TM.aan)) return [];
+  const ps = waterPercelen(); if (!(typeof TM !== 'undefined' && TM.aan) && ps.some(p => !waterKlaar(p) && !waterFout(p))) setTimeout(laadWaterAlle, 500);
   return ps.map(p => ({p, b: waterBalans(p)})).filter(x => x.b && (x.b.nu >= droogteGrens() || x.b.straks >= droogteGrens())).sort((a, c) => c.b.straks - a.b.straks);
 }
 
@@ -14742,7 +14749,7 @@ async function laadWagenUren(soort, forceer) {
   wgData[sl] = {laden: true, rijen: c?.rijen};
   const {data, error} = await sb.rpc('wagen_uren', {p_soort: soort, p_van: van, p_tot: tot});
   wgData[sl] = {t: Date.now(), rijen: error ? null : (data || []), fout: error ? (/function|schema cache/i.test(error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(error)) : null};
-  if (tab === (soort === 'bus' ? 'busuren' : 'trekkeruren')) render(true);
+  if (tab === (soort === 'bus' ? 'busuren' : 'trekkeruren')) paneelVerversen();
 }
 const uurTekst = s => { const m = Math.round((+s || 0) / 60); return m < 60 ? `${m} min` : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} u`; };
 const liter = x => x == null ? '–' : (+x).toLocaleString('nl-NL', {maximumFractionDigits: x < 10 ? 1 : 0}) + ' L';
