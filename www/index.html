@@ -1000,6 +1000,19 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .ritRechts{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px}.ritRechts small{color:var(--grijs);font-size:12px}
 .ritWie{border:1px solid var(--rand);background:#fff;border-radius:14px;padding:2px 8px;font:inherit;font-size:12px;cursor:pointer;color:var(--groen);white-space:nowrap}
 .ritMensen{display:flex;flex-wrap:wrap;gap:6px}.pnoChip.aan{background:var(--groen);color:#fff;border-color:var(--groen)}.pnoChip.aan b{color:#fff}.ritPersoon h4{display:flex;align-items:center;gap:8px}
+.plDialoog{max-width:1100px!important;width:96vw}.plKop{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}.plKop>div{flex:1;min-width:240px}
+.plFoto{width:260px;max-width:100%;border-radius:8px;border:1px solid var(--rand);cursor:zoom-in}.plFoto.groot{width:100%;cursor:zoom-out}
+.plTwijfel{font-size:13px;background:#fff8e1;border-radius:8px;padding:6px 10px}.plTwijfel ul{margin:4px 0 0;padding-left:18px}
+.plOpties{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 12px;margin:8px 0;font-size:13px}.plOpties label{color:var(--grijs)}
+.plTabel{max-height:48vh;overflow:auto;border:1px solid var(--rand);border-radius:12px;padding:6px 8px;margin:6px 0}
+.plVak{border-bottom:2px solid var(--rand);padding:6px 0}.plVakKop{display:flex;align-items:center;gap:6px}.plVakKop span{font-weight:700;color:var(--grijs);font-size:13px;margin-right:auto}
+.plLetter{width:56px!important;font-weight:800;text-align:center}.plGroep{margin:4px 0 6px 12px;padding-left:8px;border-left:3px solid #cfe3c8}
+.plGroepKop{display:flex;align-items:end;gap:8px;font-size:13px}.plGroepKop label{color:var(--grijs)}.plRij{width:80px!important}.plSporen{color:var(--groen);font-weight:600;flex:1}
+.plStuk{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:end;padding:4px 0;font-size:12.5px}.plStuk label{color:var(--grijs);display:flex;flex-direction:column}.plStuk .plV{width:110px;padding:6px 8px;font-size:14px;margin:0}
+.plStuk.leeg{opacity:.75}.plNieuw{border-color:#f9a825!important;background:#fffde7!important}.plKnopjes{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0}
+.plOverzicht{background:var(--licht);border-radius:10px;padding:8px 10px;font-size:13px;margin:6px 0}.plRegels>div{display:grid;grid-template-columns:44px 120px 1fr;gap:6px;padding:2px 0;border-bottom:1px dashed #d6e2d0}
+.plLaad{height:6px;background:var(--licht);border-radius:4px;overflow:hidden;margin-top:8px}.plLaad span{display:block;height:100%;width:40%;background:var(--groen);animation:plLaad 1.4s ease-in-out infinite}
+@keyframes plLaad{0%{margin-left:-40%}100%{margin-left:100%}}
 .vdLet{cursor:pointer;display:flex;justify-content:space-between;gap:8px}.vdLet span{opacity:.6}
 .tabelScroll{overflow-x:auto}.kistTabel input.kistIn{width:90px;margin:0;padding:6px 8px}.kistTabel td,.kistTabel th{vertical-align:middle;text-align:left}
 /* ---------- kieplijst (telefoon heftruck) ---------- */
@@ -4857,6 +4870,7 @@ function htmlDetail(p) {
     ${gewasKeuze(p, true)}
   </section>`}
   ${p.type !== 'pand' && mag('deelvelden_bewerken') ? htmlVakken(p, true) : ''}
+  ${mag('soorten_indelen') && p.type !== 'pand' && p.banen_aan ? `<section class="kaartje plInleesKaart"><h4>📷 Plattegrond inlezen</h4><p class="hint" style="margin-top:0">Kies een foto of afbeelding van de plattegrond. De app leest de vakken, rijen, rassen, batches, klasse, meters en pl/m, jij controleert het, en dan worden de sporen en partijen in één keer ingedeeld.</p><button class="knop" onclick="plattegrondInlezen('${p.id}')">📷 Plattegrond kiezen</button></section>` : ''}
   ${mag('soorten_indelen') ? soortenBlok : ''}
   ${p.type !== 'pand' && mag('soorten_indelen') ? beplantingHtml(p) : ''}
   ${htmlMarkeringen(p, 'grond')}
@@ -15037,6 +15051,283 @@ async function ritOpKaart(id) {
   L.circleMarker(pts[pts.length - 1], {radius: 8, color: '#fff', weight: 3, fillColor: '#e53935', fillOpacity: 1}).bindTooltip('Eind ' + ritTijd(r.tot_tijd)).addTo(ritLaag);
   kaartTonen(true); setTimeout(() => { try { map.invalidateSize(); map.fitBounds(L.latLngBounds(pts), {padding: [40, 40]}); } catch {} }, 320);
   toast(`🛣️ ${r.bestuurder ? r.bestuurder + ' · ' : ''}${ritTijd(r.van_tijd)}–${ritTijd(r.tot_tijd)} · ${r.km != null ? fmt(+r.km, 1) + ' km' : ''}`);
+}
+
+/* =====================================================================================
+   PLATTEGROND INLEZEN: een foto/afbeelding van de perceelplattegrond → AI leest vakken,
+   rijen, rassen, batches, klasse, meters en pl/m → jij controleert → sporen en partijen
+   worden in één keer ingedeeld.
+   ===================================================================================== */
+let PL = null;   // {pid, zid, sid, vakken, perceel, startOnder, lengteRechts, overslaan, ...}
+const PL_PROMPT = `Je krijgt een perceelplattegrond van een akkerbouw-/aardbeienbedrijf (een luchtfoto met daarop getekende vakken en tekst).
+Beeld 1 is de hele plattegrond; eventuele volgende beelden zijn uitvergrote stukken (links en rechts) van dezelfde plattegrond, zodat je kleine tekst beter kunt lezen.
+
+Lees de plattegrond en geef ALLEEN dit JSON-object terug:
+{
+  "perceel": {"naam": tekst of null, "nummer": tekst of null, "richting_gps": getal of null, "bruto_ha": getal of null, "rijbreedte_m": getal of null, "jaar": tekst of null},
+  "vakken": [
+    {"letter": "A", "groepen": [
+      {"rijen": getal, "stukken": [
+        {"lengte_m": getal of null, "leeg": true/false, "ras": tekst of null, "teelt": tekst of null, "batch": tekst of null, "klasse": tekst of null, "pl_per_m": getal of null, "m2": getal of null, "opmerking": tekst of null}
+      ]}
+    ]}
+  ],
+  "twijfel": [korte zinnen over wat je niet zeker weet]
+}
+
+Regels:
+- Vakken in de volgorde zoals ze op de tekening liggen, van BOVEN naar ONDER (of, als de vakken naast elkaar liggen, van LINKS naar RECHTS). Gebruik de letter die erbij staat (A, B, C …); staat er geen letter, nummer ze zelf.
+- Een "rij" is één plantrij/spoor (meestal 1,5 m breed). "rijen" is het aantal rijen naast elkaar in die groep; halve rijen (bijv. 8,5) mogen.
+- Een vak kan uit meerdere GROEPEN bestaan als een deel van de rijen iets anders heeft (bijv. een smalle strook van 5 rijen met een eigen tekst boven de rest van het vak, of "15 rijen" van het ene en "5 rijen" van het andere). Groepen in volgorde van boven naar onder. Tel niet dubbel: als er bij een vak "20 rijen" staat en daarbinnen een strook van 5 rijen met een eigen tekst, dan is het 5 + 15.
+- Binnen een groep kunnen STUKKEN achter elkaar in de lengte liggen (bijv. de eerste 176 m het ene ras/batch, daarna een ander). Stukken van LINKS naar RECHTS. "lengte_m" = de lengte langs de rij (niet het totaal van alle rijen samen). Is er maar één stuk, dan is lengte_m de rijlengte die erbij staat (bijv. "432 m").
+- Lege rijen ("leeg", "5 rijen leeg", geen beplanting): leeg = true en ras/batch null.
+- "ras" = alleen de rasnaam zoals geschreven (bijv. "Rumba", "Cadenza", "Flair"), zonder het woord frigo/vers/tray. Zet "frigo", "vers", "tray", "wachtbed" e.d. in "teelt".
+- "batch" = het batch-/partijnummer (meestal 6 cijfers, bijv. 260046). "klasse" = de klasse/code zoals CM, BM5, S, SE, E, A (precies overnemen).
+- "pl_per_m" = planten per meter (bijv. "2,7 pl/m" → 2.7). Geldt een pl/m voor het hele vak, zet hem dan bij alle stukken van dat vak die geen eigen pl/m hebben.
+- Getallen met een punt als duizendtal (13.080 m2) zijn 13080; komma is decimaal (2,7 → 2.7).
+- "richting_gps" = het getal bij "Richting GPS" (graden). De perceelnaam en het nummer staan meestal in een hoek (bijv. "Swinkels 4" en "271").
+- Verzin niets: wat je niet kunt lezen wordt null, en zet het in "twijfel".`;
+
+async function plattegrondInlezen(pid = actief) {
+  const p = perceel(pid); if (!p || p.type === 'pand') { toast('Kies eerst een perceel', 1); return; }
+  if (!mag('soorten_indelen')) { toast('Je mag de planten op de sporen niet indelen', 1); return; }
+  if (!magAI()) { toast('Hiervoor heb je het recht "AI gebruiken" nodig', 1); return; }
+  const f = await kiesBestand('image/*,.png,.jpg,.jpeg,.webp'); if (!f) return;
+  $('#modal').innerHTML = `<div class="dialoog"><h3>📷 Plattegrond lezen…</h3><p class="hint">De AI leest de vakken, rijen, rassen, batches, klasse en meters. Dit duurt meestal 20 tot 60 seconden.</p><div class="plLaad"><span></span></div></div>`;
+  $('#modal').classList.add('open');
+  try {
+    const {beelden, voorbeeld} = await plBeelden(f);
+    const {data, error} = await sb.functions.invoke('ai-plattegrond', {body: {beelden, tekst: PL_PROMPT}});
+    let fout = error ? (await error.context?.json?.().catch(() => null))?.fout || error.message : data?.fout;
+    if (fout) { if (/not found|404|Failed to send/i.test(fout)) fout = 'De functie "ai-plattegrond" staat nog niet in Supabase (Edge Functions). Zie de uitleg bij deze update.'; throw new Error(fout); }
+    const j = plJson(data?.antwoord);
+    if (!j?.vakken?.length) throw new Error('De AI kon geen vakken vinden op deze afbeelding');
+    PL = plNormaliseer(j, p); PL.voorbeeld = voorbeeld; PL.bestand = f.name;
+    plTeken();
+  } catch (e) {
+    $('#modal').innerHTML = `<div class="dialoog"><h3>📷 Plattegrond lezen</h3><p>⚠️ ${esc(e.message || String(e))}</p><div class="rij"><button class="knop licht" onclick="$('#modal').classList.remove('open')">Sluiten</button><button class="knop" onclick="plattegrondInlezen('${pid}')">Opnieuw</button></div></div>`;
+  }
+}
+// de afbeelding verkleinen tot iets wat de AI goed kan lezen, plus uitvergrote linker- en rechterhelft
+async function plBeelden(f) {
+  const url = URL.createObjectURL(f);
+  try {
+    const img = await new Promise((ok, nee) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => nee(new Error('Dit bestand kan niet als afbeelding gelezen worden')); i.src = url; });
+    const W = img.naturalWidth, H = img.naturalHeight;
+    const maak = (sx, sy, sw, sh, max) => { const s = Math.min(max / Math.max(sw, sh), 3), c = document.createElement('canvas'); c.width = Math.round(sw * s); c.height = Math.round(sh * s);
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.imageSmoothingQuality = 'high'; g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', .9); };
+    const beelden = [maak(0, 0, W, H, 1900)];
+    if (W >= 900 && W > H) { const half = W * .56; beelden.push(maak(0, 0, half, H, 1700), maak(W - half, 0, half, H, 1700)); }
+    else if (H >= 900) { const half = H * .56; beelden.push(maak(0, 0, W, half, 1700), maak(0, H - half, W, half, 1700)); }
+    return {beelden, voorbeeld: maak(0, 0, W, H, 900)};
+  } finally { URL.revokeObjectURL(url); }
+}
+function plJson(t) {
+  if (!t) return null; if (typeof t === 'object') return t;
+  try { return JSON.parse(t); } catch {}
+  const a = t.indexOf('{'), b = t.lastIndexOf('}'); if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch {} }
+  return null;
+}
+const plGetal = v => { if (v == null || v === '') return null; if (typeof v === 'number') return isFinite(v) ? v : null;
+  let s = String(v).replace(/[^\d,.\-]/g, ''); if (/\.\d{3}(\D|$)/.test(s) && !/,/.test(s)) s = s.replace(/\./g, ''); s = s.replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'); const n = parseFloat(s); return isFinite(n) ? n : null; };
+// ras uit de tekst: bestaand ras van de gekozen plant (ook bij een tikfoutje of meervoud), anders nieuw
+function plRasZoek(naam, sid) {
+  const n = normTekst(naam || '').replace(/\b(frigo|vers|tray|trays|wachtbed|stek|stekken)\b/g, '').trim(); if (!n) return null;
+  const l = (sid ? rassenVan(sid) : S.rassen).map(r => ({r, k: normTekst(r.naam)}));
+  const exact = l.find(x => x.k === n) || l.find(x => x.k === n.replace(/s$/, '')) || l.find(x => x.k.replace(/s$/, '') === n);
+  if (exact) return exact.r;
+  const afst = (a, b) => { const d = Array.from({length: b.length + 1}, (_, i) => i); for (let i = 1; i <= a.length; i++) { let v = d[0]; d[0] = i; for (let j = 1; j <= b.length; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, v + (a[i - 1] === b[j - 1] ? 0 : 1)); v = t; } } return d[b.length]; };
+  const best = l.map(x => ({...x, d: afst(x.k, n)})).sort((a, b) => a.d - b.d)[0];
+  return best && best.d <= Math.max(1, Math.floor(n.length / 5)) ? best.r : null;
+}
+function plNormaliseer(j, p) {
+  const pr = j.perceel || {};
+  // welke plant: de plant waarvan de meeste rassen herkend worden, anders de plant die nu op het perceel staat, anders aardbei
+  const namen = (j.vakken || []).flatMap(v => (v.groepen || []).flatMap(g => (g.stukken || []).map(s => s.ras))).filter(Boolean);
+  const telPlant = new Map(); namen.forEach(n => { const r = plRasZoek(n, null); if (r) telPlant.set(r.soort_id, (telPlant.get(r.soort_id) || 0) + 1); });
+  let sid = [...telPlant.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (!sid) { try { sid = [...plantenNu(p)][0]; } catch {} }
+  if (!sid) sid = S.soorten.find(s => /aardbei/i.test(s.naam))?.id || S.soorten[0]?.id || null;
+  const vakken = (j.vakken || []).map((v, vi) => ({letter: String(v.letter || String.fromCharCode(65 + vi)).slice(0, 4),
+    groepen: (v.groepen?.length ? v.groepen : [{rijen: v.rijen, stukken: v.stukken || []}]).map(g => ({rijen: plGetal(g.rijen) ?? 0,
+      stukken: (g.stukken?.length ? g.stukken : [{leeg: true}]).map(s => {
+        const leeg = !!s.leeg || (!s.ras && !s.batch);
+        const teelt = (s.teelt || (/frigo/i.test(s.ras || '') ? 'frigo' : '') || '').toString().toLowerCase().trim() || null;
+        const r = leeg ? null : plRasZoek(s.ras, sid);
+        return {leeg, lengte: plGetal(s.lengte_m), ras: leeg ? '' : (r?.naam || String(s.ras || '').replace(/\b(frigo|vers|tray)\b/ig, '').trim()), teelt, batch: s.batch ? String(s.batch).replace(/\s/g, '') : '',
+          klasse: s.klasse ? String(s.klasse).trim().toUpperCase() : '', plm: plGetal(s.pl_per_m), m2: plGetal(s.m2), opmerking: s.opmerking || ''};
+      })}))}));
+  const zones = alleZones(p);
+  return {pid: p.id, zid: zones[0]?.id || p.id, sid, vakken, twijfel: (j.twijfel || []).map(String).slice(0, 12),
+    perceel: {naam: pr.naam || '', nummer: pr.nummer || '', richting: plGetal(pr.richting_gps), ha: plGetal(pr.bruto_ha), rijbreedte: plGetal(pr.rijbreedte_m), jaar: pr.jaar || ''},
+    startOnder: false, lengteRechts: false, overslaan: 0, metPartijen: true};
+}
+// welke sporen krijgen wat (zonder op te slaan)
+function plVerdeling() {
+  const x = PL, p = perceel(x.pid), z = zoneVan(x.pid, x.zid) || p; if (!z) return null;
+  let sporen = banenVan(z).filter(bn => { const w = rijWaarde(z, bn.nr); return w === 1 || w === .5; });
+  if (x.startOnder) sporen = sporen.slice().reverse();
+  sporen = sporen.slice(Math.max(0, parseInt(x.overslaan) || 0));
+  const uit = []; let i = 0;
+  x.vakken.forEach((v, vi) => v.groepen.forEach((g, gi) => {
+    let nodig = Math.max(0, +g.rijen || 0); const nrs = [];
+    while (nodig > .25 && i < sporen.length) { const bn = sporen[i++]; nrs.push(bn); nodig -= rijWaarde(z, bn.nr) === .5 ? .5 : 1; }
+    uit.push({vi, gi, v, g, sporen: nrs, tekort: nodig > .25 ? nodig : 0});
+  }));
+  const totaalTekening = x.vakken.reduce((a, v) => a + v.groepen.reduce((b, g) => b + (+g.rijen || 0), 0), 0);
+  const totaalPlant = sporen.reduce((a, bn) => a + (rijWaarde(z, bn.nr) === .5 ? .5 : 1), 0);
+  return {z, uit, over: sporen.slice(i), totaalTekening, totaalPlant};
+}
+const plBereik = l => { if (!l.length) return '–'; const n = l.map(bn => bn.nr).sort((a, b) => a - b), d = []; let s = n[0], e = n[0];
+  for (const k of n.slice(1)) { if (k === e + 1) e = k; else { d.push(s === e ? `${s}` : `${s}–${e}`); s = e = k; } } d.push(s === e ? `${s}` : `${s}–${e}`); return d.join(', '); };
+const plStukTekst = s => s.leeg ? 'leeg' : [s.ras || '?', s.teelt, s.batch, s.klasse].filter(Boolean).join(' ');
+function plTeken() {
+  const x = PL, p = perceel(x.pid); if (!x || !p) return;
+  const zones = alleZones(p), rasL = rassenVan(x.sid);
+  const veld = (vi, gi, si, k, w, extra = '', cls = '') => `<input class="veld plV ${cls}" ${extra} value="${esc(w ?? '')}" oninput="plZet(${vi},${gi},${si},'${k}',this.value)">`;
+  const pr = x.perceel, richtingAnders = pr.richting != null && Math.abs(((pr.richting - (+p.richting || 0)) % 180 + 180) % 180) > 2 && Math.abs(((pr.richting - (+p.richting || 0)) % 180 + 180) % 180) < 178;
+  $('#modal').innerHTML = `<div class="dialoog groot plDialoog"><h3>📷 Plattegrond controleren</h3>
+    <div class="plKop">${x.voorbeeld ? `<img src="${x.voorbeeld}" alt="" class="plFoto" onclick="this.classList.toggle('groot')">` : ''}
+      <div><p class="hint" style="margin-top:0">Gelezen${pr.naam ? `: <b>${esc(pr.naam)}</b>` : ''}${pr.nummer ? ` (${esc(pr.nummer)})` : ''}${pr.ha ? ` · ${String(pr.ha).replace('.', ',')} ha` : ''}${pr.richting != null ? ` · richting ${String(pr.richting).replace('.', ',')}°` : ''}. Controleer en pas aan waar nodig; er wordt pas iets opgeslagen als je op <b>Indelen</b> tikt.</p>
+        ${pr.naam && normTekst(pr.naam) !== normTekst(p.naam) && !normTekst(p.naam).includes(normTekst(pr.naam)) ? `<p class="hint" style="color:#b26a00">⚠️ Op de tekening staat "${esc(pr.naam)}", je zit op perceel "${esc(p.naam)}". Klopt dat?</p>` : ''}
+        ${richtingAnders ? `<p class="hint" style="color:#b26a00">⚠️ De tekening zegt rijrichting ${String(pr.richting).replace('.', ',')}°, het perceel staat op ${String(+p.richting || 0).replace('.', ',')}°. Zet eerst de richting goed (Wijzig → sporen) als de sporen niet kloppen.</p>` : ''}
+        ${x.twijfel.length ? `<details class="plTwijfel"><summary>🤔 De AI twijfelt over ${x.twijfel.length} ${x.twijfel.length === 1 ? 'ding' : 'dingen'}</summary><ul>${x.twijfel.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>` : ''}</div></div>
+    <div class="plOpties">
+      ${zones.length > 1 ? `<label>Deelveld<select class="veld" onchange="PL.zid=this.value;plVoorbeeld()">${zones.map(z => `<option value="${z.id}" ${z.id === x.zid ? 'selected' : ''}>${esc(z._vak ? z._vak.naam || 'deelveld' : 'Hoofdveld')}</option>`).join('')}</select></label>` : ''}
+      <label>Plant<select class="veld" onchange="PL.sid=this.value;plTeken()">${S.soorten.map(s => `<option value="${s.id}" ${s.id === x.sid ? 'selected' : ''}>${esc(s.naam)}</option>`).join('')}</select></label>
+      <label>Bovenste vak op de tekening begint bij<select class="veld" onchange="PL.startOnder=this.value==='1';plVoorbeeld()"><option value="0" ${!x.startOnder ? 'selected' : ''}>spoor 1</option><option value="1" ${x.startOnder ? 'selected' : ''}>het laatste spoor</option></select></label>
+      <label>De stukken in de lengte (links → rechts) beginnen<select class="veld" onchange="PL.lengteRechts=this.value==='1';plVoorbeeld()"><option value="0" ${!x.lengteRechts ? 'selected' : ''}>aan het begin van het spoor</option><option value="1" ${x.lengteRechts ? 'selected' : ''}>aan het eind van het spoor</option></select></label>
+      <label>Sporen overslaan aan het begin<input class="veld" type="number" min="0" value="${x.overslaan}" oninput="PL.overslaan=this.value;plVoorbeeld()"></label>
+      <label class="vinkje" style="align-self:end"><input type="checkbox" ${x.metPartijen ? 'checked' : ''} onchange="PL.metPartijen=this.checked"> Partijen (batches) aanmaken en koppelen</label></div>
+    <datalist id="plRassen">${rasL.map(r => `<option value="${esc(r.naam)}">`).join('')}</datalist>
+    <datalist id="plKlasse">${[...new Set(['CM', 'BM5', 'BM4', 'BM3', 'S', 'SE', 'E', 'A', ...(S.partijen || []).map(y => y.klasse).filter(Boolean)])].map(k => `<option value="${esc(k)}">`).join('')}</datalist>
+    <div class="plTabel">${x.vakken.map((v, vi) => `<div class="plVak"><div class="plVakKop"><input class="veld plLetter" value="${esc(v.letter)}" oninput="PL.vakken[${vi}].letter=this.value;plVoorbeeld()">
+        <span>Vak</span><button class="icoon" title="Vak omhoog" onclick="plVakSchuif(${vi},-1)">▲</button><button class="icoon" title="Vak omlaag" onclick="plVakSchuif(${vi},1)">▼</button><button class="weg" title="Vak weg" onclick="PL.vakken.splice(${vi},1);plTeken()">×</button></div>
+      ${v.groepen.map((g, gi) => `<div class="plGroep"><div class="plGroepKop"><label>Rijen<input class="veld plV plRij" type="number" step="0.5" min="0" value="${g.rijen}" oninput="PL.vakken[${vi}].groepen[${gi}].rijen=+String(this.value).replace(',','.');plVoorbeeld()"></label>
+          <small id="plSp_${vi}_${gi}" class="plSporen"></small>${v.groepen.length > 1 ? `<button class="weg" title="Groep weg" onclick="PL.vakken[${vi}].groepen.splice(${gi},1);plTeken()">×</button>` : ''}</div>
+        ${g.stukken.map((s, si) => `<div class="plStuk ${s.leeg ? 'leeg' : ''}">
+          <label class="vinkje klein"><input type="checkbox" ${s.leeg ? 'checked' : ''} onchange="plZet(${vi},${gi},${si},'leeg',this.checked);plTeken()"> leeg</label>
+          ${s.leeg ? `<label>Lengte m${veld(vi, gi, si, 'lengte', s.lengte, 'type="number" step="any" placeholder="hele rij"')}</label>` : `
+          <label>Ras${veld(vi, gi, si, 'ras', s.ras, 'list="plRassen"', s.ras && !plRasZoek(s.ras, x.sid) ? 'plNieuw' : '')}</label>
+          <label>Teelt${veld(vi, gi, si, 'teelt', s.teelt, 'placeholder="frigo"')}</label>
+          <label>Batch${veld(vi, gi, si, 'batch', s.batch, 'inputmode="numeric"')}</label>
+          <label>Klasse${veld(vi, gi, si, 'klasse', s.klasse, 'list="plKlasse"')}</label>
+          <label>Lengte m${veld(vi, gi, si, 'lengte', s.lengte, 'type="number" step="any" placeholder="hele rij"')}</label>
+          <label>pl/m${veld(vi, gi, si, 'plm', s.plm, 'type="number" step="any"')}</label>`}
+          ${g.stukken.length > 1 ? `<button class="weg" title="Stuk weg" onclick="PL.vakken[${vi}].groepen[${gi}].stukken.splice(${si},1);plTeken()">×</button>` : ''}</div>`).join('')}
+        <div class="plKnopjes"><button class="knop klein licht" onclick="PL.vakken[${vi}].groepen[${gi}].stukken.push({leeg:false,ras:'',batch:'',klasse:'',lengte:null,plm:null,teelt:'frigo'});plTeken()">＋ stuk erachter (in de lengte)</button>
+          <button class="knop klein licht" onclick="PL.vakken[${vi}].groepen.splice(${gi + 1},0,{rijen:1,stukken:[{leeg:false,ras:'',batch:'',klasse:'',lengte:null,plm:null,teelt:'frigo'}]});plTeken()">＋ groep rijen eronder</button></div></div>`).join('')}</div>`).join('')}
+      <button class="knop licht" onclick="PL.vakken.push({letter:String.fromCharCode(65+PL.vakken.length),groepen:[{rijen:1,stukken:[{leeg:true}]}]});plTeken()">＋ Vak toevoegen</button></div>
+    <div id="plOverzicht" class="plOverzicht"></div>
+    <div class="rij"><button class="knop licht" onclick="PL=null;$('#modal').classList.remove('open')">Annuleren</button><button class="knop" id="plKnop" onclick="plToepassen()">✔ Indelen</button></div></div>`;
+  $('#modal').classList.add('open'); plVoorbeeld();
+}
+function plZet(vi, gi, si, k, w) {
+  const s = PL.vakken[vi].groepen[gi].stukken[si]; if (!s) return;
+  s[k] = ['lengte', 'plm'].includes(k) ? plGetal(w) : k === 'leeg' ? !!w : String(w);
+  if (k === 'ras') { const inp = document.activeElement; if (inp?.classList) inp.classList.toggle('plNieuw', !!w && !plRasZoek(w, PL.sid)); }
+  plVoorbeeld();
+}
+function plVakSchuif(vi, d) { const l = PL.vakken, j = vi + d; if (j < 0 || j >= l.length) return; [l[vi], l[j]] = [l[j], l[vi]]; plTeken(); }
+function plVoorbeeld() {
+  const el = $('#plOverzicht'); if (!el || !PL) return;
+  const d = plVerdeling(); if (!d) { el.innerHTML = ''; return; }
+  d.uit.forEach(u => { const s = $(`#plSp_${u.vi}_${u.gi}`); if (s) s.innerHTML = `→ spoor ${plBereik(u.sporen)}${u.tekort ? ` <b style="color:var(--rood)">(${String(u.tekort).replace('.', ',')} te weinig)</b>` : ''}`; });
+  const verschil = d.totaalTekening - d.totaalPlant, nieuwR = [...new Set(PL.vakken.flatMap(v => v.groepen.flatMap(g => g.stukken.filter(s => !s.leeg && s.ras && !plRasZoek(s.ras, PL.sid)).map(s => s.ras.trim()))))];
+  const zonderRas = PL.vakken.some(v => v.groepen.some(g => g.stukken.some(s => !s.leeg && !s.ras?.trim())));
+  el.innerHTML = `<b>Wat er gebeurt</b>
+    <div class="plRegels">${d.uit.map(u => `<div><span>${esc(u.v.letter)}${u.v.groepen.length > 1 ? '.' + (u.gi + 1) : ''}</span><span>spoor ${plBereik(u.sporen)}</span><span>${u.g.stukken.map(plStukTekst).map(esc).join(' → ')}</span></div>`).join('')}</div>
+    <p class="hint" style="margin:6px 0 0">Tekening: <b>${String(d.totaalTekening).replace('.', ',')}</b> rijen · perceel: <b>${String(d.totaalPlant).replace('.', ',')}</b> plantsporen (spuit- en sproeiersporen worden overgeslagen)${PL.overslaan > 0 ? `, ${PL.overslaan} overgeslagen` : ''}.
+      ${Math.abs(verschil) > .25 ? `<br><b style="color:var(--rood)">⚠️ ${verschil > 0 ? `De tekening heeft ${String(verschil).replace('.', ',')} rijen meer dan er sporen zijn` : `Er blijven ${String(-verschil).replace('.', ',')} sporen over`}.</b> Kijk of de rijbreedte en het spuitspoorpatroon van het perceel kloppen, of pas de rijen aan.` : ' ✓ Dat klopt precies.'}
+      ${nieuwR.length ? `<br>🆕 Nieuwe rassen worden aangemaakt bij ${esc(soort(PL.sid)?.naam || 'de plant')}: ${nieuwR.map(esc).join(', ')}` : ''}
+      ${zonderRas ? '<br><b style="color:var(--rood)">Er is een stuk zonder ras: vul het in of zet het op leeg.</b>' : ''}</p>`;
+}
+async function plToepassen() {
+  const x = PL, p = perceel(x.pid); if (!x || !p) return;
+  if (x.vakken.some(v => v.groepen.some(g => g.stukken.some(s => !s.leeg && !s.ras?.trim())))) { toast('Er is een stuk zonder ras', 1); return; }
+  const d = plVerdeling(), z = d.z; if (!d.uit.some(u => u.sporen.length)) { toast('Er vallen geen sporen in; heeft het perceel sporen?', 1); return; }
+  if (Math.abs(d.totaalTekening - d.totaalPlant) > .25 && !await bevestigJa('Aantal rijen klopt niet', `De tekening heeft ${String(d.totaalTekening).replace('.', ',')} rijen en het perceel ${String(d.totaalPlant).replace('.', ',')} plantsporen. Toch indelen?`, 'Toch indelen')) { plTeken(); return; }
+  const b = $('#plKnop'); if (b) { b.disabled = true; b.textContent = 'Bezig…'; }
+  try {
+    // 1. rassen
+    const rasId = new Map();
+    for (const s of x.vakken.flatMap(v => v.groepen.flatMap(g => g.stukken)).filter(s => !s.leeg)) {
+      const k = normTekst(s.ras); if (rasId.has(k)) continue;
+      let r = plRasZoek(s.ras, x.sid);
+      if (!r) {
+        if (!mag('soorten_beheren')) throw new Error(`Ras "${s.ras}" bestaat nog niet en je mag geen rassen aanmaken`);
+        const {data, error} = await sb.from('rassen').insert({soort_id: x.sid, naam: s.ras.trim(), kleur: tint(soort(x.sid)?.kleur || '#8bc34a', rassenVan(x.sid).length)}).select().single();
+        if (error) throw error; S.rassen.push(data); r = data;
+      }
+      rasId.set(k, r.id);
+    }
+    // 2. sporen indelen
+    const oudBanen = JSON.parse(JSON.stringify(z.banen || [])), banen = [...(z.banen || [])];
+    const perPartij = new Map();   // sleutel → {stuk, nrs, meters}
+    for (const u of d.uit) {
+      const stukken = u.g.stukken;
+      for (const bn of u.sporen) {
+        const L = bn.t1 - bn.t0, volg = x.lengteRechts ? stukken.slice().reverse() : stukken;
+        const ids = volg.map(s => s.leeg ? null : rasId.get(normTekst(s.ras)));
+        // knippunten uit de lengtes (het laatste stuk loopt door tot het eind)
+        const zonderLengte = volg.slice(0, -1).filter(s => !(s.lengte > 0)).length, k = [];
+        let pos = 0, rest = L - volg.slice(0, -1).reduce((a, s) => a + (s.lengte > 0 ? s.lengte : 0), 0);
+        volg.slice(0, -1).forEach(s => { pos += s.lengte > 0 ? s.lengte : Math.max(1, rest / (zonderLengte + 1)); k.push(Math.round(pos * 10) / 10); });
+        const ok = k.every((t, i) => t > 1 && t < L - 1 && (i === 0 || t > k[i - 1] + 1));
+        let waarde;
+        if (volg.length === 1 || !ok) waarde = ids.find(i => i != null) ?? (volg.length === 1 ? ids[0] : null);
+        else { const kk = [], ss = [ids[0]]; k.forEach((t, i) => { if (ids[i + 1] !== ss[ss.length - 1]) { kk.push(t); ss.push(ids[i + 1]); } }); waarde = kk.length ? {k: kk, s: ss} : ss[0]; }
+        banen[bn.nr - 1] = waarde ?? null;
+        if (x.metPartijen) volg.forEach((s, i) => { if (s.leeg || !s.batch?.trim()) return;
+          const sl = [s.batch.trim(), (s.klasse || '').toUpperCase(), normTekst(s.ras)].join('|'), q = perPartij.get(sl) || {s, nrs: new Set(), m: 0, rijen: 0, lengte: 0};
+          const van = i === 0 ? 0 : (k[i - 1] ?? 0), tot = i < k.length ? k[i] : L, lang = Math.max(0, tot - van);
+          q.nrs.add(bn.nr); q.m += lang; q.rijen += rijWaarde(z, bn.nr) === .5 ? .5 : 1; q.lengte = Math.max(q.lengte, lang); perPartij.set(sl, q); });
+      }
+    }
+    // 3. partijen zoeken of aanmaken, en de sporen eraan koppelen
+    const geraakt = new Set(d.uit.flatMap(u => u.sporen.map(bn => bn.nr)));
+    const partijOud = (S.partijen || []).filter(y => Array.isArray(y.sporen) && y.sporen.some(q => q.z === z.id)).map(y => ({id: y.id, sporen: JSON.parse(JSON.stringify(y.sporen))}));
+    const nieuwePartijen = [];
+    await zoneZetten(p, z, {banen}); banenCache.delete(z.id);
+    if (x.metPartijen) {
+      // de sporen die we nu indelen eerst bij de oude partijen weghalen
+      for (const y of (S.partijen || []).filter(y => Array.isArray(y.sporen) && y.sporen.some(q => q.z === z.id && (q.nrs || []).some(nr => geraakt.has(nr))))) {
+        y.sporen = y.sporen.map(q => q.z !== z.id ? q : {...q, nrs: (q.nrs || []).filter(nr => !geraakt.has(nr))}).filter(q => (q.nrs || []).length);
+        await sb.from('partijen').update({sporen: y.sporen}).eq('id', y.id);
+      }
+      for (const [sl, q] of perPartij) {
+        const s = q.s, rid = rasId.get(normTekst(s.ras));
+        let y = (S.partijen || []).find(y => (y.seizoen_id || bekeken) === bekeken && String(y.batch || '').trim() === s.batch.trim() && (!s.klasse || !y.klasse || y.klasse.toUpperCase() === s.klasse.toUpperCase()) && (!y.ras_id || y.ras_id === rid));
+        const sporen = [...(y?.sporen || []).filter(qq => qq.z !== z.id), {z: z.id, nrs: [...new Set([...((y?.sporen || []).find(qq => qq.z === z.id)?.nrs || []), ...q.nrs])].sort((a, b) => a - b)}];
+        const info = {perceel_id: p.id, perceel_tekst: p.naam, soort_id: x.sid, ras_id: rid, ras_tekst: s.ras.trim(), klasse: s.klasse || null, teelt: s.teelt || null, pl_per_m: s.plm ?? null,
+          bedden: q.rijen, bedlengte: Math.round(q.lengte), totale_meters: Math.round(q.m), sporen, updated_at: new Date().toISOString()};
+        if (y) { const patch = Object.fromEntries(Object.entries(info).filter(([k, w]) => w != null && (['sporen', 'perceel_id', 'perceel_tekst', 'updated_at', 'bedden', 'bedlengte', 'totale_meters'].includes(k) || y[k] == null)));
+          const {error} = await sb.from('partijen').update(patch).eq('id', y.id); if (error) throw error; Object.assign(y, patch); }
+        else { const {data, error} = await sb.from('partijen').insert({...info, seizoen_id: bekeken, batch: s.batch.trim(), bron: 'plattegrond', sleutel: 'plattegrond|' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)}).select().single();
+          if (error) throw error; (S.partijen = S.partijen || []).push(data); nieuwePartijen.push(data.id); }
+      }
+    }
+    spoorPartijMap = null; partijenVanSporen();
+    PL_TERUG = {pid: p.id, zid: z.id, banen: oudBanen, partijen: partijOud, nieuwePartijen, t: Date.now()};
+    const n = geraakt.size, np = perPartij.size;
+    $('#modal').innerHTML = `<div class="dialoog"><h3>✔ Ingedeeld</h3><p>${n} sporen ingedeeld volgens de plattegrond${x.metPartijen ? `, ${np} ${np === 1 ? 'partij' : 'partijen'} gekoppeld${nieuwePartijen.length ? ` (${nieuwePartijen.length} nieuw)` : ''}` : ''}.</p>
+      <p class="hint">Kijk op de kaart of het klopt. Zit het andersom? Maak het ongedaan en kies de andere kant bij "begint bij".</p>
+      <div class="rij"><button class="knop licht" onclick="plOngedaan()">↶ Ongedaan maken</button><button class="knop" onclick="$('#modal').classList.remove('open');kaartTonen?.(true)">Bekijken op de kaart</button></div></div>`;
+    render(true);
+  } catch (e) {
+    toast('Indelen mislukt: ' + foutTekst(e), 1); if (b) { b.disabled = false; b.textContent = '✔ Indelen'; }
+  }
+}
+let PL_TERUG = null;
+async function plOngedaan() {
+  const t = PL_TERUG; if (!t) return; const p = perceel(t.pid), z = zoneVan(t.pid, t.zid); if (!p || !z) return;
+  await zoneZetten(p, z, {banen: t.banen}); banenCache.delete(z.id);
+  for (const o of t.partijen) { const y = (S.partijen || []).find(q => q.id === o.id); await sb.from('partijen').update({sporen: o.sporen}).eq('id', o.id); if (y) y.sporen = o.sporen; }
+  for (const id of t.nieuwePartijen) { await sb.from('partijen').delete().eq('id', id); S.partijen = (S.partijen || []).filter(y => y.id !== id); }
+  // partijen die de sporen kregen maar er eerst niet in stonden: hun sporen in deze zone terugzetten
+  const oudIds = new Set(t.partijen.map(o => o.id));
+  for (const y of (S.partijen || []).filter(y => !oudIds.has(y.id) && Array.isArray(y.sporen) && y.sporen.some(q => q.z === t.zid))) { y.sporen = y.sporen.filter(q => q.z !== t.zid); await sb.from('partijen').update({sporen: y.sporen}).eq('id', y.id); }
+  PL_TERUG = null; spoorPartijMap = null; partijenVanSporen(); $('#modal').classList.remove('open'); render(true); toast('↶ Terug zoals het was');
 }
 
 /* ---------- 8. SATELLIETBEELDEN (Sentinel-2, gratis via Earth Search) ---------- */
