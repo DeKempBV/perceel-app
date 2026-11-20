@@ -993,6 +993,13 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .wgDagen{margin-top:10px;border-top:1px solid var(--rand);padding-top:8px;display:flex;flex-direction:column;gap:5px}
 .wgDag{display:grid;grid-template-columns:96px 1fr 62px;gap:2px 8px;align-items:center;font-size:12.5px}.wgDag .b{display:flex;height:14px;background:var(--licht);border-radius:4px;overflow:hidden}.wgDag .b i{display:block;height:100%}
 .wgDag b{text-align:right;font-variant-numeric:tabular-nums}.wgDag small{grid-column:2/4;color:var(--grijs);margin-top:-3px}
+.ritBlok{margin-top:10px;border-top:1px solid var(--rand);padding-top:6px}.ritNu{font-size:14px;margin:2px 0 6px}.ritNu small{color:var(--grijs)}
+.ritKop{display:flex;gap:6px;align-items:center;width:100%;border:0;background:var(--licht);border-radius:10px;padding:9px 12px;font:inherit;font-size:14px;cursor:pointer;color:var(--tekst);text-align:left}.ritKop span{margin-left:auto;opacity:.5}
+.ritRij{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--rand);cursor:pointer;font-size:13.5px}.ritRij:hover{background:var(--licht)}
+.ritTijd b,.ritTijd small{display:block;font-variant-numeric:tabular-nums}.ritTijd small{color:var(--grijs)}.ritMid span{display:block;line-height:1.3}.ritMid small{color:var(--grijs);font-size:12px}
+.ritRechts{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px}.ritRechts small{color:var(--grijs);font-size:12px}
+.ritWie{border:1px solid var(--rand);background:#fff;border-radius:14px;padding:2px 8px;font:inherit;font-size:12px;cursor:pointer;color:var(--groen);white-space:nowrap}
+.ritMensen{display:flex;flex-wrap:wrap;gap:6px}.pnoChip.aan{background:var(--groen);color:#fff;border-color:var(--groen)}.pnoChip.aan b{color:#fff}.ritPersoon h4{display:flex;align-items:center;gap:8px}
 .vdLet{cursor:pointer;display:flex;justify-content:space-between;gap:8px}.vdLet span{opacity:.6}
 .tabelScroll{overflow-x:auto}.kistTabel input.kistIn{width:90px;margin:0;padding:6px 8px}.kistTabel td,.kistTabel th{vertical-align:middle;text-align:left}
 /* ---------- kieplijst (telefoon heftruck) ---------- */
@@ -1258,6 +1265,7 @@ const RECHTEN = [
   ['tractor_rijden', 'Locatie delen als tractor (telefoon in de trekker)', 'Tractoren'],
   ['tractoren_beheren', 'Tractoren toevoegen, hernoemen en verwijderen', 'Tractoren'],
   ['voertuigen_zien', 'Bussen en auto\'s (FleetGO) live op de kaart zien', 'Bussen en auto\'s'],
+  ['ritten_bekijken', 'Ritten en bestuurders van de bussen bekijken (wie reed waar; nooit op een gedeelde tablet)', 'Bussen en auto\'s'],
   ['voertuigen_beheren', 'FleetGO-koppeling instellen, voertuigen hernoemen en verbergen', 'Bussen en auto\'s'],
   ['uren_bekijken', 'Uren van iedereen bekijken (eigen uren ziet iedereen)', 'Uren'],
   ['uren_beheren', 'Uren corrigeren, toevoegen en verwijderen', 'Uren'],
@@ -1289,7 +1297,7 @@ const RECHTEN = [
 const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, spuitsporen_bewerken: true, deelvelden_bewerken: true,
   percelen_uitschakelen: false, percelen_verwijderen: false, soorten_indelen: true, soorten_beheren: false,
   taken_toevoegen: true, taken_afvinken: true, werk_registreren: true, taken_verwijderen: false, markeringen_maken: true,
-  weer_bekijken: true, historie_bekijken: true, seizoen_starten: false, tractoren_volgen: true, tractor_rijden: true, tractoren_beheren: false, voertuigen_zien: false, voertuigen_beheren: false, partijen_beheren: false,
+  weer_bekijken: true, historie_bekijken: true, seizoen_starten: false, tractoren_volgen: true, tractor_rijden: true, tractoren_beheren: false, voertuigen_zien: false, ritten_bekijken: false, voertuigen_beheren: false, partijen_beheren: false,
   uren_bekijken: false, uren_beheren: false, uren_mailen: false,
   middelen_beheren: false, oogst_registreren: true, oogst_bekijken: true, machines_beheren: false, kosten_bekijken: false,
   percelen_aanpassen: false, kopeinden_bewerken: true, gerooid_aangeven: true,
@@ -1597,7 +1605,7 @@ async function opstarten() {
   let bezig = null; try { bezig = localStorage.getItem('rijdt'); } catch {}
   if (bezig && S.tractoren.find(t => t.id === bezig)) { startRijden(bezig, true); }
   setInterval(() => { if (S.tractoren.length) { tekenTractoren(); if (tab === 'tractoren') render(); } }, 30000);   // "laatst gezien" bijwerken
-  setInterval(() => voertuigenTik(), 20000);
+  setInterval(() => voertuigenTik(), 10000);
   pgSleepInit();   // plattegrond op de kaart slepen
   const tmLink = /[?&]trekker=1/.test(location.search);
   if (veilig) { TM.aan = false; toonMenu(); window.opstartWeg?.(); toast('🛟 Veilige start: de kaart wordt pas getekend als je een perceel kiest'); stap('veilige start klaar'); opstartGelukt(); toonVorigeVastloper(); return; }
@@ -10684,7 +10692,7 @@ async function laadVoertuigen() {
   const {data, error} = await sb.from('voertuigen').select('*');
   if (!error) S.voertuigen = data || [];
 }
-// elke 20 seconden: FleetGO laten verversen (database doet maximaal 1x per 15 s echt een verzoek) en de lijst ophalen
+// elke 10 seconden: FleetGO laten verversen (database doet maximaal 1x per 8 s echt een verzoek) en de lijst ophalen
 async function voertuigenTik(direct) {
   if (vBezig || !sb || !me || archief || !(ziet('voertuigen_zien') || ziet('voertuigen_beheren'))) return;
   if (!direct && (document.hidden || (weergave._voertuigen === false && tab !== 'tractoren'))) return;
@@ -14916,6 +14924,7 @@ function htmlWagenUren(soort) {
   const bus = soort === 'bus', staten = bus ? ['rijden', 'stationair'] : ['werken', 'rijden', 'stationair', 'stil'];
   const [van, tot] = wgBereik(), c = wgData[`${soort}|${van}|${tot}`];
   if (!c || (!c.laden && Date.now() - c.t > 60000)) setTimeout(() => laadWagenUren(soort), 0);
+  if (bus && magRitten()) { const rc = ritData[`${wgBereik()[0]}|${wgBereik()[1]}`]; if (!rc || (!rc.laden && Date.now() - rc.t > 120000)) setTimeout(() => laadRitten(), 0); }
   const wagens = bus ? (S.voertuigen || []).filter(v => !v.verborgen) : (S.tractoren || []);
   const naam = w => bus ? vNaam(w) : w.naam;
   const chips = [['vandaag', 'Vandaag'], ['gisteren', 'Gisteren'], ['week', 'Deze week'], ['maand', 'Deze maand'], ['jaar', 'Dit jaar'], ['eigen', 'Kies…']];
@@ -14931,13 +14940,14 @@ function htmlWagenUren(soort) {
         ${!bus && alle.diesel ? `<div class="pnoKpi"><small>Diesel</small><b>${liter(alle.dieselTot)}</b></div>` : ''}
         ${alle.km ? `<div class="pnoKpi"><small>Gereden</small><b>${fmt(alle.km)} km</b></div>` : ''}
         ${alle.stationair && alle.totaal ? `<div class="pnoKpi"><small>Stationair</small><b class="${alle.stationair / (alle.totaal - alle.stil || 1) > .25 ? 'rood' : ''}">${Math.round(alle.stationair / Math.max(1, alle.totaal - alle.stil) * 100)}%</b><span>van de motoruren</span></div>` : ''}</div></div></div></section>`;
+  if (bus) h += htmlPersoonRitten() + htmlBestuurders();
   const lijst = wagens.map(w => ({w, r: rijen.filter(x => x.wagen_id === w.id)})).map(x => ({...x, s: wgSom(x.r)})).sort((a, b) => b.s.totaal - a.s.totaal || String(naam(a.w)).localeCompare(String(naam(b.w)), 'nl'));
   h += lijst.map(({w, r, s}) => {
     const open = wgOpen === w.id, live = wgLiveTekst(soort, w);
     return `<section class="kaartje wgKaart"><div class="wgKopRij" onclick="wgOpen=wgOpen==='${w.id}'?null:'${w.id}';render(true)"><b>${esc(naam(w))}</b><small>${[live, !bus && w.motoruren != null && `${fmt(+w.motoruren, 1)} motoruren`, !bus && w.brandstof_pct != null && `tank ${Math.round(w.brandstof_pct)}%`].filter(Boolean).join(' · ')}</small><span>${open ? '▲' : '▼'}</span></div>
       <div class="wgKop">${wgTaart(s, staten, 130)}<div style="flex:1;min-width:190px">${wgLegenda(s, staten, bus)}
         <p class="hint" style="margin:6px 0 0">${[`motor aan ${uurTekst(s.rijden + s.werken + s.stationair)}`, !bus && s.diesel && `diesel ${liter(s.dieselTot)}`, s.km && `${fmt(s.km, 1)} km`, s.uren != null && s.uren0 != null && s.uren > s.uren0 && `teller +${fmt(s.uren - s.uren0, 1)} u`].filter(Boolean).join(' · ') || 'Geen gegevens in deze periode'}</p></div></div>
-      ${open ? wgPerDag(r, staten, bus) : ''}</section>`; }).join('') || `<section class="kaartje"><p class="hint" style="margin:0">${bus ? 'Nog geen bussen. Koppel FleetGO bij Instellingen → Trekkers / voertuigen.' : 'Nog geen trekkers.'}</p></section>`;
+      ${open ? wgPerDag(r, staten, bus) : ''}${bus ? htmlBusRitten(w) : ''}</section>`; }).join('') || `<section class="kaartje"><p class="hint" style="margin:0">${bus ? 'Nog geen bussen. Koppel FleetGO bij Instellingen → Trekkers / voertuigen.' : 'Nog geen trekkers.'}</p></section>`;
   if (rijen.length) h += `<section class="kaartje"><button class="knop licht" onclick="wgExcel('${soort}')">📥 Excel (per dag)</button></section>`;
   return h;
 }
@@ -14957,6 +14967,76 @@ function wgExcel(soort) {
     [x.datum, naam(x.wagen_id), u(x.werken), u(x.rijden), u(x.stationair), u(x.stil), u(+x.werken + +x.rijden + +x.stationair), x.diesel_werken ?? '', x.diesel_rijden ?? '', x.diesel_stationair ?? '',
      x.diesel_werken == null && x.diesel_rijden == null && x.diesel_stationair == null ? '' : Math.round(((+x.diesel_werken || 0) + (+x.diesel_rijden || 0) + (+x.diesel_stationair || 0)) * 10) / 10, +x.km || '', x.motoruren ?? '']);
   bewaarBestand(`${bus ? 'Bussen' : 'Trekkers'} ${van} tm ${tot}.xlsx`, maakXlsx([{naam: bus ? 'Bussen' : 'Trekkers', breedtes: kop.map((k, i) => i < 2 ? 18 : 12), rijen: [K(kop), ...rijen], filter: true}]));
+}
+
+/* ---------- bussen: ritten uit FleetGO, wie reed er, per persoon ---------- */
+const magRitten = () => !isApparaat() && (mag('ritten_bekijken') || mag('voertuigen_beheren'));
+const ritData = {};   // per periode: {t, ritten, nu}
+let wgPersoon = null, ritOpen = {};
+async function laadRitten(forceer) {
+  if (!magRitten()) return;
+  const [van, tot] = wgBereik(), sl = `${van}|${tot}`, c = ritData[sl];
+  if (c && (c.laden || (!forceer && Date.now() - c.t < 120000))) return;
+  ritData[sl] = {...(c || {}), laden: true};
+  const {data, error} = await sb.rpc('voertuig_ritten', {p_van: van, p_tot: tot, p_vers: true});
+  ritData[sl] = error ? {t: Date.now(), fout: /function|schema cache/i.test(error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(error), ritten: c?.ritten || []}
+    : {t: Date.now(), ritten: data?.ritten || [], nu: data?.nu || {}, sync: data?.sync};
+  if (tab === 'busuren') paneelVerversen();
+}
+const ritTijd = t => t ? new Date(t).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : '–';
+const ritDuur = r => r.van_tijd && r.tot_tijd ? uurTekst((new Date(r.tot_tijd) - new Date(r.van_tijd)) / 1000) : '';
+const ritRegel = (r, metBus) => `<div class="ritRij" onclick="ritOpKaart(${r.id})">
+    <div class="ritTijd"><b>${ritTijd(r.van_tijd)}</b><small>${ritTijd(r.tot_tijd)}</small></div>
+    <div class="ritMid"><span>${esc(r.van_adres || '?')} → ${esc(r.tot_adres || '?')}</span>
+      <small>${[new Date(r.van_tijd).toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric', month: 'short'}), metBus && esc(vNaam((S.voertuigen || []).find(v => v.id === r.voertuig_id) || {naam: r.kenteken || 'bus'})), ritDuur(r), r.doel && esc(r.doel)].filter(Boolean).join(' · ')}</small></div>
+    <div class="ritRechts"><b>${r.km != null ? fmt(+r.km, 1) + ' km' : ''}</b>${r.bestuurder ? `<button class="ritWie" onclick="event.stopPropagation();wgPersoon=${esc(JSON.stringify(r.bestuurder))};paneelVerversen();$('#inhoud').scrollTop=0">👤 ${esc(r.bestuurder)}</button>` : '<small>onbekend</small>'}</div></div>`;
+// onder het taartje van een bus
+function htmlBusRitten(w) {
+  if (!magRitten()) return '';
+  const [van, tot] = wgBereik(), c = ritData[`${van}|${tot}`];
+  if (!c?.ritten) return `<p class="hint" style="margin:8px 0 0">${c?.fout ? '⚠️ ' + esc(c.fout) : '🛣️ Ritten laden…'}</p>`;
+  const l = c.ritten.filter(r => r.voertuig_id === w.id), nu = c.nu?.[w.id], open = ritOpen[w.id];
+  return `<div class="ritBlok">${nu?.naam ? `<div class="ritNu">🧑 Nu: <b>${esc(nu.naam)}</b>${nu.sinds ? ` <small>(sinds ${ritTijd(nu.sinds)})</small>` : ''}</div>` : ''}
+    <button class="ritKop" onclick="ritOpen['${w.id}']=!ritOpen['${w.id}'];paneelVerversen()">🛣️ Ritten <b>${l.length}</b>${l.length ? ` · ${fmt(l.reduce((a, r) => a + (+r.km || 0), 0), 1)} km · ${[...new Set(l.map(r => r.bestuurder).filter(Boolean))].length} bestuurder(s)` : ''} <span>${open ? '▲' : '▼'}</span></button>
+    ${open ? (l.length ? l.slice(0, 200).map(r => ritRegel(r)).join('') : '<p class="hint">Geen ritten in deze periode.</p>') : ''}</div>`;
+}
+// alle ritten van één persoon (alle bussen)
+function htmlPersoonRitten() {
+  if (!wgPersoon || !magRitten()) return '';
+  const [van, tot] = wgBereik(), c = ritData[`${van}|${tot}`], l = (c?.ritten || []).filter(r => r.bestuurder === wgPersoon);
+  const km = l.reduce((a, r) => a + (+r.km || 0), 0), sec = l.reduce((a, r) => a + (r.van_tijd && r.tot_tijd ? (new Date(r.tot_tijd) - new Date(r.van_tijd)) / 1000 : 0), 0);
+  const bussen = [...new Set(l.map(r => r.voertuig_id))].map(id => vNaam((S.voertuigen || []).find(v => v.id === id) || {naam: '?'}));
+  return `<section class="kaartje ritPersoon"><h4>👤 ${esc(wgPersoon)} <button class="knop licht klein" style="width:auto;margin-left:auto" onclick="wgPersoon=null;paneelVerversen()">✕ Sluiten</button></h4>
+    <div class="pnoKpis"><div class="pnoKpi"><small>Ritten</small><b>${l.length}</b></div><div class="pnoKpi"><small>Kilometers</small><b>${fmt(km)} km</b></div><div class="pnoKpi"><small>Onderweg</small><b>${uurTekst(sec)}</b></div>
+      <div class="pnoKpi"><small>Bussen</small><b style="font-size:15px">${bussen.map(esc).join(', ') || '–'}</b></div></div>
+    <div style="margin-top:8px">${l.map(r => ritRegel(r, true)).join('') || '<p class="hint">Geen ritten in deze periode.</p>'}</div></section>`;
+}
+function htmlBestuurders() {
+  if (!magRitten()) return '';
+  const [van, tot] = wgBereik(), c = ritData[`${van}|${tot}`]; if (!c?.ritten?.length) return '';
+  const per = {}; c.ritten.forEach(r => { if (!r.bestuurder) return; const x = per[r.bestuurder] ||= {n: 0, km: 0}; x.n++; x.km += +r.km || 0; });
+  const l = Object.entries(per).sort((a, b) => b[1].km - a[1].km); if (!l.length) return '';
+  return `<section class="kaartje"><h4>👥 Bestuurders <small>tik op een naam voor alle ritten</small></h4><div class="ritMensen">${l.map(([n, x]) => `<button class="pnoChip ${wgPersoon === n ? 'aan' : ''}" onclick="wgPersoon=${esc(JSON.stringify(n))};paneelVerversen();$('#inhoud').scrollTop=0">👤 ${esc(n)} <b>${x.n}× · ${fmt(x.km)} km</b></button>`).join('')}</div></section>`;
+}
+// route van een rit op de kaart (Google-polyline)
+function decodeerLijn(s, prec = 5) {
+  const f = 10 ** prec, uit = []; let i = 0, lat = 0, lng = 0;
+  while (i < s.length) { for (const k of [0, 1]) { let r = 0, sh = 0, b; do { b = s.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32 && i < s.length); const d = r & 1 ? ~(r >> 1) : r >> 1; if (k) lng += d; else lat += d; } uit.push([lat / f, lng / f]); }
+  return uit;
+}
+let ritLaag = null;
+async function ritOpKaart(id) {
+  const [van, tot] = wgBereik(), r = (ritData[`${van}|${tot}`]?.ritten || []).find(x => x.id === id); if (!r || !map) return;
+  let pts = [];
+  if (r.heeft_track) { const {data} = await sb.rpc('voertuig_rit_route', {p_id: id}); if (data) { pts = decodeerLijn(data); if (pts.some(([a, b]) => Math.abs(a) > 90 || Math.abs(b) > 180) || (pts.length && Math.abs(pts[0][0] - (r.van_lat ?? pts[0][0])) > 1)) pts = decodeerLijn(data, 6); } }
+  if (pts.length < 2 && r.van_lat != null && r.tot_lat != null) pts = [[r.van_lat, r.van_lng], [r.tot_lat, r.tot_lng]];
+  if (pts.length < 2) { toast('Van deze rit is geen route bekend', 1); return; }
+  ritLaag?.remove(); ritLaag = L.layerGroup().addTo(map);
+  L.polyline(pts, {color: '#6b35b5', weight: 5, opacity: .9}).addTo(ritLaag);
+  L.circleMarker(pts[0], {radius: 8, color: '#fff', weight: 3, fillColor: '#2bb673', fillOpacity: 1}).bindTooltip('Start ' + ritTijd(r.van_tijd)).addTo(ritLaag);
+  L.circleMarker(pts[pts.length - 1], {radius: 8, color: '#fff', weight: 3, fillColor: '#e53935', fillOpacity: 1}).bindTooltip('Eind ' + ritTijd(r.tot_tijd)).addTo(ritLaag);
+  kaartTonen(true); setTimeout(() => { try { map.invalidateSize(); map.fitBounds(L.latLngBounds(pts), {padding: [40, 40]}); } catch {} }, 320);
+  toast(`🛣️ ${r.bestuurder ? r.bestuurder + ' · ' : ''}${ritTijd(r.van_tijd)}–${ritTijd(r.tot_tijd)} · ${r.km != null ? fmt(+r.km, 1) + ' km' : ''}`);
 }
 
 /* ---------- 8. SATELLIETBEELDEN (Sentinel-2, gratis via Earth Search) ---------- */
