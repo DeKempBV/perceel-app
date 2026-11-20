@@ -9775,12 +9775,13 @@ async function tmVlag() {
 let tmLaag = null;
 function tmKaart() {
   TM.scherm = 'kaart'; TM.volg = true; actief = TM.pid || null;
-  document.body.classList.add('tmKaart'); tmRender(); render(true);
+  document.body.classList.add('tmKaart'); doos('tmRender'); tmRender(); doos('render'); render(true); doos('render klaar');
   setTimeout(() => { try { map.invalidateSize(); } catch {}
     const p = perceel(TM.pid);
+    doos(`inzoomen (${TM.pos ? 'GPS' : 'perceel'}) · ${document.querySelectorAll('#map img').length} tegels, ${document.querySelectorAll('#map path').length} vormen`);
     if (TM.pos) map.setView([TM.pos.geometry.coordinates[1], TM.pos.geometry.coordinates[0]], 18);
     else if (p?.geo) map.fitBounds(L.geoJSON(p.geo).getBounds(), {padding: [30, 30]});
-    tmPlek(); }, 150);
+    tmPlek(); doos('kaart staat'); setTimeout(() => doos(`na 3 s · ${document.querySelectorAll('#map img').length} tegels, ${document.querySelectorAll('#map path').length} vormen, ${document.querySelectorAll('#map .leaflet-marker-icon').length} iconen`), 3000); }, 150);
 }
 function tmPlek() {
   if (!map || TM.scherm !== 'kaart') return;
@@ -17845,6 +17846,44 @@ async function checkVersie() {
 checkVersie();
 setInterval(checkVersie, 5 * 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersie(); });
+
+/* ---------- zwarte doos: bij vastlopen in de trekkermodus laten zien wat er gebeurde ---------- */
+const DOOS = {n: {}, t0: Date.now(), gemeld: false};
+function doos(t) {
+  try { const mb = performance.memory ? ` · ${Math.round(performance.memory.usedJSHeapSize / 1048576)} MB` : '';
+    const l = JSON.parse(localStorage.getItem('zwarte_doos') || '[]'); l.push(`${new Date().toLocaleTimeString('nl-NL')} ${t}${mb}`);
+    localStorage.setItem('zwarte_doos', JSON.stringify(l.slice(-40))); } catch {}
+}
+function doosTonen(titel, extra) {
+  let l = []; try { l = JSON.parse(localStorage.getItem('zwarte_doos') || '[]'); } catch {}
+  const m = $('#modal'); if (!m) return;
+  m.innerHTML = `<div class="dialoog" style="z-index:99999"><h3>${esc(titel)}</h3><p class="hint" style="margin-top:0">Maak een schermafbeelding en stuur hem door.</p>
+    <pre style="white-space:pre-wrap;font-size:11px;background:#f3f7f1;border-radius:10px;padding:8px;max-height:55vh;overflow:auto">${esc(navigator.userAgent)}
+${esc(extra || '')}
+${l.map(esc).join('\n')}</pre>
+    <button class="knop" onclick="try{localStorage.removeItem('zwarte_doos');localStorage.removeItem('tm_actie')}catch{};$('#modal').classList.remove('open')">Sluiten</button></div>`;
+  m.classList.add('open'); m.style.zIndex = 99999;
+}
+// tellen hoe vaak er getekend wordt; meer dan 15 keer in 3 seconden = een lus: dan laten zien wie dat veroorzaakt
+function doosTel(naam) {
+  const nu = Date.now(); if (nu - DOOS.t0 > 3000) { DOOS.n = {}; DOOS.t0 = nu; }
+  DOOS.n[naam] = (DOOS.n[naam] || 0) + 1;
+  if (DOOS.n[naam] === 15 && !DOOS.gemeld && typeof TM !== 'undefined' && TM.aan) {
+    DOOS.gemeld = true; const st = (new Error().stack || '').split('\n').slice(2, 9).map(s => s.trim()).join('\n');
+    doos(`LUS: ${naam} 15× in 3 s`); doosTonen('⚠️ De app tekent steeds opnieuw', `${naam} 15× in 3 s, aangeroepen door:\n${st}`);
+  }
+}
+(() => {
+  const omhul = (naam) => { const f = window[naam]; if (typeof f !== 'function') return; window[naam] = function (...a) { doosTel(naam); return f.apply(this, a); }; };
+  try { render = (f => function (...a) { doosTel('render'); return f.apply(this, a); })(render); } catch {}
+  try { renderKaart = (f => function (...a) { doosTel('renderKaart'); return f.apply(this, a); })(renderKaart); } catch {}
+  try { tmRender = (f => function (...a) { doosTel('tmRender'); return f.apply(this, a); })(tmRender); } catch {}
+  try { tmKaart = (f => function (...a) { doos('tik: Percelen (kaart openen)'); try { localStorage.setItem('tm_actie', String(Date.now())); } catch {} setTimeout(() => { try { localStorage.removeItem('tm_actie'); } catch {} doos('kaart 15 s goed'); }, 15000); return f.apply(this, a); })(tmKaart); } catch {}
+  window.addEventListener('error', e => doos('FOUT: ' + (e.message || e.error?.message || '?') + (e.filename ? ` (${String(e.filename).split('/').pop()}:${e.lineno})` : '')));
+  window.addEventListener('unhandledrejection', e => doos('FOUT (async): ' + String(e.reason?.message || e.reason || '?').slice(0, 200)));
+  // na het opstarten: liep hij vorige keer vast binnen 15 s na het openen van de kaart?
+  setTimeout(() => { try { const t = +localStorage.getItem('tm_actie'); if (t && Date.now() - t < 10 * 60000) { localStorage.removeItem('tm_actie'); doosTonen('⚠️ De app is net opnieuw opgestart na het openen van de kaart'); } else localStorage.removeItem('tm_actie'); } catch {} }, 2500);
+})();
 
 start();
 </script>
