@@ -1,7 +1,7 @@
 // Perceel App – service worker
 // - De app zelf komt altijd vers van internet (updates meteen zichtbaar); zonder bereik de laatst bekende versie.
 // - Kaartbibliotheken en bekeken kaarttegels worden bewaard, zodat de kaart ook zonder bereik werkt.
-const CACHE = 'perceel-v3', TEGELS = 'perceel-tegels', MAX_TEGELS = 4000;
+const CACHE = 'perceel-v4', TEGELS = 'perceel-tegels', MAX_TEGELS = 4000;
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['offline.html', 'icon-192.png', 'icon-512.png'])));
   self.skipWaiting();
@@ -9,7 +9,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys().then(k => Promise.all(k.filter(n => n !== CACHE && n !== TEGELS).map(n => caches.delete(n)))).then(() => self.clients.claim())));
 const isCdn = u => /unpkg\.com|cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com/.test(u.hostname);
-const isTegel = u => /arcgisonline\.com|tile\.openstreetmap\.org/.test(u.hostname);
+const isTegel = u => /arcgisonline\.com|tile\.openstreetmap\.org|service\.pdok\.nl/.test(u.hostname);
 let teller = 0;
 async function tegelsOpruimen() {
   const c = await caches.open(TEGELS), k = await c.keys();

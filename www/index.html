@@ -4074,10 +4074,27 @@ function ontwarLetters() {
 }
 
 /* ============ kaart ============ */
+// luchtfoto: in Nederland de luchtfoto van de overheid (Beeldmateriaal Nederland via PDOK, 8 cm, elk jaar nieuw, gratis);
+// daarbuiten, of als er ergens een stukje ontbreekt, de wereldwijde luchtfoto van Esri
+const ESRI_SAT = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+const PDOK_SAT = (z, x, y) => `https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_orthoHR/EPSG:3857/${z}/${x}/${y}.jpeg`;
+// grove omtrek van Nederland (lengte, breedte): ruim aan zee, krap langs de grens met België en Duitsland
+const NL_OMTREK = [[3.36, 51.37], [3.38, 51.27], [3.90, 51.20], [4.25, 51.32], [4.40, 51.36], [4.77, 51.50], [5.00, 51.43], [5.24, 51.27], [5.57, 51.22], [5.84, 51.10],
+  [5.77, 50.96], [5.63, 50.88], [5.67, 50.76], [6.02, 50.75], [6.09, 50.92], [5.89, 51.05], [6.17, 51.16], [6.07, 51.25], [6.22, 51.36], [6.10, 51.55], [5.96, 51.73], [6.03, 51.84], [6.40, 51.86], [6.83, 51.97],
+  [6.76, 52.12], [7.07, 52.23], [7.05, 52.40], [6.70, 52.55], [7.07, 52.85], [7.21, 53.24], [7.10, 53.55], [6.00, 53.60], [4.90, 53.40], [4.45, 52.95], [4.45, 52.45],
+  [4.05, 52.05], [3.55, 51.75], [3.30, 51.55]];
+function inNL(lon, lat) { let in_ = false; for (let i = 0, j = NL_OMTREK.length - 1; i < NL_OMTREK.length; j = i++) { const [xi, yi] = NL_OMTREK[i], [xj, yj] = NL_OMTREK[j];
+  if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) in_ = !in_; } return in_; }
+// alleen de PDOK-foto als het hele kaartstukje in Nederland ligt (anders zie je wit over de grens)
+function tegelInNL(z, x, y) { if (z < 7) return false; const n = 2 ** z, lon = v => v / n * 360 - 180, lat = v => Math.atan(Math.sinh(Math.PI * (1 - 2 * v / n))) * 180 / Math.PI;
+  return [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].every(([a, b]) => inNL(lon(a), lat(b))); }
+const satTegelUrl = (z, x, y) => tegelInNL(z, x, y) ? PDOK_SAT(z, x, y) : ESRI_SAT(z, x, y);
 function initKaart() {
   if (map) return;
   map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([52.2, 5.4], 8);
-  basis.sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 21, maxNativeZoom: 19, attribution: 'Esri'});
+  const SatLaag = L.TileLayer.extend({getTileUrl: c => satTegelUrl(c.z, c.x, c.y)});
+  basis.sat = new SatLaag('', {maxZoom: 21, maxNativeZoom: 20, attribution: 'Luchtfoto: Beeldmateriaal Nederland (PDOK) · buiten NL: Esri'});
+  basis.sat.on('tileerror', e => { const t = e.tile, c = e.coords; if (!t.dataset.esri) { t.dataset.esri = '1'; t.src = ESRI_SAT(Math.min(c.z, 19), c.x >> Math.max(0, c.z - 19), c.y >> Math.max(0, c.z - 19)); } });
   basis.namen = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {maxZoom: 21, maxNativeZoom: 19});
   basis.kaart = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 21, maxNativeZoom: 19, attribution: '© OpenStreetMap'});
   basis.sat.addTo(map); basis.namen.addTo(map);
@@ -14406,7 +14423,7 @@ async function kaartOfflineOpslaan() {
   let klaar = 0, mis = 0;
   banner(`<b>📥 Kaart opslaan…</b> 0 / ${lijst.length}`);
   const werk = async () => { while (lijst.length) { const [z, x, y] = lijst.shift().split('/');
-    try { await fetch(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`, {mode: 'no-cors'}); } catch { mis++; }
+    try { await fetch(satTegelUrl(+z, +x, +y), {mode: 'no-cors'}); } catch { mis++; }
     if (++klaar % 25 === 0) banner(`<b>📥 Kaart opslaan…</b> ${klaar} / ${klaar + lijst.length}`); } };
   await Promise.all(Array.from({length: 6}, werk));
   banner(null); toast(`📥 Kaart opgeslagen${mis ? ` (${mis} stukjes mislukt)` : ''}. Ook zonder bereik zie je nu je percelen.`);
