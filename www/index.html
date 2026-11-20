@@ -214,6 +214,12 @@ textarea.veld{resize:vertical;font-family:inherit}
 .uitbalk{background:#eceff1;color:#455a64;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:13px;display:flex;align-items:center;gap:10px;justify-content:space-between}
 .uitbalk button{background:var(--groen2);color:#fff;border:0;border-radius:9px;padding:7px 12px;font-weight:700;flex:none}
 .item.uit{opacity:.55}
+.rechtGroep{border:1px solid var(--rand);border-radius:10px;margin:6px 0;padding:0 10px}.rechtGroep[open]{padding-bottom:6px}
+.rechtGroep summary{display:flex;align-items:center;gap:8px;padding:9px 0;cursor:pointer;list-style:none;font-weight:700;font-size:14px}.rechtGroep summary::-webkit-details-marker{display:none}
+.rechtGroep summary::before{content:'▸';color:var(--grijs)}.rechtGroep[open] summary::before{content:'▾'}.rechtGroep summary>small{color:var(--grijs);font-weight:500;font-size:12px}
+.rgKnoppen{margin-left:auto;display:flex;gap:4px}.rgKnoppen button{border:1px solid var(--rand);background:#fff;border-radius:8px;padding:3px 8px;font:inherit;font-size:12px;cursor:pointer;color:var(--tekst)}
+.rechtUitleg{display:block;color:var(--grijs);font-size:12px;font-weight:400}.rzVerborgen{display:none!important}
+.rechtKop{font-weight:800;font-size:13px;color:var(--groen2);margin:14px 0 2px}.rechtKop small{display:block;font-weight:500;color:var(--grijs);font-size:12px}.rechtZoek{margin:4px 0 6px}
 .rechtgroep{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--groen2);margin:12px 0 0}
 .weergave{margin-bottom:10px}
 .planbalk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:space-between;margin-bottom:10px}
@@ -1291,7 +1297,7 @@ const STANDAARD = {percelen_tekenen: true, percelen_bewerken: true, spuitsporen_
   monsters_beheren: false, beregening_invoeren: true, voorraad_bekijken: true, voorraad_beheren: false, etiketten_printen: false, bestellen: true, bestellingen_goedkeuren: false, pno_bekijken: false, pno_beheren: false, resultaten_invoeren: true, resultaten_bekijken: false, resultaten_beheren: false,
   blok_vandaag: true, blok_velden: true, blok_werk: true, blok_oogst: true, blok_voorraad: true, blok_mensen: true, blok_instellingen: true, blok_trekkers: true, blok_bussen: true};
 const PERCEEL_RECHTEN = ['percelen_tekenen', 'percelen_bewerken', 'spuitsporen_bewerken', 'deelvelden_bewerken', 'percelen_uitschakelen', 'percelen_verwijderen', 'soorten_indelen', 'kopeinden_bewerken', 'plattegrond_beheren'];
-const recht = r => { if (isBeheerder()) return true; const x = {...STANDAARD, ...(mijnProfiel()?.rechten || {})}; return !!x[r] && (!PERCEEL_RECHTEN.includes(r) || !!x.percelen_aanpassen); };
+const recht = r => { if (isBeheerder()) return true; if (String(r).startsWith('scherm_')) return mijnProfiel()?.rechten?.[r] !== false; const x = {...STANDAARD, ...(mijnProfiel()?.rechten || {})}; return !!x[r] && (!PERCEEL_RECHTEN.includes(r) || !!x.percelen_aanpassen); };
 const ziet = recht;                                  // bekijk-rechten (ook in het archief)
 // Eenvoudige weergave (telefoon): alleen kijken, aantekeningen, taken en werk. Aanpassen gebeurt op de computer.
 const PC_RECHTEN = new Set(['percelen_aanpassen', 'percelen_tekenen', 'percelen_bewerken', 'spuitsporen_bewerken', 'deelvelden_bewerken', 'percelen_uitschakelen',
@@ -5167,12 +5173,116 @@ function htmlSoorten() {
 }
 
 /* ============ team (alleen beheerder) ============ */
-function rechtenLijst(aan, attr) {
-  const groepen = [...new Set(RECHTEN.map(r => r[2]))], hoofd = aan('percelen_aanpassen');
-  const vink = k => `<label class="vinkje ${PERCEEL_RECHTEN.includes(k) ? 'subrecht' : ''}" ${PERCEEL_RECHTEN.includes(k) && !hoofd ? 'style="display:none"' : ''}><input type="checkbox" ${aan(k) ? 'checked' : ''} ${attr(k)}
-    ${k === 'percelen_aanpassen' ? `oninput="this.closest('.rechtenblok').querySelectorAll('.subrecht').forEach(e=>e.style.display=this.checked?'':'none')"` : ''}> ${RECHTEN.find(r => r[0] === k)[1]}</label>`;
-  return `<div class="rechtenblok">${groepen.map(g => `<div class="rechtgroep">${g}</div>` + RECHTEN.filter(r => r[2] === g).map(([k]) => vink(k)).join('')).join('')}</div>`;
+/* ---------- rechten in detail: per scherm aan/uit, groepen in- en uitklappen, zoeken, eigen standaarden ---------- */
+// per scherm (tegel): ontbreekt = aan; alleen expliciet false verbergt het
+const schermMag = k => isBeheerder() || mijnProfiel()?.rechten?.['scherm_' + k] !== false;
+// alle schermen per blok (zoals een beheerder ze ziet)
+function alleSchermen() {
+  const gezien = new Set(), uit = [];
+  BLOKKEN.forEach(([b, , bn]) => { let tabs = []; try { tabs = sectieTabsBasis(b); } catch {}
+    tabs.forEach(([k, i, l]) => { if (k === '_blok' || gezien.has(k)) return; gezien.add(k); uit.push({k, i, l, blok: bn}); }); });
+  return uit;
 }
+const RECHT_UITLEG = {
+  percelen_aanpassen: 'Zonder dit vinkje kan iemand de percelen alleen bekijken; met dit vinkje verschijnen de onderdelen eronder.',
+  uren_bekijken: 'Eigen uren ziet iedereen altijd.', team_beheren: 'Alleen rechten die je zelf hebt; beheerders kun je niet aanpassen.',
+  pno_bekijken: 'Persoonsgegevens: nooit op een gedeeld apparaat (trekker-tablet).', bestellen: 'Uit = de knop Iets aanvragen verdwijnt.',
+  tractor_rijden: 'Nodig voor een telefoon of tablet die als trekker zijn locatie doorgeeft.', ai_gebruiken: 'Acties van de AI worden altijd eerst gevraagd.'};
+let rechtZoek = '';
+function rechtenLijst(aan, attr, uid) {
+  const z = normTekst(rechtZoek), hoofd = aan('percelen_aanpassen');
+  const tekst = k => RECHTEN.find(r => r[0] === k)?.[1] || k;
+  const isAan = k => k.startsWith('scherm_') ? aan(k) !== false : !!aan(k);
+  const vink = (k, label) => `<label class="vinkje ${PERCEEL_RECHTEN.includes(k) ? 'subrecht' : ''}" data-zoek="${esc(normTekst(label + ' ' + (RECHT_UITLEG[k] || '')))}" ${PERCEEL_RECHTEN.includes(k) && !hoofd ? 'style="display:none"' : ''}><input type="checkbox" data-recht="${k}" ${isAan(k) ? 'checked' : ''} ${attr(k)}
+    ${k === 'percelen_aanpassen' ? `oninput="this.closest('.rechtenblok').querySelectorAll('.subrecht').forEach(e=>e.style.display=this.checked?'':'none')"` : ''}> <span>${label}${RECHT_UITLEG[k] ? `<small class="rechtUitleg">${esc(RECHT_UITLEG[k])}</small>` : ''}</span></label>`;
+  const groep = (titel, items, open) => { const n = items.filter(([k]) => isAan(k)).length;
+    return `<details class="rechtGroep" ${open || z ? 'open' : ''}><summary><span>${titel}</span><small>${n}/${items.length} aan</small>
+      <span class="rgKnoppen"><button type="button" onclick="event.preventDefault();rechtGroepZet(this,true,${uid ? `'${uid}'` : 'null'})">alles aan</button><button type="button" onclick="event.preventDefault();rechtGroepZet(this,false,${uid ? `'${uid}'` : 'null'})">uit</button></span></summary>
+      ${items.map(([k, l]) => vink(k, l)).join('')}</details>`; };
+  const groepen = [...new Set(RECHTEN.map(r => r[2]))];
+  const schermen = alleSchermen(), perBlok = [...new Set(schermen.map(s => s.blok))];
+  return `<div class="rechtenblok" data-uid="${uid || ''}">
+    <input class="veld rechtZoek" placeholder="🔎 Zoek een recht of scherm…" value="${esc(rechtZoek)}" oninput="rechtZoek=this.value;rechtZoekFilter(this)">
+    <div class="rechtKop">🔐 Wat mag iemand doen</div>
+    ${groepen.map(g => groep(g, RECHTEN.filter(r => r[2] === g).map(([k]) => [k, tekst(k)]))).join('')}
+    <div class="rechtKop">📱 Welke schermen ziet iemand <small>(uit = de tegel is weg; wat iemand mag zien en aanpassen regelen de rechten hierboven)</small></div>
+    ${perBlok.map(b => groep(esc(b), schermen.filter(s => s.blok === b).map(s => ['scherm_' + s.k, `${s.i} ${esc(s.l)}`]))).join('')}
+  </div>`;
+}
+function rechtZoekFilter(inp) {
+  const z = normTekst(inp.value), blok = inp.closest('.rechtenblok');
+  blok.querySelectorAll('.rechtGroep').forEach(g => { let n = 0;
+    g.querySelectorAll('label.vinkje').forEach(l => { const ok = !z || (l.dataset.zoek || '').includes(z); l.classList.toggle('rzVerborgen', !ok); if (ok) n++; });
+    g.style.display = n ? '' : 'none'; if (z) g.open = true; });
+}
+async function rechtGroepZet(knop, aan, uid) {
+  const g = knop.closest('.rechtGroep'), patch = {};
+  g.querySelectorAll('input[data-recht]').forEach(i => { if (i.disabled || i.closest('.rzVerborgen')) return; i.checked = aan; patch[i.dataset.recht] = aan; });
+  g.querySelector('summary small').textContent = `${[...g.querySelectorAll('input[data-recht]')].filter(i => i.checked).length}/${g.querySelectorAll('input[data-recht]').length} aan`;
+  if (uid) await zetRechtenPatch(uid, patch);
+}
+async function zetRechtenPatch(id, patch) {
+  const u = S.profielen.find(x => x.id === id); if (!u || !Object.keys(patch).length) return;
+  u.rechten = {...STANDAARD, ...(u.rechten || {}), ...patch};
+  const {error} = await sb.rpc('zet_rechten', {p_id: id, p_rechten: u.rechten});
+  if (error) { toast(foutTekst(error), 1); laadTeam(); } else toast('Rechten opgeslagen');
+}
+// ---- eigen standaarden ----
+const eigenSjablonen = () => { try { const x = JSON.parse(S.inst?.recht_sjablonen || '{}'); return x && typeof x === 'object' ? x : {}; } catch { return {}; } };
+const alleSjablonen = () => ({...RECHT_SJABLONEN, ...Object.fromEntries(Object.entries(eigenSjablonen()).map(([k, x]) => ['e_' + k, {naam: '⭐ ' + x.naam, rechten: x.rechten || {}, eigen: k}]))});
+async function bewaarSjablonen(obj) {
+  const {error} = await sb.rpc('zet_instelling', {p_sleutel: 'recht_sjablonen', p_waarde: JSON.stringify(obj)});
+  if (error) { toast(/Onbekende|Ongeldige/.test(error.message) ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(error), 1); return false; }
+  S.inst = {...(S.inst || {}), recht_sjablonen: JSON.stringify(obj)}; return true;
+}
+// de vinkjes van een persoon of van het formulier "nieuwe medewerker" als standaard bewaren
+function rechtenVan(uid) {
+  if (uid) { const u = S.profielen.find(x => x.id === uid), r = {...STANDAARD, ...(u?.rechten || {})};
+    return Object.fromEntries([...RECHTEN.map(([k]) => [k, !!r[k]]), ...alleSchermen().map(s => ['scherm_' + s.k, r['scherm_' + s.k] !== false])]); }
+  const r = {}; document.querySelectorAll('#tRechten input[data-recht]').forEach(i => r[i.dataset.recht] = i.checked); return r;
+}
+async function sjabloonOpslaan(uid) {
+  if (!magTeam()) return;
+  const bestaand = eigenSjablonen();
+  const w = await formulier('💾 Opslaan als standaard', [{type: 'uitleg', waarde: 'De vinkjes zoals ze nu staan worden een knop die je bij elke medewerker kunt aanklikken.'},
+    {k: 'naam', label: 'Naam van de standaard', waarde: '', placeholder: 'bijv. Chauffeur, Kantoor, Sorteerlijn, Uitzendkracht', lijst: Object.values(bestaand).map(x => x.naam)}], 'Opslaan');
+  if (!w?.naam?.trim()) return;
+  const naam = w.naam.trim(), al = Object.entries(bestaand).find(([, x]) => x.naam.toLowerCase() === naam.toLowerCase());
+  if (al && !await bevestigJa('Bestaat al', `Er is al een standaard "${esc(naam)}". Overschrijven?`, 'Overschrijven')) return;
+  const id = al ? al[0] : Date.now().toString(36);
+  if (await bewaarSjablonen({...bestaand, [id]: {naam, rechten: rechtenVan(uid), door: naamMe(), op: new Date().toISOString()}})) { toast(`⭐ Standaard "${naam}" opgeslagen`); render(true); }
+}
+async function sjablonenBeheren() {
+  if (!magTeam()) return;
+  const l = Object.entries(eigenSjablonen());
+  $('#modal').innerHTML = `<div class="dialoog"><h3>⭐ Eigen standaarden</h3>
+    ${l.length ? l.map(([id, x]) => { const n = Object.entries(x.rechten || {}).filter(([k, v]) => v && !k.startsWith('scherm_')).length, uitS = Object.entries(x.rechten || {}).filter(([k, v]) => k.startsWith('scherm_') && v === false).length;
+      return `<div class="srRij"><div class="t"><b>${esc(x.naam)}</b><small>${n} rechten aan${uitS ? ` · ${uitS} schermen verborgen` : ''}${x.door ? ' · ' + esc(x.door) : ''}</small></div>
+        <span class="logknoppen"><button class="weg" title="Toepassen op meerdere mensen" onclick="sjabloonOpMeer('${id}')">👥</button><button class="weg" title="Naam wijzigen" onclick="sjabloonHernoem('${id}')">✏️</button><button class="weg" title="Verwijderen" onclick="sjabloonWeg('${id}')">🗑️</button></span></div>`; }).join('')
+      : '<p class="hint">Nog geen eigen standaarden. Zet bij een medewerker de vinkjes goed en tik op 💾 Opslaan als standaard.</p>'}
+    <p class="hint">Een standaard aanpassen: zet de vinkjes bij een medewerker goed en sla op met dezelfde naam.</p>
+    <div class="rij"><button class="knop licht" onclick="$('#modal').classList.remove('open')">Sluiten</button></div></div>`;
+  $('#modal').classList.add('open');
+}
+async function sjabloonHernoem(id) {
+  const s = eigenSjablonen(), x = s[id]; if (!x) return;
+  const naam = await vraag('Nieuwe naam', {waarde: x.naam}); if (!naam?.trim()) return;
+  x.naam = naam.trim(); if (await bewaarSjablonen(s)) { sjablonenBeheren(); render(true); }
+}
+async function sjabloonWeg(id) {
+  const s = eigenSjablonen(); if (!s[id] || !await bevestig('Standaard verwijderen?', s[id].naam)) return;
+  delete s[id]; if (await bewaarSjablonen(s)) { sjablonenBeheren(); render(true); }
+}
+async function sjabloonOpMeer(id) {
+  const x = eigenSjablonen()[id]; if (!x) return;
+  const mensen = S.profielen.filter(u => u.rol !== 'beheerder' && u.id !== me.id).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  const w = await formulier(`👥 "${x.naam}" toepassen op…`, [{k: 'wie', type: 'vinkjes', waarde: [], opties: mensen.map(u => [u.id, u.naam + (u.apparaat ? ' (tablet)' : '')])}], 'Toepassen');
+  if (!w?.wie?.length) return;
+  for (const uid of w.wie) await sjabloonVoor(uid, 'e_' + id, true);
+  toast(`⭐ "${x.naam}" ingesteld voor ${w.wie.length} ${w.wie.length === 1 ? 'persoon' : 'mensen'}`); laadTeam();
+}
+const sjabloonKnoppen = (fn, uid) => `<div class="rij" style="flex-wrap:wrap;margin:6px 0;gap:6px">${Object.entries(alleSjablonen()).map(([k, x]) => `<button class="knop klein licht" style="flex:0 0 auto;width:auto" onclick="${fn}(${uid ? `'${uid}',` : ''}'${k}')">${esc(x.naam)}</button>`).join('')}
+  ${magTeam() ? `<button class="knop klein" style="flex:0 0 auto;width:auto" onclick="sjabloonOpslaan(${uid ? `'${uid}'` : ''})">💾 Opslaan als standaard</button>${Object.keys(eigenSjablonen()).length ? '<button class="knop klein licht" style="flex:0 0 auto;width:auto" onclick="sjablonenBeheren()">⚙️ Standaarden</button>' : ''}` : ''}</div>`;
 /* ============ agenda (groot scherm) ============ */
 let agTab = (() => { try { return localStorage.getItem('agTab') || 'mij'; } catch { return 'mij'; } })();
 let agendaOpen = false, agModus = 'week', agDatum = new Date(), agWie = '', agPerceel = '', agKlaar = true, agTaakId = null;
@@ -5645,7 +5755,7 @@ function htmlTeam() {
       <label>Wachtwoord (minimaal 6 tekens)</label><input class="veld" id="tWw" type="text" placeholder="bijv. Trekker2026" autocomplete="off">
       ${isBeheerder() ? `<label>Rol</label><select class="veld" id="tRol" onchange="document.getElementById('tRechten').style.display=this.value==='beheerder'?'none':''"><option value="medewerker">Medewerker</option><option value="beheerder">Beheerder</option></select>` : '<input type="hidden" id="tRol" value="medewerker">'}
       <div id="tRechten"><label>Wat mag deze medewerker?</label>
-        <div class="rij" style="flex-wrap:wrap;margin-bottom:6px">${Object.entries(RECHT_SJABLONEN).map(([k, x]) => `<button class="knop klein licht" style="flex:0 0 auto;width:auto" onclick="sjabloonKiezen('${k}')">${x.naam}</button>`).join('')}</div>${rechtenLijst(k => STANDAARD[k] && (isBeheerder() || recht(k)), k => `data-recht="${k}" ${isBeheerder() || recht(k) ? '' : 'disabled title="Dit recht heb je zelf niet"'}`)}</div>
+        ${sjabloonKnoppen('sjabloonKiezen')}${rechtenLijst(k => STANDAARD[k] && (isBeheerder() || recht(k)), k => `data-recht="${k}" ${isBeheerder() || recht(k) ? '' : 'disabled title="Dit recht heb je zelf niet"'}`)}</div>
       <label class="vinkje"><input type="checkbox" id="tChauffeur"> 🚜 Chauffeur: staat in de lijst "wie rijdt er?" op de trekker-tablets</label>
       ${isBeheerder() ? '<label class="vinkje"><input type="checkbox" id="tApparaat"> 📱 Dit is een trekker-tablet (gedeeld apparaat): start in de trekker-modus en kan geen persoonlijke gegevens zien</label>' : ''}
       <button class="knop" id="tKnop" onclick="maakMedewerker()">Account aanmaken</button>
@@ -5666,8 +5776,8 @@ function htmlTeam() {
         ${u.id !== me.id && (isBeheerder() || u.rol !== 'beheerder') ? `<button class="weg" title="Account verwijderen" onclick="teamVerwijder('${u.id}')">×</button>` : ''}
       </div>
       ${openRechten === u.id && u.rol !== 'beheerder' ? `<div class="rechten"><b>Wat mag ${esc(u.naam)}?</b>
-        <div class="rij" style="flex-wrap:wrap;margin:6px 0">${Object.entries(RECHT_SJABLONEN).map(([k, x]) => `<button class="knop klein licht" style="flex:0 0 auto;width:auto" onclick="sjabloonVoor('${u.id}','${k}')">${x.naam}</button>`).join('')}</div>${rechtenLijst(k => ({...STANDAARD, ...(u.rechten || {})})[k],
-        k => `onchange="zetRecht('${u.id}','${k}',this.checked)" ${isBeheerder() || recht(k) ? '' : 'disabled title="Dit recht heb je zelf niet"'}`)}
+        ${sjabloonKnoppen('sjabloonVoor', u.id)}${rechtenLijst(k => ({...STANDAARD, ...(u.rechten || {})})[k],
+        k => `onchange="zetRecht('${u.id}','${k}',this.checked)" ${isBeheerder() || recht(k) ? '' : 'disabled title="Dit recht heb je zelf niet"'}`, u.id)}
         <p class="hint">Wijzigingen gelden meteen.</p></div>` : ''}`).join('')}
       <p class="hint">✏️ naam · 🔑 nieuw wachtwoord · 🛡️ rechten${isBeheerder() ? ' · ⭐ beheerder/medewerker' : ''} · × verwijderen. Beheerders mogen alles.${isBeheerder() ? '' : ' Je kunt alleen rechten geven die je zelf hebt, en geen beheerders aanpassen.'}</p>
     </section>`;
@@ -5697,12 +5807,14 @@ const RECHT_SJABLONEN = {
   trekker: {naam: '🚜 Trekker-tablet', aan: ['taken_afvinken', 'werk_registreren', 'markeringen_maken', 'weer_bekijken', 'tractor_rijden', 'tractoren_volgen']},
   kijken: {naam: '👀 Alleen kijken', aan: ['weer_bekijken', 'historie_bekijken', 'film_bekijken', 'oogst_bekijken', 'voorraad_bekijken', 'tractoren_volgen']},
   standaard: {naam: '📋 Standaard medewerker', standaard: true}};
-const sjabloonRechten = k => { const x = RECHT_SJABLONEN[k]; return Object.fromEntries(RECHTEN.map(([r]) => [r, x.standaard ? !!STANDAARD[r] : x.aan.includes(r)])); };
+const sjabloonRechten = k => { const x = alleSjablonen()[k]; if (!x) return {};
+  if (x.rechten) return Object.fromEntries([...RECHTEN.map(([r]) => [r, !!x.rechten[r]]), ...alleSchermen().map(s => ['scherm_' + s.k, x.rechten['scherm_' + s.k] !== false])]);
+  return Object.fromEntries([...RECHTEN.map(([r]) => [r, x.standaard ? !!STANDAARD[r] : x.aan.includes(r)]), ...alleSchermen().map(s => ['scherm_' + s.k, true])]); };
 function sjabloonKiezen(k) {
   const r = sjabloonRechten(k);
-  document.querySelectorAll('#tRechten input[data-recht]').forEach(i => { if (!i.disabled) i.checked = !!r[i.dataset.recht]; });
+  document.querySelectorAll('#tRechten input[data-recht]').forEach(i => { if (!i.disabled && i.dataset.recht in r) i.checked = !!r[i.dataset.recht]; });
   if (k === 'trekker') { if (!$('#tNaam').value) $('#tNaam').value = 'Trekker '; if ($('#tApparaat')) $('#tApparaat').checked = true; if ($('#tChauffeur')) $('#tChauffeur').checked = false; }
-  toast(`${RECHT_SJABLONEN[k].naam}: rechten ingevuld, pas aan waar nodig`);
+  toast(`${alleSjablonen()[k]?.naam}: rechten ingevuld, pas aan waar nodig`);
 }
 async function zetTrekker(id, trekker) {
   const u = S.profielen.find(x => x.id === id); if (!u) return;
@@ -5726,12 +5838,12 @@ async function zetVlag(id, vlag) {
   if (error) { toast(/zet_profiel_vlag|function/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); laadTeam(); return; }
   if ('p_chauffeur' in vlag) u.chauffeur = vlag.p_chauffeur; if ('p_apparaat' in vlag) u.apparaat = vlag.p_apparaat; render(true); toast('Opgeslagen');
 }
-async function sjabloonVoor(id, k) {
+async function sjabloonVoor(id, k, stil) {
   const u = S.profielen.find(x => x.id === id); if (!u) return;
   const r = Object.fromEntries(Object.entries(sjabloonRechten(k)).map(([key, v]) => [key, v && (isBeheerder() || recht(key))]));
   u.rechten = {...STANDAARD, ...(u.rechten || {}), ...r};
   const {error} = await sb.rpc('zet_rechten', {p_id: id, p_rechten: u.rechten});
-  if (error) { toast(foutTekst(error), 1); laadTeam(); } else { toast(`${RECHT_SJABLONEN[k].naam} ingesteld voor ${u.naam}`); render(true); }
+  if (error) { toast(foutTekst(error), 1); if (!stil) laadTeam(); } else if (!stil) { toast(`${alleSjablonen()[k]?.naam} ingesteld voor ${u.naam}`); render(true); }
 }
 async function zetRecht(id, sleutel, waarde) {
   const u = S.profielen.find(x => x.id === id);
@@ -6216,9 +6328,10 @@ const blokUitleg = k => mijnMenu().blokken?.[k]?.uitleg ?? BLOKKEN.find(b => b[0
 const blokkenVolgorde = () => { const v = mijnMenu().volgorde || [], alle = BLOKKEN.map(b => b[0]); return [...v.filter(k => alle.includes(k)), ...alle.filter(k => !v.includes(k))]; };
 const tegelInfo = (k, i, l) => { const t = mijnMenu().tegels?.[k] || {}, inf = TAB_INFO[k] || [i, l, '']; return [t.i || inf[0] || i, t.naam || inf[1] || l, t.uitleg ?? inf[2] ?? '']; };
 // de tegels per kopje volgens je eigen indeling (alleen tegels die je mag zien)
+const sectieTabsGefilterd = s => sectieTabsBasis(s).filter(t => schermMag(t[0]));
 function sectieTabs(s) {
-  const plek = mijnMenu().plek; if (!plek || !BLOKKEN.some(b => b[0] === s)) return sectieTabsBasis(s);
-  const basis = {}, alle = new Map(); BLOKKEN.forEach(([k]) => { basis[k] = sectieTabsBasis(k); basis[k].forEach(t => { if (!alle.has(t[0])) alle.set(t[0], t); }); });
+  const plek = mijnMenu().plek; if (!plek || !BLOKKEN.some(b => b[0] === s)) return sectieTabsGefilterd(s);
+  const basis = {}, alle = new Map(); BLOKKEN.forEach(([k]) => { basis[k] = sectieTabsGefilterd(k); basis[k].forEach(t => { if (!alle.has(t[0])) alle.set(t[0], t); }); });
   const geplaatst = new Set(Object.values(plek).flat());
   return [...(plek[s] || []).filter(k => alle.has(k)).map(k => alle.get(k)), ...basis[s].filter(t => !geplaatst.has(t[0]))]
     .filter((t, i, a) => a.findIndex(x => x[0] === t[0]) === i);
