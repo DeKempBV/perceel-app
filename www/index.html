@@ -4105,8 +4105,9 @@ function inNL(lon, lat) { let in_ = false; for (let i = 0, j = NL_OMTREK.length 
 const PDOK_VANAF_ZOOM = 15;
 function tegelInNL(z, x, y) { if (z < PDOK_VANAF_ZOOM) return false; const n = 2 ** z, lon = v => v / n * 360 - 180, lat = v => Math.atan(Math.sinh(Math.PI * (1 - 2 * v / n))) * 180 / Math.PI;
   return [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].every(([a, b]) => inNL(lon(a), lat(b))); }
-// PDOK (scherper) of Esri (lichter). Op de iPad standaard Esri: de iPad liep vast op de PDOK-luchtfoto. Instelbaar bij 🗂️ Lagen.
-const pdokGebruiken = () => { const w = weergave._lucht; if (w) return w === 'pdok'; return !(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)); };
+// PDOK (scherper) of Esri (lichter). In de trekkermodus en op iPad/lichte tablets standaard Esri (de trekkertablet liep vast). Instelbaar bij 🗂️ Lagen.
+const pdokGebruiken = () => { const w = weergave._lucht; if (w) return w === 'pdok'; return !(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  || (typeof TM !== 'undefined' && TM.aan) || (navigator.deviceMemory && navigator.deviceMemory <= 4)); };   // tablets in de trekker en lichte apparaten: Esri
 const satTegelUrl = (z, x, y) => pdokGebruiken() && tegelInNL(z, x, y) ? PDOK_SAT(z, x, y) : ESRI_SAT(z, x, y);
 function zetLuchtfoto(k) { weergave._lucht = k; bewaarWeergave(); try { basis.sat.redraw(); } catch {} }
 function initKaart() {
