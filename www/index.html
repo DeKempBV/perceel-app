@@ -4364,6 +4364,8 @@ function render(forceer) {
   renderKaart(); if (drieDTaakId) ververs3dTaak();
   const a = document.activeElement;
   if (!forceer && a && $('#panel').contains(a) && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) { wachtRender = true; return; }
+  // in de trekkermodus is het paneel onzichtbaar: niet tekenen (scheelt veel rekenwerk; bij het verlaten wordt alles weer getekend)
+  if (typeof TM !== 'undefined' && TM.aan) { document.body.classList.remove('volscherm'); return; }
   renderPaneel();
 }
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
@@ -4373,7 +4375,7 @@ const VOL_TABS = new Set(['trekkeruren', 'busuren', 'water', 'pno', 'bestellinge
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
-  const vol = (VOL_TABS.has(tab) ? !kaartErbij : kaartWeg) && !(typeof menuOpen !== 'undefined' && menuOpen);
+  const vol = (VOL_TABS.has(tab) ? !kaartErbij : kaartWeg) && !(typeof menuOpen !== 'undefined' && menuOpen) && !(typeof TM !== 'undefined' && TM.aan);   // in de trekkermodus altijd de kaart
   if (document.body.classList.contains('volscherm') === vol) return;
   document.body.classList.toggle('volscherm', vol);
   setTimeout(() => { try { map.invalidateSize(); } catch {} }, 280);
