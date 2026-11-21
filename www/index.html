@@ -1096,7 +1096,7 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .plRasKop{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;padding:10px 12px;font:inherit;text-align:left;cursor:pointer}.plRasKop:hover{background:#f6faf3}
 .plRasKop .plAantal{margin-left:auto;color:#6b7a6d;font-size:12.5px}.plPijl{color:#6b7a6d}.plRasIn{border-top:1px solid #eef2ec;padding:2px 12px 8px}
 .wswRegel{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eef2ec}.wswRegel>div{flex:1;min-width:0}.wswRegel small{display:block;color:#6b7a6d;font-size:12.5px}.wswRegel .kl{flex:0 0 12px;height:12px;border-radius:3px;margin-top:4px;display:inline-block}
-.wswM{font-weight:800;white-space:nowrap}h4 .kl{display:inline-block;width:12px;height:12px;border-radius:3px}
+.wswM{font-weight:800;white-space:nowrap;display:flex;flex-direction:column;align-items:flex-end;gap:1px;text-align:right}.wswM b{color:#1b1b1b;font-weight:800}.wswM small{font-weight:500;color:#6b7a6d;font-size:11.5px}h4 .kl{display:inline-block;width:12px;height:12px;border-radius:3px}
 .rpRegel.metVolg{display:flex;gap:8px;align-items:flex-start}.rpRegel .rpExtra label{display:block!important;font-size:12.5px;color:#5d6b5f}.rpRegel .rpExtra input{width:100%!important;margin:2px 0 0!important;flex:none!important}.rpRegel .rpIn{flex:1;min-width:0}
 .rpVolg{display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 46px}.rpVolg button{border:1px solid #cfdccb;background:#fff;border-radius:6px;width:34px;height:26px;cursor:pointer;font-size:13px}.rpVolg button:disabled{opacity:.3;cursor:default}
 .rpVolg b{font-size:14px;line-height:1.1;text-align:center}.rpVolg small{display:block;font-size:10px;color:var(--groen);font-weight:700}
@@ -1663,7 +1663,7 @@ async function laadAlles() {
 function verwerkLive(pl) {
   if (pl.table === 'percelen' || pl.table === 'partijen') spoorPartijMap = null;
   if (pl.table === 'wagens_weg') setTimeout(() => { if (TM.aan) { if (!TM.wagen) tmRender(); } else render(); }, 80);
-  if (pl.table === 'res_invoer' || pl.table === 'res_kistinhoud') setTimeout(() => { if ($('#kiepScherm')) toonKiep(true); else if (TM.aan) { if (!TM.wagen) tmRender(); } else if (/^res|vandaag/.test(tab)) render(); }, 60);
+  if (pl.table === 'res_invoer' || pl.table === 'res_kistinhoud') setTimeout(() => { if ($('#kiepScherm')) toonKiep(true); else if (TM.aan) { if (!TM.wagen) tmRender(); } else if (/^res|vandaag|watstaatwaar/.test(tab)) render(); }, 60);
   if (pl.table === 'seizoenen') {
     if (pl.eventType !== 'DELETE' && pl.new.actief && pl.new.id !== actiefSeizoen()?.id) toast(`Nieuw seizoen gestart: ${pl.new.naam}`);
     laadAlles(); return;
@@ -9080,13 +9080,27 @@ function wswData() {
         partijen: pr.map(y => ({y, n: partijSporen(y).length}))}); }); });
   return uit;
 }
+// rechts in de regel: meters, hectare en ± planten. Zodra er in de registratie gerooid/gesorteerd/geteld is, telt dat (doorgerekend naar de hele partij)
+function wswPlanten(r) {
+  let res = 0, schat = 0, metRes = 0;
+  const sp = Math.max(1, r.sporen), plmPlant = +(ras(r.tid) ? soort(ras(r.tid).soort_id) : soort(r.tid))?.pl_per_m || prPlm;
+  const ps = r.partijen.filter(q => q.n > 0);
+  ps.forEach(q => { let c = null; try { c = (S.res_invoer || []).some(i => i.partij_id === q.y.id) ? resCijfers(q.y) : null; } catch {}
+    const w = c && (c.verwacht ?? (c.gesorteerd || c.telling || null));
+    if (w) { res += w; metRes++; } else schat += r.m * Math.min(1, q.n / sp) * partijPlm(q.y); });
+  const gedekt = ps.reduce((a, q) => a + Math.min(1, q.n / sp), 0);
+  if (gedekt < .999) schat += r.m * (1 - Math.min(1, gedekt)) * plmPlant;
+  return {n: res + schat, bron: metRes && metRes === ps.length && gedekt >= .999 ? 'reg' : metRes ? 'deels' : 'schat'};
+}
+const wswRechts = r => { const pl = wswPlanten(r), n = Math.round(pl.n / 100) * 100;
+  return `<span class="wswM"><b>${fmt(r.m)} m</b>${r.m2 ? `<b>${ha(r.m2)} ha</b>` : ''}${n ? `<b>± ${fmt(n)} planten</b><small>${pl.bron === 'reg' ? '📊 uit de registratie' : pl.bron === 'deels' ? '📊 deels uit de registratie' : 'geschat (meters × pl/m)'}</small>` : ''}</span>`; };
 function htmlWatStaatWaar() {
   const z = normTekst(wswZoek), d = wswData().filter(r => !z || normTekst(`${r.p.naam} ${r.gewas} ${r.ras} ${r.partijen.map(q => partijKort(q.y)).join(' ')}`).includes(z));
   const totM = d.reduce((a, r) => a + r.m, 0), totHa = d.reduce((a, r) => a + r.m2, 0) / 1e4;
   const regel = (r, metPerceel) => `<div class="wswRegel"><i class="kl" style="background:${esc(r.kleur)}"></i><div><b>${metPerceel ? `<a href="#" onclick="event.preventDefault();kiesSectie('velden');zetTab('percelen');kies('${r.p.id}')">${esc(r.p.naam)}</a>` : esc(r.ras || r.gewas)}</b>
-      <small>${r.ras && !metPerceel ? esc(r.gewas) + ' · ' : metPerceel ? esc(r.ras ? r.ras + ' · ' + r.gewas : r.gewas) + ' · ' : ''}${r.sporen} ${r.sporen === 1 ? 'spoor' : 'sporen'}${r.vakken.length ? ' · vak ' + esc(r.vakken.join(', ')) : ''}${r.m2 ? ' · ' + ha(r.m2) + ' ha' : ''}</small>
+      <small>${r.ras && !metPerceel ? esc(r.gewas) + ' · ' : metPerceel ? esc(r.ras ? r.ras + ' · ' + r.gewas : r.gewas) + ' · ' : ''}${r.sporen} ${r.sporen === 1 ? 'spoor' : 'sporen'}${r.vakken.length ? ' · vak ' + esc(r.vakken.join(', ')) : ''}</small>
       ${r.partijen.length ? `<small>🏷️ ${r.partijen.map(q => `${esc(q.y.batch || q.y.nak || '?')}${q.y.klasse ? ' ' + esc(q.y.klasse) : ''}${q.n ? ` (${q.n} sp.)` : ''}`).join(' · ')}</small>` : '<small class="grijs">nog geen partij op deze sporen</small>'}</div>
-    <span class="wswM">${fmt(r.m)} m</span></div>`;
+    ${wswRechts(r)}</div>`;
   let lijst = '';
   if (wswWeergave === 'perceel') { const per = new Map(); d.forEach(r => { if (!per.has(r.p.id)) per.set(r.p.id, []); per.get(r.p.id).push(r); });
     lijst = [...per.values()].sort((a, b) => a[0].p.naam.localeCompare(b[0].p.naam, 'nl', {numeric: true})).map(l => `<section class="kaartje"><h4><a href="#" onclick="event.preventDefault();kiesSectie('velden');zetTab('percelen');kies('${l[0].p.id}')">📍 ${esc(l[0].p.naam)}</a> <small class="hint">${fmt(l.reduce((a, r) => a + r.m, 0))} m</small></h4>
