@@ -739,6 +739,7 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 .rpNaam{display:inline-block;background:#e8f5e9;border-radius:10px;padding:1px 8px;margin:1px 2px 1px 0}.rpNaam.chauf{background:#c8e6c9;font-weight:700}.rpNaam.dubbel{background:#ffe0b2;outline:2px solid #fb8c00}
 #klokScherm{position:fixed;inset:0;z-index:5000;background:#14261a;color:#fff;overflow:auto;padding:16px calc(16px + env(safe-area-inset-right)) 24px calc(16px + env(safe-area-inset-left));user-select:none}
 body.klokAan #hoofdmenu,body.klokAan #map,body.klokAan #panel{display:none!important}
+body.koelcelPlek #map,body.koelcelPlek #aiKnop{display:none!important}
 .klokKop{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:20px}.klokTijd{font-size:64px;font-weight:800;line-height:1}
 .klokUitleg{font-size:24px;font-weight:700;margin:16px 0 10px;color:#c8e6c9}.klokFout{font-size:22px;padding:30px}
 .klokNamen{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
@@ -1014,6 +1015,8 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .plOverzicht{background:var(--licht);border-radius:10px;padding:8px 10px;font-size:13px;margin:6px 0}.plRegels>div{display:grid;grid-template-columns:44px 120px 1fr;gap:6px;padding:2px 0;border-bottom:1px dashed #d6e2d0}
 .plLaad{height:6px;background:var(--licht);border-radius:4px;overflow:hidden;margin-top:8px}.plLaad span{display:block;height:100%;width:40%;background:var(--groen);animation:plLaad 1.4s ease-in-out infinite}
 @keyframes plLaad{0%{margin-left:-40%}100%{margin-left:100%}}
+.kcScanStap{border:2px dashed var(--rand);border-radius:12px;padding:10px 12px;margin:8px 0;font-size:16px}.kcScanStap small{display:block;color:var(--grijs);font-size:13px}.kcScanStap.ok{border:2px solid var(--groen);background:#f1f8e9}
+.kcScanLog{font-size:14px;max-height:160px;overflow:auto}.kcScanLog div{padding:4px 2px;border-bottom:1px solid var(--rand)}.kcScanLog div.fout{color:var(--rood)}
 .vdLet{cursor:pointer;display:flex;justify-content:space-between;gap:8px}.vdLet span{opacity:.6}
 .tabelScroll{overflow-x:auto}.kistTabel input.kistIn{width:90px;margin:0;padding:6px 8px}.kistTabel td,.kistTabel th{vertical-align:middle;text-align:left}
 /* ---------- kieplijst (telefoon heftruck) ---------- */
@@ -1623,7 +1626,7 @@ async function opstarten() {
   pgSleepInit();   // plattegrond op de kaart slepen
   const tmLink = /[?&]trekker=1/.test(location.search);
   if (veilig) { TM.aan = false; toonMenu(); window.opstartWeg?.(); toast('🛟 Veilige start: de kaart wordt pas getekend als je een perceel kiest'); stap('veilige start klaar'); opstartGelukt(); toonVorigeVastloper(); return; }
-  stap('menu of trekker'); if (isPrikklok()) { TM.aan = false; await toonKlok(); } else if (isKiep()) { TM.aan = false; await toonKiep(); } else if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else toonMenu();
+  stap('menu of trekker'); if (isPrikklok()) { TM.aan = false; await toonKlok(); } else if (isKiep()) { TM.aan = false; await toonKiep(); } else if (isKoelcelPlek()) { TM.aan = false; document.body.classList.add('koelcelPlek'); vrWeergave = 'voorraad'; kiesSectie('voorraad'); } else if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else toonMenu();
   try { etUitLink(); } catch {}
   stap('gps'); apparaatGPS(); stap('klaar'); requestAnimationFrame(() => setTimeout(() => window.opstartWeg?.(), 150)); opstartGelukt(); toonVorigeVastloper();   // trekker-tablet: locatie van de gekoppelde trekker delen zolang hij aan staat      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
   setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
@@ -4414,7 +4417,7 @@ function volScherm() {
   document.body.classList.toggle('volscherm', vol);
   setTimeout(() => { try { map.invalidateSize(); } catch {} }, 280);
 }
-function kaartTonen(aan) { if (VOL_TABS.has(tab)) kaartErbij = aan; else kaartWeg = !aan; renderPaneel(); }
+function kaartTonen(aan) { if (isKoelcelPlek() && arguments[0]) return; if (VOL_TABS.has(tab)) kaartErbij = aan; else kaartWeg = !aan; renderPaneel(); }
 const isVol = () => VOL_TABS.has(tab) ? !kaartErbij : kaartWeg;
 function zetTab(t) { if (TAB_ALIAS[t]) { werkSub[TAB_ALIAS[t][0]] = TAB_ALIAS[t][1]; t = TAB_ALIAS[t][0]; } if (t === 'uren' && tab !== 'uren') laadUren(); if (t !== tab) { kaartErbij = false; kaartWeg = false; } tab = t; if (t !== 'percelen') { kwast = undefined; gekozenPlant = undefined; } render(true); $('#inhoud').scrollTop = 0; }
 
@@ -4444,7 +4447,7 @@ function renderPaneel() {
     if (!sectieTabs(sectie).some(t => t[0] === tab)) tab = sectieTabs(sectie)[0]?.[0] || 'percelen';
   }
   const tellers = {taken: [open], tractoren: [live, 'live'], uren: [bezigN, 'live'], bedrijf: [bedrijfLet ? '!' : 0]};
-  { const bl = {i: blokIcoon(sectie), naam: blokNaam(sectie)}, inf = tegelInfo(tab, (TAB_INFO[tab] || [])[0], (TAB_INFO[tab] || [])[1] || tab), n = (tellers[tab] || [])[0], toggle = tab !== '_blok' && !isMobiel() ? (!isVol() ? `<button class="pkKnop licht" onclick="kaartTonen(false)" title="Kaart weg, hele scherm">⛶ Volledig</button>` : `<button class="pkKnop licht" onclick="kaartTonen(true)" title="De kaart erbij">🗺️ Kaart erbij</button>`) : '';
+  { const bl = {i: blokIcoon(sectie), naam: blokNaam(sectie)}, inf = tegelInfo(tab, (TAB_INFO[tab] || [])[0], (TAB_INFO[tab] || [])[1] || tab), n = (tellers[tab] || [])[0], toggle = tab !== '_blok' && !isMobiel() && !isKoelcelPlek() ? (!isVol() ? `<button class="pkKnop licht" onclick="kaartTonen(false)" title="Kaart weg, hele scherm">⛶ Volledig</button>` : `<button class="pkKnop licht" onclick="kaartTonen(true)" title="De kaart erbij">🗺️ Kaart erbij</button>`) : '';
     $('#tabs').innerHTML = `<div class="paginaKop">${tab !== '_blok' && blokMetTegels(sectie) ? `<button class="pkKnop" onclick="zetTab('_blok')" title="Terug naar ${esc(bl.naam || '')}">◀ ${esc(bl.naam || 'Terug')}</button>` : ''}<button class="pkKnop" onclick="toonMenu()" title="Hoofdmenu">🏠 Menu</button>
       <div class="pkTitel">${tab === '_blok' ? `${bl.i || ''} ${esc(bl.naam || '')}` : `${inf[0] || ''} ${esc(inf[1] || tab)}${n ? ` <span class="pkTel">${n}</span>` : ''}`}</div>${toggle}</div>`; }
   const echteTab = tab; let subKop = '';
@@ -5787,11 +5790,12 @@ function htmlTeam() {
     </section>
     <section class="kaartje"><h4>Team (${lijst.length})</h4>
       ${lijst.map(u => `<div class="soort">
-        <div class="t"><b>${esc(u.naam)}</b> ${u.rol === 'beheerder' ? '<span class="badge">Beheerder</span>' : ''}${u.prikklok ? '<span class="badge">⏰ Prikklok</span>' : u.werkplek === 'kiep' ? '<span class="badge">🧺 Kieplijst</span>' : u.apparaat ? '<span class="badge">📱 Trekker-tablet</span>' : ''}${u.id === me.id ? ' <small>(jij)</small>' : ''}<br><small>${esc(u.email || '')}</small>
+        <div class="t"><b>${esc(u.naam)}</b> ${u.rol === 'beheerder' ? '<span class="badge">Beheerder</span>' : ''}${u.prikklok ? '<span class="badge">⏰ Prikklok</span>' : u.werkplek === 'kiep' ? '<span class="badge">🧺 Kieplijst</span>' : u.werkplek === 'koelcel' ? '<span class="badge">❄️ Koelcel</span>' : u.apparaat ? '<span class="badge">📱 Trekker-tablet</span>' : ''}${u.id === me.id ? ' <small>(jij)</small>' : ''}<br><small>${esc(u.email || '')}</small>
           ${!u.apparaat && (isBeheerder() || (u.rol !== 'beheerder' && u.id !== me.id)) ? `<label class="vinkje klein" style="margin:2px 0 0"><input type="checkbox" ${u.chauffeur ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_chauffeur:this.checked})"> 🚜 Chauffeur (staat op de trekker-tablets)</label>${u.chauffeur && isBeheerder() && u.id !== me.id ? ` <button class="knop klein licht" onclick="pinInstellen('${u.id}')">🔢 Pincode</button>` : ''}` : ''}
           ${isBeheerder() && u.id !== me.id && u.rol !== 'beheerder' ? `<label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.apparaat ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_apparaat:this.checked})"> 📱 Gedeeld apparaat (trekker-tablet)</label>
             <label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.prikklok ? 'checked' : ''} onchange="zetPrikklok('${u.id}',this.checked)"> ⏰ Prikklok (iPad in de kantine om in te klokken)</label>
-            <label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.werkplek === 'kiep' ? 'checked' : ''} onchange="zetWerkplek('${u.id}',this.checked?'kiep':null)"> 🧺 Kieplijst (telefoon van de heftruck bij de sorteerlijn)</label>` : ''}
+            <label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.werkplek === 'kiep' ? 'checked' : ''} onchange="zetWerkplek('${u.id}',this.checked?'kiep':null)"> 🧺 Kieplijst (telefoon van de heftruck bij de sorteerlijn)</label>
+            <label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.werkplek === 'koelcel' ? 'checked' : ''} onchange="zetWerkplek('${u.id}',this.checked?'koelcel':null)"> ❄️ Koelcel (ziet alleen de koelcellen, de orders en de bakken onderweg)</label>` : ''}
           ${u.apparaat && isBeheerder() ? `<div class="aiVelden"><span>🚜 Zit in trekker</span><select class="veld" onchange="zetTrekker('${u.id}',this.value)"><option value="">— geen —</option>${S.tractoren.map(t => `<option value="${t.id}" ${u.trekker_id === t.id ? 'selected' : ''}>${esc(t.naam)}</option>`).join('')}</select></div>` : ''}</div>
         ${isBeheerder() || (u.rol !== 'beheerder' && u.id !== me.id) ? `<button class="icoon" title="Naam wijzigen" onclick="teamNaam('${u.id}')">✏️</button>
         <button class="icoon" title="Wachtwoord opnieuw instellen" onclick="teamWachtwoord('${u.id}')">🔑</button>` : ''}
@@ -6352,7 +6356,7 @@ const blokUitleg = k => mijnMenu().blokken?.[k]?.uitleg ?? BLOKKEN.find(b => b[0
 const blokkenVolgorde = () => { const v = mijnMenu().volgorde || [], alle = BLOKKEN.map(b => b[0]); return [...v.filter(k => alle.includes(k)), ...alle.filter(k => !v.includes(k))]; };
 const tegelInfo = (k, i, l) => { const t = mijnMenu().tegels?.[k] || {}, inf = TAB_INFO[k] || [i, l, '']; return [t.i || inf[0] || i, t.naam || inf[1] || l, t.uitleg ?? inf[2] ?? '']; };
 // de tegels per kopje volgens je eigen indeling (alleen tegels die je mag zien)
-const sectieTabsGefilterd = s => sectieTabsBasis(s).filter(t => schermMag(t[0]));
+const sectieTabsGefilterd = s => isKoelcelPlek() ? (s === 'voorraad' ? sectieTabsBasis(s).filter(t => KOELCEL_TABS.includes(t[0])) : []) : sectieTabsBasis(s).filter(t => schermMag(t[0]));
 function sectieTabs(s) {
   const plek = mijnMenu().plek; if (!plek || !BLOKKEN.some(b => b[0] === s)) return sectieTabsGefilterd(s);
   const basis = {}, alle = new Map(); BLOKKEN.forEach(([k]) => { basis[k] = sectieTabsGefilterd(k); basis[k].forEach(t => { if (!alle.has(t[0])) alle.set(t[0], t); }); });
@@ -7895,7 +7899,9 @@ const klokIn = () => klokZet(true), klokUit = m => klokZet(false, Math.max(0, m 
 async function zetWerkplek(id, w) {
   const {error} = await sb.rpc('zet_werkplek', {p_id: id, p_werkplek: w});
   if (error) { toast(/zet_werkplek|function/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); return; }
-  const u = S.profielen.find(x => x.id === id); if (u) { u.werkplek = w; if (w) u.apparaat = true; } render(true);
+  const u = S.profielen.find(x => x.id === id); if (u) { u.werkplek = w; if (w === 'kiep') u.apparaat = true; if (w === 'koelcel') { u.apparaat = false; u.rechten = {...(u.rechten || {}), voorraad_bekijken: true, voorraad_beheren: true, etiketten_printen: true}; } }
+  if (w === 'koelcel') toast('❄️ Dit account opent voortaan meteen de koelcellen');
+  render(true);
   toast(w ? '🧺 Dit account opent nu meteen de kieplijst. Log daarmee in op de telefoon van de heftruck.' : 'Geen kieplijst-telefoon meer');
 }
 async function zetPrikklok(id, aan) {
@@ -8795,6 +8801,9 @@ async function kistNaamZet(sid, naam) {
    KIEPLIJST – de heftruck bij de sorteerlijn: één tik = één bak gekiept. Oudste bakken bovenaan.
    ===================================================================================== */
 const isKiep = () => mijnProfiel()?.werkplek === 'kiep';
+// koelcel-account: ziet alleen de koelcellen, de orders en de bakken onderweg (geen percelen, taken, mensen …)
+const isKoelcelPlek = () => mijnProfiel()?.werkplek === 'koelcel' && !isBeheerder();
+const KOELCEL_TABS = ['voorraad', 'etiketten'];
 function kiepLijst() {
   const per = {};
   (S.res_invoer || []).forEach(i => { (per[i.partij_id] ||= []).push(i); });
@@ -13383,9 +13392,10 @@ let vrZoek = '', vrWeergave = 'voorraad';
 function htmlVoorraad() {
   const beh = mag('voorraad_beheren'), muts = S.partij_mutaties || [];
   const kop = `<section class="kaartje"><h4>📦 Van partij tot klant</h4>
-    <div class="ptabs" style="grid-template-columns:repeat(3,1fr)">${[['voorraad', '🧊', 'In de koelcel'], ['leveringen', '🚚', 'Leveringen'], ['zoek', '🔎', 'Terugzoeken']].map(([k, i, l]) => `<button class="${vrWeergave === k ? 'aan' : ''}" onclick="vrWeergave='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
+    <div class="ptabs" style="grid-template-columns:repeat(${isKoelcelPlek() ? 2 : 3},1fr)">${[['voorraad', '🧊', 'In de koelcel'], ['leveringen', '🚚', 'Leveringen'], ...(isKoelcelPlek() ? [] : [['zoek', '🔎', 'Terugzoeken']])].map(([k, i, l]) => `<button class="${vrWeergave === k ? 'aan' : ''}" onclick="vrWeergave='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
     ${beh ? `<div class="rij"><button class="knop licht" onclick="mutatieFormulier('', 'in')">⬇️ Inslag</button><button class="knop licht" onclick="mutatieFormulier('', 'uit')">⬆️ Levering</button><button class="knop licht" onclick="mutatieFormulier('', 'uitval')">🗑️ Uitval</button></div>` : ''}
-    <div class="rij"><button class="knop licht" onclick="zetTab('etiketten')">🏷️ Etiketten</button><button class="knop licht" onclick="etScan()">📷 Scannen</button></div></section>`;
+    <div class="rij">${beh ? '<button class="knop" onclick="kcScan()">❄️ Koelcel inscannen</button>' : ''}<button class="knop licht" onclick="etScan()">📷 Etiket scannen</button>${isKoelcelPlek() ? '' : `<button class="knop licht" onclick="zetTab('etiketten')">🏷️ Etiketten</button>`}</div>
+    ${beh ? '<div class="rij" style="margin-top:4px"><button class="knop licht klein" onclick="kcQrAfdrukken()">🖨️ QR-codes van de koelcellen afdrukken</button></div>' : ''}</section>`;
   if (vrWeergave === 'leveringen') {
     const l = muts.filter(m => m.soort === 'uit').sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
     return kop + `<section class="kaartje">${l.map(m => { const pa = (S.partijen || []).find(x => x.id === m.partij_id);
@@ -13393,7 +13403,7 @@ function htmlVoorraad() {
         <small>🏷️ ${esc(partijRas(pa) || '?')} ${esc(pa?.batch || '')} ${esc(pa?.klasse || '')} · ${esc(partijPerceelNaam(pa) || '')}${m.pakbon ? ' · pakbon ' + esc(m.pakbon) : ''}${m.koelcel ? ' · uit ' + esc(m.koelcel) : ''}</small></div>
         ${beh ? `<span class="logknoppen"><button class="weg" onclick="mutatieFormulier('','', '${m.id}')">✏️</button><button class="weg" onclick="mutatieWeg('${m.id}')">✕</button></span>` : ''}</div>`; }).join('') || '<p class="hint">Nog geen leveringen.</p>'}</section>`;
   }
-  if (vrWeergave === 'zoek') {
+  if (vrWeergave === 'zoek' && !isKoelcelPlek()) {
     const z = normTekst(vrZoek), hits = !z ? [] : (S.partijen || []).filter(y => normTekst([y.batch, y.nak, partijRas(y), partijPerceelNaam(y), ...mutatiesVan(y.id).map(m => `${m.klant} ${m.pakbon}`)].join(' ')).includes(z));
     return kop + `<section class="kaartje"><input class="veld" id="vrZoek" placeholder="🔎 Batch, NAK-nummer, klant of pakbon…" value="${esc(vrZoek)}" oninput="vrZoek=this.value;clearTimeout(window._vz);window._vz=setTimeout(()=>{render(true);const i=$('#vrZoek');i.focus();i.setSelectionRange(i.value.length,i.value.length)},300)">
       ${hits.slice(0, 20).map(traceerKaart).join('') || (z ? '<p class="hint">Niets gevonden.</p>' : '<p class="hint">Zoek een partij en zie in één keer: perceel en sporen, keuringen, wat er gespoten is, inslag en aan wie het geleverd is.</p>')}</section>`;
@@ -13680,7 +13690,7 @@ function etPalletHtml(v, code, nr) {
       <tr><td class="l" colspan="2">Batchnummer</td><td class="w" colspan="2" style="font-size:${etPt(v.batch, 40, 12)}pt">${esc(v.batch || '')}</td></tr>
       <tr><td class="l" colspan="2">Klasse / Klasa</td><td class="w" colspan="2" style="font-size:${etPt(v.klasse, 40, 12)}pt">${esc(v.klasse || '')}</td></tr>
       <tr><td class="l" colspan="2">Perceel/Imie pola</td><td class="w" colspan="2" style="font-size:${etPt(v.perceel, 34, 14)}pt">${esc(v.perceel || '')}</td></tr></table>
-    <div class="etVoet">${qr}<div><b>Pallet ${esc(nr ?? '…')}</b><small>Scan de code om de pallet in te slaan, te verplaatsen of terug te zoeken.</small></div></div></div>`;
+    <div class="etVoet">${qr}<div><b>Pallet ${esc(nr ?? '…')}</b>${code ? code128Svg(code, 90, 16) : ''}<small>Scan de code om de pallet in te slaan, te verplaatsen of terug te zoeken.</small></div></div></div>`;
 }
 function etBoxHtml(v, code, nr) {
   const qr = code ? qrSvg(etQrTekst(code), 34) : '<div class="etQrLeeg">QR</div>';
@@ -13690,7 +13700,7 @@ function etBoxHtml(v, code, nr) {
       <tr><td class="l">Klasse / Klasa</td><td class="w" style="font-size:${etPt(v.klasse, 30, 10)}pt">${esc(v.klasse || '')}</td></tr>
       <tr><td class="l">Perceel/Imie pola</td><td class="w" style="font-size:${etPt(v.perceel, 34, 9)}pt">${esc(v.perceel || '')}</td></tr>
       <tr><td class="l">Opmerking /Uwagi</td><td class="w" style="font-size:${etPt(v.opmerking, 30, 10)}pt">${esc(v.opmerking || '')}</td></tr></table>
-      <div class="etQr">${qr}<span>Box ${esc(nr ?? '…')}</span></div></div></div>`;
+      <div class="etQr">${qr}<span>Box ${esc(nr ?? '…')}</span>${code ? code128Svg(code, 30, 7) : ''}</div></div></div>`;
 }
 // bladen om af te drukken: palletkaart 1 per A4, boxkaarten 2 onder elkaar
 function etBladen(rijen) {
@@ -13873,14 +13883,14 @@ async function etOpen(code) {
     <div class="rij"><button class="knop licht" onclick="$('#modal').classList.remove('open')">Sluiten</button>${magEtiket() || ziet('voorraad_bekijken') ? `<button class="knop" onclick="etScan()">📷 Volgende scannen</button>` : ''}</div></div>`;
   $('#modal').classList.add('open');
 }
-async function etPalletIn(code) {
+async function etPalletIn(code, celVoor) {
   const e = await etZoek(code); if (!e || !mag('voorraad_beheren')) return; const d = e.data || {};
   const cellen = kcLijst().map(c => c.naam); if (!cellen.length) { toast('Voeg eerst een koelcel toe (Koelcel → plattegrond)', 1); return; }
   const alle = (S.partijen || []).slice().sort((a, b) => (partijRas(a) || '').localeCompare(partijRas(b) || '', 'nl'));
   const gok = e.partij_id || alle.find(y => d.batch && y.batch === d.batch)?.id || '';
   const w = await formulier(`⬇️ Pallet ${e.nr} inslaan`, [
     ...(e.partij_id ? [] : [{k: 'partij_id', label: 'Partij', type: 'select', waarde: gok, opties: [['', '– kies –'], ...alle.map(y => [y.id, `${partijRas(y) || '?'} · ${y.batch || ''} ${y.klasse || ''} · ${partijPerceelNaam(y) || ''}`])]}]),
-    {k: 'koelcel', label: 'Koelcel', type: 'select', waarde: cellen[0], opties: cellen.map(c => [c, c])},
+    {k: 'koelcel', label: 'Koelcel', type: 'select', waarde: celVoor && cellen.includes(celVoor) ? celVoor : cellen[0], opties: cellen.map(c => [c, c])},
     {k: 'kistjes', label: `Aantal kistjes (max ${KC_PALLET_MAX})`, type: 'number', waarde: d.kistjes ?? ''},
     {k: 'per', label: 'Planten per kistje', type: 'number', waarde: d.per_kist ?? ''},
     {k: 'datum', label: 'Datum', type: 'date', waarde: dKey(new Date())}], 'Inslaan');
@@ -13901,8 +13911,137 @@ async function etVerplaats(code) {
   const w = await formulier(`↔ Pallet ${p.nr} verplaatsen`, [{type: 'uitleg', waarde: `Staat nu in <b>${esc(p.cel)}</b>.`}, {k: 'naar', label: 'Naar', type: 'select', waarde: naar[0], opties: naar.map(c => [c, c])}], 'Verder');
   if (w?.naar) kcVerplaats(null, p.cel, w.naar, p.nr);
 }
-// geopend via de QR-code (link met ?etiket=P17)
+/* ---------- koelcel scannen: eerst de QR-code van de koelcel, dan de pallets en boxen die erin gaan ---------- */
+const kcQrTekst = naam => { const a = etAdres(); return a ? `${a}?koelcel=${encodeURIComponent(naam)}` : 'KC:' + naam; };
+const kcCodeUit = t => { const s = String(t || '').trim(), m = s.match(/[?&]koelcel=([^&#]+)/); if (m) return decodeURIComponent(m[1]); const k = s.match(/^KC:(.+)$/i); return k ? k[1].trim() : null; };
+const kcZoekNaam = n => kcLijst().find(c => normTekst(c.naam) === normTekst(n))?.naam || null;
+// QR-codes van alle koelcellen afdrukken (één per A4, groot, om op de deur te hangen)
+function kcQrAfdrukken() {
+  const l = kcLijst(); if (!l.length) { toast('Voeg eerst een koelcel toe', 1); return; }
+  if (!etAdres()) toast('Tip: vul bij Etiketten → ⚙️ het adres van de app in, dan opent de camera-app van een telefoon meteen de koelcel', 0);
+  etPrintVenster(l.map(c => `<div class="etPagina" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10mm;height:270mm;page-break-after:always;font-family:Arial,sans-serif">
+    <div style="font-size:16pt;color:#555">Koelcel</div><div style="font-size:64pt;font-weight:800;text-align:center;line-height:1">${esc(c.naam)}</div>
+    <div style="width:120mm;height:120mm">${qrSvg(kcQrTekst(c.naam), 120)}</div>${code128Svg('KC:' + c.naam, 130, 22)}<div style="font:12pt monospace">KC:${esc(c.naam)}</div>
+    <div style="font-size:13pt;color:#555;text-align:center;max-width:160mm">Scan eerst deze code (QR of barcode), daarna de pallets of boxen die je in deze koelcel zet.</div></div>`).join(''));
+}
+let KS = null;   // scan-sessie: {cel, log: [], bezig}
+function kcScan(cel) {
+  if (!mag('voorraad_beheren')) { toast('Je mag de koelcel niet aanpassen', 1); return; }
+  KS = {cel: cel ? kcZoekNaam(cel) : null, log: [], bezig: false};
+  if (cel && !KS.cel) toast(`Koelcel "${cel}" bestaat niet (meer)`, 1);
+  kcScanTeken(); kcScanCamera();
+}
+function kcScanTeken() {
+  const m = $('#modal'); if (!KS) return;
+  const vak = $('#kcVideo') ? null : `<div class="etScanVak"><video id="kcVideo" playsinline muted></video></div>`;
+  const info = `<div class="kcScanStap ${KS.cel ? 'ok' : ''}">${KS.cel ? `📍 <b>${esc(KS.cel)}</b><small>Scan nu de pallets of boxen die erin gaan</small>` : `<b>1. Scan de QR-code van de koelcel</b><small>op de deur of de muur</small>`}</div>
+    <div class="kcScanLog">${KS.log.slice(-8).reverse().map(r => `<div class="${r.fout ? 'fout' : ''}">${esc(r.t)}</div>`).join('')}</div>
+    <label>Of kies / typ</label><div class="rij" style="margin-top:0">
+      <select class="veld" onchange="if(this.value){KS.cel=this.value;KS.log.push({t:'📍 '+this.value});kcScanTeken()}"><option value="">${KS.cel ? 'Andere koelcel…' : 'Koelcel kiezen…'}</option>${kcLijst().map(c => `<option>${esc(c.naam)}</option>`).join('')}</select>
+      <input class="veld" id="kcCodeIn" placeholder="P17 of B230" onkeydown="if(event.key==='Enter'){kcScanCode(this.value);this.value=''}"></div>`;
+  if (!$('#kcScanInfo')) {
+    m.innerHTML = `<div class="dialoog"><h3>❄️ Koelcel inscannen</h3>${vak}<p class="hint" id="kcScanTip"></p><div id="kcScanInfo">${info}</div>
+      <div class="rij"><button class="knop" onclick="kcScanKlaar()">Klaar</button></div></div>`;
+    m.classList.add('open');
+  } else $('#kcScanInfo').innerHTML = info;
+}
+function kcScanKlaar() { etScanStop(); KS = null; $('#modal').classList.remove('open'); render(true); }
+async function kcScanCamera() {
+  if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) {
+    const v = $('.etScanVak'); if (v) v.style.display = 'none';
+    $('#kcScanTip').innerHTML = 'Scannen in de app werkt op dit apparaat niet. Kies de koelcel hierboven en typ de nummers, of gebruik de camera-app van je telefoon.'; return;
+  }
+  try {
+    const det = new BarcodeDetector({formats: ['qr_code']});
+    etStroom = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}, audio: false});
+    const vid = $('#kcVideo'); if (!vid) { etScanStop(); return; } vid.srcObject = etStroom; await vid.play();
+    let laatst = '', laatstT = 0;
+    const kijk = async () => { if (!etStroom || !$('#kcVideo') || !KS) { etScanStop(); return; }
+      if (!KS.bezig) { try { const r = await det.detect(vid), raw = r.map(x => x.rawValue).find(x => kcCodeUit(x) || etCodeUit(x));
+        if (raw && !(raw === laatst && Date.now() - laatstT < 3000)) { laatst = raw; laatstT = Date.now(); try { navigator.vibrate?.(60); } catch {} await kcScanCode(raw); } } catch {} }
+      etScanTimer = setTimeout(kijk, 250); };
+    kijk();
+  } catch (e) { const v = $('.etScanVak'); if (v) v.style.display = 'none'; $('#kcScanTip').textContent = 'De camera kon niet worden geopend (' + (e.message || e) + '). Kies de koelcel en typ de nummers.'; }
+}
+async function kcScanCode(raw) {
+  if (!KS || KS.bezig) return; const log = (t, fout) => { KS.log.push({t, fout}); kcScanTeken(); if (fout) toast(t, 1); };
+  const kc = kcCodeUit(raw);
+  if (kc) { const n = kcZoekNaam(kc); if (!n) { log(`⚠️ Koelcel "${kc}" bestaat niet`, 1); return; } KS.cel = n; log(`📍 ${n}`); return; }
+  const code = etCodeUit(raw) || String(raw || '').trim().toUpperCase(); if (!code) return;
+  if (!KS.cel) { log('Scan eerst de QR-code van de koelcel', 1); return; }
+  KS.bezig = true;
+  try {
+    const e = await etZoek(code); if (!e) { log(`⚠️ ${code} niet gevonden`, 1); return; }
+    const d = e.data || {}, cel = KS.cel;
+    if (e.soort === 'pallet') {
+      const p = kcPallets().find(x => x.nr === String(e.nr));
+      if (p && p.cel === cel) { log(`✓ Pallet ${e.nr} stond al in ${cel}`); return; }
+      if (p) { await kcVerplaats(null, p.cel, cel, p.nr); log(`↔ Pallet ${e.nr}: ${p.cel} → ${cel}`); return; }
+      if ((S.partij_mutaties || []).some(x => x.pallet === String(e.nr) && x.soort === 'uit')) { log(`⚠️ Pallet ${e.nr} is al geleverd`, 1); return; }
+      const pid = e.partij_id || (() => { const l = (S.partijen || []).filter(y => d.batch && y.batch === d.batch); return l.length === 1 ? l[0].id : null; })();
+      const n = leesGetal(d.kistjes, 0);
+      if (!pid || !(n > 0)) { etScanStop(); await etPalletIn(e.code, cel); KS && kcScanTeken(); KS && kcScanCamera(); log(`⬇️ Pallet ${e.nr} → ${cel}`); return; }
+      const y = S.partijen.find(z => z.id === pid);
+      const {data, error} = await sb.from('partij_mutaties').insert({partij_id: pid, seizoen_id: y?.seizoen_id || bekeken, soort: 'in', datum: dKey(new Date()), aantal: n, eenheid: 'kistjes',
+        per_eenheid: leesGetal(d.per_kist, null), koelcel: cel, pallet: String(e.nr), notitie: `etiket ${e.code}`, door: naamMe()}).select().single();
+      if (error) { log('⚠️ ' + foutTekst(error), 1); return; }
+      S.partij_mutaties = [...(S.partij_mutaties || []), data];
+      if (!e.partij_id) { const {data: d2} = await sb.from('etiketten').update({partij_id: pid}).eq('id', e.id).select().single(); if (d2) Object.assign(e, d2); }
+      log(`⬇️ Pallet ${e.nr} (${esc(d.ras || partijRas(y) || '')}, ${n} kistjes) → ${cel}`);
+    } else {
+      const notitie = `Box ${e.nr}`, in_ = (S.partij_mutaties || []).find(x => x.soort === 'in' && x.notitie === notitie);
+      if (in_) { log(in_.koelcel === cel ? `✓ Box ${e.nr} stond al in ${cel}` : `⚠️ Box ${e.nr} staat al in ${in_.koelcel || 'een koelcel'} (verplaats hem via de koelcel)`, in_.koelcel !== cel); return; }
+      const pid = e.partij_id || (() => { const l = (S.partijen || []).filter(y => d.batch && y.batch === d.batch); return l.length === 1 ? l[0].id : null; })();
+      if (!pid) { log(`⚠️ Box ${e.nr} is niet aan een partij gekoppeld`, 1); return; }
+      const y = S.partijen.find(z => z.id === pid);
+      const {data, error} = await sb.from('partij_mutaties').insert({partij_id: pid, seizoen_id: y?.seizoen_id || bekeken, soort: 'in', datum: dKey(new Date()), aantal: 1, eenheid: 'kuubskisten',
+        per_eenheid: leesGetal(d.per_kist, null), koelcel: cel, notitie, door: naamMe()}).select().single();
+      if (error) { log('⚠️ ' + foutTekst(error), 1); return; }
+      S.partij_mutaties = [...(S.partij_mutaties || []), data]; log(`⬇️ Box ${e.nr} (${esc(d.ras || partijRas(y) || '')}) → ${cel}`);
+    }
+  } finally { if (KS) KS.bezig = false; }
+}
+/* ---------- barcode (Code 128-B) voor handscanners, naast de QR-code ---------- */
+const C128 = ('212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112').split(' ');
+function code128Svg(tekst, breedteMm = 60, hoogteMm = 12) {
+  const s = String(tekst).replace(/[^\x20-\x7e]/g, '');
+  const codes = [104, ...[...s].map(c => c.charCodeAt(0) - 32)];
+  codes.push(codes.reduce((a, c, i) => a + c * (i || 1), 0) % 103, 106);
+  const strepen = codes.map(c => C128[c]).join('');
+  const modules = [...strepen].reduce((a, d) => a + +d, 0) + 20;   // + stille zone
+  let x = 10, uit = '';
+  [...strepen].forEach((d, i) => { const w = +d; if (i % 2 === 0) uit += `<rect x="${x}" y="0" width="${w}" height="1"/>`; x += w; });
+  return `<svg class="bc" viewBox="0 0 ${modules} 1" preserveAspectRatio="none" style="width:${breedteMm}mm;height:${hoogteMm}mm;display:block" shape-rendering="crispEdges" fill="#000">${uit}</svg>`;
+}
+/* ---------- handscanner (Bluetooth of USB): die "typt" de code en een Enter ---------- */
+const HS = {buf: '', t: 0, snel: 0};
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const el = document.activeElement, inVeld = el && /INPUT|TEXTAREA|SELECT/.test(el.tagName) && !['kcCodeIn', 'etCodeIn'].includes(el.id);
+  const nu = performance.now(), gat = nu - HS.t; HS.t = nu;
+  if (gat > 80) { HS.buf = ''; HS.snel = 0; }
+  if (e.key === 'Enter' || e.key === 'Tab') {
+    const code = HS.buf.trim(); HS.buf = '';
+    if (code.length >= 2 && HS.snel >= code.length - 2 && !inVeld) { e.preventDefault(); handscan(code); }
+    return;
+  }
+  if (e.key.length === 1) { HS.buf += e.key; if (gat < 50 || HS.buf.length === 1) HS.snel++; }
+}, true);
+function handscan(raw) {
+  try {
+    if (!mijnProfiel?.() || !(ziet('voorraad_bekijken') || mag('voorraad_beheren') || magEtiket())) return;
+    const kc = kcCodeUit(raw), et = etCodeUit(raw) || (/^[PB]\d+$/i.test(raw) ? raw.toUpperCase() : null);
+    if (!kc && !et) return;
+    try { navigator.vibrate?.(60); } catch {}
+    if (KS) { kcScanCode(raw); return; }
+    if (kc) { kcScan(kc); return; }
+    etScanStop?.(); etOpen(et);
+  } catch (e) { console.warn('handscanner', e); }
+}
+// geopend via de QR-code (link met ?etiket=P17, of ?koelcel=Cel 1)
 function etUitLink() {
+  const k = location.search.match(/[?&]koelcel=([^&#]+)/);
+  if (k) { try { history.replaceState(null, '', location.pathname + location.hash); } catch {} setTimeout(() => kcScan(decodeURIComponent(k[1])), 600); return; }
   const m = location.search.match(/[?&]etiket=([^&#]+)/); if (!m) return;
   const code = decodeURIComponent(m[1]);
   try { const q = location.search.replace(/([?&])etiket=[^&#]*&?/, '$1').replace(/[?&]$/, ''); history.replaceState(null, '', location.pathname + q + location.hash); } catch {}
