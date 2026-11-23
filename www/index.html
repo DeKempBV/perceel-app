@@ -1209,7 +1209,7 @@ const isApparaat = () => !!mijnProfiel()?.apparaat;
 const isPrikklok = () => !!mijnProfiel()?.prikklok;
 // als welke trekker deze tablet is ingelogd (de gekoppelde trekker, anders de naam van het tablet-account)
 const tabletNaam = () => { const tr = S.tractoren.find(t => t.id === mijnProfiel()?.trekker_id), nm = mijnProfiel()?.naam || ''; return tr ? (normTekst(tr.naam) === normTekst(nm) || !nm ? tr.naam : `${tr.naam} (${nm})`) : nm || 'tablet'; };
-const medewerkers = () => S.profielen.filter(u => !u.apparaat && !u.prikklok);   // echte mensen (geen trekker-tablets of prikklok)   // de iPad in de kantine om in en uit te klokken   // gedeeld apparaat (trekker-tablet): geen persoonlijke gegevens
+const medewerkers = () => S.profielen.filter(u => !u.apparaat && !u.prikklok && !u.werkplek);   // echte mensen (geen trekker-tablets of prikklok)   // de iPad in de kantine om in en uit te klokken   // gedeeld apparaat (trekker-tablet): geen persoonlijke gegevens
 const isBeheerder = () => mijnProfiel()?.rol === 'beheerder';
 const perceel = id => S.percelen.find(p => p.id === id);
 let wijsAan = false;   // bezig met een punt aanwijzen op de kaart
@@ -6421,7 +6421,7 @@ function toonMenu() {
     <div class="mKop"><div><div class="mLogo">🌾 Perceel App</div><h1>${groet}, ${esc((naamMe() || '').split(' ')[0])}</h1>
       <p>${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'})} · teeltjaar ${esc(seizoenNaam(bekeken))}${isApparaat() ? ` · <b>🚜 tablet ${esc(tabletNaam())}</b>` : ''}</p></div>
       <button class="mUit" title="Uitloggen" onclick="${isApparaat() ? 'tmUitloggen()' : 'uitloggen()'}">🚪</button></div>
-    ${klokplicht() && !isBeheerder() && !isApparaat() && !klokOpen(me?.id, naamMe()) ? '<div class="mKlok">⏰ Je bent vandaag nog niet ingeklokt. Klok in op de iPad in de kantine; dan kun je taken oppakken en afvinken.</div>' : ''}
+    ${klokplicht() && !isBeheerder() && !isApparaat() && !isPrikklok() && !mijnProfiel()?.werkplek && !klokOpen(me?.id, naamMe()) ? '<div class="mKlok">⏰ Je bent vandaag nog niet ingeklokt. Klok in op de iPad in de kantine; dan kun je taken oppakken en afvinken.</div>' : ''}
     <div class="mTegels">
       ${blokkenVolgorde().filter(k => blokZichtbaar(k)).map(k => tegel(k, '', '', blokInfo(k))).join('')}
     </div>
@@ -7854,7 +7854,7 @@ const klokVandaag = () => (S.klok || []).filter(k => new Date(k.binnen) >= vanda
 const klokOpen = (uid, naam) => klokVandaag().find(k => !k.buiten && ((uid && k.user_id === uid) || (naam && normTekst(k.naam) === normTekst(naam))));
 // mag deze persoon nu werk doen? (bij een trekkertablet: de gekozen chauffeur)
 function magWerken(stil) {
-  if (!klokplicht() || isBeheerder()) return true;
+  if (!klokplicht() || isBeheerder() || (!isApparaat() && (isPrikklok() || mijnProfiel()?.werkplek))) return true;   // koelcel-/scanner-tablet en prikklok hoeven niet in te klokken
   const ok = isApparaat() ? !!klokOpen(TM.chauffeur?.id, naamMe()) : !!klokOpen(me?.id, naamMe());
   if (!ok && !stil) toast(`⏰ ${isApparaat() && TM.chauffeur ? TM.chauffeur.naam + ' is' : 'Je bent'} vandaag nog niet ingeklokt. Klok eerst in op de iPad in de kantine.`, 1);
   return ok;
