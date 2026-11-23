@@ -740,6 +740,8 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 #klokScherm{position:fixed;inset:0;z-index:5000;background:#14261a;color:#fff;overflow:auto;padding:16px calc(16px + env(safe-area-inset-right)) 24px calc(16px + env(safe-area-inset-left));user-select:none}
 body.klokAan #hoofdmenu,body.klokAan #map,body.klokAan #panel{display:none!important}
 body.koelcelPlek #map,body.koelcelPlek #aiKnop{display:none!important}
+body.koelcelPlek .kcKaart{height:calc(100vh - 150px);height:calc(100dvh - 150px)}
+.kcTabletKop{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:0 0 8px}.kcTabletKop b{font-size:1.2em}.kcTabletKop span{color:#667;font-size:.9em}
 .klokKop{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:20px}.klokTijd{font-size:64px;font-weight:800;line-height:1}
 .klokUitleg{font-size:24px;font-weight:700;margin:16px 0 10px;color:#c8e6c9}.klokFout{font-size:22px;padding:30px}
 .klokNamen{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
@@ -4470,7 +4472,7 @@ function renderPaneel() {
   else if (tab === 'spuitregister') { srSoort = 'spuiten'; h = seizoenKnop() + htmlSpuitregister(); }
   else if (tab === 'mestregister') { srSoort = 'bemesting'; h = seizoenKnop() + `<div class="rij" style="margin:0 0 10px;flex-wrap:wrap">${mag('taken_toevoegen') ? `<button class="knop" style="margin:0" onclick="werkTaakFormulier('bemesten')">＋ Bemesten plannen</button>` : ''}${mag('middelen_beheren') ? `<button class="knop licht" style="margin:0" onclick="middelFormulier(null,'meststof')">＋ Meststof toevoegen</button>` : ''}</div>` + htmlBemesting() + htmlSpuitregister(); }
   else if (tab === 'middelen') h = bedrijfGeladen ? htmlMiddelen() : '<p class="hint">Laden…</p>';
-  else if (tab === 'voorraad') h = bedrijfGeladen ? seizoenKnop() + htmlVoorraad() : '<p class="hint">Laden…</p>';
+  else if (tab === 'voorraad') h = bedrijfGeladen ? (isKoelcelPlek() ? '' : seizoenKnop()) + htmlVoorraad() : '<p class="hint">Laden…</p>';
   else if (tab === 'etiketten') h = bedrijfGeladen ? htmlEtiketten() : '<p class="hint">Laden…</p>';
   else if (tab === 'bestellingen') h = htmlBestellingen();
   else if (tab === 'pno') h = htmlPno();
@@ -13270,9 +13272,9 @@ function kcOpen(naam) {
       ${knop('🥡 Trays', `mutatieFormulier('','in',null,{eenheid:'trays',koelcel:${esc(JSON.stringify(naam))}})`)}${knop('🌱 Losse planten', `mutatieFormulier('','in',null,{eenheid:'planten',koelcel:${esc(JSON.stringify(naam))}})`)}</div></div>` : ''}
     ${inh.pallets.map(p => `<div class="kcItem pallet"><div><b>🧱 Pallet ${esc(p.nr)}</b> <span class="kcHoog">${getal(p.kistjes)}/${KC_PALLET_MAX} kistjes</span>
         <small>${p.regels.map(r => { const y = S.partijen.find(z => z.id === r.partij_id); return `${esc(partijRas(y) || '?')} ${esc(y?.batch || '')} · ${getal(r.kistjes)} kistjes`; }).join('<br>')}</small></div>
-      <div class="kcItemKnop">${knop('↔ Verplaatsen', ver(null, p.nr, 'pallet ' + p.nr))}</div></div>`).join('')}
+      <div class="kcItemKnop">${knop('↔ Verplaatsen', ver(null, p.nr, 'pallet ' + p.nr))}${knop('⬆️ Eruit halen', `kcPalletUit(${esc(JSON.stringify(naam))},${esc(JSON.stringify(p.nr))})`)}</div></div>`).join('')}
     ${los.map(({y, x}) => `<div class="kcItem"><div><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}<small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)}${vbGereserveerd(y.id, naam) ? ` · ${getal(vbGereserveerd(y.id, naam))} voor een order` : ''}</small></div>
-      <div class="kcItemKnop">${knop('↔ Verplaatsen', ver(y.id, null, partijRas(y) || 'deze partij'))}${knop('🧾 Order', `vbKies('${y.id}',${esc(JSON.stringify(naam))})`)}${knop('⬆️ Leveren', `mutatieFormulier('${y.id}','uit',null,{koelcel:${esc(JSON.stringify(naam))}})`)}</div></div>`).join('')}
+      <div class="kcItemKnop">${knop('↔ Verplaatsen', ver(y.id, null, partijRas(y) || 'deze partij'))}${knop('🧾 Order', `vbKies('${y.id}',${esc(JSON.stringify(naam))})`)}${knop('⬆️ Eruit halen', `mutatieFormulier('${y.id}','uit',null,{koelcel:${esc(JSON.stringify(naam))}})`)}</div></div>`).join('')}
     <div class="rij"><button class="knop licht" id="mNee">Sluiten</button></div></div>`;
   const m = $('#modal'); m.classList.add('open'); $('#mNee').onclick = () => m.classList.remove('open');
 }
@@ -13343,6 +13345,21 @@ async function kcPalletInslag(cel) {
 function kcPalletTel() { const el = $('#kcTel'); if (!el) return; const tot = [...document.querySelectorAll('#kcRijen [data-n]')].reduce((a, i) => a + leesGetal(i.value, 0), 0);
   el.classList.toggle('fout', tot > KC_PALLET_MAX); el.innerHTML = `<b>${tot}</b> van ${KC_PALLET_MAX} kistjes${tot > KC_PALLET_MAX ? ' – te hoog!' : ''}`; }
 // verplaatsen naar een andere koelcel (een partij of een hele pallet)
+// pallet (of een deel ervan) uit de koelcel halen
+async function kcPalletUit(cel, nr) {
+  if (!mag('voorraad_beheren')) return;
+  const p = kcPallets().find(x => x.nr === nr && x.cel === cel); if (!p) return;
+  const w = await formulier(`⬆️ Pallet ${nr} uit ${cel}`, [{type: 'uitleg', waarde: 'Hoeveel kistjes gaan eruit? Gaat de hele pallet eruit, druk dan gewoon op Eruit halen.'},
+    ...p.regels.map((r, i) => { const y = S.partijen.find(z => z.id === r.partij_id); return {k: 'n' + i, label: `${partijRas(y) || '?'} ${y?.batch || ''} (${getal(r.kistjes)} kistjes)`, type: 'number', waarde: r.kistjes}; }),
+    {k: 'klant', label: 'Klant (mag leeg)', waarde: ''}, {k: 'notitie', label: 'Aantekeningen', waarde: ''}], 'Eruit halen');
+  if (!w) return;
+  const rijen = []; p.regels.forEach((r, i) => { const n = Math.min(r.kistjes, leesGetal(w['n' + i], 0)); if (!(n > 0)) return; const y = S.partijen.find(z => z.id === r.partij_id);
+    rijen.push({partij_id: r.partij_id, seizoen_id: y?.seizoen_id || bekeken, soort: 'uit', datum: dKey(new Date()), aantal: n, eenheid: r.eenheid || 'kistjes', per_eenheid: r.per, pallet: nr,
+      koelcel: r.cel === '—' ? null : r.cel, klant: (w.klant || '').trim() || null, notitie: (w.notitie || '').trim() || null, door: naamMe()}); });
+  if (!rijen.length) return;
+  const {data, error} = await sb.from('partij_mutaties').insert(rijen).select(); if (error) { toast(foutTekst(error), 1); return; }
+  S.partij_mutaties = [...(S.partij_mutaties || []), ...(data || [])]; render(true); toast(`⬆️ Pallet ${nr} eruit gehaald`);
+}
 async function kcVerplaats(pid, van, naar, pallet) {
   if (!mag('voorraad_beheren') || van === naar) return;
   const nu = dKey(new Date()), notitie = `↔ van ${van} naar ${naar}`, rijen = [];
@@ -13391,6 +13408,8 @@ function htmlBestemmingen(beh) {
 let vrZoek = '', vrWeergave = 'voorraad';
 function htmlVoorraad() {
   const beh = mag('voorraad_beheren'), muts = S.partij_mutaties || [];
+  if (isKoelcelPlek()) { kcBewerk = false; requestAnimationFrame(() => { if (!window._kcPasGedaan) { window._kcPasGedaan = 1; kcPassend(); } });
+    return `<div class="kcTabletKop"><b>🧊 Koelcellen</b><span>Tik op een koelcel om te zien wat erin staat, in te slaan of eruit te halen</span></div>${kcPlattegrondHtml(beh)}`; }
   const kop = `<section class="kaartje"><h4>📦 Van partij tot klant</h4>
     <div class="ptabs" style="grid-template-columns:repeat(${isKoelcelPlek() ? 2 : 3},1fr)">${[['voorraad', '🧊', 'In de koelcel'], ['leveringen', '🚚', 'Leveringen'], ...(isKoelcelPlek() ? [] : [['zoek', '🔎', 'Terugzoeken']])].map(([k, i, l]) => `<button class="${vrWeergave === k ? 'aan' : ''}" onclick="vrWeergave='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
     ${beh ? `<div class="rij"><button class="knop licht" onclick="mutatieFormulier('', 'in')">⬇️ Inslag</button><button class="knop licht" onclick="mutatieFormulier('', 'uit')">⬆️ Levering</button><button class="knop licht" onclick="mutatieFormulier('', 'uitval')">🗑️ Uitval</button></div>` : ''}
