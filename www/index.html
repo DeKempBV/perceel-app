@@ -740,7 +740,8 @@ body.tmKaart #panel,body.tmKaart .kop,body.tmKaart #tabs,body.tmKaart .fab,body.
 #klokScherm{position:fixed;inset:0;z-index:5000;background:#14261a;color:#fff;overflow:auto;padding:16px calc(16px + env(safe-area-inset-right)) 24px calc(16px + env(safe-area-inset-left));user-select:none}
 body.klokAan #hoofdmenu,body.klokAan #map,body.klokAan #panel{display:none!important}
 body.koelcelPlek #map,body.koelcelPlek #aiKnop{display:none!important}
-body.koelcelPlek .kcKaart{height:calc(100vh - 150px);height:calc(100dvh - 150px)}
+body.koelcelPlek .kcKaart{height:calc(100vh - 130px);height:calc(100dvh - 130px)}
+.kcPlekKop{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.kcPlekKop .pkTitel{flex:1}
 .kcTabletKop{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:0 0 8px}.kcTabletKop b{font-size:1.2em}.kcTabletKop span{color:#667;font-size:.9em}
 .klokKop{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:20px}.klokTijd{font-size:64px;font-weight:800;line-height:1}
 .klokUitleg{font-size:24px;font-weight:700;margin:16px 0 10px;color:#c8e6c9}.klokFout{font-size:22px;padding:30px}
@@ -1592,7 +1593,7 @@ async function authVerstuur(e) {
 async function uitloggen() { await sb.auth.signOut(); location.reload(); }
 // uitloggen vanuit de trekker-modus: alleen met het wachtwoord van dit account; daarna moet je opnieuw inloggen
 async function tmUitloggen() {
-  const ww = await vraag('🔒 Uitloggen van deze trekker', {type: 'password', knop: 'Uitloggen', uitleg: `Vul het wachtwoord van ${me?.email || 'dit account'} in. Daarna moet je opnieuw inloggen met e-mail en wachtwoord.`});
+  const ww = await vraag(`🔒 Uitloggen van deze ${TM.aan || isApparaat() && !isKoelcelPlek() ? 'trekker' : 'tablet'}`, {type: 'password', knop: 'Uitloggen', uitleg: `Vul het wachtwoord van ${me?.email || 'dit account'} in. Daarna moet je opnieuw inloggen met e-mail en wachtwoord.`});
   if (!ww) return;
   const {error} = await sb.auth.signInWithPassword({email: me?.email, password: ww});
   if (error) { toast(/Invalid login/i.test(error.message || '') ? 'Wachtwoord klopt niet' : foutTekst(error), 1); return; }
@@ -4449,6 +4450,12 @@ function renderPaneel() {
     if (!sectieTabs(sectie).some(t => t[0] === tab)) tab = sectieTabs(sectie)[0]?.[0] || 'percelen';
   }
   const tellers = {taken: [open], tractoren: [live, 'live'], uren: [bezigN, 'live'], bedrijf: [bedrijfLet ? '!' : 0]};
+  if (isKoelcelPlek()) {   // koelcel-tablet: vast scherm zoals de trekkertablet, geen menu
+    if (!KOELCEL_TABS.includes(tab)) tab = 'voorraad';
+    $('#tabs').innerHTML = `<div class="paginaKop kcPlekKop"><div class="pkTitel">🧊 ${esc(mijnProfiel()?.naam || 'Koelcellen')}</div>
+      ${[['voorraad', '🧊 Koelcellen'], ['etiketten', '🏷️ Etiketten']].map(([k, l]) => `<button class="pkKnop ${tab === k ? '' : 'licht'}" onclick="zetTab('${k}')">${l}</button>`).join('')}
+      <button class="pkKnop licht" onclick="tmUitloggen()" title="Uitloggen (wachtwoord nodig)">🔒</button></div>`;
+  } else
   { const bl = {i: blokIcoon(sectie), naam: blokNaam(sectie)}, inf = tegelInfo(tab, (TAB_INFO[tab] || [])[0], (TAB_INFO[tab] || [])[1] || tab), n = (tellers[tab] || [])[0], toggle = tab !== '_blok' && !isMobiel() && !isKoelcelPlek() ? (!isVol() ? `<button class="pkKnop licht" onclick="kaartTonen(false)" title="Kaart weg, hele scherm">⛶ Volledig</button>` : `<button class="pkKnop licht" onclick="kaartTonen(true)" title="De kaart erbij">🗺️ Kaart erbij</button>`) : '';
     $('#tabs').innerHTML = `<div class="paginaKop">${tab !== '_blok' && blokMetTegels(sectie) ? `<button class="pkKnop" onclick="zetTab('_blok')" title="Terug naar ${esc(bl.naam || '')}">◀ ${esc(bl.naam || 'Terug')}</button>` : ''}<button class="pkKnop" onclick="toonMenu()" title="Hoofdmenu">🏠 Menu</button>
       <div class="pkTitel">${tab === '_blok' ? `${bl.i || ''} ${esc(bl.naam || '')}` : `${inf[0] || ''} ${esc(inf[1] || tab)}${n ? ` <span class="pkTel">${n}</span>` : ''}`}</div>${toggle}</div>`; }
@@ -6409,6 +6416,7 @@ function menuSleep(e, soort, k, blok) {
 }
 
 function toonMenu() {
+  if (isKoelcelPlek()) { $('#hoofdmenu')?.classList.remove('open'); if (!KOELCEL_TABS.includes(tab)) tab = 'voorraad'; render(true); return; }
   let el = $('#hoofdmenu');
   if (!el) { el = document.createElement('div'); el.id = 'hoofdmenu'; document.body.appendChild(el); }
   const open = S.taken.filter(t => !t.klaar), mijn = open.filter(t => isMijnTaak(t)), bezig = open.filter(t => t.bezig_door);
@@ -13409,7 +13417,7 @@ let vrZoek = '', vrWeergave = 'voorraad';
 function htmlVoorraad() {
   const beh = mag('voorraad_beheren'), muts = S.partij_mutaties || [];
   if (isKoelcelPlek()) { kcBewerk = false; requestAnimationFrame(() => { if (!window._kcPasGedaan) { window._kcPasGedaan = 1; kcPassend(); } });
-    return `<div class="kcTabletKop"><b>🧊 Koelcellen</b><span>Tik op een koelcel om te zien wat erin staat, in te slaan of eruit te halen</span></div>${kcPlattegrondHtml(beh)}`; }
+    return `<div class="kcTabletKop"><span>Tik op een koelcel om te zien wat erin staat, in te slaan of eruit te halen</span></div>${kcPlattegrondHtml(beh)}`; }
   const kop = `<section class="kaartje"><h4>📦 Van partij tot klant</h4>
     <div class="ptabs" style="grid-template-columns:repeat(${isKoelcelPlek() ? 2 : 3},1fr)">${[['voorraad', '🧊', 'In de koelcel'], ['leveringen', '🚚', 'Leveringen'], ...(isKoelcelPlek() ? [] : [['zoek', '🔎', 'Terugzoeken']])].map(([k, i, l]) => `<button class="${vrWeergave === k ? 'aan' : ''}" onclick="vrWeergave='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
     ${beh ? `<div class="rij"><button class="knop licht" onclick="mutatieFormulier('', 'in')">⬇️ Inslag</button><button class="knop licht" onclick="mutatieFormulier('', 'uit')">⬆️ Levering</button><button class="knop licht" onclick="mutatieFormulier('', 'uitval')">🗑️ Uitval</button></div>` : ''}
