@@ -742,6 +742,30 @@ body.klokAan #hoofdmenu,body.klokAan #map,body.klokAan #panel{display:none!impor
 body.koelcelPlek #map,body.koelcelPlek #aiKnop{display:none!important}
 body.koelcelPlek .kcKaart{height:calc(100vh - 130px);height:calc(100dvh - 130px)}
 .kcPlekKop{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.kcPlekKop .pkTitel{flex:1}
+body.koelcelPlek #panel>.kop{display:none!important}
+#hfScherm{display:flex;flex-direction:column;gap:12px;max-width:760px}
+.hfHand{border:2px dashed #b9c6bd;border-radius:14px;padding:12px;background:#fff}
+.hfHand.vol{border-style:solid;border-color:#2e7d32;background:#f3faf3}
+.hfKop{display:flex;align-items:center;gap:10px}.hfKop b{flex:1;font-size:1.15em}.hfBezig{color:#e07a12;font-weight:600}
+.hfLijst{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.hfLeeg{display:flex;flex-direction:column;gap:4px;padding:10px 2px}.hfLeeg b{font-size:1.3em}.hfLeeg span{color:#5d6b62}
+.hfItem{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:baseline;background:#fff;border:1px solid #d6dfd8;border-radius:10px;padding:8px 10px}
+.hfItem.pal{border-color:#2e7d32;border-width:2px}.hfItem.weg{opacity:.55}
+.hfItem b{font-size:1.1em}.hfItem small{grid-column:1/-1;color:#5d6b62}
+.hfKnoppen{display:flex;flex-wrap:wrap;gap:10px}
+.hfGroot{flex:1 1 200px;min-height:64px;font-size:1.15em;font-weight:700;border-radius:14px;border:0;background:#e8efe9;color:#1d2a22;cursor:pointer}
+.hfGroot.cam{background:#1f5fbf;color:#fff}.hfGroot.kiep{background:#e07a12;color:#fff}.hfGroot:disabled{opacity:.4}
+.hfSub{font-weight:700;margin-top:4px}.hfSub small{font-weight:400;color:#5d6b62}
+.hfCellen{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.hfCellen button{min-height:58px;font-size:1.1em;font-weight:700;border-radius:12px;border:2px solid #9fd3ff;background:#e9f5ff;color:#0c447c;cursor:pointer}
+.hfCellen button:disabled{opacity:.4}
+.hfLog{display:flex;flex-direction:column;gap:3px;max-height:260px;overflow:auto;background:#fff;border:1px solid #d6dfd8;border-radius:10px;padding:8px}
+.hfLog div{font-size:.95em}.hfLog div.fout{color:#b3261e;font-weight:600}.hfLog small{color:#8a978e;margin-right:6px}
+#hfCam{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));width:min(360px,60vw);z-index:3000;background:#000;border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+#hfCam video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+#hfCam button{position:absolute;top:6px;right:6px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:18px}
+#hfCam span{position:absolute;left:8px;bottom:6px;color:#fff;font-size:12px;text-shadow:0 1px 2px #000}
+
 .kcTabletKop{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:0 0 8px}.kcTabletKop b{font-size:1.2em}.kcTabletKop span{color:#667;font-size:.9em}
 .klokKop{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:20px}.klokTijd{font-size:64px;font-weight:800;line-height:1}
 .klokUitleg{font-size:24px;font-weight:700;margin:16px 0 10px;color:#c8e6c9}.klokFout{font-size:22px;padding:30px}
@@ -1590,7 +1614,7 @@ async function authVerstuur(e) {
   }
   $('#aKnop').disabled = false;
 }
-async function uitloggen() { await sb.auth.signOut(); location.reload(); }
+async function uitloggen() { if (isApparaat() || isKoelcelPlek() || isKiep() || isPrikklok()) { tmUitloggen(); return; } await sb.auth.signOut(); location.reload(); }
 // uitloggen vanuit de trekker-modus: alleen met het wachtwoord van dit account; daarna moet je opnieuw inloggen
 async function tmUitloggen() {
   const ww = await vraag(`🔒 Uitloggen van deze ${TM.aan || isApparaat() && !isKoelcelPlek() ? 'trekker' : 'tablet'}`, {type: 'password', knop: 'Uitloggen', uitleg: `Vul het wachtwoord van ${me?.email || 'dit account'} in. Daarna moet je opnieuw inloggen met e-mail en wachtwoord.`});
@@ -1629,7 +1653,7 @@ async function opstarten() {
   pgSleepInit();   // plattegrond op de kaart slepen
   const tmLink = /[?&]trekker=1/.test(location.search);
   if (veilig) { TM.aan = false; toonMenu(); window.opstartWeg?.(); toast('🛟 Veilige start: de kaart wordt pas getekend als je een perceel kiest'); stap('veilige start klaar'); opstartGelukt(); toonVorigeVastloper(); return; }
-  stap('menu of trekker'); if (isPrikklok()) { TM.aan = false; await toonKlok(); } else if (isKiep()) { TM.aan = false; await toonKiep(); } else if (isKoelcelPlek()) { TM.aan = false; document.body.classList.add('koelcelPlek'); vrWeergave = 'voorraad'; kiesSectie('voorraad'); } else if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else toonMenu();
+  stap('menu of trekker'); if (isPrikklok()) { TM.aan = false; await toonKlok(); } else if (isKiep()) { TM.aan = false; await toonKiep(); } else if (isKoelcelPlek()) { TM.aan = false; document.body.classList.add('koelcelPlek'); vrWeergave = 'voorraad'; kiesSectie('voorraad'); tab = 'hfscan'; render(true); } else if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else toonMenu();
   try { etUitLink(); } catch {}
   stap('gps'); apparaatGPS(); stap('klaar'); requestAnimationFrame(() => setTimeout(() => window.opstartWeg?.(), 150)); opstartGelukt(); toonVorigeVastloper();   // trekker-tablet: locatie van de gekoppelde trekker delen zolang hij aan staat      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
   setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
@@ -4411,7 +4435,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['trekkeruren', 'busuren', 'water', 'pno', 'bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'ressorteren', 'resprognose', 'resjaren', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['hfscan', 'trekkeruren', 'busuren', 'water', 'pno', 'bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'ressorteren', 'resprognose', 'resjaren', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -4428,7 +4452,20 @@ function zetTab(t) { if (TAB_ALIAS[t]) { werkSub[TAB_ALIAS[t][0]] = TAB_ALIAS[t]
 const veiligHtml = (f, ...a) => { try { return f(...a) || ''; } catch (e) { console.warn(e); meldFout(e); return ''; } };
 // fouten zichtbaar maken (één keer per minuut), zodat je ze kunt doorgeven
 let foutGemeld = 0;
-function meldFout(e) { const t = (e?.message || String(e || '')).slice(0, 160); if (!t || Date.now() - foutGemeld < 60000) return; foutGemeld = Date.now(); try { toast('⚠️ Foutje in de app: ' + t, 1); } catch {} }
+function meldFout(e) {
+  const t = (e?.message || String(e || '')).slice(0, 160); if (!t) return;
+  // waar zat het? eerste regel van de stack die in onze eigen code zit
+  const st = String(e?.stack || '').split('\n').map(x => x.trim()).filter(x => x.startsWith('at '));
+  const eigen = st.find(x => x.includes(location.host + '/') && !/\/(lib|vendor)\//.test(x) || x.includes('index.html'));   // onze eigen pagina (niet een bibliotheek van een cdn)
+  const waar = (eigen || st[0] || '').replace(/^at /, '').replace(/https?:\/\/[^\s)]*?([^/\s)]*:\d+):\d+/, '$1').slice(0, 80);
+  try { doos?.('FOUT: ' + t + (waar ? ' @ ' + waar : '')); } catch {}
+  // fout in een bibliotheek (kaart, database-verbinding) zonder dat onze code erbij zit: niemand lastigvallen
+  if (st.length && !eigen) return;
+  if (Date.now() - foutGemeld < 60000) return; foutGemeld = Date.now();
+  // alleen een beheerder krijgt de melding te zien (met waar het zat), medewerkers en tablets niet
+  if (!(typeof isBeheerder === 'function' && isBeheerder())) return;
+  try { toast('⚠️ Foutje in de app: ' + t + (waar ? ` · ${waar}` : ''), 1); } catch {}
+}
 window.addEventListener('error', e => meldFout(e.error || e.message));
 window.addEventListener('unhandledrejection', e => { const m = String(e.reason?.message || e.reason || ''); if (!/fetch|network|Load failed|abort/i.test(m)) meldFout(e.reason); });
 function paneelVerversen() { if (typeof TM !== 'undefined' && TM.aan) return; try { renderPaneel(); } catch (e) { console.warn(e); } }
@@ -4451,9 +4488,9 @@ function renderPaneel() {
   }
   const tellers = {taken: [open], tractoren: [live, 'live'], uren: [bezigN, 'live'], bedrijf: [bedrijfLet ? '!' : 0]};
   if (isKoelcelPlek()) {   // koelcel-tablet: vast scherm zoals de trekkertablet, geen menu
-    if (!KOELCEL_TABS.includes(tab)) tab = 'voorraad';
-    $('#tabs').innerHTML = `<div class="paginaKop kcPlekKop"><div class="pkTitel">🧊 ${esc(mijnProfiel()?.naam || 'Koelcellen')}</div>
-      ${[['voorraad', '🧊 Koelcellen'], ['etiketten', '🏷️ Etiketten']].map(([k, l]) => `<button class="pkKnop ${tab === k ? '' : 'licht'}" onclick="zetTab('${k}')">${l}</button>`).join('')}
+    if (!KOELCEL_TABS.includes(tab)) tab = 'hfscan';
+    $('#tabs').innerHTML = `<div class="paginaKop kcPlekKop"><div class="pkTitel">🚜 ${esc(mijnProfiel()?.naam || 'Heftruck')}</div>
+      ${[['hfscan', '📷 Scannen'], ['voorraad', '🧊 Koelcellen'], ['etiketten', '🏷️ Etiketten']].map(([k, l]) => `<button class="pkKnop ${tab === k ? '' : 'licht'}" onclick="zetTab('${k}')">${l}</button>`).join('')}
       <button class="pkKnop licht" onclick="tmUitloggen()" title="Uitloggen (wachtwoord nodig)">🔒</button></div>`;
   } else
   { const bl = {i: blokIcoon(sectie), naam: blokNaam(sectie)}, inf = tegelInfo(tab, (TAB_INFO[tab] || [])[0], (TAB_INFO[tab] || [])[1] || tab), n = (tellers[tab] || [])[0], toggle = tab !== '_blok' && !isMobiel() && !isKoelcelPlek() ? (!isVol() ? `<button class="pkKnop licht" onclick="kaartTonen(false)" title="Kaart weg, hele scherm">⛶ Volledig</button>` : `<button class="pkKnop licht" onclick="kaartTonen(true)" title="De kaart erbij">🗺️ Kaart erbij</button>`) : '';
@@ -4481,6 +4518,7 @@ function renderPaneel() {
   else if (tab === 'middelen') h = bedrijfGeladen ? htmlMiddelen() : '<p class="hint">Laden…</p>';
   else if (tab === 'voorraad') h = bedrijfGeladen ? (isKoelcelPlek() ? '' : seizoenKnop()) + htmlVoorraad() : '<p class="hint">Laden…</p>';
   else if (tab === 'etiketten') h = bedrijfGeladen ? htmlEtiketten() : '<p class="hint">Laden…</p>';
+  else if (tab === 'hfscan') h = bedrijfGeladen ? htmlHeftruck() : '<p class="hint">Laden…</p>';
   else if (tab === 'bestellingen') h = htmlBestellingen();
   else if (tab === 'pno') h = htmlPno();
   else if (tab === 'waarnemingen') h = htmlWaarnemingen();
@@ -5804,7 +5842,7 @@ function htmlTeam() {
           ${isBeheerder() && u.id !== me.id && u.rol !== 'beheerder' ? `<label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.apparaat ? 'checked' : ''} onchange="zetVlag('${u.id}',{p_apparaat:this.checked})"> 📱 Gedeeld apparaat (trekker-tablet)</label>
             <label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.prikklok ? 'checked' : ''} onchange="zetPrikklok('${u.id}',this.checked)"> ⏰ Prikklok (iPad in de kantine om in te klokken)</label>
             <label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.werkplek === 'kiep' ? 'checked' : ''} onchange="zetWerkplek('${u.id}',this.checked?'kiep':null)"> 🧺 Kieplijst (telefoon van de heftruck bij de sorteerlijn)</label>
-            <label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.werkplek === 'koelcel' ? 'checked' : ''} onchange="zetWerkplek('${u.id}',this.checked?'koelcel':null)"> ❄️ Koelcel (ziet alleen de koelcellen, de orders en de bakken onderweg)</label>` : ''}
+            <label class="vinkje klein" style="margin:0"><input type="checkbox" ${u.werkplek === 'koelcel' ? 'checked' : ''} onchange="zetWerkplek('${u.id}',this.checked?'koelcel':null)"> 🚜 Heftruck / koelcel (scannen, koelcellen en kiepen; mag op meerdere tablets tegelijk ingelogd zijn)</label>` : ''}
           ${u.apparaat && isBeheerder() ? `<div class="aiVelden"><span>🚜 Zit in trekker</span><select class="veld" onchange="zetTrekker('${u.id}',this.value)"><option value="">— geen —</option>${S.tractoren.map(t => `<option value="${t.id}" ${u.trekker_id === t.id ? 'selected' : ''}>${esc(t.naam)}</option>`).join('')}</select></div>` : ''}</div>
         ${isBeheerder() || (u.rol !== 'beheerder' && u.id !== me.id) ? `<button class="icoon" title="Naam wijzigen" onclick="teamNaam('${u.id}')">✏️</button>
         <button class="icoon" title="Wachtwoord opnieuw instellen" onclick="teamWachtwoord('${u.id}')">🔑</button>` : ''}
@@ -6365,9 +6403,9 @@ const blokUitleg = k => mijnMenu().blokken?.[k]?.uitleg ?? BLOKKEN.find(b => b[0
 const blokkenVolgorde = () => { const v = mijnMenu().volgorde || [], alle = BLOKKEN.map(b => b[0]); return [...v.filter(k => alle.includes(k)), ...alle.filter(k => !v.includes(k))]; };
 const tegelInfo = (k, i, l) => { const t = mijnMenu().tegels?.[k] || {}, inf = TAB_INFO[k] || [i, l, '']; return [t.i || inf[0] || i, t.naam || inf[1] || l, t.uitleg ?? inf[2] ?? '']; };
 // de tegels per kopje volgens je eigen indeling (alleen tegels die je mag zien)
-const sectieTabsGefilterd = s => isKoelcelPlek() ? (s === 'voorraad' ? sectieTabsBasis(s).filter(t => KOELCEL_TABS.includes(t[0])) : []) : sectieTabsBasis(s).filter(t => schermMag(t[0]));
+const sectieTabsGefilterd = s => isKoelcelPlek() ? (s === 'voorraad' ? [['hfscan', '📷 Scannen'], ...sectieTabsBasis(s).filter(t => KOELCEL_TABS.includes(t[0]))] : []) : sectieTabsBasis(s).filter(t => schermMag(t[0]));
 function sectieTabs(s) {
-  const plek = mijnMenu().plek; if (!plek || !BLOKKEN.some(b => b[0] === s)) return sectieTabsGefilterd(s);
+  const plek = mijnMenu().plek; if (isKoelcelPlek() || !plek || !BLOKKEN.some(b => b[0] === s)) return sectieTabsGefilterd(s);
   const basis = {}, alle = new Map(); BLOKKEN.forEach(([k]) => { basis[k] = sectieTabsGefilterd(k); basis[k].forEach(t => { if (!alle.has(t[0])) alle.set(t[0], t); }); });
   const geplaatst = new Set(Object.values(plek).flat());
   return [...(plek[s] || []).filter(k => alle.has(k)).map(k => alle.get(k)), ...basis[s].filter(t => !geplaatst.has(t[0]))]
@@ -6416,7 +6454,7 @@ function menuSleep(e, soort, k, blok) {
 }
 
 function toonMenu() {
-  if (isKoelcelPlek()) { $('#hoofdmenu')?.classList.remove('open'); if (!KOELCEL_TABS.includes(tab)) tab = 'voorraad'; render(true); return; }
+  if (isKoelcelPlek()) { $('#hoofdmenu')?.classList.remove('open'); if (!KOELCEL_TABS.includes(tab)) tab = 'hfscan'; render(true); return; }
   let el = $('#hoofdmenu');
   if (!el) { el = document.createElement('div'); el.id = 'hoofdmenu'; document.body.appendChild(el); }
   const open = S.taken.filter(t => !t.klaar), mijn = open.filter(t => isMijnTaak(t)), bezig = open.filter(t => t.bezig_door);
@@ -7910,7 +7948,7 @@ async function zetWerkplek(id, w) {
   const {error} = await sb.rpc('zet_werkplek', {p_id: id, p_werkplek: w});
   if (error) { toast(/zet_werkplek|function/i.test(error.message || '') ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(error), 1); return; }
   const u = S.profielen.find(x => x.id === id); if (u) { u.werkplek = w; if (w === 'kiep') u.apparaat = true; if (w === 'koelcel') { u.apparaat = false; u.rechten = {...(u.rechten || {}), voorraad_bekijken: true, voorraad_beheren: true, etiketten_printen: true}; } }
-  if (w === 'koelcel') toast('❄️ Dit account opent voortaan meteen de koelcellen');
+  if (w === 'koelcel') toast('🚜 Dit account opent voortaan meteen het heftruckscherm');
   render(true);
   toast(w ? '🧺 Dit account opent nu meteen de kieplijst. Log daarmee in op de telefoon van de heftruck.' : 'Geen kieplijst-telefoon meer');
 }
@@ -8813,7 +8851,7 @@ async function kistNaamZet(sid, naam) {
 const isKiep = () => mijnProfiel()?.werkplek === 'kiep';
 // koelcel-account: ziet alleen de koelcellen, de orders en de bakken onderweg (geen percelen, taken, mensen …)
 const isKoelcelPlek = () => mijnProfiel()?.werkplek === 'koelcel' && !isBeheerder();
-const KOELCEL_TABS = ['voorraad', 'etiketten'];
+const KOELCEL_TABS = ['hfscan', 'voorraad', 'etiketten'];
 function kiepLijst() {
   const per = {};
   (S.res_invoer || []).forEach(i => { (per[i.partij_id] ||= []).push(i); });
@@ -13949,7 +13987,11 @@ function kcQrAfdrukken() {
   etPrintVenster(l.map(c => `<div class="etPagina" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10mm;height:270mm;page-break-after:always;font-family:Arial,sans-serif">
     <div style="font-size:16pt;color:#555">Koelcel</div><div style="font-size:64pt;font-weight:800;text-align:center;line-height:1">${esc(c.naam)}</div>
     <div style="width:120mm;height:120mm">${qrSvg(kcQrTekst(c.naam), 120)}</div>${code128Svg('KC:' + c.naam, 130, 22)}<div style="font:12pt monospace">KC:${esc(c.naam)}</div>
-    <div style="font-size:13pt;color:#555;text-align:center;max-width:160mm">Scan eerst deze code (QR of barcode), daarna de pallets of boxen die je in deze koelcel zet.</div></div>`).join(''));
+    <div style="font-size:13pt;color:#555;text-align:center;max-width:160mm">Scan eerst de pallets of bakken, daarna deze code: nog nergens = erin, al in deze koelcel = eruit, in een andere koelcel = verplaatsen.</div></div>`).join('')
+    + `<div class="etPagina" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10mm;height:270mm;font-family:Arial,sans-serif">
+    <div style="font-size:16pt;color:#555">Sorteerlijn</div><div style="font-size:64pt;font-weight:800;text-align:center;line-height:1">🧺 KIEP</div>
+    <div style="width:120mm;height:120mm">${qrSvg(kiepQrTekst(), 120)}</div>${code128Svg('KIEP', 90, 22)}<div style="font:12pt monospace">KIEP</div>
+    <div style="font-size:13pt;color:#555;text-align:center;max-width:160mm">Scan eerst de bakken (of de pallet), daarna deze code: dan zijn ze gekiept.</div></div>`);
 }
 let KS = null;   // scan-sessie: {cel, log: [], bezig}
 function kcScan(cel) {
@@ -14028,6 +14070,133 @@ async function kcScanCode(raw) {
     }
   } finally { if (KS) KS.bezig = false; }
 }
+
+/* =====================================================================================
+   HEFTRUCK SCANNEN – bakken/pallets scannen, dan een koelcel (erin / eruit / verplaatsen) of de kiep
+   Pallet eerst en daarna bakken = die bakken staan op die pallet. De database doet de boeking (scan_boek).
+   ===================================================================================== */
+const HF = {hand: [], pallet: null, log: [], bezig: false, laatst: '', laatstT: 0};
+let hfStroom = null, hfTimer = null;
+const kiepQrTekst = () => { const a = etAdres(); return a ? `${a}?kiep=1` : 'KIEP'; };
+const kiepCodeUit = t => { const s = String(t || '').trim(); return /^KIEP$/i.test(s) || /[?&]kiep=/.test(s); };
+// in welke koelcel staat een etiket nu (zelfde rekensom als de database)
+function hfCel(e) {
+  if (!e) return null; const per = new Map();
+  (S.partij_mutaties || []).filter(m => m.koelcel && (e.soort === 'pallet' ? m.pallet === String(e.nr) : m.notitie === 'Box ' + e.nr))
+    .forEach(m => per.set(m.koelcel, (per.get(m.koelcel) || 0) + (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0)));
+  for (const [c, n] of per) if (n > .001) return c; return null;
+}
+const hfOpPallet = code => (S.etiketten || []).filter(b => b.op_pallet === code && !b.gekiept_op);
+const hfNaam = e => { const d = e.data || {}, y = (S.partijen || []).find(x => x.id === e.partij_id); return [d.ras || partijRas(y), d.batch || y?.batch, d.sortering].filter(Boolean).join(' · '); };
+function hfMeld(t, fout) { HF.log.unshift({t, fout: !!fout, tijd: new Date()}); HF.log = HF.log.slice(0, 40); if (fout) { toast(t, 1); try { navigator.vibrate?.([90, 60, 90]); } catch {} } hfTeken(); }
+function hfLeeg(stil) { HF.hand = []; HF.pallet = null; if (!stil) hfTeken(); }
+// etiketten en voorraad opnieuw ophalen na een boeking
+async function hfVervers(codes, sinds) {
+  try {
+    const [m, e1, e2] = await Promise.all([
+      sb.from('partij_mutaties').select('*').gte('created_at', sinds),
+      sb.from('etiketten').select('*').in('code', codes),
+      HF.pallet ? sb.from('etiketten').select('*').eq('op_pallet', HF.pallet.code) : Promise.resolve({data: []})]);
+    if (m.data?.length) { const ids = new Set(m.data.map(x => x.id)); S.partij_mutaties = [...(S.partij_mutaties || []).filter(x => !ids.has(x.id)), ...m.data]; }
+    const et = [...(e1.data || []), ...(e2.data || [])];
+    if (et.length) { const ids = new Set(et.map(x => x.id)); S.etiketten = [...et, ...(S.etiketten || []).filter(x => !ids.has(x.id))];
+      const nw = c => et.find(x => x.code === c);
+      HF.hand = HF.hand.map(x => nw(x.code) || x); if (HF.pallet) HF.pallet = nw(HF.pallet.code) || HF.pallet; }
+  } catch (e) { console.warn(e); }
+}
+async function hfBoek(actie, doel, codes, houd) {
+  if (!mag('voorraad_beheren')) { toast('Dit account mag geen voorraad boeken', 1); return; }
+  if (HF.bezig) return;
+  codes = codes || (HF.pallet ? [HF.pallet.code, ...HF.hand.filter(e => e.op_pallet !== HF.pallet.code).map(e => e.code)] : HF.hand.map(e => e.code));
+  if (!codes.length) { hfMeld(actie === 'kiep' ? 'Scan eerst de bakken die je kiept' : 'Scan eerst een pallet of de bakken, daarna de koelcel', 1); return; }
+  HF.bezig = true; hfTeken();
+  const sinds = new Date(Date.now() - 10000).toISOString();
+  let data, error;
+  try { ({data, error} = await sb.rpc('scan_boek', {p_actie: actie, p_codes: codes, p_doel: doel || null})); }
+  catch (e) { error = e; }
+  HF.bezig = false;
+  if (error) { hfMeld(/scan_boek|function|schema cache/i.test(error.message || '') ? 'Draai eerst heftruck-scannen.sql in Supabase' : foutTekst(error), 1); return; }
+  const fouten = (data || []).filter(r => !r.ok);
+  (data || []).forEach(r => HF.log.unshift({t: (r.ok ? '' : '⚠️ ') + r.melding, fout: !r.ok, tijd: new Date()}));
+  HF.log = HF.log.slice(0, 40);
+  if (fouten.length) { toast('⚠️ ' + fouten[0].melding + (fouten.length > 1 ? ` (+${fouten.length - 1})` : ''), 1); try { navigator.vibrate?.([90, 60, 90]); } catch {} }
+  else try { navigator.vibrate?.(60); } catch {}
+  await hfVervers([...new Set([...codes, ...HF.hand.map(e => e.code), ...(HF.pallet ? [HF.pallet.code] : [])])], sinds);
+  if (!houd && !fouten.length) hfLeeg(true);
+  hfTeken();
+}
+async function hfScan(raw) {
+  const s = String(raw || '').trim(); if (!s) return;
+  if (s === HF.laatst && Date.now() - HF.laatstT < 2500) return; HF.laatst = s; HF.laatstT = Date.now();
+  if (HF.bezig) { toast('Even wachten, ik ben nog aan het boeken…'); return; }
+  if (kiepCodeUit(s)) { await hfBoek('kiep'); return; }
+  const kc = kcCodeUit(s);
+  if (kc) { const n = kcZoekNaam(kc); if (!n) { hfMeld(`Koelcel "${kc}" bestaat niet`, 1); return; } await hfBoek('koelcel', n); return; }
+  const code = etCodeUit(s) || (/^[PB]\d+$/i.test(s) ? s.toUpperCase() : null);
+  if (!code) { hfMeld(`Onbekende code: ${s}`, 1); return; }
+  HF.bezig = true; let e = null;
+  try { e = await etZoek(code); if (e) { const {data} = await sb.from('etiketten').select('*').eq('id', e.id).maybeSingle(); if (data) { e = data; S.etiketten = [data, ...(S.etiketten || []).filter(x => x.id !== data.id)]; } } }
+  finally { HF.bezig = false; }
+  if (!e) { hfMeld(`${code} niet gevonden`, 1); return; }
+  if (e.soort === 'pallet') {
+    if (HF.pallet?.code === e.code) { hfMeld(`Pallet ${e.nr} heb je al gescand`); return; }
+    if (HF.pallet || HF.hand.length) HF.log.unshift({t: '✖ Vorige scan gewist (nieuwe pallet)', tijd: new Date()});
+    HF.hand = []; HF.pallet = e;
+    try { const {data} = await sb.from('etiketten').select('*').eq('op_pallet', e.code); if (data?.length) { const ids = new Set(data.map(x => x.id)); S.etiketten = [...data, ...(S.etiketten || []).filter(x => !ids.has(x.id))]; } } catch {}
+    hfTeken(); return;
+  }
+  if (HF.hand.some(x => x.code === e.code)) { hfMeld(`Box ${e.nr} heb je al gescand`); return; }
+  if (e.gekiept_op) hfMeld(`Let op: box ${e.nr} is al gekiept`, 1);
+  HF.hand.push(e);
+  if (HF.pallet && e.op_pallet !== HF.pallet.code && !e.gekiept_op) { await hfBoek('pallet_op', HF.pallet.code, [e.code], true); return; }
+  hfTeken();
+}
+function hfVanPallet() {
+  if (!HF.pallet) return; const l = HF.hand.filter(e => e.op_pallet === HF.pallet.code).map(e => e.code);
+  if (!l.length) { hfMeld('Scan eerst de bakken die je van deze pallet haalt', 1); return; }
+  hfBoek('pallet_af', HF.pallet.code, l);
+}
+function hfItem(e, pal) {
+  const cel = hfCel(e), op = !pal && e.op_pallet ? e.op_pallet.replace(/^P/, 'pallet ') : '';
+  return `<div class="hfItem ${pal ? 'pal' : ''} ${e.gekiept_op ? 'weg' : ''}"><b>${pal ? '🧱 Pallet' : '📦 Box'} ${esc(e.nr)}</b><span>${esc(hfNaam(e) || 'geen partij')}</span>
+    <small>${e.gekiept_op ? '🧺 gekiept' : cel ? '❄️ ' + esc(cel) : 'nog nergens'}${op ? ' · op ' + esc(op) : ''}${pal ? ` · ${hfOpPallet(e.code).length} ${hfOpPallet(e.code).length === 1 ? 'bak' : 'bakken'} erop` : ''}</small></div>`;
+}
+function hfBinnen() {
+  const leeg = !HF.pallet && !HF.hand.length, cellen = kcLijst();
+  const hand = leeg ? `<div class="hfLeeg"><b>Scan een pallet of bakken</b><span>Daarna een koelcel (erin · eruit · verplaatsen) of de kiep.<br>Eerst een pallet en dan bakken = de bakken gaan op die pallet.</span></div>`
+    : `${HF.pallet ? hfItem(HF.pallet, true) : ''}${HF.hand.map(e => hfItem(e)).join('')}`;
+  const kop = leeg ? 'In je hand' : HF.pallet ? `In je hand: pallet ${esc(HF.pallet.nr)}${HF.hand.length ? ` + ${HF.hand.length} ${HF.hand.length === 1 ? 'bak' : 'bakken'}` : ''}` : `In je hand: ${HF.hand.length} ${HF.hand.length === 1 ? 'bak' : 'bakken'}`;
+  return `<section class="hfHand ${leeg ? '' : 'vol'}"><div class="hfKop"><b>${kop}</b>${HF.bezig ? '<span class="hfBezig">bezig…</span>' : ''}${leeg ? '' : '<button class="knop licht klein" onclick="hfLeeg()">✖ Wissen</button>'}</div>
+      <div class="hfLijst">${hand}</div></section>
+    <div class="hfKnoppen">
+      <button class="hfGroot cam" onclick="hfCamera()">📷 ${hfStroom ? 'Camera uit' : 'Scannen met camera'}</button>
+      <button class="hfGroot kiep" ${leeg ? 'disabled' : ''} onclick="hfBoek('kiep')">🧺 Gekiept</button>
+      ${HF.pallet && HF.hand.some(e => e.op_pallet === HF.pallet.code) ? `<button class="hfGroot" onclick="hfVanPallet()">➖ Van de pallet halen</button>` : ''}
+    </div>
+    <div class="hfSub">Koelcel <small>(tikken = de koelcel scannen)</small></div>
+    <div class="hfCellen">${cellen.map(c => `<button ${leeg ? 'disabled' : ''} onclick="hfBoek('koelcel',${esc(JSON.stringify(c.naam))})">${esc(c.naam)}</button>`).join('') || '<span class="hint">Nog geen koelcellen</span>'}</div>
+    <div class="rij"><input class="veld" id="hfCodeIn" placeholder="Code typen (B230, P17, KIEP)" autocomplete="off" onkeydown="if(event.key==='Enter'){hfScan(this.value);this.value=''}"></div>
+    <div class="hfSub">Net gedaan</div>
+    <div class="hfLog">${HF.log.length ? HF.log.map(r => `<div class="${r.fout ? 'fout' : ''}"><small>${tijdKort(r.tijd)}</small> ${esc(r.t)}</div>`).join('') : '<span class="hint">Nog niets gescand</span>'}</div>`;
+}
+function htmlHeftruck() { return `<div id="hfScherm">${hfBinnen()}</div>`; }
+function hfTeken() { const el = $('#hfScherm'); if (el) el.innerHTML = hfBinnen(); }
+function hfCamStop() { clearTimeout(hfTimer); try { hfStroom?.getTracks().forEach(t => t.stop()); } catch {} hfStroom = null; $('#hfCam')?.remove(); hfTeken(); }
+async function hfCamera() {
+  if (hfStroom) { hfCamStop(); return; }
+  if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) { toast('Scannen met de camera werkt op dit apparaat niet. Typ de code of gebruik de handscanner.', 1); return; }
+  try {
+    let formats = ['qr_code', 'code_128']; try { const ok = await BarcodeDetector.getSupportedFormats(); formats = formats.filter(f => ok.includes(f)); } catch {}
+    const det = new BarcodeDetector({formats});
+    hfStroom = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment'}, audio: false});
+    const el = document.createElement('div'); el.id = 'hfCam'; el.innerHTML = '<video playsinline muted></video><button onclick="hfCamStop()" aria-label="Camera uit">✖</button><span>Houd de code in beeld</span>';
+    document.body.appendChild(el); const vid = el.querySelector('video'); vid.srcObject = hfStroom; await vid.play(); hfTeken();
+    const kijk = async () => { if (!hfStroom || !$('#hfCam')) return;
+      try { const r = await det.detect(vid); const raw = r.map(x => x.rawValue).find(Boolean); if (raw) await hfScan(raw); } catch {}
+      hfTimer = setTimeout(kijk, 200); };
+    kijk();
+  } catch (e) { hfCamStop(); toast('De camera kon niet worden geopend: ' + (e.message || e), 1); }
+}
 /* ---------- barcode (Code 128-B) voor handscanners, naast de QR-code ---------- */
 const C128 = ('212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112').split(' ');
 function code128Svg(tekst, breedteMm = 60, hoogteMm = 12) {
@@ -14058,8 +14227,10 @@ function handscan(raw) {
   try {
     if (!mijnProfiel?.() || !(ziet('voorraad_bekijken') || mag('voorraad_beheren') || magEtiket())) return;
     const kc = kcCodeUit(raw), et = etCodeUit(raw) || (/^[PB]\d+$/i.test(raw) ? raw.toUpperCase() : null);
+    if (isKoelcelPlek() && tab === 'hfscan') { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
     if (!kc && !et) return;
     try { navigator.vibrate?.(60); } catch {}
+    if (isKoelcelPlek() && tab === 'hfscan') { hfScan(raw); return; }
     if (KS) { kcScanCode(raw); return; }
     if (kc) { kcScan(kc); return; }
     etScanStop?.(); etOpen(et);
