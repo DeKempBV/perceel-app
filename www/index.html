@@ -4490,7 +4490,7 @@ function renderPaneel() {
   if (isKoelcelPlek()) {   // koelcel-tablet: vast scherm zoals de trekkertablet, geen menu
     if (!KOELCEL_TABS.includes(tab)) tab = 'hfscan';
     $('#tabs').innerHTML = `<div class="paginaKop kcPlekKop"><div class="pkTitel">🚜 ${esc(mijnProfiel()?.naam || 'Heftruck')}</div>
-      ${[['hfscan', '📷 Scannen'], ['voorraad', '🧊 Koelcellen'], ['etiketten', '🏷️ Etiketten']].map(([k, l]) => `<button class="pkKnop ${tab === k ? '' : 'licht'}" onclick="zetTab('${k}')">${l}</button>`).join('')}
+      ${[['hfscan', '📷 Scannen'], ['voorraad', '🧊 Koelcellen'], ['reskiep', '🧺 Kieplijst'], ['etiketten', '🏷️ Etiketten']].map(([k, l]) => `<button class="pkKnop ${tab === k ? '' : 'licht'}" onclick="zetTab('${k}')">${l}</button>`).join('')}
       <button class="pkKnop licht" onclick="tmUitloggen()" title="Uitloggen (wachtwoord nodig)">🔒</button></div>`;
   } else
   { const bl = {i: blokIcoon(sectie), naam: blokNaam(sectie)}, inf = tegelInfo(tab, (TAB_INFO[tab] || [])[0], (TAB_INFO[tab] || [])[1] || tab), n = (tellers[tab] || [])[0], toggle = tab !== '_blok' && !isMobiel() && !isKoelcelPlek() ? (!isVol() ? `<button class="pkKnop licht" onclick="kaartTonen(false)" title="Kaart weg, hele scherm">⛶ Volledig</button>` : `<button class="pkKnop licht" onclick="kaartTonen(true)" title="De kaart erbij">🗺️ Kaart erbij</button>`) : '';
@@ -4545,7 +4545,7 @@ function renderPaneel() {
   else if (tab === '_blok') h = htmlBlokOverzicht(sectie);
   else if (tab === 'watstaatwaar') h = htmlWatStaatWaar();
   else if (tab === 'vandaag') h = htmlVandaag();
-  else if (tab === 'reskiep') h = seizoenKnop() + htmlKiepPaneel();
+  else if (tab === 'reskiep') h = (isKoelcelPlek() ? '' : seizoenKnop()) + htmlKiepPaneel();
   else if (tab === 'reskisten') h = htmlResKisten();
   else if (tab === 'dossier') h = seizoenKnop() + htmlDossier();
   else h = htmlSoorten();
@@ -6403,7 +6403,7 @@ const blokUitleg = k => mijnMenu().blokken?.[k]?.uitleg ?? BLOKKEN.find(b => b[0
 const blokkenVolgorde = () => { const v = mijnMenu().volgorde || [], alle = BLOKKEN.map(b => b[0]); return [...v.filter(k => alle.includes(k)), ...alle.filter(k => !v.includes(k))]; };
 const tegelInfo = (k, i, l) => { const t = mijnMenu().tegels?.[k] || {}, inf = TAB_INFO[k] || [i, l, '']; return [t.i || inf[0] || i, t.naam || inf[1] || l, t.uitleg ?? inf[2] ?? '']; };
 // de tegels per kopje volgens je eigen indeling (alleen tegels die je mag zien)
-const sectieTabsGefilterd = s => isKoelcelPlek() ? (s === 'voorraad' ? [['hfscan', '📷 Scannen'], ...sectieTabsBasis(s).filter(t => KOELCEL_TABS.includes(t[0]))] : []) : sectieTabsBasis(s).filter(t => schermMag(t[0]));
+const sectieTabsGefilterd = s => isKoelcelPlek() ? (s === 'voorraad' ? [['hfscan', '📷 Scannen'], ...sectieTabsBasis(s).filter(t => KOELCEL_TABS.includes(t[0])), ['reskiep', '🧺 Kieplijst']] : []) : sectieTabsBasis(s).filter(t => schermMag(t[0]));
 function sectieTabs(s) {
   const plek = mijnMenu().plek; if (isKoelcelPlek() || !plek || !BLOKKEN.some(b => b[0] === s)) return sectieTabsGefilterd(s);
   const basis = {}, alle = new Map(); BLOKKEN.forEach(([k]) => { basis[k] = sectieTabsGefilterd(k); basis[k].forEach(t => { if (!alle.has(t[0])) alle.set(t[0], t); }); });
@@ -8851,7 +8851,7 @@ async function kistNaamZet(sid, naam) {
 const isKiep = () => mijnProfiel()?.werkplek === 'kiep';
 // koelcel-account: ziet alleen de koelcellen, de orders en de bakken onderweg (geen percelen, taken, mensen …)
 const isKoelcelPlek = () => mijnProfiel()?.werkplek === 'koelcel' && !isBeheerder();
-const KOELCEL_TABS = ['hfscan', 'voorraad', 'etiketten'];
+const KOELCEL_TABS = ['hfscan', 'voorraad', 'reskiep', 'etiketten'];
 function kiepLijst() {
   const per = {};
   (S.res_invoer || []).forEach(i => { (per[i.partij_id] ||= []).push(i); });
@@ -8902,7 +8902,7 @@ async function kiepTerug() {
 }
 function kiepVerversen() { if ($('#kiepScherm')) toonKiep(true); else if (tab === 'reskiep') render(true); }
 function htmlKiepPaneel() {
-  return `<section class="kaartje"><h4>🧺 Kieplijst</h4><p class="hint">Dit ziet de heftruckchauffeur op zijn telefoon. Maak bij Mensen en uren → Team een account met het vinkje 🧺 Kieplijst; dat opent meteen dit scherm.</p></section>
+  return `<section class="kaartje"><h4>🧺 Kieplijst</h4>${isKoelcelPlek() ? '<p class="hint">Tik op de partij van de bak die je pakt. Elke tik = 1 bak gekiept.</p>' : '<p class="hint">Dit ziet de heftruckchauffeur op zijn telefoon. Maak bij Mensen en uren → Team een account met het vinkje 🧺 Kieplijst; dat opent meteen dit scherm.</p>'}</section>
     <section class="kaartje kiepPaneel">${kiepInhoud()}</section>`;
 }
 
