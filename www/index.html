@@ -14212,7 +14212,7 @@ function code128Svg(tekst, breedteMm = 60, hoogteMm = 12) {
 /* ---------- handscanner (Bluetooth of USB): die "typt" de code en een Enter ---------- */
 const HS = {buf: '', t: 0, snel: 0};
 document.addEventListener('keydown', e => {
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || typeof e.key !== 'string') return;   // automatisch invullen (wachtwoorden) geeft toetsen zonder key
   const el = document.activeElement, inVeld = el && /INPUT|TEXTAREA|SELECT/.test(el.tagName) && !['kcCodeIn', 'etCodeIn'].includes(el.id);
   const nu = performance.now(), gat = nu - HS.t; HS.t = nu;
   if (gat > 80) { HS.buf = ''; HS.snel = 0; }
