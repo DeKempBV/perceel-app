@@ -78,17 +78,10 @@ jobs:
           gh release delete nieuwste -y --cleanup-tag || true
           gh release create nieuwste PerceelApp.apk --title "Perceel App (installatiebestand)" --notes "Installeer PerceelApp.apk één keer op je Android-telefoon. Daarna werkt de app zichzelf automatisch bij via de website."
 
-  website:
-    name: Computerversie (website)
+  # stap 1: de website inpakken (eigen job, zodat het pakketje helemaal klaar en zichtbaar is voordat er gezet wordt)
+  website-inpakken:
+    name: Website inpakken
     runs-on: ubuntu-latest
-    continue-on-error: true
-    # nooit twee keer tegelijk naar de website zetten (bij snel achter elkaar uploaden ging dat mis)
-    concurrency:
-      group: website
-      cancel-in-progress: true
-    environment:
-      name: github-pages
-      url: ${{ steps.zet.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Versienummer toevoegen
@@ -100,12 +93,31 @@ jobs:
         with:
           path: www
           name: website-${{ github.run_attempt }}
+
+  # stap 2: op de website zetten (pas als stap 1 helemaal klaar is)
+  website:
+    name: Computerversie (website)
+    needs: website-inpakken
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    # nooit twee keer tegelijk naar de website zetten; een lopende zet niet afbreken (dat gaf halve uploads)
+    concurrency:
+      group: website
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.zet.outputs.page_url || steps.zet2.outputs.page_url }}
+    steps:
       - name: Op de website zetten
         id: zet
         uses: actions/deploy-pages@v4
         with:
           artifact_name: website-${{ github.run_attempt }}
-      - name: Nog een keer proberen (als GitHub even haperde)
+      - name: Even wachten (als GitHub haperde)
+        if: failure()
+        run: sleep 30
+      - name: Nog een keer proberen
+        id: zet2
         if: failure()
         uses: actions/deploy-pages@v4
         with:
