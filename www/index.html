@@ -1644,7 +1644,7 @@ async function opstarten() {
   initKaart(); stap('kaart klaar');
   if (veilig || /[?&]trekker=1/.test(location.search) || tmAltijd()) TM.aan = true;   // (prikklok-iPad: zie hieronder)   // trekker-modus: de kaart niet eerst helemaal tekenen
   await laadAlles(); stap('gegevens geladen');
-  sb.channel('live').on('postgres_changes', {event: '*', schema: 'public'}, verwerkLive).subscribe();
+  liveAan();
   if (S.percelen.length) map.fitBounds(L.geoJSON(S.percelen.map(p => p.geo)).getBounds(), {padding: [40, 40], maxZoom: 17});
   let bezig = null; try { bezig = localStorage.getItem('rijdt'); } catch {}
   if (bezig && S.tractoren.find(t => t.id === bezig)) { startRijden(bezig, true); }
@@ -1691,6 +1691,30 @@ async function laadAlles() {
   bewaarCache(); verwerkWachtrij(); controleerVorst(); controleerWeer(); belTeken(); netStatus(); stap('weer en cache');
   voertuigenTik(true);
 }
+// live-verbinding; valt hij weg (tablet in slaap, wifi weg), dan opnieuw verbinden en de voorraad bijwerken
+let liveKanaal = null, liveWeg = 0;
+function liveAan() {
+  try { if (liveKanaal) sb.removeChannel(liveKanaal); } catch {}
+  liveKanaal = sb.channel('live').on('postgres_changes', {event: '*', schema: 'public'}, verwerkLive).subscribe(st => {
+    if (st === 'SUBSCRIBED') { if (liveWeg) { liveWeg = 0; voorraadVerversen(); } }
+    else if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(st)) { if (!liveWeg) liveWeg = Date.now(); clearTimeout(liveAan.t); liveAan.t = setTimeout(liveAan, 4000); }
+  });
+}
+let vvBezig = false;
+async function voorraadVerversen() {
+  if (vvBezig || !me) return; vvBezig = true;
+  try {
+    const nieuw = []; for (let van = 0; van < 200000; van += 1000) { const r = await sb.from('partij_mutaties').select('*').order('datum').order('id').range(van, van + 999); if (r.error) return; nieuw.push(...(r.data || [])); if ((r.data || []).length < 1000) break; }
+    S.partij_mutaties = nieuw;
+    if (S.etiketten) { const {data} = await sb.from('etiketten').select('*').order('created_at', {ascending: false}).limit(300); if (data) S.etiketten = data; }
+    if (isKoelcelPlek() || /voorraad|etiket|hfscan|bestel/.test(tab)) render(true);
+  } catch (e) { console.warn(e); } finally { vvBezig = false; }
+}
+let liveVerstopt = 0;
+document.addEventListener('visibilitychange', () => { if (document.hidden) liveVerstopt = Date.now(); else if (liveVerstopt && Date.now() - liveVerstopt > 30000) { liveVerstopt = 0; voorraadVerversen(); } });
+// veel live-meldingen vlak na elkaar (een scan maakt er meerdere): één keer tekenen
+const LIVE_SAMEN = new Set(['partij_mutaties', 'etiketten', 'scan_log', 'res_invoer']);
+function renderStraks() { clearTimeout(renderStraks.t); renderStraks.t = setTimeout(() => render(), 150); }
 function verwerkLive(pl) {
   if (pl.table === 'percelen' || pl.table === 'partijen') spoorPartijMap = null;
   if (pl.table === 'wagens_weg') setTimeout(() => { if (TM.aan) { if (!TM.wagen) tmRender(); } else render(); }, 80);
@@ -1731,6 +1755,7 @@ function verwerkLive(pl) {
     if (pl.table === 'percelen') S.percelen.sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
     if (pl.table === 'tractoren') { tractorBewogen(pl.new); if (tab !== 'tractoren') { tekenTractoren(); return; } }
   }
+  if (LIVE_SAMEN.has(pl.table)) { renderStraks(); return; }
   render();
 }
 
@@ -11200,6 +11225,8 @@ const seizoenStart = () => { const s = S.seizoenen.find(x => x.id === bekeken); 
 const seizoenEind = () => { const lijst = [...S.seizoenen].sort((a, b) => new Date(a.gestart) - new Date(b.gestart)), i = lijst.findIndex(x => x.id === bekeken); return lijst[i + 1] ? new Date(lijst[i + 1].gestart) : new Date(8.64e15); };
 async function laadBedrijf() {
   const q = (t, f) => f(sb.from(t).select('*')).then(r => r.error ? null : r.data).catch(() => null);
+  // tabellen die groot worden: in stukken van 1000 ophalen (de database geeft er nooit meer dan 1000 per keer)
+  const alleRijen = async (t, f) => { const uit = []; for (let van = 0; van < 200000; van += 1000) { const r = await f(sb.from(t).select('*')).range(van, van + 999).then(r => r, e => ({error: e})); if (r.error) return van ? uit : null; uit.push(...(r.data || [])); if ((r.data || []).length < 1000) break; } return uit; };
   const [md, oo, ma, ml, ko, me2, pa, mo, pm, wn, pb, rp, ppl, psz, vbb, vbr] = await Promise.all([
     q('middelen', x => x.order('naam')),
     q('oogst', x => bekeken ? x.eq('seizoen_id', bekeken).order('datum') : x.order('datum')),
@@ -11209,7 +11236,7 @@ async function laadBedrijf() {
     q('meldingen', x => x.order('created_at', {ascending: false}).limit(60)),
     q('partijen', x => bekeken ? (archief ? x.eq('seizoen_id', bekeken) : x.or(`seizoen_id.eq.${bekeken},and(afgesloten_in.is.null,perceel_id.not.is.null)`)) : x),
     q('monsters', x => x.order('datum', {ascending: false})),
-    q('partij_mutaties', x => x.order('datum')),
+    alleRijen('partij_mutaties', x => x.order('datum').order('id')),
     q('waarnemingen', x => x.order('datum', {ascending: false}).limit(2000)),
     q('plantbehoefte', x => x.order('created_at')),
     q('rooiplanning', x => x.gte('datum', new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10)).order('datum')),
@@ -13058,7 +13085,8 @@ function voorraadVan(partijId) {   // per koelcel: planten en de laatst gebruikt
   });
   return per;
 }
-const eenhedenTekst = (pl, eenheid, per) => eenheid && eenheid !== 'planten' && per ? `${getal(Math.round(pl / per * 10) / 10)} ${eenheid} (${getal(pl)} pl.)` : `${getal(pl)} planten`;
+// zonder planten per eenheid (bijv. een rooibox/kuubskist die nog niet gesorteerd is) tellen we de eenheden zelf
+const eenhedenTekst = (pl, eenheid, per) => eenheid && eenheid !== 'planten' ? (per ? `${getal(Math.round(pl / per * 10) / 10)} ${eenheid} (${getal(pl)} pl.)` : `${getal(Math.round(pl * 10) / 10)} ${pl === 1 && eenheid === 'kuubskisten' ? 'kuubskist' : eenheid}`) : `${getal(pl)} planten`;
 async function mutatieFormulier(partijId, soortVast, id, voor = {}) {
   if (!mag('voorraad_beheren')) return;
   const m = id ? S.partij_mutaties.find(x => x.id === id) : {soort: soortVast || 'in', datum: dKey(new Date()), eenheid: voor.eenheid || 'trays', partij_id: partijId, koelcel: voor.koelcel};
@@ -13288,8 +13316,9 @@ function kcTotalen(cel) {
   const per = new Map(), ras = y => partijRas(y) || soort(y?.soort_id)?.naam || '?';
   const o = n => per.get(n) || (per.set(n, {naam: n, eenheden: {}, pallets: new Map(), planten: 0}), per.get(n));
   (S.partijen || []).forEach(y => voorraadVan(y.id).forEach((x, c) => { if (cel && c !== cel) return; const l = kcLos(y.id, c); if (l.planten <= .5) return;
-    const t = o(ras(y)), per1 = l.eenheid !== 'planten' ? +l.per_eenheid || 0 : 0; t.planten += l.planten;
-    const e = per1 ? l.eenheid : 'planten'; t.eenheden[e] = (t.eenheden[e] || 0) + (per1 ? l.planten / per1 : l.planten); }));
+    const t = o(ras(y)), per1 = l.eenheid !== 'planten' ? +l.per_eenheid || 0 : 0;
+    if (l.eenheid !== 'planten' && !per1) { t.eenheden[l.eenheid] = (t.eenheden[l.eenheid] || 0) + l.planten; t.onbekend = true; return; }   // aantal planten nog niet bekend (rooibox)
+    t.planten += l.planten; const e = per1 ? l.eenheid : 'planten'; t.eenheden[e] = (t.eenheden[e] || 0) + (per1 ? l.planten / per1 : l.planten); }));
   kcPallets().forEach(p => p.regels.forEach(r => { if (cel && r.cel !== cel) return; const y = S.partijen.find(z => z.id === r.partij_id), t = o(ras(y));
     t.planten += r.kistjes * (+r.per || 0); }));
   kcPallets().forEach(p => { if (cel && p.cel !== cel) return; const perRas = new Map(); p.regels.forEach(r => { const n = ras(S.partijen.find(z => z.id === r.partij_id)); perRas.set(n, (perRas.get(n) || 0) + r.kistjes); });
@@ -13303,7 +13332,7 @@ function kcTotalenHtml(cel) {
     ...[['kuubskisten', 'kuubskisten', 'kuubskist'], ['trays', 'trays', 'tray'], ['kistjes', 'kistjes los', 'kistje los']].filter(([e]) => t.eenheden[e]).map(([e, mv, ev]) => `${r1(t.eenheden[e])} ${t.eenheden[e] === 1 ? ev : mv}`),
     ...[...t.pallets].sort((a, b) => b[0] - a[0]).map(([k, n]) => `${n} pallet${n === 1 ? '' : 's'} (${r1(k)})`),
     ...Object.keys(t.eenheden).filter(e => !['kuubskisten', 'trays', 'kistjes', 'planten'].includes(e)).map(e => `${r1(t.eenheden[e])} ${esc(e)}`),
-    t.eenheden.planten ? `${getal(Math.round(t.eenheden.planten))} losse planten` : ''].filter(Boolean).join(' · ')}</span><small>${getal(Math.round(t.planten))} planten</small></div>`).join('')}</div>`;
+    t.eenheden.planten ? `${getal(Math.round(t.eenheden.planten))} losse planten` : ''].filter(Boolean).join(' · ')}</span><small>${t.planten ? getal(Math.round(t.planten)) + ' planten' : ''}${t.onbekend ? (t.planten ? ' + ' : '') + 'planten nog onbekend' : ''}</small></div>`).join('')}</div>`;
 }
 // de popup van één koelcel: wat erin staat, inslaan, verplaatsen
 function kcOpen(naam) {
@@ -14094,7 +14123,7 @@ function hfLeeg(stil) { HF.hand = []; HF.pallet = null; if (!stil) hfTeken(); }
 async function hfVervers(codes, sinds) {
   try {
     const [m, e1, e2] = await Promise.all([
-      sb.from('partij_mutaties').select('*').gte('created_at', sinds),
+      sb.from('partij_mutaties').select('*').order('created_at', {ascending: false}).limit(300),
       sb.from('etiketten').select('*').in('code', codes),
       HF.pallet ? sb.from('etiketten').select('*').eq('op_pallet', HF.pallet.code) : Promise.resolve({data: []})]);
     if (m.data?.length) { const ids = new Set(m.data.map(x => x.id)); S.partij_mutaties = [...(S.partij_mutaties || []).filter(x => !ids.has(x.id)), ...m.data]; }
