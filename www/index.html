@@ -1095,6 +1095,9 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 #kiepPop{position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
 #kiepPop .kpDoos{background:#fff;color:#1d2a22;border-radius:22px;padding:22px;width:min(420px,100%);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}
 #kiepPop .kpTitel{font-size:22px}#kiepPop .kpSub{color:#5d6b62;margin-top:4px}
+#kiepPop .kpTeller.hfTeller{gap:8px;margin:16px 0}#kiepPop .kpTeller.hfTeller button{flex:0 0 auto;width:58px;height:58px;padding:0;font-size:30px}#kiepPop .kpTeller.hfTeller button.acht{width:50px;height:50px;font-size:17px;background:#d7e6da}
+#kiepPop .hfTeller input{flex:0 0 auto;width:90px;font-size:36px;font-weight:700;text-align:center;border:2px solid #c9d4cc;border-radius:14px;padding:6px}
+#kiepPop .hfVol{display:block;margin:0 auto 6px;border:0;border-radius:12px;background:#2e7d32;color:#fff;font:700 17px/1 system-ui,sans-serif;padding:12px 18px;cursor:pointer}
 #kiepPop .kpTeller{display:flex;align-items:center;justify-content:center;gap:22px;margin:22px 0}
 #kiepPop .kpTeller button{width:76px;height:76px;border-radius:50%;border:0;background:#e8efe9;font-size:40px;font-weight:700;cursor:pointer;color:#1d2a22}
 #kiepPop .kpTeller button:disabled{opacity:.3}
@@ -14437,23 +14440,25 @@ async function hfKistScan(code) {
   try { navigator.vibrate?.(40); } catch {}
   if (HF.pallet) { await hfKistEraf(info); return; }
   let o = HF.kist.find(k => k.code === code && !k.cel && !k.pal);
-  if (o) { if (o.std) { o.n = 2; o.std = false; } else o.n++; }
-  else { o = {...info, n: KC_PALLET_MAX, std: true, cel: null, pal: null}; HF.kist.push(o); }
+  if (o) o.n++; else { o = {...info, n: 1, cel: null, pal: null}; HF.kist.push(o); }
   hfTeken(); hfKistPop(o);
 }
+// teller: −8 · −1 · [aantal] · +1 · +8
+const hfTellerHtml = n => `<div class="kpTeller hfTeller"><button data-d="-8" class="acht" aria-label="8 minder">−8</button><button data-d="-1" aria-label="Minder">−</button><input id="hfKaIn" type="number" inputmode="numeric" min="0" value="${n}"><button data-d="1" aria-label="Meer">+</button><button data-d="8" class="acht" aria-label="8 meer">+8</button></div>`;
 function hfKistPop(o) {
   let el = $('#kiepPop'); if (!el) { el = document.createElement('div'); el.id = 'kiepPop'; document.body.appendChild(el); }
   el.dataset.kist = o.code; const y = (S.partijen || []).find(x => x.id === o.pid);
   const dicht = () => { el.remove(); hfTeken(); };
   el.innerHTML = `<div class="kpDoos"><div class="kpTitel">🌱 ${esc(partijRas(y) || '?')} <b>${esc(y?.batch || y?.nak || '')}</b></div><div class="kpSub">${esc(o.sort || '')}${o.per ? ' · ' + getal(o.per) + ' per kist' : ''}</div>
-    <div class="kpSub" style="margin-top:10px">Hoeveel kistjes? <small>${o.std ? `(standaard ${KC_PALLET_MAX}; scan je dezelfde kaart nog eens, dan ga je tellen)` : '(of gewoon doorscannen)'}</small></div>
-    <div class="kpTeller"><button data-d="-1" aria-label="Minder">−</button><input id="hfKaIn" type="number" inputmode="numeric" min="0" value="${o.n}" style="width:110px;font-size:40px;font-weight:700;text-align:center;border:2px solid #c9d4cc;border-radius:14px;padding:6px"><button data-d="1" aria-label="Meer">+</button></div>
+    <div class="kpSub" style="margin-top:10px">Hoeveel kistjes? <small>(of gewoon doorscannen)</small></div>
+    ${hfTellerHtml(o.n)}<button class="hfVol" data-zet="${KC_PALLET_MAX}">🧱 ${KC_PALLET_MAX} (volle pallet)</button>
     <div class="kpSub">Daarna: scan een <b>pallet</b> (erop) of een <b>koelcel</b> (erin)</div>
     <div class="kpKnoppen" style="margin-top:16px"><button class="kpNee" data-x="1">Weghalen</button><button class="kpJa" data-ok="1">✔ Klaar</button></div></div>`;
   const inp = el.querySelector('#hfKaIn');
-  el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { o.std = false; o.n = Math.max(0, o.n + +b.dataset.d); inp.value = o.n; hfTeken(); });
+  el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { o.n = Math.max(0, o.n + +b.dataset.d); inp.value = o.n; hfTeken(); });
+  el.querySelector('[data-zet]').onclick = b => { o.n = KC_PALLET_MAX; inp.value = o.n; hfTeken(); };
   // getypt aantal pas overnemen bij Klaar/Enter (zo kan een handscanner het veld niet verknoeien)
-  const neem = () => { const v = parseInt(inp.value, 10); if (/^\d{1,3}$/.test(String(inp.value).trim()) && v >= 0 && v !== o.n) { o.n = v; o.std = false; } };
+  const neem = () => { const v = parseInt(inp.value, 10); if (/^\d{1,3}$/.test(String(inp.value).trim()) && v >= 0) o.n = v; };
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); neem(); dicht(); } };
   el.querySelector('[data-x]').onclick = () => { HF.kist = HF.kist.filter(k => k !== o); dicht(); };
   el.querySelector('[data-ok]').onclick = () => { neem(); dicht(); }; el.onclick = e => { if (e.target === el) dicht(); };
@@ -14471,7 +14476,7 @@ async function hfKistEraf(info) {
     el.innerHTML = `<div class="kpDoos"><div class="kpTitel">➖ ${esc(partijRas(y) || '?')} <b>${esc(y?.batch || y?.nak || '')}</b></div>
       <div class="kpSub">Op <b>pallet ${esc(HF.pallet.nr)}</b>${p.cel && p.cel !== '—' ? ' in ' + esc(p.cel) : ''} staan ${getal(op)} kistjes hiervan</div>
       <div class="kpSub" style="margin-top:10px">Hoeveel haal je eraf?</div>
-      <div class="kpTeller"><button data-d="-1" aria-label="Minder">−</button><input id="hfKaIn" type="number" inputmode="numeric" min="1" max="${op}" value="1" style="width:110px;font-size:40px;font-weight:700;text-align:center;border:2px solid #c9d4cc;border-radius:14px;padding:6px"><button data-d="1" aria-label="Meer">+</button></div>
+      ${hfTellerHtml(1)}
       <div class="kpKnoppen"><button class="kpNee" data-x="1">Annuleren</button><button class="kpJa" data-ok="1">➖ Eraf halen</button><button class="kpJa" data-alles="1" style="background:#5d4037">Alle ${getal(op)}</button></div></div>`;
     const inp = el.querySelector('#hfKaIn');
     el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { v = Math.min(op, Math.max(1, v + +b.dataset.d)); inp.value = v; });
