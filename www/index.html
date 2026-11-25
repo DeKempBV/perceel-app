@@ -8875,6 +8875,16 @@ function htmlResSorteren() {
    WIE DEED WAT – per medewerker: wagens (chauffeur en bijrijder), rooien, kiepen, koelcel
    ===================================================================================== */
 let wdwPeriode = 'vandaag', wdwDatum = '';
+const wdwSor = {};   // sorteren per medewerker uit SSOR, per periode
+async function wdwSorLaad(van, tot) {
+  const k = van + '|' + tot, c = wdwSor[k]; if (c && (c.laden || Date.now() - c.t < 120000)) return;
+  wdwSor[k] = {...(c || {}), laden: true};
+  const {data, error} = await sb.rpc('sorteren_mensen', {p_van: van === '0000' ? '2000-01-01' : van, p_tot: tot === '9999' ? '2100-01-01' : tot});
+  wdwSor[k] = {data: error ? null : data, fout: error && (/sorteren_mensen|schema cache/i.test(error.message || '') ? 'Draai eerst sorteren-mensen.sql in Supabase' : foutTekst(error)), t: Date.now()};
+  if (tab === 'resmensen') render(true);
+}
+// "Jansen, Piet" (SSOR) en "Piet Jansen" (app) als dezelfde persoon zien
+const wdwSleutel = n => { n = String(n || '').trim(); const m = n.match(/^([^,]+),\s*(.+)$/); return (m ? m[2] + ' ' + m[1] : n).toLowerCase().replace(/\s+/g, ' '); };
 function wdwBereik() {
   const nu = new Date(), d = x => dKey(x);
   if (wdwPeriode === 'gisteren') { const g = new Date(nu); g.setDate(g.getDate() - 1); return [d(g), d(g)]; }
@@ -8886,7 +8896,10 @@ function wdwBereik() {
 function htmlResMensen() {
   const [van, tot] = wdwBereik(), inP = dt => { const k = String(dt || '').slice(0, 10); return k >= van && k <= tot; };
   const dagVan = i => i.datum || String(i.created_at || '').slice(0, 10);
-  const P = new Map(), pers = naam => { naam = String(naam || '').trim() || 'onbekend'; const k = naam.toLowerCase(); if (!P.has(k)) P.set(k, {naam, wagC: 0, wagB: 0, bijW: 0, bijB: 0, roo: 0, kiep: 0, leeg: 0, kc: 0, kIn: 0, kUit: 0}); return P.get(k); };
+  const P = new Map(), pers = naam => { naam = String(naam || '').trim() || 'onbekend'; const k = wdwSleutel(naam); if (!P.has(k)) P.set(k, {naam, wagC: 0, wagB: 0, bijW: 0, bijB: 0, roo: 0, kiep: 0, leeg: 0, kc: 0, kIn: 0, kUit: 0, sor: 0, sorU: 0}); return P.get(k); };
+  const sk = van + '|' + tot, sc = wdwSor[sk]; if (!sc || (!sc.laden && Date.now() - sc.t > 120000)) setTimeout(() => wdwSorLaad(van, tot), 0);
+  const sorMag = sc?.data?.mag;
+  (sc?.data?.regels || []).forEach(r => { const c = pers(r.naam); c.sor += n0(r.planten); c.sorU += n0(r.uren); if (/,/.test(c.naam)) c.naam = String(r.naam).replace(/^([^,]+),\s*(.+)$/, '$2 $1'); });
   const tijd = w => String(w.gemeld_op || '').slice(0, 10);
   (S.wagens_weg || []).forEach(w => {
     if (inP(tijd(w))) { const c = pers(w.gemeld_door); c.wagC++; c.wagB += n0(w.bakken);
@@ -8899,18 +8912,19 @@ function htmlResMensen() {
     if (i.soort === 'kiepen') pers(i.door).kiep += n0(i.bakken); });
   (S.partij_mutaties || []).forEach(m => { if (!m.door || m.door === 'reparatie' || !inP(m.datum || String(m.created_at || '').slice(0, 10))) return;
     if (m.soort === 'in') pers(m.door).kIn++; else if (['uit', 'uitval', 'veld'].includes(m.soort)) pers(m.door).kUit++; });
-  const l = [...P.values()].filter(c => c.wagC + c.bijW + c.roo + c.kiep + c.leeg + c.kc + c.kIn + c.kUit > 0).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  const l = [...P.values()].filter(c => c.wagC + c.bijW + c.roo + c.kiep + c.leeg + c.kc + c.kIn + c.kUit + c.sor + c.sorU > 0).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  const sorCel = (pl, u) => pl || u ? `<b>${fmt(pl)}</b><small>planten${u ? ` · ${getal(Math.round(u * 10) / 10)} uur` : ''}${u && pl ? ` · ${fmt(Math.round(pl / u))}/uur` : ''}</small>` : '<span class="hint">–</span>';
   const som = k => l.reduce((a, c) => a + c[k], 0), cel = (n, b) => n ? `<b>${fmt(n)}</b>${b != null ? `<small>${fmt(b)} bakken</small>` : ''}` : '<span class="hint">–</span>';
   const kopTekst = van === tot ? new Date(van + 'T12:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'}) : wdwPeriode === 'seizoen' ? 'Heel het seizoen' : `${datumKort(van + 'T12:00')} t/m ${datumKort(tot + 'T12:00')}`;
   return `<section class="kaartje"><h4>👥 Wie deed wat</h4>
     <div class="rij" style="flex-wrap:wrap;gap:8px;align-items:center"><div class="pnoSeg">${[['vandaag', 'Vandaag'], ['gisteren', 'Gisteren'], ['week', 'Deze week'], ['seizoen', 'Seizoen']].map(([k, t]) => `<button class="${wdwPeriode === k ? 'aan' : ''}" onclick="wdwPeriode='${k}';render(true)">${t}</button>`).join('')}</div>
       <input class="veld" type="date" style="flex:0 0 auto;width:auto" max="${vandaag()}" value="${wdwPeriode === 'datum' ? wdwDatum : ''}" onchange="wdwPeriode='datum';wdwDatum=this.value;render(true)"></div>
     <p class="hint" style="margin:8px 0 0">${esc(kopTekst)}</p></section>
-    <section class="kaartje">${l.length ? `<div class="tabelScroll"><table class="resTabel wdwTabel"><tr><th>Naam</th><th>🚜 Wagens gereden</th><th>🧑‍🌾 Bijrijder</th><th>✍️ Rooien ingevoerd</th><th>🧺 Gekiept</th><th>🚛 Wagens geleegd</th><th>❄️ Wagens naar koelcel</th><th>⬇️ Koelcel in</th><th>⬆️ Koelcel uit</th></tr>
-      ${l.map(c => `<tr><td><b>${esc(c.naam)}</b></td><td>${cel(c.wagC, c.wagB)}</td><td>${cel(c.bijW, c.bijB)}</td><td>${c.roo ? `<b>${fmt(c.roo)}</b><small>bakken</small>` : '<span class="hint">–</span>'}</td><td>${c.kiep ? `<b>${fmt(c.kiep)}</b><small>bakken</small>` : '<span class="hint">–</span>'}</td><td>${cel(c.leeg)}</td><td>${cel(c.kc)}</td><td>${cel(c.kIn)}</td><td>${cel(c.kUit)}</td></tr>`).join('')}
-      <tr class="totaal"><td><b>Totaal</b></td><td>${cel(som('wagC'), som('wagB'))}</td><td>${cel(som('bijW'), som('bijB'))}</td><td>${cel(som('roo'))}</td><td>${cel(som('kiep'))}</td><td>${cel(som('leeg'))}</td><td>${cel(som('kc'))}</td><td>${cel(som('kIn'))}</td><td>${cel(som('kUit'))}</td></tr></table></div>`
+    <section class="kaartje">${l.length ? `<div class="tabelScroll"><table class="resTabel wdwTabel"><tr><th>Naam</th><th>🚜 Wagens gereden</th><th>🧑‍🌾 Bijrijder</th><th>✍️ Rooien ingevoerd</th><th>🧺 Gekiept</th><th>🚛 Wagens geleegd</th><th>❄️ Wagens naar koelcel</th><th>⬇️ Koelcel in</th><th>⬆️ Koelcel uit</th>${sorMag ? '<th>🗂️ Gesorteerd (SSOR)</th>' : ''}</tr>
+      ${l.map(c => `<tr><td><b>${esc(c.naam)}</b></td><td>${cel(c.wagC, c.wagB)}</td><td>${cel(c.bijW, c.bijB)}</td><td>${c.roo ? `<b>${fmt(c.roo)}</b><small>bakken</small>` : '<span class="hint">–</span>'}</td><td>${c.kiep ? `<b>${fmt(c.kiep)}</b><small>bakken</small>` : '<span class="hint">–</span>'}</td><td>${cel(c.leeg)}</td><td>${cel(c.kc)}</td><td>${cel(c.kIn)}</td><td>${cel(c.kUit)}</td>${sorMag ? `<td>${sorCel(c.sor, c.sorU)}</td>` : ''}</tr>`).join('')}
+      <tr class="totaal"><td><b>Totaal</b></td><td>${cel(som('wagC'), som('wagB'))}</td><td>${cel(som('bijW'), som('bijB'))}</td><td>${cel(som('roo'))}</td><td>${cel(som('kiep'))}</td><td>${cel(som('leeg'))}</td><td>${cel(som('kc'))}</td><td>${cel(som('kIn'))}</td><td>${cel(som('kUit'))}</td>${sorMag ? `<td>${sorCel(som('sor'), som('sorU'))}</td>` : ''}</tr></table></div>`
       : '<p class="hint">In deze periode is er nog niets geregistreerd.</p>'}
-    <p class="hint">Wagens: wie de wagen weg meldde (chauffeur) en wie er bijrijder was. Kiepen telt elke tablet mee. Koelcel in/uit = aantal boekingen. Kijk je naar een ander seizoen, kies dat dan bovenin.</p></section>`;
+    <p class="hint">${sc?.fout ? '⚠️ Sorteren uit SSOR: ' + esc(sc.fout) + '<br>' : sc && !sc.data && !sc.fout ? 'Sorteren uit SSOR laden…<br>' : sorMag === false ? '🔒 Sorteren per persoon uit SSOR zie je alleen met het recht P&O bekijken of resultaten beheren (niet op een gedeeld apparaat).<br>' : sorMag ? `🗂️ Gesorteerd = planten uit de scans van de sorteer- en inpakactiviteiten in SSOR (activiteitengroep 100), met de uren op die activiteiten.${sc.data.laatst ? ' SSOR laatst bijgewerkt ' + esc(datumKort(sc.data.laatst) + ' ' + tijdKort(sc.data.laatst)) + '.' : ''}<br>` : ''}Wagens: wie de wagen weg meldde (chauffeur) en wie er bijrijder was. Kiepen telt elke tablet mee. Koelcel in/uit = aantal boekingen. Kijk je naar een ander seizoen, kies dat dan bovenin.</p></section>`;
 }
 /* =====================================================================================
    KISTJES: per gewas welk kistje, en per kwaliteit hoeveel planten erin (per ras kan afwijken; dat gaat dan voor)
