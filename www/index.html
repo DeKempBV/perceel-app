@@ -14437,7 +14437,8 @@ async function hfKistScan(code) {
   try { navigator.vibrate?.(40); } catch {}
   if (HF.pallet) { await hfKistEraf(info); return; }
   let o = HF.kist.find(k => k.code === code && !k.cel && !k.pal);
-  if (o) o.n++; else { o = {...info, n: 1, cel: null, pal: null}; HF.kist.push(o); }
+  if (o) { if (o.std) { o.n = 2; o.std = false; } else o.n++; }
+  else { o = {...info, n: KC_PALLET_MAX, std: true, cel: null, pal: null}; HF.kist.push(o); }
   hfTeken(); hfKistPop(o);
 }
 function hfKistPop(o) {
@@ -14445,14 +14446,14 @@ function hfKistPop(o) {
   el.dataset.kist = o.code; const y = (S.partijen || []).find(x => x.id === o.pid);
   const dicht = () => { el.remove(); hfTeken(); };
   el.innerHTML = `<div class="kpDoos"><div class="kpTitel">🌱 ${esc(partijRas(y) || '?')} <b>${esc(y?.batch || y?.nak || '')}</b></div><div class="kpSub">${esc(o.sort || '')}${o.per ? ' · ' + getal(o.per) + ' per kist' : ''}</div>
-    <div class="kpSub" style="margin-top:10px">Hoeveel kistjes? <small>(of gewoon doorscannen)</small></div>
+    <div class="kpSub" style="margin-top:10px">Hoeveel kistjes? <small>${o.std ? `(standaard ${KC_PALLET_MAX}; scan je dezelfde kaart nog eens, dan ga je tellen)` : '(of gewoon doorscannen)'}</small></div>
     <div class="kpTeller"><button data-d="-1" aria-label="Minder">−</button><input id="hfKaIn" type="number" inputmode="numeric" min="0" value="${o.n}" style="width:110px;font-size:40px;font-weight:700;text-align:center;border:2px solid #c9d4cc;border-radius:14px;padding:6px"><button data-d="1" aria-label="Meer">+</button></div>
     <div class="kpSub">Daarna: scan een <b>pallet</b> (erop) of een <b>koelcel</b> (erin)</div>
     <div class="kpKnoppen" style="margin-top:16px"><button class="kpNee" data-x="1">Weghalen</button><button class="kpJa" data-ok="1">✔ Klaar</button></div></div>`;
   const inp = el.querySelector('#hfKaIn');
-  el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { o.n = Math.max(0, o.n + +b.dataset.d); inp.value = o.n; hfTeken(); });
+  el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { o.std = false; o.n = Math.max(0, o.n + +b.dataset.d); inp.value = o.n; hfTeken(); });
   // getypt aantal pas overnemen bij Klaar/Enter (zo kan een handscanner het veld niet verknoeien)
-  const neem = () => { const v = parseInt(inp.value, 10); if (/^\d{1,3}$/.test(String(inp.value).trim()) && v >= 0) o.n = v; };
+  const neem = () => { const v = parseInt(inp.value, 10); if (/^\d{1,3}$/.test(String(inp.value).trim()) && v >= 0 && v !== o.n) { o.n = v; o.std = false; } };
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); neem(); dicht(); } };
   el.querySelector('[data-x]').onclick = () => { HF.kist = HF.kist.filter(k => k !== o); dicht(); };
   el.querySelector('[data-ok]').onclick = () => { neem(); dicht(); }; el.onclick = e => { if (e.target === el) dicht(); };
@@ -14613,7 +14614,9 @@ async function hfScan(raw) {
   if (HF.hand.some(x => x.code === e.code)) { hfMeld(`Box ${e.nr} heb je al gescand`); return; }
   if (e.gekiept_op) { const t = await hfKiepTerugVraag(e); if (!t) return; e = t; if (HF.hand.some(x => x.code === e.code)) { hfTeken(); return; } }
   HF.hand.push(e);
-  if (HF.pallet && e.op_pallet !== HF.pallet.code && !e.gekiept_op) { await hfBoek('pallet_op', HF.pallet.code, [e.code], true); return; }
+  if (HF.pallet && e.op_pallet !== HF.pallet.code && !e.gekiept_op) {   // erop gezet: daarna alleen de pallet in je hand
+    await hfBoek('pallet_op', HF.pallet.code, [e.code], true);
+    HF.hand = HF.hand.filter(x => !(x.code === e.code && x.op_pallet === HF.pallet?.code)); hfTeken(); return; }
   hfTeken();
 }
 function hfVanPallet() {
@@ -14629,12 +14632,14 @@ function hfItem(e, pal) {
 function hfPalletInhoud(e) {
   const b = hfOpPallet(e.code).length, p = kcPallets().find(x => x.nr === String(e.nr));
   const kist = p ? p.regels.filter(r => r.eenheid === 'kistjes' || !r.eenheid).map(r => { const y = (S.partijen || []).find(x => x.id === r.partij_id); return `${getal(r.kistjes)}× ${partijRas(y) || '?'} ${y?.batch || ''}`; }) : [];
-  return [b ? ` · ${b} ${b === 1 ? 'bak' : 'bakken'} erop` : '', kist.length ? ' · ' + esc(kist.join(', ')) : ''].join('') || ' · leeg';
+  const wacht = HF.pallet?.code === e.code ? HF.kist.filter(k => k.pal === String(e.nr)) : [];
+  const w = wacht.length ? ` · <b>+ ${wacht.map(k => `${getal(k.n)}× ${esc(hfKistNaam(k))}`).join(', ')}</b> (scan de koelcel)` : '';
+  return ([b ? ` · ${b} ${b === 1 ? 'bak' : 'bakken'} erop` : '', kist.length ? ' · ' + esc(kist.join(', ')) : ''].join('') || (w ? '' : ' · leeg')) + w;
 }
 function hfHandHtml(kiep) {
   const leeg = !HF.pallet && !HF.hand.length && !HF.kist.length;
   const hand = leeg ? `<div class="hfLeeg"><b>Scan een pallet of bakken</b><span>${kiep ? 'Daarna op 🧺 Gekiept tikken, of de KIEP-code scannen.' : 'Daarna een koelcel (erin · eruit · verplaatsen) of de kiep.<br>Eerst een pallet en dan bakken = de bakken gaan op die pallet.'}</span></div>`
-    : `${HF.pallet ? hfItem(HF.pallet, true) : ''}${HF.hand.map(e => hfItem(e)).join('')}${HF.kist.map(k => hfKistItem(k)).join('')}`;
+    : `${HF.pallet ? hfItem(HF.pallet, true) : ''}${HF.hand.map(e => hfItem(e)).join('')}${HF.kist.filter(k => !k.pal).map(k => hfKistItem(k)).join('')}`;
   const kop = leeg ? 'In je hand' : 'In je hand: ' + hfHandTekst();
   return `<section class="hfHand ${leeg ? '' : 'vol'}"><div class="hfKop"><b>${kop}</b>${HF.bezig ? '<span class="hfBezig">bezig…</span>' : ''}${leeg ? '' : '<button class="knop licht klein" onclick="hfLeeg()">✖ Wissen</button>'}</div>
       <div class="hfLijst">${hand}</div></section>`;
@@ -14658,13 +14663,13 @@ function hfTeken() { const el = $('#hfScherm'); if (el && tab === 'hfscan' && !$
 // wat je in je hand hebt, bovenaan op elk tabblad van de heftruck-tablet
 function hfBalkHtml() {
   if (!isKoelcelPlek() || tab === 'hfscan' || (!HF.pallet && !HF.hand.length && !HF.kist.length)) return '';
-  const it = (e, pal) => { const cel = hfCel(e); return `<span class="hbItem ${pal ? 'pal' : ''} ${e.gekiept_op ? 'weg' : ''}"><b>${pal ? '🧱 Pallet' : '📦 Box'} ${esc(e.nr)}</b> ${esc(hfNaam(e) || '')}<br><small>${e.gekiept_op ? '🧺 gekiept' : cel ? '❄️ ' + esc(cel) : 'nog nergens'}${pal ? ` · ${hfOpPallet(e.code).length} erop` : ''}</small></span>`; };
+  const it = (e, pal) => { const cel = hfCel(e); return `<span class="hbItem ${pal ? 'pal' : ''} ${e.gekiept_op ? 'weg' : ''}"><b>${pal ? '🧱 Pallet' : '📦 Box'} ${esc(e.nr)}</b> ${esc(hfNaam(e) || '')}<br><small>${e.gekiept_op ? '🧺 gekiept' : cel ? '❄️ ' + esc(cel) : 'nog nergens'}${pal ? hfPalletInhoud(e) : ''}</small></span>`; };
   const kop = 'In je hand: ' + hfHandTekst();
   return `<div id="hfBalk"><div class="hbKop"><b>✋ ${kop}</b>${HF.bezig ? '<span class="hfBezig">bezig…</span>' : ''}<button class="knop licht klein" onclick="zetTab('hfscan')">📷 Naar scannen</button><button class="knop licht klein" onclick="hfLeeg()">✖ Wissen</button></div>
-    <div class="hbLijst">${HF.pallet ? it(HF.pallet, true) : ''}${HF.hand.map(e => it(e)).join('')}${HF.kist.map(k => hfKistItem(k, true)).join('')}</div></div>`;
+    <div class="hbLijst">${HF.pallet ? it(HF.pallet, true) : ''}${HF.hand.map(e => it(e)).join('')}${HF.kist.filter(k => !k.pal).map(k => hfKistItem(k, true)).join('')}</div></div>`;
 }
 function hfHandTekst() {
-  const n = HF.hand.length, k = hfKistTel();
+  const n = HF.hand.length, k = HF.kist.filter(x => !x.pal).reduce((a, x) => a + x.n, 0);
   return [HF.pallet ? `pallet ${esc(HF.pallet.nr)}` : '', n ? `${n} ${n === 1 ? 'bak' : 'bakken'}` : '', k ? `${k} ${k === 1 ? 'kistje' : 'kistjes'}` : ''].filter(Boolean).join(' + ');
 }
 // een box die al gekiept is: vragen of hij terug moet
