@@ -14517,7 +14517,7 @@ const hfKistPopDicht = () => { $('#kiepPop')?.remove(); HF.kist = HF.kist.filter
 // pallet 3x gescand: kistjes van een soort die erop staat toevoegen of verwijderen (uit de voorraad), zonder kistkaarten
 async function hfPalletAanpassen(e) {
   const p = kcPallets().find(x => x.nr === String(e.nr));
-  if (!p) { hfMeld(`Pallet ${e.nr} is leeg · scan een kistkaart om kistjes erop te zetten`, 1); return; }
+  if (!p) { await hfPalletNieuweSoort(e, null); return; }   // lege pallet: kies wat erop gaat
   const regels = p.regels, cel = p.cel && p.cel !== '—' ? p.cel : null;
   const keuze = await new Promise(klaar => {
     $('#kiepPop')?.remove(); const el = document.createElement('div'); el.id = 'kiepPop'; document.body.appendChild(el);
@@ -14526,19 +14526,20 @@ async function hfPalletAanpassen(e) {
       return `${esc(partijRas(y) || '?')} <b>${esc(y?.batch || '')}</b>${kk ? ' · ' + esc(kk.notitie.replace(/^kistkaart K[^-]*-?/, '')) : ''}`; };
     const teken = () => {
       el.innerHTML = `<div class="kpDoos"><div class="kpTitel">🧱 Pallet ${esc(e.nr)}</div><div class="kpSub">${cel ? '❄️ ' + esc(cel) + ' · ' : ''}${getal(p.kistjes)} kistjes erop</div>
-        <div class="hfKeuze">${regels.map((r, k) => `<button class="${k === i ? 'aan' : ''}" data-i="${k}">${naam(r)}<small>${getal(r.kistjes)} kistjes</small></button>`).join('')}</div>
+        <div class="hfKeuze">${regels.map((r, k) => `<button class="${k === i ? 'aan' : ''}" data-i="${k}">${naam(r)}<small>${getal(r.kistjes)} kistjes</small></button>`).join('')}<button data-ander="1">＋ Andere soort erop zetten…</button></div>
         ${hfTellerHtml(v)}
         <div class="kpKnoppen"><button class="kpNee" data-x="1">Annuleren</button><button class="kpJa" data-a="min" style="background:#c62828">➖ Verwijderen</button><button class="kpJa" data-a="plus">➕ Toevoegen</button></div></div>`;
       const inp = el.querySelector('#hfKaIn'), neem = () => { const w = parseInt(inp.value, 10); if (/^\d{1,3}$/.test(String(inp.value).trim()) && w >= 1) v = w; return v; };
       el.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { neem(); i = +b.dataset.i; teken(); });
       el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { v = Math.max(1, neem() + +b.dataset.d); inp.value = v; });
-      el.querySelector('[data-x]').onclick = () => dicht(null);
+      el.querySelector('[data-x]').onclick = () => dicht(null); el.querySelector('[data-ander]').onclick = () => dicht({ander: true});
       el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => dicht({r: regels[i], n: neem(), plus: b.dataset.a === 'plus'}));
     };
     el.onclick = ev => { if (ev.target === el) dicht(null); };
     teken();
   });
   if (!keuze) return;
+  if (keuze.ander) { await hfPalletNieuweSoort(e, cel); return; }
   const {r, n, plus} = keuze;
   if (!plus && n > r.kistjes + .001) { hfMeld(`Er staan maar ${getal(r.kistjes)} kistjes van deze soort op`, 1); return; }
   const y = (S.partijen || []).find(x => x.id === r.partij_id);
@@ -14551,6 +14552,46 @@ async function hfPalletAanpassen(e) {
   HF.log.unshift({t: `${plus ? '➕' : '➖'} ${n} ${n === 1 ? 'kistje' : 'kistjes'} ${partijRas(y) || ''} ${plus ? 'op' : 'van'} pallet ${e.nr}${plus ? '' : ' (uit de voorraad)'}`, tijd: new Date()});
   if (!plus) hfLeeg(true);   // verwijderd: hand leeg
   try { navigator.vibrate?.(60); } catch {} hfTeken();
+}
+// een (nieuwe) soort op een pallet zetten zonder kistkaart: kies de partij en sortering, dan het aantal
+async function hfPalletNieuweSoort(e, cel) {
+  // voorstellen: de partij van het palletetiket, soorten die nu al op pallets of los als kistjes in de koelcellen staan, met hun laatste sortering
+  const opties = [], al = new Set(), sortVan = pid => { const kk = [...(S.partij_mutaties || [])].reverse().find(m => m.partij_id === pid && /^kistkaart K/.test(m.notitie || ''));
+    return kk ? kk.notitie.replace(/^kistkaart K[^-]*-?/, '') : ''; };
+  const perVan = pid => [...(S.partij_mutaties || [])].reverse().find(m => m.partij_id === pid && m.eenheid === 'kistjes' && +m.per_eenheid > 0)?.per_eenheid || null;
+  const erbij = (pid, sort, per, bron) => { const k = pid + '|' + (sort || ''); if (!pid || al.has(k) || !(S.partijen || []).some(y => y.id === pid)) return; al.add(k); opties.push({pid, sort, per, bron}); };
+  if (e.partij_id) erbij(e.partij_id, [e.data?.sortering, e.data?.maat].filter(Boolean).join(' ') || sortVan(e.partij_id), +e.data?.per_kist || perVan(e.partij_id), 'van het palletetiket');
+  kcPallets().forEach(p => p.regels.forEach(r => erbij(r.partij_id, sortVan(r.partij_id), r.per || perVan(r.partij_id), 'staat op pallets')));
+  (S.partij_mutaties || []).filter(m => m.eenheid === 'kistjes' && !m.pallet).slice(-300).forEach(m => erbij(m.partij_id, sortVan(m.partij_id), m.per_eenheid || perVan(m.partij_id), 'kistjes in de koelcel'));
+  const alle = (S.partijen || []).filter(y => !bekeken || y.seizoen_id === bekeken).sort((a, b) => (partijRas(a) || '').localeCompare(partijRas(b) || '', 'nl') || String(a.batch || '').localeCompare(String(b.batch || ''), 'nl', {numeric: true}));
+  const keuze = await new Promise(klaar => {
+    $('#kiepPop')?.remove(); const el = document.createElement('div'); el.id = 'kiepPop'; document.body.appendChild(el);
+    let i = opties.length ? 0 : -1, v = 1, ander = ''; const dicht = w => { el.remove(); klaar(w); };
+    const nm = o => { const y = (S.partijen || []).find(x => x.id === o.pid) || {}; return `${esc(partijRas(y) || '?')} <b>${esc(y.batch || y.nak || '')}</b>${o.sort ? ' · ' + esc(o.sort) : ''}`; };
+    const teken = () => {
+      el.innerHTML = `<div class="kpDoos"><div class="kpTitel">🧱 Pallet ${esc(e.nr)}</div><div class="kpSub">${cel ? '❄️ ' + esc(cel) + ' · ' : 'Lege pallet · '}wat zet je erop?</div>
+        <div class="hfKeuze" style="max-height:34vh;overflow:auto">${opties.map((o, k) => `<button class="${k === i ? 'aan' : ''}" data-i="${k}">${nm(o)}<small>${esc(o.bron)}${o.per ? ' · ' + getal(o.per) + ' per kist' : ''}</small></button>`).join('')}</div>
+        <select class="veld" data-ander style="margin-top:8px"><option value="">${opties.length ? 'Of kies een andere partij…' : 'Kies de partij…'}</option>${alle.map(y => `<option value="${y.id}" ${ander === y.id ? 'selected' : ''}>${esc(partijRas(y) || '?')} · ${esc(y.batch || y.nak || '')}${y.klasse ? ' · ' + esc(y.klasse) : ''}</option>`).join('')}</select>
+        <input class="veld" data-sort placeholder="Sortering (mag leeg)" style="margin-top:6px;display:${ander ? '' : 'none'}">
+        ${hfTellerHtml(v)}<button class="hfVol" data-zet="${KC_PALLET_MAX}">🧱 ${KC_PALLET_MAX} (volle pallet)</button>
+        <div class="kpKnoppen"><button class="kpNee" data-x="1">Annuleren</button><button class="kpJa" data-ok="1">➕ Erop zetten</button></div></div>`;
+      const inp = el.querySelector('#hfKaIn'), neem = () => { const w = parseInt(inp.value, 10); if (/^\d{1,3}$/.test(String(inp.value).trim()) && w >= 1) v = w; return v; };
+      el.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { neem(); i = +b.dataset.i; ander = ''; teken(); });
+      el.querySelector('[data-ander]').onchange = ev => { neem(); ander = ev.target.value; if (ander) i = -1; teken(); };
+      el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { v = Math.max(1, neem() + +b.dataset.d); inp.value = v; });
+      el.querySelector('[data-zet]').onclick = () => { v = KC_PALLET_MAX; inp.value = v; };
+      el.querySelector('[data-x]').onclick = () => dicht(null);
+      el.querySelector('[data-ok]').onclick = () => { const n = neem();
+        if (ander) dicht({pid: ander, sort: el.querySelector('[data-sort]').value.trim(), per: perVan(ander), n});
+        else if (i >= 0) dicht({...opties[i], n}); else toast('Kies wat erop gaat', 1); };
+    };
+    el.onclick = ev => { if (ev.target === el) dicht(null); };
+    teken();
+  });
+  if (!keuze) return;
+  const k = {code: 'handmatig', pid: keuze.pid, sort: keuze.sort || '', per: keuze.per || null, n: keuze.n, cel: null, pal: String(e.nr)};
+  if (!cel) { HF.kist.push(k); HF.log.unshift({t: `🧱 ${k.n} kistjes ${hfKistNaam(k)} gaan op pallet ${e.nr}; scan nu de koelcel`, tijd: new Date()}); hfTeken(); return; }
+  HF.bezig = true; hfTeken(); await hfKistBoek(cel, [k], String(e.nr)); HF.bezig = false; hfTeken();
 }
 // pallet in je hand + kistkaart: hoeveel haal je eraf?
 async function hfKistEraf(info) {
@@ -14599,7 +14640,7 @@ async function hfKistBoek(cel, l, pallet) {
     const b = {partij_id: k.pid, seizoen_id: y?.seizoen_id || bekeken, datum: dKey(new Date()), eenheid: 'kistjes', per_eenheid: k.per || null, door: naamMe()};
     if (k.cel) { if (k.cel === cel && !pal) return; const t = `↔ van ${k.cel} naar ${cel}${pal ? ' (pallet ' + pal + ')' : ''}`;
       rijen.push({...b, soort: 'correctie', aantal: -k.n, koelcel: k.cel, pallet: null, notitie: t}, {...b, soort: 'correctie', aantal: k.n, koelcel: cel, pallet: pal, notitie: t}); }
-    else rijen.push({...b, soort: 'in', aantal: k.n, koelcel: cel, pallet: pal, notitie: `kistkaart ${k.code}`}); });
+    else rijen.push({...b, soort: 'in', aantal: k.n, koelcel: cel, pallet: pal, notitie: k.code === 'handmatig' ? `➕ op pallet ${pal || ''} (heftruck)${k.sort ? ' · ' + k.sort : ''}` : `kistkaart ${k.code}`}); });
   if (rijen.length) {
     const {data, error} = await sb.from('partij_mutaties').insert(rijen).select();
     if (error) { hfMeld('Kistjes boeken mislukt: ' + foutTekst(error), 1); return false; }
