@@ -13163,6 +13163,7 @@ function voorraadVan(partijId) {   // per koelcel: planten en de laatst gebruikt
 const eenhedenTekst = (pl, eenheid, per) => eenheid && eenheid !== 'planten' ? (per ? `${getal(Math.round(pl / per * 10) / 10)} ${eenheid} (${getal(pl)} pl.)` : `${getal(Math.round(pl * 10) / 10)} ${pl === 1 && eenheid === 'kuubskisten' ? 'kuubskist' : eenheid}`) : `${getal(pl)} planten`;
 async function mutatieFormulier(partijId, soortVast, id, voor = {}) {
   if (!mag('voorraad_beheren')) return;
+  if (!id && (soortVast === 'uit' || soortVast === 'uitval')) return mutatieUitFormulier(partijId, soortVast, voor);   // eruit: alleen kiezen uit wat er echt staat
   const m = id ? S.partij_mutaties.find(x => x.id === id) : {soort: soortVast || 'in', datum: dKey(new Date()), eenheid: voor.eenheid || 'trays', partij_id: partijId, koelcel: voor.koelcel};
   const alle = (S.partijen || []).slice().sort((a, b) => (partijRas(a) || '').localeCompare(partijRas(b) || '', 'nl'));
   const vorige = mutatiesVan(m.partij_id || '').filter(x => x.soort === 'in').pop();
@@ -13176,7 +13177,7 @@ async function mutatieFormulier(partijId, soortVast, id, voor = {}) {
   const lijst = k => [...new Set((S.partij_mutaties || []).map(x => x[k]).filter(Boolean))];
   const w = await formulier(id ? '✏️ Boeking aanpassen' : MUT_SOORTEN.find(x => x[0] === m.soort)?.[1] || 'Boeking', [
     {k: 'partij_id', label: 'Partij', type: 'select', waarde: m.partij_id || '', opties: alle.map(y => [y.id, `${partijRas(y) || soort(y.soort_id)?.naam || '?'} · ${y.batch || ''} ${y.klasse || ''} · ${partijPerceelNaam(y) || ''}`])},
-    {k: 'soort', label: 'Wat', type: 'select', waarde: m.soort, opties: MUT_SOORTEN},
+    {k: 'soort', label: 'Wat', type: 'select', waarde: m.soort, opties: id ? MUT_SOORTEN : MUT_SOORTEN.filter(x => x[0] === 'in' || x[0] === 'correctie')},   // eruit halen gaat via het eigen formulier (alleen wat er staat)
     {k: 'datum', label: 'Datum', type: 'date', waarde: m.datum},
     {k: 'aantal', label: 'Aantal', type: 'number', waarde: m.aantal ?? voor.aantal ?? ''},
     {k: 'eenheid', label: 'Eenheid', type: 'select', waarde: voor.eenheid || m.eenheid || vorige?.eenheid || 'trays', opties: [...KC_EENHEDEN, ...(m.eenheid && !KC_EENHEDEN.some(e => e[0] === m.eenheid) ? [[m.eenheid, m.eenheid]] : [])]},
@@ -13198,6 +13199,45 @@ async function mutatieFormulier(partijId, soortVast, id, voor = {}) {
   if (res.error) { toast(/does not exist|schema cache/i.test(res.error.message) ? 'Voer eerst het nieuwe beheer.sql uit' : 'Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
   S.partij_mutaties = S.partij_mutaties || []; const i = S.partij_mutaties.findIndex(x => x.id === res.data.id); if (i >= 0) S.partij_mutaties[i] = res.data; else S.partij_mutaties.push(res.data);
   render(true); toast('📦 Geboekt');
+}
+// wat staat er nu, per partij · koelcel · eenheid · pallet
+function voorraadRegels(cel) {
+  const per = new Map();
+  (S.partij_mutaties || []).forEach(m => { const k = [m.partij_id, m.koelcel || '', m.eenheid || 'planten', m.pallet || ''].join('|');
+    const o = per.get(k) || {k, pid: m.partij_id, cel: m.koelcel || '', eenheid: m.eenheid || 'planten', pallet: m.pallet || '', n: 0, per: null};
+    o.n += (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0); if (m.per_eenheid) o.per = m.per_eenheid; per.set(k, o); });
+  return [...per.values()].filter(o => o.n > .001 && (!cel || o.cel === cel)).map(o => ({...o, n: Math.round(o.n * 100) / 100, x: (S.partijen || []).find(y => y.id === o.pid)})).filter(o => o.x)
+    .sort((a, b) => a.cel.localeCompare(b.cel, 'nl', {numeric: true}) || (partijRas(a.x) || '').localeCompare(partijRas(b.x) || '', 'nl') || String(a.x.batch || '').localeCompare(String(b.x.batch || '')) || a.pallet.localeCompare(b.pallet, 'nl', {numeric: true}));
+}
+const eenheidNaam = (e, n) => n === 1 ? ({kuubskisten: 'kuubskist', kistjes: 'kistje', trays: 'tray', planten: 'plant'}[e] || e) : e;
+// levering of uitval: je kiest uit wat er in de koelcel staat (staat er niets, dan kun je ook niets boeken)
+async function mutatieUitFormulier(partijId, soort, voor = {}) {
+  const alles = voorraadRegels(), regels = voor.koelcel && alles.some(o => o.cel === voor.koelcel) ? alles.filter(o => o.cel === voor.koelcel) : alles;
+  if (!regels.length) { toast(voor.koelcel ? `In ${voor.koelcel} staat niets om eruit te halen` : 'Er staat niets in de koelcellen om eruit te halen', 1); return; }
+  const kies = regels.find(o => o.pid === partijId) || regels[0];
+  const lbl = o => `${o.cel || 'geen koelcel'} · ${partijRas(o.x) || '?'} ${o.x.batch || o.x.nak || ''}${o.x.klasse ? ' ' + o.x.klasse : ''}${o.pallet ? ' · pallet ' + o.pallet : ''} · ${getal(o.n)} ${eenheidNaam(o.eenheid, o.n)}`;
+  const klanten = [...new Set((S.partij_mutaties || []).map(x => x.klant).filter(Boolean))];
+  const w = await formulier(soort === 'uitval' ? '🗑️ Uitval / afgekeurd' : '⬆️ Levering aan klant', [
+    {k: 'soort', label: 'Wat', type: 'select', waarde: soort, opties: MUT_SOORTEN.filter(x => x[0] === 'uit' || x[0] === 'uitval')},
+    {k: 'regel', label: 'Uit de koelcel', type: 'select', waarde: kies.k, opties: regels.map(o => [o.k, lbl(o)])},
+    {k: 'aantal', label: 'Aantal', type: 'number', waarde: voor.aantal ?? '', placeholder: 'hoeveel gaan eruit'},
+    {k: 'datum', label: 'Datum', type: 'date', waarde: dKey(new Date())},
+    {k: 'klant', label: 'Klant', waarde: voor.klant || '', lijst: klanten, als: ['soort', 'uit']},
+    {k: 'pakbon', label: 'Pakbon / ordernummer', waarde: '', als: ['soort', 'uit']},
+    {k: 'prijs', label: 'Prijs per eenheid (€)', type: 'number', waarde: '', als: ['soort', 'uit']},
+    {k: 'notitie', label: 'Aantekeningen', type: 'textarea', waarde: voor.notitie || ''}], 'Boeken');
+  if (!w) return;
+  const o = regels.find(r => r.k === w.regel); const n = parseFloat(String(w.aantal).replace(',', '.'));
+  if (!o) { toast('Kies wat eruit gaat', 1); return; }
+  if (!(n > 0)) { toast('Vul het aantal in', 1); return; }
+  if (n > o.n + .001) { toast(`Er staan maar ${getal(o.n)} ${eenheidNaam(o.eenheid, o.n)}; meer kan er niet uit`, 1); return; }
+  const prijs = parseFloat(String(w.prijs || '').replace(',', '.'));
+  const rij = {partij_id: o.pid, seizoen_id: o.x.seizoen_id || bekeken, soort: w.soort, datum: w.datum || dKey(new Date()), aantal: n, eenheid: o.eenheid, per_eenheid: o.per, koelcel: o.cel || null,
+    pallet: o.pallet || null, klant: w.soort === 'uit' ? (w.klant || '').trim() || null : null, pakbon: w.soort === 'uit' ? w.pakbon || null : null, prijs: w.soort === 'uit' && !isNaN(prijs) ? prijs : null, notitie: w.notitie || null, door: naamMe()};
+  const res = await sb.from('partij_mutaties').insert(rij).select().single();
+  if (res.error) { toast('Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
+  S.partij_mutaties = [...(S.partij_mutaties || []), res.data]; render(true);
+  toast(`${w.soort === 'uitval' ? '🗑️' : '⬆️'} ${getal(n)} ${eenheidNaam(o.eenheid, n)} ${partijKort(o.x)} uit ${o.cel || 'de voorraad'}`);
 }
 async function mutatieWeg(id) {
   const m = S.partij_mutaties.find(x => x.id === id); if (!m || !await bevestig('Boeking verwijderen?', `${MUT_SOORTEN.find(x => x[0] === m.soort)?.[1]} · ${m.aantal} ${m.eenheid}`)) return;
