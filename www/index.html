@@ -1063,8 +1063,14 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .kiepNog{display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.22);border-radius:14px;padding:8px 12px;font-size:14px;min-width:84px}.kiepNog b{font-size:34px;line-height:1}
 .kiepTerug{display:block;width:100%;min-height:70px;border:0;border-radius:16px;background:#6d4c41;color:#fff;font-size:22px;font-weight:800;margin-bottom:6px;cursor:pointer}.kiepTerug small{display:block;font-size:14px;font-weight:600;opacity:.85}
 .kiepLeeg{font-size:20px;padding:30px 10px;text-align:center;opacity:.85}
-#taalKiezer{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);z-index:99999;display:flex;gap:2px;background:rgba(255,255,255,.92);border:1px solid #c9d4cc;border-radius:999px;padding:3px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-#taalKiezer button{border:0;background:transparent;border-radius:999px;padding:4px 10px;font:700 13px/1 system-ui,sans-serif;color:#40524a;cursor:pointer}#taalKiezer button.aan{background:#2e7d32;color:#fff}
+#taalKiezer{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);left:calc(env(safe-area-inset-left,0px) + 8px);z-index:99999;opacity:.85;display:flex;gap:2px;background:rgba(255,255,255,.92);border:1px solid #c9d4cc;border-radius:999px;padding:3px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+#taalKiezer button{border:0;background:transparent;border-radius:999px;padding:5px 9px;font:700 12px/1 system-ui,sans-serif;color:#40524a;cursor:pointer}#taalKiezer button.aan{background:#2e7d32;color:#fff}
+#taalKiezer:not(.open) button:not(.aan){display:none}#taalKiezer.open{opacity:1}
+#hfBalk{margin:6px 0 0;padding:8px 10px;border-radius:12px;background:#fff8e1;border:2px solid #f9a825;max-height:34vh;overflow:auto}
+#hfBalk .hbKop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#hfBalk .hbKop b{flex:1;font-size:16px}
+#hfBalk .hbLijst{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+#hfBalk .hbItem{background:#fff;border:1px solid #e0c97a;border-radius:10px;padding:4px 8px;font-size:13px;line-height:1.25}#hfBalk .hbItem b{font-size:14px}#hfBalk .hbItem.pal{background:#e3f2fd;border-color:#90caf9}#hfBalk .hbItem.weg{opacity:.6;text-decoration:line-through}
+.kiepRijW{display:flex;gap:6px;align-items:stretch}.kiepRijW .kiepKnop{flex:1;min-width:0}.kiepWeg{border:0;border-radius:14px;background:#5d4037;color:#fff;font:700 15px/1.1 system-ui,sans-serif;padding:6px 10px;cursor:pointer;width:64px}
 @media print{#taalKiezer{display:none}}
 #kiepHand .hfHand{color:#1d2a22}#kiepHand .hfLeeg span{color:#5d6b62}
 .kiepKc{background:#1f5fbf}
@@ -4565,7 +4571,7 @@ function renderPaneel() {
     if (!KOELCEL_TABS.includes(tab)) tab = 'hfscan';
     $('#tabs').innerHTML = `<div class="paginaKop kcPlekKop"><div class="pkTitel">🚜 ${esc(mijnProfiel()?.naam || 'Heftruck')}</div>
       ${[['hfscan', '📷 Scannen'], ['hforders', '🧾 Orders'], ['voorraad', '🧊 Koelcellen'], ['reskiep', '🧺 Kieplijst'], ['etiketten', '🏷️ Etiketten']].map(([k, l]) => `<button class="pkKnop ${tab === k ? '' : 'licht'}" onclick="zetTab('${k}')">${l}</button>`).join('')}
-      <button class="pkKnop licht" onclick="tmUitloggen()" title="Uitloggen (wachtwoord nodig)">🔒</button></div>`;
+      <button class="pkKnop licht" onclick="tmUitloggen()" title="Uitloggen (wachtwoord nodig)">🔒</button></div><div id="hfBalkW">${hfBalkHtml()}</div>`;
   } else
   { const bl = {i: blokIcoon(sectie), naam: blokNaam(sectie)}, inf = tegelInfo(tab, (TAB_INFO[tab] || [])[0], (TAB_INFO[tab] || [])[1] || tab), n = (tellers[tab] || [])[0], toggle = tab !== '_blok' && !isMobiel() && !isKoelcelPlek() ? (!isVol() ? `<button class="pkKnop licht" onclick="kaartTonen(false)" title="Kaart weg, hele scherm">⛶ Volledig</button>` : `<button class="pkKnop licht" onclick="kaartTonen(true)" title="De kaart erbij">🗺️ Kaart erbij</button>`) : '';
     $('#tabs').innerHTML = `<div class="paginaKop">${tab !== '_blok' && blokMetTegels(sectie) ? `<button class="pkKnop" onclick="zetTab('_blok')" title="Terug naar ${esc(bl.naam || '')}">◀ ${esc(bl.naam || 'Terug')}</button>` : ''}<button class="pkKnop" onclick="toonMenu()" title="Hoofdmenu">🏠 Menu</button>
@@ -8961,7 +8967,7 @@ function kiepScanInhoud() {
 }
 function kiepHandBinnen() {
   const leeg = !HF.pallet && !HF.hand.length, n = HF.pallet ? hfOpPallet(HF.pallet.code).length + HF.hand.filter(e => e.op_pallet !== HF.pallet.code).length : HF.hand.length;
-  return `${hfHandHtml(true)}
+  return `${isKoelcelPlek() ? '' : hfHandHtml(true)}
     <div class="hfKnoppen" style="margin-top:10px"><button class="hfGroot kiep" ${leeg || HF.bezig ? 'disabled' : ''} onclick="hfBoek('kiep')">🧺 Gekiept${n ? ' (' + n + ')' : ''}</button><button class="hfGroot cam" onclick="hfCamera()">📷 ${hfStroom ? 'Camera uit' : 'Scannen met camera'}</button></div>
     <input class="veld" id="kiepCodeIn" placeholder="Code typen (B230, P17)" autocomplete="off" onkeydown="if(event.key==='Enter'){hfScan(this.value);this.value=''}" style="margin:10px 0">
     <div class="kiepKop2" style="font-size:16px;margin:6px 0">Net gedaan</div>
@@ -8991,7 +8997,7 @@ function kiepInhoud() {
   const lx = lt && (S.partijen || []).find(x => x.id === lt.partij_id);
   return `${kiepModusKnoppen()}${kiepPlanHtml()}${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste ${lt.bron === 'koelcel' ? (n0(lt.bakken) === 1 ? 'kuubskist' : n0(lt.bakken) + ' kuubskisten') : lt.bron === 'scan' ? esc(lt.opmerking || 'box') : 'bak'} terug <small>${esc(lx ? partijKort(lx) : '')} · ${tijdKort(lt.created_at)}</small></button>` : ''}
     <div class="kiepUitleg">Tik op de partij van de bak die je pakt. Elke tik = 1 bak gekiept. <b>Vandaag ${fmt(mijnVandaag)} gekiept (alle tablets samen).</b></div>
-    <div class="kiepLijst">${l.length ? l.map(kiepKnopHtml).join('') : `<div class="kiepLeeg">✅ ${kc.length ? 'Geen bakken van het veld meer.' : 'Alles is gekiept. Nieuwe bakken komen er vanzelf bij als de rooier een wagen meldt.'}</div>`}</div>
+    <div class="kiepLijst">${l.length ? l.map(y => kiepMagWeg() ? `<div class="kiepRijW">${kiepKnopHtml(y)}<button class="kiepWeg" onclick="kiepBakWeg('${y.x.id}')" title="Deze bak staat er ten onrechte">✖<br><small>weg</small></button></div>` : kiepKnopHtml(y)).join('') : `<div class="kiepLeeg">✅ ${kc.length ? 'Geen bakken van het veld meer.' : 'Alles is gekiept. Nieuwe bakken komen er vanzelf bij als de rooier een wagen meldt.'}</div>`}</div>
     ${kc.length ? `<div class="kiepKop2">❄️ Kuubskisten in de koelcellen <small>tik om te kiepen</small></div><div class="kiepLijst">${kc.map(kiepKcKnopHtml).join('')}</div>` : ''}`;
 }
 // kuubskisten die in de koelcellen staan, per partij (batch) en koelcel
@@ -9065,6 +9071,16 @@ async function kiepTerug() {
   }
   const {error} = await sb.from('res_invoer').delete().eq('id', lt.id); if (error) { toast(foutTekst(error), 1); return; }
   S.res_invoer = S.res_invoer.filter(i => i.id !== lt.id); toast('↶ Bak teruggezet'); kiepVerversen();
+}
+const kiepMagWeg = () => mag('voorraad_beheren') || mag('resultaten_invoeren') || mag('resultaten_beheren');
+async function kiepBakWeg(pid) {
+  const y = kiepLijst().find(z => z.x.id === pid); if (!y) return;
+  if (!await bevestigJa('Bak van de kieplijst halen?', `${esc(partijRas(y.x) || '')} <b>${esc(y.x.batch || y.x.nak || '')}</b>: er staat ${fmt(y.nog)} ${y.nog === 1 ? 'bak' : 'bakken'} van het veld.<br>Haal er één weg als die er ten onrechte staat (niet gekiept, maar ook niet meer te kiepen).`, '✖ 1 bak weghalen')) return;
+  const {error} = await sb.rpc('kiep_bak_weg', {p_partij: pid, p_aantal: 1});
+  if (error) { toast(/kiep_bak_weg|schema cache/i.test(error.message || '') ? 'Draai eerst kiep-box-terug.sql in Supabase' : foutTekst(error), 1); return; }
+  const {data} = await sb.from('res_invoer').select('*').eq('partij_id', pid);
+  if (data) S.res_invoer = [...(S.res_invoer || []).filter(i => i.partij_id !== pid), ...data];
+  toast('✖ Bak van de kieplijst gehaald'); kiepVerversen();
 }
 function kiepVerversen() { if ($('#kiepScherm')) toonKiep(true); else if (tab === 'reskiep') render(true); }
 function htmlKiepPaneel() {
@@ -14399,7 +14415,7 @@ async function hfScan(raw) {
     hfTeken(); return;
   }
   if (HF.hand.some(x => x.code === e.code)) { hfMeld(`Box ${e.nr} heb je al gescand`); return; }
-  if (e.gekiept_op) hfMeld(`Let op: box ${e.nr} is al gekiept`, 1);
+  if (e.gekiept_op) { const t = await hfKiepTerugVraag(e); if (!t) return; e = t; if (HF.hand.some(x => x.code === e.code)) { hfTeken(); return; } }
   HF.hand.push(e);
   if (HF.pallet && e.op_pallet !== HF.pallet.code && !e.gekiept_op) { await hfBoek('pallet_op', HF.pallet.code, [e.code], true); return; }
   hfTeken();
@@ -14437,7 +14453,29 @@ function hfBinnen() {
     <div class="hfLog">${HF.log.length ? HF.log.map(r => `<div class="${r.fout ? 'fout' : ''}"><small>${tijdKort(r.tijd)}</small> ${esc(r.t)}</div>`).join('') : '<span class="hint">Nog niets gescand</span>'}</div>`;
 }
 function htmlHeftruck() { return `<div id="hfScherm">${hfBinnen()}</div>`; }
-function hfTeken() { const el = $('#hfScherm'); if (el) el.innerHTML = hfBinnen(); const kh = $('#kiepHand'); if (kh) kh.innerHTML = kiepHandBinnen(); }
+function hfTeken() { const el = $('#hfScherm'); if (el && tab === 'hfscan' && !$('#kiepScherm')) el.innerHTML = hfBinnen(); const kh = $('#kiepHand'); if (kh) kh.innerHTML = kiepHandBinnen(); const hb = $('#hfBalkW'); if (hb) hb.innerHTML = hfBalkHtml(); }
+// wat je in je hand hebt, bovenaan op elk tabblad van de heftruck-tablet
+function hfBalkHtml() {
+  if (!isKoelcelPlek() || tab === 'hfscan' || (!HF.pallet && !HF.hand.length)) return '';
+  const it = (e, pal) => { const cel = hfCel(e); return `<span class="hbItem ${pal ? 'pal' : ''} ${e.gekiept_op ? 'weg' : ''}"><b>${pal ? '🧱 Pallet' : '📦 Box'} ${esc(e.nr)}</b> ${esc(hfNaam(e) || '')}<br><small>${e.gekiept_op ? '🧺 gekiept' : cel ? '❄️ ' + esc(cel) : 'nog nergens'}${pal ? ` · ${hfOpPallet(e.code).length} erop` : ''}</small></span>`; };
+  const n = HF.hand.length, kop = HF.pallet ? `In je hand: pallet ${esc(HF.pallet.nr)}${n ? ` + ${n} ${n === 1 ? 'bak' : 'bakken'}` : ''}` : `In je hand: ${n} ${n === 1 ? 'bak' : 'bakken'}`;
+  return `<div id="hfBalk"><div class="hbKop"><b>✋ ${kop}</b>${HF.bezig ? '<span class="hfBezig">bezig…</span>' : ''}<button class="knop licht klein" onclick="zetTab('hfscan')">📷 Naar scannen</button><button class="knop licht klein" onclick="hfLeeg()">✖ Wissen</button></div>
+    <div class="hbLijst">${HF.pallet ? it(HF.pallet, true) : ''}${HF.hand.map(e => it(e)).join('')}</div></div>`;
+}
+// een box die al gekiept is: vragen of hij terug moet
+async function hfKiepTerugVraag(e) {
+  if (!await bevestigJa(`Box ${e.nr} is al gekiept`, `${esc(hfNaam(e) || '')}<br>Wil je hem <b>terugzetten</b>? Hij komt terug waar hij stond (koelcel / pallet) en de kiep telt één bak minder.`, '↶ Terugzetten')) {
+    hfMeld(`Box ${e.nr} is al gekiept (niet teruggezet)`); return false; }
+  HF.bezig = true; hfTeken(); let data, error;
+  try { ({data, error} = await sb.rpc('kiep_box_terug', {p_code: e.code})); } catch (x) { error = x; }
+  HF.bezig = false;
+  if (error) { hfMeld(/kiep_box_terug|schema cache/i.test(error.message || '') ? 'Draai eerst kiep-box-terug.sql in Supabase' : foutTekst(error), 1); return false; }
+  try { navigator.vibrate?.(60); } catch {}
+  const [et, ri] = await Promise.all([sb.from('etiketten').select('*').eq('id', e.id).maybeSingle(), sb.from('res_invoer').select('*').eq('partij_id', e.partij_id), voorraadVerversen()]).catch(() => []);
+  if (et?.data) S.etiketten = [et.data, ...(S.etiketten || []).filter(x => x.id !== e.id)];
+  if (ri?.data) S.res_invoer = [...(S.res_invoer || []).filter(i => i.partij_id !== e.partij_id), ...ri.data];
+  hfMeld(data || `↶ Box ${e.nr} teruggezet`); return et?.data || {...e, gekiept_op: null};
+}
 function hfCamStop() { clearTimeout(hfTimer); try { hfStroom?.getTracks().forEach(t => t.stop()); } catch {} hfStroom = null; $('#hfCam')?.remove(); hfTeken(); }
 async function hfCamera() {
   if (hfStroom) { hfCamStop(); return; }
@@ -14745,9 +14783,9 @@ function vtStart() {
 }
 function taalKiezerTeken() {
   let el = document.getElementById('taalKiezer'); if (!el) { el = document.createElement('div'); el.id = 'taalKiezer'; el.setAttribute('data-notr', ''); document.body.appendChild(el); }
-  el.innerHTML = TALEN.map(([k, kort, naam]) => `<button class="${k === taal ? 'aan' : ''}" title="${naam}" onclick="zetTaal('${k}')">${kort}</button>`).join('');
+  el.innerHTML = TALEN.map(([k, kort, naam]) => `<button class="${k === taal ? 'aan' : ''}" title="${naam}" onclick="zetTaal('${k}')">${k === taal ? '🌐 ' : ''}${kort}</button>`).join('');
 }
-function zetTaal(t) { if (t === taal) return; try { localStorage.setItem('taal', t); } catch {} location.reload(); }
+function zetTaal(t) { const el = document.getElementById('taalKiezer'); if (t === taal) { el?.classList.toggle('open'); return; } try { localStorage.setItem('taal', t); } catch {} location.reload(); }
 
 if (document.body) setTimeout(vtStart, 0); else addEventListener('DOMContentLoaded', vtStart);
 
@@ -14755,7 +14793,8 @@ if (document.body) setTimeout(vtStart, 0); else addEventListener('DOMContentLoad
    KISTKAARTEN (plantenpaspoort) – klaarzetten in de app, printen met BarTender op app01
    ===================================================================================== */
 const KK_REG = 'NL-605651078', KK_CERT = 'Geproduceerd in: NL/31';
-const KK_SJABLONEN = [['standaard', '⬜ Wit (standaard)'], ['cac', '🟨 Geel (CAC)'], ['vgs', '🟦 Blauw (VGS / gecertificeerd)']];
+const KK_SJABLONEN = [['wit', '⬜ Wit (BM1 t/m BM5)'], ['standaard', '🟦 Blauw (CM, standaard)'], ['vgs', '🟨 Geel (VGS)'], ['cac', '🟨 Geel (CAC)']];
+const KK_KLEUR = {wit: '#fff', standaard: '#9cc3ea', vgs: '#f3e37a', cac: '#f3e37a'};
 let kkGeladen = false, kkLaatst = null;
 async function kkLaad() {
   kkGeladen = true;
@@ -14763,7 +14802,9 @@ async function kkLaad() {
   if (o.error) { S.kistkaart_opdrachten = null; kkLaatst = null; } else { S.kistkaart_opdrachten = o.data || []; kkLaatst = st.data || null; }
   if (tab === 'etiketten') render(true);
 }
-const kkSjabloonVan = cat => /cac/i.test(cat || '') ? 'cac' : /gecert|vgs|certified/i.test(cat || '') ? 'vgs' : 'standaard';
+// kleur van het kaartje volgens de klasse: VGS of CAC = geel (ook VGS BM1-5), BM1-5 = wit, CM = blauw (standaard)
+const kkSjabloonVan = (...t) => { const s = t.filter(Boolean).join(' ');
+  return /\bvgs\b/i.test(s) ? 'vgs' : /\bcac\b/i.test(s) ? 'cac' : /\bcm\b|gecert|certified/i.test(s) ? 'standaard' : /\bbm\s*-?\s*[1-5]\b|basismat/i.test(s) ? 'wit' : 'standaard'; };
 const kkBarcode = (nr, sort) => ('K' + String(nr || '').replace(/\s+/g, '') + (sort ? '-' + String(sort).replace(/frigo/i, '').replace(/\s+/g, '').toUpperCase() : '')).slice(0, 40);
 const kkPlantjaar = x => { const sz = (S.seizoenen || []).find(z => z.id === x?.seizoen_id); const m = String(sz?.naam || '').match(/20\d\d/); return m ? +m[0] : new Date().getFullYear(); };
 function htmlKistkaarten() {
@@ -14774,7 +14815,7 @@ function htmlKistkaarten() {
   const open = (l || []).filter(k => ['klaar', 'klaargezet', 'fout'].includes(k.status)), klaar = (l || []).filter(k => k.status === 'geprint').slice(0, 15);
   const pil = k => k.status === 'klaar' ? '<span class="kkPil wacht">wacht op printprogramma</span>' : k.status === 'klaargezet' ? '<span class="kkPil klaar">klaar in BarTender</span>'
     : k.status === 'fout' ? `<span class="kkPil fout" title="${esc(k.melding || '')}">fout</span>` : `<span class="kkPil ok">geprint ${k.geprint_op ? tijdKort(k.geprint_op) : ''}</span>`;
-  const rij = k => `<div class="srRij"><span class="etKleurtje" style="background:${k.sjabloon === 'cac' ? '#f3e37a' : k.sjabloon === 'vgs' ? '#9cc3ea' : '#fff'};border:1px solid #ccd"></span><div class="t"><b>${esc(k.ras)} · ${esc(k.partij_nr)}${k.sortering ? ' · ' + esc(k.sortering) : ''} · ${fmt(k.aantal)} ${k.aantal === 1 ? 'kaartje' : 'kaartjes'}</b>
+  const rij = k => `<div class="srRij"><span class="etKleurtje" style="background:${KK_KLEUR[k.sjabloon] || '#fff'};border:1px solid #ccd" title="${esc(KK_SJABLONEN.find(z => z[0] === k.sjabloon)?.[1] || '')}"></span><div class="t"><b>${esc(k.ras)} · ${esc(k.partij_nr)}${k.sortering ? ' · ' + esc(k.sortering) : ''} · ${fmt(k.aantal)} ${k.aantal === 1 ? 'kaartje' : 'kaartjes'}</b>
       <small>${[k.categorie, k.per_kist && k.per_kist + ' per kist', 'afgifte ' + k.afgifte, 'barcode ' + k.barcode, k.door].filter(Boolean).map(esc).join(' · ')}</small></div>${pil(k)}
       ${['klaar', 'klaargezet', 'fout'].includes(k.status) ? `<span class="logknoppen"><button class="weg" title="Geprint" onclick="kkStatus('${k.id}','geprint')">✔</button><button class="weg" title="Weghalen" onclick="kkStatus('${k.id}','weg')">✖</button></span>` : `<span class="logknoppen"><button class="weg" title="Nog een keer" onclick="kkOpnieuw('${k.id}')">🖨️</button></span>`}</div>`;
   const draait = kkLaatst && Date.now() - new Date(kkLaatst) < 5 * 60e3;
@@ -14801,7 +14842,7 @@ async function kkNieuw(vanId) {
     {k: 'partij_nr', label: 'Partijnummer', waarde: vorig?.partij_nr || x.batch || x.nak || ''},
     {k: 'sortering', label: 'Sortering', waarde: vorig?.sortering || '', lijst: [...new Set([...lijst('sortering'), ...(etInst().sortering || []), 'Frigo A', 'Frigo A+', 'Frigo A2+', 'Frigo A++', 'Frigo B'])], placeholder: 'bijv. Frigo A2+'},
     {k: 'categorie', label: 'Categorie', waarde: vorig?.categorie || (eerder.partij_id === pid ? eerder.categorie : '') || (/cac/i.test(x.klasse || '') ? 'CAC' : ''), lijst: [...new Set([...lijst('categorie'), 'Basismateriaal-5', 'CAC', 'Gecertificeerd'])], placeholder: 'bijv. Basismateriaal-5'},
-    {k: 'sjabloon', label: 'Kaartje', type: 'select', waarde: vorig?.sjabloon || 'auto', opties: [['auto', 'Automatisch (volgens de categorie)'], ...KK_SJABLONEN]},
+    {k: 'sjabloon', label: 'Kaartje', type: 'select', waarde: vorig?.sjabloon || 'auto', opties: [['auto', `Automatisch volgens de klasse (${x.klasse ? esc(x.klasse) + ' → ' : ''}${KK_SJABLONEN.find(z => z[0] === kkSjabloonVan(x.klasse, vorig?.categorie))?.[1]})`], ...KK_SJABLONEN]},
     {k: 'per_kist', label: 'Aantal per kist', type: 'number', waarde: vorig?.per_kist ?? (eerder.partij_id === pid ? eerder.per_kist : '') ?? ''},
     {k: 'aantal', label: 'Aantal kaartjes', type: 'number', waarde: vorig?.aantal ?? ''},
     {k: 'plantjaar', label: 'Jaar (geplant)', type: 'number', waarde: vorig?.plantjaar || kkPlantjaar(x)},
@@ -14813,11 +14854,11 @@ async function kkNieuw(vanId) {
   if (!w.ras?.trim() || !w.partij_nr?.trim()) { toast('Vul het ras en het partijnummer in', 1); return; }
   if (!(n >= 1 && n <= 2000)) { toast('Vul het aantal kaartjes in (1 tot 2000)', 1); return; }
   const rij = {partij_id: pid || null, ras: w.ras.trim(), partij_nr: w.partij_nr.trim(), sortering: (w.sortering || '').trim() || null, categorie: (w.categorie || '').trim() || null,
-    sjabloon: w.sjabloon === 'auto' ? kkSjabloonVan(w.categorie) : w.sjabloon, per_kist: pk > 0 ? pk : null, aantal: n, plantjaar: parseInt(w.plantjaar, 10) || null,
+    sjabloon: w.sjabloon === 'auto' ? kkSjabloonVan(x.klasse, w.categorie) : w.sjabloon, per_kist: pk > 0 ? pk : null, aantal: n, plantjaar: parseInt(w.plantjaar, 10) || null,
     afgifte: (w.afgifte || '').trim(), certificaat: (w.certificaat || '').trim() || null, registratie: (w.registratie || '').trim() || null,
     barcode: kkBarcode(w.partij_nr.trim(), (w.sortering || '').trim()), door: naamMe()};
   const {data, error} = await sb.from('kistkaart_opdrachten').insert(rij).select().single();
-  if (error) { toast(/kistkaart_opdrachten/.test(error.message) && /exist|schema/i.test(error.message) ? 'Draai eerst kistkaarten.sql in Supabase' : foutTekst(error), 1); return; }
+  if (error) { toast(/sjabloon_check/.test(error.message) ? 'Draai eerst kistkaart-kleuren.sql in Supabase' : /kistkaart_opdrachten/.test(error.message) && /exist|schema/i.test(error.message) ? 'Draai eerst kistkaarten.sql in Supabase' : foutTekst(error), 1); return; }
   S.kistkaart_opdrachten = [data, ...(S.kistkaart_opdrachten || []).filter(k => k.id !== data.id)]; render(true);
   toast(`🌱 ${n} kistkaarten ${rij.ras} ${rij.partij_nr} klaargezet`);
 }
@@ -14839,8 +14880,9 @@ async function kkKoppeling() {
   const m = $('#modal');
   m.innerHTML = `<div class="doos"><h3>🔌 Kistkaarten koppelen aan BarTender</h3>
     <ol class="hint" style="line-height:1.6;padding-left:18px">
-      <li>Download het printprogramma hieronder en zet het op <b>app01</b> in een map, bijvoorbeeld <code>C:\\Kistkaarten</code>. Zet de drie BarTender-kaartjes (.btw) in dezelfde map.</li>
-      <li>Rechtsklik op <code>kistkaart-print.ps1</code> → <b>Uitvoeren met PowerShell</b>. Er komen drie bestandjes bij: <code>kistkaart-standaard.csv</code>, <code>-cac.csv</code> en <code>-vgs.csv</code>. Zet eerst één kistkaart klaar in de app, dan staan er gegevens in om mee te koppelen.</li>
+      <li>Download het printprogramma hieronder en zet het op <b>app01</b> in een map, bijvoorbeeld <code>C:\\Kistkaarten</code>. Zet de drie BarTender-kaartjes (.btw) in dezelfde map, en maak van het standaard-kaartje een kopie met <code>_WIT</code> achter de naam (voor de witte kaartjes).</li>
+      <li>De kleur gaat vanzelf volgens de klasse: ⬜ <b>wit</b> = BM1 t/m BM5, 🟦 <b>blauw</b> = CM (standaard), 🟨 <b>geel</b> = VGS (ook VGS BM1-5) of CAC. Elke kleur heeft zijn eigen bestandje, zodat je het goede papier in de printer legt.</li>
+      <li>Rechtsklik op <code>kistkaart-print.ps1</code> → <b>Uitvoeren met PowerShell</b>. Er komen vier bestandjes bij: <code>kistkaart-wit.csv</code> (wit), <code>-standaard.csv</code> (blauw), <code>-vgs.csv</code> en <code>-cac.csv</code> (geel). Zet eerst één kistkaart klaar in de app, dan staan er gegevens in om mee te koppelen.</li>
       <li>Open elk kaartje in BarTender → <b>Bestand → Database-verbinding instellen</b> → <b>Tekstbestand</b> → kies het bijbehorende csv-bestand (scheidingsteken: puntkomma, eerste regel = veldnamen).</li>
       <li>Klik op elk tekstveld op het kaartje → <b>Gegevensbron</b> → <b>Databaseveld</b> en kies het veld: Titel, Ras, Sortering, Partij, Jaar, Registratie, Certificaat, Categorie, Afgifte, PerKist. Haal de vragen uit het invulscherm weg.</li>
       <li>Zet rechtsonder een <b>QR-code</b> met als bron het veld <b>Barcode</b> (de code per batch en sortering, bijv. K260018-A2+).</li>
@@ -14857,7 +14899,7 @@ async function kkScript() {
   const tekst = KK_SCRIPT.replace('__URL__', c.u.trim().replace(/\/+$/, '')).replace('__ANON__', c.k.trim()).replace('__SLEUTEL__', data.sleutel);
   bewaarBestand('kistkaart-print.ps1', new TextEncoder().encode('\ufeff' + tekst.replace(/\r?\n/g, '\r\n')), 'text/plain');
 }
-const KK_SCRIPT = "# =====================================================================\n#  Kistkaarten (plantenpaspoort)  Perceel App -> BarTender\n#  Haalt de kistkaarten op die in de app zijn klaargezet en zet ze in een bestandje per sjabloon\n#  (kistkaart-standaard.csv, kistkaart-cac.csv, kistkaart-vgs.csv) in deze map.\n#  De BarTender-kaartjes zijn eenmalig aan dat bestandje gekoppeld (Database-verbinding -> Tekstbestand).\n#\n#  Twee manieren:\n#   1. Halfautomatisch (standaard, werkt met BarTender Professional):\n#      open het kaartje in BarTender en klik op Afdrukken -> alle klaargezette kaartjes komen eruit.\n#      Klik daarna in de app op \"Geprint\" (of laat $AutoPrint uit en meld het in de app).\n#   2. Volledig automatisch: zet $AutoPrint = $true. Dan start dit programma BarTender zelf\n#      (bartend.exe /F=... /P /X). Werkt dat niet met jullie licentie, zet hem dan weer op $false.\n#\n#  Eenmalig inplannen (elke minuut, als de ingelogde gebruiker, zodat BarTender mag printen):\n#    powershell.exe -ExecutionPolicy Bypass -File kistkaart-print.ps1 -Installeer\n#  Eén keer draaien om te testen:\n#    powershell.exe -ExecutionPolicy Bypass -File kistkaart-print.ps1\n# =====================================================================\nparam([switch]$Installeer)\n\n$Url     = '__URL__'          # Supabase-adres van de app\n$Anon    = '__ANON__'         # publieke sleutel van de app\n$Sleutel = '__SLEUTEL__'      # geheime koppelsleutel voor de kistkaarten\n\n$AutoPrint = $false           # $true = BarTender zelf laten printen\n$BarTender = 'C:\\Program Files\\Seagull\\BarTender 2022\\bartend.exe'\n# welk BarTender-kaartje bij welk sjabloon hoort (pas de mappen aan)\n$Kaartjes = @{\n  'standaard' = 'C:\\Kistkaarten\\Logo_Kistkaart_Karta_Skrynia_NAK_af_nov._2022.btw'\n  'cac'       = 'C:\\Kistkaarten\\Logo_Kistkaart_Karta_Skrynia_NAK_af_nov._2022_CAC.btw'\n  'vgs'       = 'C:\\Kistkaarten\\Logo_Kistkaart_Karta_Skrynia_NAK_af_nov._2022_VGS.btw'\n}\n\n$ErrorActionPreference = 'Stop'\n$Map = Split-Path -Parent $MyInvocation.MyCommand.Path\n$Log = Join-Path $Map 'kistkaart-print.log'\nfunction Schrijf($tekst) { $regel = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  ' + $tekst; Write-Host $regel; Add-Content -Path $Log -Value $regel -Encoding UTF8 }\n\nif ($Installeer) {\n  $ps = (Get-Command powershell.exe).Source\n  $arg = \"-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `\"$($MyInvocation.MyCommand.Path)`\"\"\n  $actie = New-ScheduledTaskAction -Execute $ps -Argument $arg -WorkingDirectory $Map\n  $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1)\n  $inst = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -StartWhenAvailable\n  Register-ScheduledTask -TaskName 'Perceel App - kistkaarten' -Action $actie -Trigger $trigger -Settings $inst -Force | Out-Null\n  Schrijf 'Taak \"Perceel App - kistkaarten\" ingepland (elke minuut, als de ingelogde gebruiker).'\n  exit 0\n}\n\n[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12\n$Kop = @{ apikey = $Anon; Authorization = \"Bearer $Anon\"; 'Content-Type' = 'application/json; charset=utf-8' }\nfunction Rpc($naam, $body) {\n  $json = $body | ConvertTo-Json -Depth 6 -Compress\n  Invoke-RestMethod -Method Post -Uri \"$Url/rest/v1/rpc/$naam\" -Headers $Kop -Body ([Text.Encoding]::UTF8.GetBytes($json)) -TimeoutSec 30\n}\n\ntry {\n  $open = @(Rpc 'kistkaart_ophalen' @{ p_sleutel = $Sleutel; p_info = \"$env:COMPUTERNAME / $env:USERNAME\" })\n} catch { Schrijf \"App niet bereikbaar: $($_.Exception.Message)\"; exit 1 }\n\nforeach ($sj in @('standaard', 'cac', 'vgs')) {\n  $rijen = @($open | Where-Object { $_.sjabloon -eq $sj })\n  $bestand = Join-Path $Map \"kistkaart-$sj.csv\"\n  # altijd het bestandje bijwerken: alleen wat nog geprint moet worden (een kop zonder regels = niets te doen)\n  $regels = foreach ($r in $rijen) {\n    [pscustomobject]@{\n      Titel       = \"'$($r.ras)'\"\n      Ras         = $r.ras\n      Sortering   = $r.sortering\n      Partij      = $r.partij_nr\n      Jaar        = $r.plantjaar\n      Registratie = $r.registratie\n      Certificaat = $r.certificaat\n      Categorie   = $r.categorie\n      Afgifte     = $r.afgifte\n      PerKist     = $r.per_kist\n      Barcode     = $r.barcode\n      Aantal      = $r.aantal\n    }\n  }\n  $kop = 'Titel;Ras;Sortering;Partij;Jaar;Registratie;Certificaat;Categorie;Afgifte;PerKist;Barcode;Aantal'\n  $tekst = @($kop) + @($regels | ForEach-Object { ($_.PSObject.Properties.Value | ForEach-Object { '\"' + ([string]$_).Replace('\"', '\"\"') + '\"' }) -join ';' })\n  $oud = if (Test-Path $bestand) { Get-Content $bestand -Raw -Encoding UTF8 } else { '' }\n  $nieuw = ($tekst -join \"`r`n\") + \"`r`n\"\n  if ($oud -ne $nieuw) { [IO.File]::WriteAllText($bestand, $nieuw, (New-Object Text.UTF8Encoding $true)); Schrijf \"$sj : $($rijen.Count) opdracht(en) in $bestand\" }\n\n  if (-not $rijen.Count) { continue }\n  $nieuweIds = @($rijen | Where-Object { $_.status -eq 'klaar' } | ForEach-Object { $_.id })\n  if ($nieuweIds.Count) { try { Rpc 'kistkaart_melden' @{ p_sleutel = $Sleutel; p_ids = $nieuweIds; p_status = 'klaargezet' } | Out-Null } catch { Schrijf \"Terugmelden mislukt: $($_.Exception.Message)\" } }\n\n  if ($AutoPrint) {\n    $btw = $Kaartjes[$sj]\n    if (-not (Test-Path $btw)) { Schrijf \"Kaartje niet gevonden: $btw\"; continue }\n    if (-not (Test-Path $BarTender)) { Schrijf \"BarTender niet gevonden: $BarTender\"; continue }\n    $ids = @($rijen | ForEach-Object { $_.id })\n    $p = Start-Process -FilePath $BarTender -ArgumentList @(\"/F=`\"$btw`\"\", '/P', '/X', '/MIN=SystemTray', '/NOSPLASH') -PassThru -Wait\n    if ($p.ExitCode -eq 0) {\n      Rpc 'kistkaart_melden' @{ p_sleutel = $Sleutel; p_ids = $ids; p_status = 'geprint' } | Out-Null\n      [IO.File]::WriteAllText($bestand, $kop + \"`r`n\", (New-Object Text.UTF8Encoding $true))\n      Schrijf \"$sj : $($ids.Count) opdracht(en) geprint\"\n    } else {\n      Rpc 'kistkaart_melden' @{ p_sleutel = $Sleutel; p_ids = $ids; p_status = 'fout'; p_melding = \"BarTender gaf foutcode $($p.ExitCode)\" } | Out-Null\n      Schrijf \"$sj : BarTender gaf foutcode $($p.ExitCode)\"\n    }\n  }\n}\n";
+const KK_SCRIPT = "# =====================================================================\n#  Kistkaarten (plantenpaspoort)  Perceel App -> BarTender\n#  Haalt de kistkaarten op die in de app zijn klaargezet en zet ze in een bestandje per sjabloon\n#  in deze map. De kleur van het kaartje hangt af van de klasse:\n#    kistkaart-wit.csv       wit    BM1 t/m BM5 (basismateriaal)          -> standaard-kaartje, kopie met _WIT\n#    kistkaart-standaard.csv blauw  CM (gecertificeerd) = standaard\n#    kistkaart-vgs.csv       geel   VGS (ook VGS BM1 t/m BM5)\n#    kistkaart-cac.csv       geel   CAC\n#  De BarTender-kaartjes zijn eenmalig aan dat bestandje gekoppeld (Database-verbinding -> Tekstbestand).\n#\n#  Twee manieren:\n#   1. Halfautomatisch (standaard, werkt met BarTender Professional):\n#      open het kaartje in BarTender en klik op Afdrukken -> alle klaargezette kaartjes komen eruit.\n#      Klik daarna in de app op \"Geprint\" (of laat $AutoPrint uit en meld het in de app).\n#   2. Volledig automatisch: zet $AutoPrint = $true. Dan start dit programma BarTender zelf\n#      (bartend.exe /F=... /P /X). Werkt dat niet met jullie licentie, zet hem dan weer op $false.\n#\n#  Eenmalig inplannen (elke minuut, als de ingelogde gebruiker, zodat BarTender mag printen):\n#    powershell.exe -ExecutionPolicy Bypass -File kistkaart-print.ps1 -Installeer\n#  Eén keer draaien om te testen:\n#    powershell.exe -ExecutionPolicy Bypass -File kistkaart-print.ps1\n# =====================================================================\nparam([switch]$Installeer)\n\n$Url     = '__URL__'          # Supabase-adres van de app\n$Anon    = '__ANON__'         # publieke sleutel van de app\n$Sleutel = '__SLEUTEL__'      # geheime koppelsleutel voor de kistkaarten\n\n$AutoPrint = $false           # $true = BarTender zelf laten printen\n$BarTender = 'C:\\Program Files\\Seagull\\BarTender 2022\\bartend.exe'\n# welk BarTender-kaartje bij welk sjabloon hoort (pas de mappen aan)\n$Kaartjes = @{\n  'wit'       = 'C:\\Kistkaarten\\Logo_Kistkaart_Karta_Skrynia_NAK_af_nov._2022_WIT.btw'\n  'standaard' = 'C:\\Kistkaarten\\Logo_Kistkaart_Karta_Skrynia_NAK_af_nov._2022.btw'\n  'cac'       = 'C:\\Kistkaarten\\Logo_Kistkaart_Karta_Skrynia_NAK_af_nov._2022_CAC.btw'\n  'vgs'       = 'C:\\Kistkaarten\\Logo_Kistkaart_Karta_Skrynia_NAK_af_nov._2022_VGS.btw'\n}\n\n$ErrorActionPreference = 'Stop'\n$Map = Split-Path -Parent $MyInvocation.MyCommand.Path\n$Log = Join-Path $Map 'kistkaart-print.log'\nfunction Schrijf($tekst) { $regel = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  ' + $tekst; Write-Host $regel; Add-Content -Path $Log -Value $regel -Encoding UTF8 }\n\nif ($Installeer) {\n  $ps = (Get-Command powershell.exe).Source\n  $arg = \"-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `\"$($MyInvocation.MyCommand.Path)`\"\"\n  $actie = New-ScheduledTaskAction -Execute $ps -Argument $arg -WorkingDirectory $Map\n  $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 1)\n  $inst = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -StartWhenAvailable\n  Register-ScheduledTask -TaskName 'Perceel App - kistkaarten' -Action $actie -Trigger $trigger -Settings $inst -Force | Out-Null\n  Schrijf 'Taak \"Perceel App - kistkaarten\" ingepland (elke minuut, als de ingelogde gebruiker).'\n  exit 0\n}\n\n[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12\n$Kop = @{ apikey = $Anon; Authorization = \"Bearer $Anon\"; 'Content-Type' = 'application/json; charset=utf-8' }\nfunction Rpc($naam, $body) {\n  $json = $body | ConvertTo-Json -Depth 6 -Compress\n  Invoke-RestMethod -Method Post -Uri \"$Url/rest/v1/rpc/$naam\" -Headers $Kop -Body ([Text.Encoding]::UTF8.GetBytes($json)) -TimeoutSec 30\n}\n\ntry {\n  $open = @(Rpc 'kistkaart_ophalen' @{ p_sleutel = $Sleutel; p_info = \"$env:COMPUTERNAME / $env:USERNAME\" })\n} catch { Schrijf \"App niet bereikbaar: $($_.Exception.Message)\"; exit 1 }\n\nforeach ($sj in @('wit', 'standaard', 'cac', 'vgs')) {\n  $rijen = @($open | Where-Object { $_.sjabloon -eq $sj })\n  $bestand = Join-Path $Map \"kistkaart-$sj.csv\"\n  # altijd het bestandje bijwerken: alleen wat nog geprint moet worden (een kop zonder regels = niets te doen)\n  $regels = foreach ($r in $rijen) {\n    [pscustomobject]@{\n      Titel       = \"'$($r.ras)'\"\n      Ras         = $r.ras\n      Sortering   = $r.sortering\n      Partij      = $r.partij_nr\n      Jaar        = $r.plantjaar\n      Registratie = $r.registratie\n      Certificaat = $r.certificaat\n      Categorie   = $r.categorie\n      Afgifte     = $r.afgifte\n      PerKist     = $r.per_kist\n      Barcode     = $r.barcode\n      Aantal      = $r.aantal\n    }\n  }\n  $kop = 'Titel;Ras;Sortering;Partij;Jaar;Registratie;Certificaat;Categorie;Afgifte;PerKist;Barcode;Aantal'\n  $tekst = @($kop) + @($regels | ForEach-Object { ($_.PSObject.Properties.Value | ForEach-Object { '\"' + ([string]$_).Replace('\"', '\"\"') + '\"' }) -join ';' })\n  $oud = if (Test-Path $bestand) { Get-Content $bestand -Raw -Encoding UTF8 } else { '' }\n  $nieuw = ($tekst -join \"`r`n\") + \"`r`n\"\n  if ($oud -ne $nieuw) { [IO.File]::WriteAllText($bestand, $nieuw, (New-Object Text.UTF8Encoding $true)); Schrijf \"$sj : $($rijen.Count) opdracht(en) in $bestand\" }\n\n  if (-not $rijen.Count) { continue }\n  $nieuweIds = @($rijen | Where-Object { $_.status -eq 'klaar' } | ForEach-Object { $_.id })\n  if ($nieuweIds.Count) { try { Rpc 'kistkaart_melden' @{ p_sleutel = $Sleutel; p_ids = $nieuweIds; p_status = 'klaargezet' } | Out-Null } catch { Schrijf \"Terugmelden mislukt: $($_.Exception.Message)\" } }\n\n  if ($AutoPrint) {\n    $btw = $Kaartjes[$sj]\n    if (-not (Test-Path $btw)) { Schrijf \"Kaartje niet gevonden: $btw\"; continue }\n    if (-not (Test-Path $BarTender)) { Schrijf \"BarTender niet gevonden: $BarTender\"; continue }\n    $ids = @($rijen | ForEach-Object { $_.id })\n    $p = Start-Process -FilePath $BarTender -ArgumentList @(\"/F=`\"$btw`\"\", '/P', '/X', '/MIN=SystemTray', '/NOSPLASH') -PassThru -Wait\n    if ($p.ExitCode -eq 0) {\n      Rpc 'kistkaart_melden' @{ p_sleutel = $Sleutel; p_ids = $ids; p_status = 'geprint' } | Out-Null\n      [IO.File]::WriteAllText($bestand, $kop + \"`r`n\", (New-Object Text.UTF8Encoding $true))\n      Schrijf \"$sj : $($ids.Count) opdracht(en) geprint\"\n    } else {\n      Rpc 'kistkaart_melden' @{ p_sleutel = $Sleutel; p_ids = $ids; p_status = 'fout'; p_melding = \"BarTender gaf foutcode $($p.ExitCode)\" } | Out-Null\n      Schrijf \"$sj : BarTender gaf foutcode $($p.ExitCode)\"\n    }\n  }\n}\n";
 /* ---------- barcode (Code 128-B) voor handscanners, naast de QR-code ---------- */
 const C128 = ('212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112').split(' ');
 function code128Svg(tekst, breedteMm = 60, hoogteMm = 12) {
@@ -14889,7 +14931,7 @@ function handscan(raw) {
     if (kiepScanActief()) { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
     if (!mijnProfiel?.() || !(ziet('voorraad_bekijken') || mag('voorraad_beheren') || magEtiket())) return;
     const kc = kcCodeUit(raw), et = etCodeUit(raw) || (/^[PB]\d+$/i.test(raw) ? raw.toUpperCase() : null);
-    if (isKoelcelPlek() && tab === 'hfscan') { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
+    if (isKoelcelPlek() && (tab === 'hfscan' || HF.hand.length || HF.pallet || (et && tab !== 'etiketten'))) { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
     if (!kc && !et) return;
     try { navigator.vibrate?.(60); } catch {}
     if (isKoelcelPlek() && tab === 'hfscan') { hfScan(raw); return; }

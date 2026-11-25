@@ -1,7 +1,7 @@
 // Perceel App – service worker
 // - De app zelf komt altijd vers van internet (updates meteen zichtbaar); zonder bereik de laatst bekende versie.
 // - Kaartbibliotheken en bekeken kaarttegels worden bewaard, zodat de kaart ook zonder bereik werkt.
-const CACHE = 'perceel-v41', TEGELS = 'perceel-tegels', MAX_TEGELS = 4000;
+const CACHE = 'perceel-v43', TEGELS = 'perceel-tegels', MAX_TEGELS = 4000;
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['offline.html', 'icon-192.png', 'icon-512.png'])));
   self.skipWaiting();
