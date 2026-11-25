@@ -1108,6 +1108,7 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 #hfScherm .hftPlekken{margin:-2px 0 8px 12px;border-left:3px solid #a5d6a7;padding-left:10px}#hfScherm .hftPlek{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed #e0e6e2}#hfScherm .hftPlek .cel{min-width:90px;font-weight:700}#hfScherm .hftPlek>span:nth-child(2){flex:1}#hfScherm .hftPlek small{display:block;color:#5d6b62}#hfScherm .hftPlek .knop{width:auto;margin:0}
 .dialoog.kcPop{max-width:min(1000px,96vw);width:96vw;max-height:94vh;padding:24px 28px;font-size:16px}.dialoog.kcPop h3{font-size:26px}.dialoog.kcPop .kcItem{padding:12px 14px}.dialoog.kcPop .kcItem b{font-size:17px}.dialoog.kcPop .knop.klein{padding:10px 14px;font-size:15px}
 .kcX{border:0;background:#fdecea;color:#b71c1c;border-radius:50%;width:34px;height:34px;font:700 16px/1 system-ui,sans-serif;cursor:pointer;flex:0 0 auto}
+.kcBlok.extern{background:#fff3e0!important;border-color:#fb8c00!important;border-style:dashed!important}.kcBlok.laden{background:#e3f2fd!important;border-color:#1e88e5!important}
 .kcPInfo{margin-top:4px}.kcPInfoRij{padding:4px 0;border-bottom:1px dashed #e0e6e2;font-size:14px}.kcPInfoRij span{display:block;color:#40524a}.kcPInfo small{display:block;margin-top:4px;color:#5d6b62}
 .kcGroep{margin:0}.kcGroep>summary{list-style:none;cursor:pointer}.kcGroep>summary::-webkit-details-marker{display:none}.kcGroep[open]>summary{background:#eef6ef}.kcGroep>.kcItem{margin-left:14px}
 #kiepPop .hfWissel{display:block;margin:14px auto 0;border:0;background:none;color:#1565c0;font:600 15px/1.2 system-ui,sans-serif;text-decoration:underline;cursor:pointer}
@@ -13550,26 +13551,46 @@ function kcLijst() {
   return l;
 }
 async function kcBewaar(l) {
-  const w = JSON.stringify(l.map(({naam, gx, gy, gw, gh}) => ({naam, gx, gy, gw, gh})));
+  const w = JSON.stringify(l.map(({naam, gx, gy, gw, gh, soort, adres, contact, telefoon, email}) => ({naam, gx, gy, gw, gh, ...(soort && soort !== 'koelcel' ? {soort} : {}), ...(soort === 'extern' ? {adres, contact, telefoon, email} : {})})));
   const {error} = await sb.rpc('zet_instelling', {p_sleutel: 'koelcellen', p_waarde: w});
   if (error) { toast(/Onbekende instelling/.test(error.message) ? 'Draai eerst beheer.sql opnieuw in Supabase' : foutTekst(error), 1); return false; }
   S.inst = {...(S.inst || {}), koelcellen: w}; return true;
 }
+// soort plek: koelcel, laden & lossen, of een extern koelbedrijf (met adres, voor de bon)
+const KC_SOORTEN = [['koelcel', '❄️ Koelcel'], ['laden', '🚚 Laden & lossen'], ['extern', '🏢 Extern koelbedrijf']];
+const kcPlek = naam => kcLijst().find(c => c.naam === naam) || null;
+const kcIsExtern = naam => kcPlek(naam)?.soort === 'extern';
+const kcIcoon = c => c?.soort === 'extern' ? '🏢' : c?.soort === 'laden' ? '🚚' : '❄️';
+function kcGegevensVelden(c = {}) {
+  return [{k: 'naam', label: 'Naam', waarde: c.naam || '', placeholder: 'bijv. Koelcel 8, Laden/lossen, Koelhuis Venlo'},
+    {k: 'soort', label: 'Wat is het?', type: 'select', waarde: c.soort || 'koelcel', opties: KC_SOORTEN},
+    {k: 'adres', label: 'Adres', waarde: c.adres || '', als: ['soort', 'extern']}, {k: 'contact', label: 'Contactpersoon', waarde: c.contact || '', als: ['soort', 'extern']},
+    {k: 'telefoon', label: 'Telefoon', waarde: c.telefoon || '', als: ['soort', 'extern']}, {k: 'email', label: 'E-mail', waarde: c.email || '', als: ['soort', 'extern']}];
+}
+async function kcGegevens(naam) {
+  if (!mag('voorraad_beheren')) return; const l = kcLijst(), c = l.find(x => x.naam === naam); if (!c) return;
+  const w = await formulier(`${kcIcoon(c)} ${naam}`, kcGegevensVelden(c), 'Opslaan', r => !r.naam ? ['Vul een naam in', 'naam'] : r.naam !== naam && l.some(x => normTekst(x.naam) === normTekst(r.naam)) ? ['Die naam bestaat al', 'naam'] : '');
+  if (!w) return;
+  if (w.naam !== naam && kcInhoud(naam).planten > .5) { toast('Er staat nog iets; de naam kan pas veranderen als het leeg is', 1); return; }
+  Object.assign(c, {naam: w.naam, soort: w.soort, adres: w.adres, contact: w.contact, telefoon: w.telefoon, email: w.email});
+  if (await kcBewaar(l)) { render(true); toast('Opgeslagen'); }
+}
 async function kcErbij() {
-  const naam = (await vraag('Naam van de koelcel', {knop: 'Toevoegen'}))?.trim(); if (!naam) return;
+  const w = await formulier('＋ Plek erbij', kcGegevensVelden({}), 'Toevoegen', r => !r.naam ? ['Vul een naam in', 'naam'] : kcLijst().some(c => normTekst(c.naam) === normTekst(r.naam)) ? ['Die naam bestaat al', 'naam'] : '');
+  if (!w) return; const naam = w.naam.trim(), extra = w.soort !== 'koelcel' ? {soort: w.soort, ...(w.soort === 'extern' ? {adres: w.adres, contact: w.contact, telefoon: w.telefoon, email: w.email} : {})} : {};
   const l = kcLijst(); if (l.some(c => normTekst(c.naam) === normTekst(naam))) { toast('Die koelcel bestaat al', 1); return; }
   // eerste vrije plek zoeken
   const vrij = (x, y) => !l.some(c => x < c.gx + c.gw + 1 && x + 9 > c.gx && y < c.gy + c.gh + 1 && y + 7 > c.gy);
   let plek = {gx: 1, gy: 1}; zoek: for (let y = 1; y < KC_RIJ - 6; y += 7) for (let x = 1; x < KC_KOL - 8; x += 9) if (vrij(x, y)) { plek = {gx: x, gy: y}; break zoek; }
-  l.push({naam, ...plek, gw: 8, gh: 6}); if (await kcBewaar(l)) { render(true); toast(`🧊 ${naam} toegevoegd`); }
+  l.push({naam, ...plek, gw: 8, gh: 6, ...extra}); if (await kcBewaar(l)) { render(true); toast(`${kcIcoon(extra)} ${naam} toegevoegd`); }
 }
 function kcPlattegrondHtml(beh) {
   const l = kcLijst();
   return `<div class="kcKaart ${kcBewerk ? 'bewerk' : ''} ${kcVerplaatsVan ? 'kiezen' : ''}" id="kcKaart" onpointerdown="kcPan(event)" onwheel="kcWiel(event)">
     <div class="kcStage" id="kcStage" style="width:${KC_KOL * KC_HOK}px;height:${KC_RIJ * KC_HOK}px;transform:translate(${KCZ.px}px,${KCZ.py}px) scale(${KCZ.z})">
       ${l.map((c, i) => { const inh = kcInhoud(c.naam), vol = inh.planten > .5, hier = kcVerplaatsVan && kcVerplaatsVan.cel === c.naam;
-        return `<div class="kcBlok ${vol ? 'vol' : ''} ${hier ? 'bron' : ''}" data-vbcel="${esc(c.naam)}" data-i="${i}" style="left:${c.gx * KC_HOK}px;top:${c.gy * KC_HOK}px;width:${c.gw * KC_HOK}px;height:${c.gh * KC_HOK}px"
-          onpointerdown="kcBlokDown(event,${i})"><span>${esc(c.naam)}</span>${kcBewerk ? `<div class="kcRand" onpointerdown="kcSchuif(event,${i},'maat')"></div>` : ''}</div>`; }).join('')}
+        return `<div class="kcBlok ${c.soort || ''} ${vol ? 'vol' : ''} ${hier ? 'bron' : ''}" data-vbcel="${esc(c.naam)}" data-i="${i}" style="left:${c.gx * KC_HOK}px;top:${c.gy * KC_HOK}px;width:${c.gw * KC_HOK}px;height:${c.gh * KC_HOK}px"
+          onpointerdown="kcBlokDown(event,${i})"><span>${c.soort ? kcIcoon(c) + ' ' : ''}${esc(c.naam)}</span>${kcBewerk ? `<div class="kcRand" onpointerdown="kcSchuif(event,${i},'maat')"></div>` : ''}</div>`; }).join('')}
     </div>
     <div class="kcZoom"><button onclick="kcZoomStap(1.25)">＋</button><button onclick="kcZoomStap(.8)">－</button><button title="Alles in beeld" onclick="kcPassend()">⤢</button></div>
     ${kcVerplaatsVan ? `<div class="kcKiesBalk">↔ Tik op de koelcel waar <b>${esc(kcVerplaatsVan.naam)}</b> heen moet <button onclick="kcVerplaatsVan=null;render(true)">Annuleren</button></div>` : ''}
@@ -13681,6 +13702,43 @@ async function kcPalletWeg(nr, cel) {
   try { const r = await sb.from('partij_mutaties').select('*').eq('pallet', String(nr)); if (r.data) { const ids = new Set(r.data.map(m => m.id)); S.partij_mutaties = [...(S.partij_mutaties || []).filter(m => !ids.has(m.id)), ...r.data]; } } catch {}
   toast(data || `🗑️ Pallet ${nr} verwijderd`); render(true); kcOpen(cel);
 }
+// BON voor een extern koelbedrijf: wat er heen gaat (vandaag) of wat er staat. Opmaak voorlopig; de echte bon volgt nog.
+async function kcBonVraag(naar) { if (!kcIsExtern(naar)) return; if (await bevestigJa(`📄 Bon voor ${esc(naar)}?`, 'Dit gaat naar een extern koelbedrijf. Wil je een bon printen zodat zij weten wat eraan komt?', '📄 Bon maken')) kcBon(naar, 'vandaag'); }
+function kcBon(cel, wat) {
+  const plek = kcPlek(cel) || {naam: cel}, dag = vandaag(), regels = [];
+  if (wat === 'vandaag') {   // wat er vandaag in deze plek is gekomen (inslag of verplaatst hierheen)
+    const m = new Map(); (S.partij_mutaties || []).filter(x => x.koelcel === cel && x.datum === dag && (x.soort === 'in' || (x.soort === 'correctie' && +x.aantal > 0))).forEach(x => {
+      const k = x.partij_id + '|' + (x.pallet || '') + '|' + x.eenheid, o = m.get(k) || {pid: x.partij_id, pallet: x.pallet, eenheid: x.eenheid, per: x.per_eenheid, n: 0}; o.n += +x.aantal || 0; if (x.per_eenheid) o.per = x.per_eenheid; m.set(k, o); });
+    regels.push(...m.values());
+  } else {
+    kcPallets().filter(p => p.cel === cel).forEach(p => p.regels.forEach(r => regels.push({pid: r.partij_id, pallet: p.nr, eenheid: r.eenheid || 'kistjes', per: r.per, n: r.kistjes})));
+    (S.partijen || []).forEach(y => { const l = kcLos(y.id, cel); if (l.planten > .5) { const per = l.eenheid !== 'planten' ? +l.per_eenheid || 0 : 0; regels.push({pid: y.id, pallet: null, eenheid: per ? l.eenheid : l.eenheid === 'planten' ? 'planten' : l.eenheid, per: per || null, n: per ? l.planten / per : l.planten}); } });
+  }
+  if (!regels.length) { toast(wat === 'vandaag' ? `Er is vandaag niets naar ${cel} gegaan` : `Er staat niets in ${cel}`, 1); return; }
+  const r1 = n => getal(Math.round(n * 10) / 10);
+  const rij = o => { const y = (S.partijen || []).find(z => z.id === o.pid) || {}, kk = [...(S.partij_mutaties || [])].reverse().find(m => m.partij_id === o.pid && /^kistkaart K/.test(m.notitie || ''));
+    const pl = o.eenheid === 'planten' ? o.n : o.per ? o.n * o.per : null;
+    return {pl, html: `<tr><td>${o.pallet ? esc(o.pallet) : '–'}</td><td><b>${esc(partijRas(y) || '?')}</b></td><td>${esc(y.batch || y.nak || '')}</td><td>${esc(y.klasse || '')}</td><td>${esc(kk ? kk.notitie.replace(/^kistkaart K[^-]*-?/, '') : '')}</td>
+      <td class="g">${o.eenheid === 'planten' ? '' : r1(o.n) + ' ' + esc(o.eenheid)}</td><td class="g">${o.per ? getal(o.per) : ''}</td><td class="g">${pl != null ? getal(Math.round(pl)) : '?'}</td></tr>`}; };
+  const rs = regels.map(rij), tot = rs.reduce((a, r) => a + (r.pl || 0), 0), npal = new Set(regels.filter(o => o.pallet).map(o => o.pallet)).size;
+  const nr = 'B' + dag.replace(/-/g, '').slice(2) + '-' + String(new Date().getHours()).padStart(2, '0') + String(new Date().getMinutes()).padStart(2, '0');
+  const html = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Bon ${nr}</title><style>@page{size:A4 portrait;margin:14mm}body{font-family:Arial,sans-serif;color:#000;margin:0;font-size:11pt}
+    h1{font-size:20pt;margin:0}.kop{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:12px}.kop small{display:block;color:#333}
+    .adr{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px}.adr div{border:1px solid #999;padding:8px;border-radius:4px}.adr b{display:block;margin-bottom:4px}
+    table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #bbb;padding:5px 4px;text-align:left;font-size:10pt}th{border-bottom:2px solid #000}.g{text-align:right}tfoot td{font-weight:bold;border-top:2px solid #000;border-bottom:0}
+    .teken{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:40px}.teken div{border-top:1px solid #000;padding-top:4px;font-size:9pt}
+    .knoppen{position:sticky;top:0;background:#fff;padding:8px;text-align:center;border-bottom:1px solid #ddd}.knoppen button{font-size:16px;padding:8px 16px}@media print{.knoppen{display:none}}</style></head><body>
+    <div class="knoppen"><button onclick="print()">🖨️ Afdrukken</button></div>
+    <div class="kop"><div><h1>Vrachtbon koelhuis</h1><small>De Kemp BV</small></div><div style="text-align:right"><b>Bon ${nr}</b><small>${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</small><small>${wat === 'vandaag' ? 'Wat er vandaag heen gaat' : 'Alles wat er staat'}</small></div></div>
+    <div class="adr"><div><b>Van</b>De Kemp BV</div><div><b>Naar</b>${esc(plek.naam)}${plek.adres ? '<br>' + esc(plek.adres) : ''}${plek.contact ? '<br>t.a.v. ' + esc(plek.contact) : ''}${plek.telefoon ? '<br>' + esc(plek.telefoon) : ''}</div></div>
+    <table><thead><tr><th>Pallet</th><th>Ras</th><th>Batch</th><th>Klasse</th><th>Sortering</th><th class="g">Aantal</th><th class="g">Per kist</th><th class="g">Planten</th></tr></thead>
+      <tbody>${rs.map(r => r.html).join('')}</tbody><tfoot><tr><td colspan="5">${npal ? npal + ' ' + (npal === 1 ? 'pallet' : 'pallets') : ''}</td><td></td><td></td><td class="g">${getal(Math.round(tot))}</td></tr></tfoot></table>
+    <div class="teken"><div>Afgegeven door (naam + handtekening)</div><div>Ontvangen door (naam + handtekening)</div></div></body></html>`;
+  const win = window.open('', '_blank');
+  if (win) { win.document.write(html); win.document.close(); return; }
+  const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(fr);
+  fr.contentDocument.write(html); fr.contentDocument.close(); setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch {} setTimeout(() => fr.remove(), 3000); }, 600);
+}
 // pallets in een koelcel per soort (zelfde partij/partijen erop) samen: "3 pallets Rumba 260046"
 function kcPalletGroepen(pallets) {
   const m = new Map();
@@ -13694,7 +13752,10 @@ function kcOpen(naam) {
   const los = inh.partijen.map(({y}) => ({y, x: kcLos(y.id, naam)})).filter(({x}) => x.planten > .5);
   const knop = (t, f) => beh ? `<button class="knop licht klein" style="width:auto" onclick="$('#modal').classList.remove('open');${f}">${t}</button>` : '';
   const ver = (pid, pallet, label) => `kcVerplaatsVan={pid:${pid ? `'${pid}'` : 'null'},cel:${esc(JSON.stringify(naam))},pallet:${pallet ? esc(JSON.stringify(pallet)) : 'null'},naam:${esc(JSON.stringify(label))}};render(true);toast('Tik nu op de koelcel waar het heen moet')`;
-  $('#modal').innerHTML = `<div class="dialoog groot kcPop"><h3>🧊 ${esc(naam)}</h3>
+  const plek = kcPlek(naam) || {};
+  $('#modal').innerHTML = `<div class="dialoog groot kcPop"><h3>${plek.soort ? kcIcoon(plek) : '🧊'} ${esc(naam)}${beh ? ` <button class="knop licht klein" style="width:auto;display:inline-block;vertical-align:middle" onclick="$('#modal').classList.remove('open');kcGegevens(${esc(JSON.stringify(naam))})">✏️</button>` : ''}</h3>
+    ${plek.soort === 'extern' ? `<p class="hint" style="margin-top:0">🏢 Extern koelbedrijf${[plek.adres, plek.contact, plek.telefoon, plek.email].filter(Boolean).length ? ' · ' + [plek.adres, plek.contact, plek.telefoon, plek.email].filter(Boolean).map(esc).join(' · ') : ''}</p>
+      <div class="rij" style="gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="knop klein" style="width:auto" onclick="kcBon(${esc(JSON.stringify(naam))},'vandaag')">📄 Bon: vandaag hierheen</button><button class="knop licht klein" style="width:auto" onclick="kcBon(${esc(JSON.stringify(naam))},'alles')">📄 Bon: alles wat hier staat</button></div>` : plek.soort === 'laden' ? '<p class="hint" style="margin-top:0">🚚 Laden & lossen: hier staat wat net binnen is of klaarstaat om weg te gaan.</p>' : ''}
     ${inh.planten ? kcTotalenHtml(naam) : '<p class="hint">Leeg</p>'}
     ${beh ? `<div class="kcInslaan"><b>⬇️ Inslaan</b><div class="rij" style="gap:6px;flex-wrap:wrap">
       ${knop('🧱 Pallet (kistjes)', `kcPalletInslag(${esc(JSON.stringify(naam))})`)}${knop('📦 Kuubskist', `mutatieFormulier('','in',null,{eenheid:'kuubskisten',koelcel:${esc(JSON.stringify(naam))}})`)}
@@ -13820,7 +13881,7 @@ async function kcVerplaats(pid, van, naar, pallet) {
   const ids = pallet ? [...new Set(rijen.map(r => r.partij_id))] : [pid];
   for (const r of vbRes().filter(r => ids.includes(r.partij_id) && (r.koelcel || '—') === van && !(voorraadVan(r.partij_id).get(van)?.planten > .5))) {
     const {data: d} = await sb.from('voorraad_reserveringen').update({koelcel: naar}).eq('id', r.id).select().single(); if (d) Object.assign(r, d); }
-  render(true); toast(`↔ ${pallet ? 'Pallet ' + pallet : 'Verplaatst'} naar ${naar}`);
+  render(true); toast(`↔ ${pallet ? 'Pallet ' + pallet : 'Verplaatst'} naar ${naar}`); kcBonVraag(naar);
 }
 function htmlBestemmingen(beh) {
   const l = vbBest(), heeftEigen = l.some(b => b.soort === 'eigen');
@@ -13871,7 +13932,7 @@ function htmlVoorraad() {
       ${beh ? `<span class="logknoppen"><button class="weg" title="Levering" onclick="mutatieFormulier('${y.id}','uit')">⬆️</button></span>` : ''}</div>`; }).join('')}</section>`).join('')
     || '<section class="kaartje"><p class="hint">Er staat niets in de koelcel. Boek een ⬇️ inslag als er gerooid is.</p></section>');
   const kcKop = `<section class="kaartje kcBalk"><div class="schakel">${[['plattegrond', '🗺️ Plattegrond'], ['lijst', '📋 Lijst']].map(([k, t]) => `<button class="${kcWeergave === k ? 'aan' : ''}" onclick="kcZetWeergave('${k}')">${t}</button>`).join('')}</div>
-    ${beh ? `<div class="rij" style="gap:6px;flex-wrap:wrap"><button class="knop licht klein" style="width:auto" onclick="kcErbij()">＋ Koelcel</button><button class="knop licht klein" style="width:auto" onclick="kcPalletInslag()">🧱 Pallet inslaan</button>${kcWeergave === 'plattegrond' ? `<button class="knop ${kcBewerk ? '' : 'licht'} klein" style="width:auto" onclick="kcBewerk=!kcBewerk;render(true)">${kcBewerk ? '✓ Klaar met indelen' : '✏️ Plattegrond indelen'}</button>` : ''}</div>` : ''}
+    ${beh ? `<div class="rij" style="gap:6px;flex-wrap:wrap"><button class="knop licht klein" style="width:auto" onclick="kcErbij()">＋ Koelcel / plek</button><button class="knop licht klein" style="width:auto" onclick="kcPalletInslag()">🧱 Pallet inslaan</button>${kcWeergave === 'plattegrond' ? `<button class="knop ${kcBewerk ? '' : 'licht'} klein" style="width:auto" onclick="kcBewerk=!kcBewerk;render(true)">${kcBewerk ? '✓ Klaar met indelen' : '✏️ Plattegrond indelen'}</button>` : ''}</div>` : ''}
     <small class="hint">${kcBewerk ? 'Sleep een koelcel om hem te verplaatsen, en aan het blauwe hoekje om hem groter of kleiner te maken; hij valt vanzelf op de hokjes. Tik erop om de naam te veranderen.' : kcWeergave === 'plattegrond' ? 'Tik op een koelcel om te zien wat erin staat, in te slaan of te verplaatsen. Zoom met ＋/－, het muiswiel of twee vingers; schuif de kaart met slepen.' : beh ? 'Sleep een partij naar een andere koelcel om hem te verplaatsen, of naar een order rechts.' : ''}</small></section>`;
   const totAlles = kcTotalenHtml(), cellenLijst = (totAlles ? `<section class="kaartje"><details ${kcTotOpen ? 'open' : ''} ontoggle="kcTotOpen=this.open"><summary><b>📊 Totaal in alle koelcellen</b></summary>${totAlles}</details></section>` : '') + (kcWeergave === 'plattegrond' ? `<section class="kaartje">${kcPlattegrondHtml(beh)}</section>` : celHtml.replace(/<section class="kaartje"><h4>🧊 ([^<]*?) <small>/g, (m0, n) => `<section class="kaartje" data-vbcel="${n}"><h4>🧊 ${n} <small>`));
   return kopW + kcKop + `<div class="vbGrid"><div class="vbCellen">${cellenLijst}</div><div class="vbRechts">${htmlBestemmingen(beh)}</div></div>`;
@@ -14716,6 +14777,10 @@ async function hfKistEraf(info) {
     teken();
   });
   if (!keuze?.n) return;
+  // nog even bevestigen
+  const wat = `<b>${getal(keuze.n)} ${keuze.n === 1 ? 'kistje' : 'kistjes'}</b> ${esc(partijRas(y) || '')} ${esc(y?.batch || '')}${info.sort ? ' · ' + esc(info.sort) : ''}`;
+  if (!await bevestigJa('Weet je het zeker?', keuze.modus === 'erbij' ? `${wat} <b>erbij</b> op pallet ${esc(pe.nr)}${cel ? ' in ' + esc(cel) : ''}.`
+    : `${wat} <b>van pallet ${esc(pe.nr)} af</b>.<br>Ze staan daarna los${cel ? ' in ' + esc(cel) : ''}.`, keuze.modus === 'erbij' ? '➕ Ja, erbij' : '➖ Ja, eraf')) { hfMeld('Niets veranderd'); return; }
   if (keuze.modus === 'erbij') {
     const k = {...info, n: keuze.n, cel: null, pal: String(pe.nr)};
     if (!cel) { HF.kist.push(k); HF.log.unshift({t: `🧱 ${k.n} kistjes ${hfKistNaam(k)} gaan op pallet ${pe.nr}; scan nu de koelcel`, tijd: new Date()}); hfTeken(); return; }
@@ -14834,6 +14899,7 @@ async function hfBoek(actie, doel, codes, houd) {
   if (fouten.length) { toast('⚠️ ' + fouten[0].melding + (fouten.length > 1 ? ` (+${fouten.length - 1})` : ''), 1); try { navigator.vibrate?.([90, 60, 90]); } catch {} }
   else try { navigator.vibrate?.(60); } catch {}
   const kistOk = metKist ? await hfKistInslaan(doel) : true;
+  if (actie === 'koelcel' && !fouten.length) setTimeout(() => kcBonVraag(doel), 300);
   await hfVervers([...new Set([...codes, ...HF.hand.map(e => e.code), ...hfPalCodes()])], sinds);
   if (!houd && !fouten.length && kistOk) hfLeeg(true);
   hfTeken();
