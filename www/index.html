@@ -1063,6 +1063,10 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .kiepNog{display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.22);border-radius:14px;padding:8px 12px;font-size:14px;min-width:84px}.kiepNog b{font-size:34px;line-height:1}
 .kiepTerug{display:block;width:100%;min-height:70px;border:0;border-radius:16px;background:#6d4c41;color:#fff;font-size:22px;font-weight:800;margin-bottom:6px;cursor:pointer}.kiepTerug small{display:block;font-size:14px;font-weight:600;opacity:.85}
 .kiepLeeg{font-size:20px;padding:30px 10px;text-align:center;opacity:.85}
+#taalKiezer{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);z-index:99999;display:flex;gap:2px;background:rgba(255,255,255,.92);border:1px solid #c9d4cc;border-radius:999px;padding:3px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+#taalKiezer button{border:0;background:transparent;border-radius:999px;padding:4px 10px;font:700 13px/1 system-ui,sans-serif;color:#40524a;cursor:pointer}#taalKiezer button.aan{background:#2e7d32;color:#fff}
+@media print{#taalKiezer{display:none}}
+#kiepHand .hfHand{color:#1d2a22}#kiepHand .hfLeeg span{color:#5d6b62}
 .kiepKc{background:#1f5fbf}
 .kiepPlan{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
 .kiepPlanRij{display:flex;align-items:center;gap:12px;border:0;border-radius:14px;background:#33503b;color:#fff;padding:12px 14px;text-align:left;font:inherit;cursor:pointer}
@@ -8950,12 +8954,18 @@ function kiepModusKnoppen() {
   return `<div class="kiepModus"><button class="${kiepModus === 'hand' ? 'aan' : ''}" onclick="kiepZetModus('hand')">✋ Handmatig</button><button class="${kiepModus === 'scan' ? 'aan' : ''}" onclick="kiepZetModus('scan')">📷 Scannen</button></div>`;
 }
 function kiepScanInhoud() {
-  const vandaag_ = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag() && i.user_id === me?.id).reduce((a, i) => a + n0(i.bakken), 0);
-  return `${kiepModusKnoppen()}${kiepPlanHtml()}<div class="kiepScanVak"><b>Scan de bak (of de pallet) die je kiept</b><span>Elke scan wordt meteen als gekiept geboekt en gaat uit de koelcel. Vandaag ${fmt(vandaag_)} gekiept.</span>
-      ${KSL.bezig ? '<span class="kiepScanBezig">bezig…</span>' : ''}</div>
-    <div class="kiepScanKnoppen"><button class="hfGroot cam" onclick="hfCamera()">📷 ${hfStroom ? 'Camera uit' : 'Scannen met camera'}</button></div>
-    <input class="veld" id="kiepCodeIn" placeholder="Code typen (B230, P17)" autocomplete="off" onkeydown="if(event.key==='Enter'){kiepScanCode(this.value);this.value=''}" style="margin:10px 0">
-    <div class="kiepScanLog">${KSL.log.length ? KSL.log.map(r => `<div class="${r.fout ? 'fout' : ''}"><small>${tijdKort(r.tijd)}</small> ${esc(r.t)}</div>`).join('') : '<span>Nog niets gescand</span>'}</div>`;
+  const lt = kiepLaatste(), vandaag_ = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag()).reduce((a, i) => a + n0(i.bakken), 0);
+  return `${kiepModusKnoppen()}${kiepPlanHtml()}${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste terug <small>${esc(lt.bron === 'scan' ? lt.opmerking || '' : ((S.partijen || []).find(x => x.id === lt.partij_id)?.batch || ''))} · ${tijdKort(lt.created_at)}</small></button>` : ''}
+    <div class="kiepUitleg">Scan de bakken (of een pallet), dan op 🧺 Gekiept tikken. <b>Vandaag ${fmt(vandaag_)} gekiept (alle tablets samen).</b></div>
+    <div id="kiepHand">${kiepHandBinnen()}</div>`;
+}
+function kiepHandBinnen() {
+  const leeg = !HF.pallet && !HF.hand.length, n = HF.pallet ? hfOpPallet(HF.pallet.code).length + HF.hand.filter(e => e.op_pallet !== HF.pallet.code).length : HF.hand.length;
+  return `${hfHandHtml(true)}
+    <div class="hfKnoppen" style="margin-top:10px"><button class="hfGroot kiep" ${leeg || HF.bezig ? 'disabled' : ''} onclick="hfBoek('kiep')">🧺 Gekiept${n ? ' (' + n + ')' : ''}</button><button class="hfGroot cam" onclick="hfCamera()">📷 ${hfStroom ? 'Camera uit' : 'Scannen met camera'}</button></div>
+    <input class="veld" id="kiepCodeIn" placeholder="Code typen (B230, P17)" autocomplete="off" onkeydown="if(event.key==='Enter'){hfScan(this.value);this.value=''}" style="margin:10px 0">
+    <div class="kiepKop2" style="font-size:16px;margin:6px 0">Net gedaan</div>
+    <div class="kiepScanLog">${HF.log.length ? HF.log.map(r => `<div class="${r.fout ? 'fout' : ''}"><small>${tijdKort(r.tijd)}</small> ${esc(r.t)}</div>`).join('') : '<span>Nog niets gescand</span>'}</div>`;
 }
 async function kiepScanCode(raw) {
   const s = String(raw || '').trim(); if (!s) return;
@@ -8977,10 +8987,10 @@ async function kiepScanCode(raw) {
 }
 function kiepInhoud() {
   if (kiepModus === 'scan') return kiepScanInhoud();
-  const kc = kiepKcLijst(), l = kiepLijst(), mijnVandaag = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag() && i.user_id === me?.id).reduce((a, i) => a + n0(i.bakken), 0), lt = kiepLaatste();
+  const kc = kiepKcLijst(), l = kiepLijst(), mijnVandaag = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag()).reduce((a, i) => a + n0(i.bakken), 0), lt = kiepLaatste();
   const lx = lt && (S.partijen || []).find(x => x.id === lt.partij_id);
-  return `${kiepModusKnoppen()}${kiepPlanHtml()}${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste ${lt.bron === 'koelcel' ? (n0(lt.bakken) === 1 ? 'kuubskist' : n0(lt.bakken) + ' kuubskisten') : 'bak'} terug <small>${esc(lx ? partijKort(lx) : '')} · ${tijdKort(lt.created_at)}</small></button>` : ''}
-    <div class="kiepUitleg">Tik op de partij van de bak die je pakt. Elke tik = 1 bak gekiept. <b>Vandaag ${fmt(mijnVandaag)} gekiept.</b></div>
+  return `${kiepModusKnoppen()}${kiepPlanHtml()}${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste ${lt.bron === 'koelcel' ? (n0(lt.bakken) === 1 ? 'kuubskist' : n0(lt.bakken) + ' kuubskisten') : lt.bron === 'scan' ? esc(lt.opmerking || 'box') : 'bak'} terug <small>${esc(lx ? partijKort(lx) : '')} · ${tijdKort(lt.created_at)}</small></button>` : ''}
+    <div class="kiepUitleg">Tik op de partij van de bak die je pakt. Elke tik = 1 bak gekiept. <b>Vandaag ${fmt(mijnVandaag)} gekiept (alle tablets samen).</b></div>
     <div class="kiepLijst">${l.length ? l.map(kiepKnopHtml).join('') : `<div class="kiepLeeg">✅ ${kc.length ? 'Geen bakken van het veld meer.' : 'Alles is gekiept. Nieuwe bakken komen er vanzelf bij als de rooier een wagen meldt.'}</div>`}</div>
     ${kc.length ? `<div class="kiepKop2">❄️ Kuubskisten in de koelcellen <small>tik om te kiepen</small></div><div class="kiepLijst">${kc.map(kiepKcKnopHtml).join('')}</div>` : ''}`;
 }
@@ -9049,9 +9059,9 @@ async function kiepTik(pid) {
 async function kiepTerug() {
   const lt = kiepLaatste(); if (!lt) { toast('Niets meer om terug te zetten (alleen je eigen tikken van het laatste halfuur)', 1); return; }
   if (String(lt.id).startsWith('offline-')) { toast('Deze kiep is nog niet verstuurd; wacht tot er weer bereik is en zet hem dan terug', 1); return; }
-  if (lt.bron === 'koelcel') {   // kuubskisten uit de koelcel: ook weer terug in de koelcel
+  if (lt.bron === 'koelcel' || lt.bron === 'scan') {   // uit de koelcel of gescand: ook weer terug in de koelcel (en op de pallet)
     const {error} = await sb.rpc('kiep_koelcel_terug', {p_res: lt.id}); if (error) { toast(foutTekst(error), 1); return; }
-    S.res_invoer = S.res_invoer.filter(i => i.id !== lt.id); toast(`↶ ${fmt(lt.bakken)} kuubskist(en) terug in de koelcel`); await voorraadVerversen(); kiepVerversen(); return;
+    S.res_invoer = S.res_invoer.filter(i => i.id !== lt.id && !(i.soort === 'rooien' && i.bron === 'koelcel' && i.created_at === lt.created_at)); toast(lt.bron === 'scan' ? `↶ ${lt.opmerking || 'Box'} weer terug in de koelcel` : `↶ ${fmt(lt.bakken)} kuubskist(en) terug in de koelcel`); await voorraadVerversen(); kiepVerversen(); return;
   }
   const {error} = await sb.from('res_invoer').delete().eq('id', lt.id); if (error) { toast(foutTekst(error), 1); return; }
   S.res_invoer = S.res_invoer.filter(i => i.id !== lt.id); toast('↶ Bak teruggezet'); kiepVerversen();
@@ -13302,10 +13312,24 @@ async function mutatieUitFormulier(partijId, soort, voor = {}) {
   const rij = {partij_id: o.pid, seizoen_id: o.x.seizoen_id || bekeken, soort: w.soort, datum: w.datum || dKey(new Date()), aantal, eenheid: o.eenheid, per_eenheid: o.per, koelcel: o.cel || null,
     pallet: o.pallet || null, klant: w.soort === 'uit' ? (w.klant || '').trim() || null : null, pakbon: w.soort === 'uit' ? w.pakbon || null : null, prijs: w.soort === 'uit' && !isNaN(prijs) ? prijs : null,
     notitie: [losTekst, w.notitie].filter(Boolean).join(' · ') || null, door: naamMe(), ...(w.soort === 'veld' && w.perceel_id ? {perceel_id: w.perceel_id} : {})};
-  const res = await sb.from('partij_mutaties').insert(rij).select().single();
-  if (res.error) { toast(/soort_check|perceel_id/i.test(res.error.message || '') ? 'Draai eerst naar-het-veld.sql in Supabase' : 'Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
-  S.partij_mutaties = [...(S.partij_mutaties || []), res.data]; render(true);
+  // via de database: gescande boxen (B-kaartjes) gaan als eerste mee, zodat ze niet meer in de koelcel blijven staan
+  const res = await voorraadEruit(rij);
+  if (res.error) { toast(/soort_check|perceel_id|voorraad_eruit/i.test(res.error.message || '') ? 'Draai eerst voorraad-eruit.sql in Supabase' : 'Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
+  render(true);
   toast(`${w.soort === 'uitval' ? '🗑️' : w.soort === 'veld' ? '🌱' : '⬆️'} ${losTekst || getal(n) + ' ' + eenheidNaam(o.eenheid, n)} ${partijKort(o.x)} ${w.soort === 'veld' ? 'naar het veld' + (w.perceel_id ? ' (' + (perceel(w.perceel_id)?.naam || '') + ')' : '') : 'uit ' + (o.cel || 'de voorraad')}`);
+}
+// voorraad eruit (levering / uitval / naar het veld) via de database: eerst de gescande boxen van die partij in die koelcel
+async function voorraadEruit(rij) {
+  const {data, error} = await sb.rpc('voorraad_eruit', {p_partij: rij.partij_id, p_cel: rij.koelcel || null, p_eenheid: rij.eenheid, p_pallet: rij.pallet ?? null, p_soort: rij.soort,
+    p_aantal: rij.aantal, p_per: rij.per_eenheid ?? null, p_datum: rij.datum || null, p_klant: rij.klant || null, p_pakbon: rij.pakbon || null, p_prijs: rij.prijs ?? null,
+    p_notitie: rij.notitie || null, p_perceel: rij.perceel_id || null, p_bestemming: rij.bestemming_id || null});
+  if (error) return {error};
+  if (!data?.offline) {   // de nieuwe boekingen (en boxen) ophalen
+    try { const r = await sb.from('partij_mutaties').select('*').eq('partij_id', rij.partij_id).order('created_at', {ascending: false}).limit(200);
+      if (r.data) { const ids = new Set(r.data.map(m => m.id)); S.partij_mutaties = [...(S.partij_mutaties || []).filter(m => !ids.has(m.id)), ...r.data]; } } catch {}
+    try { const e = await sb.from('etiketten').select('*').eq('partij_id', rij.partij_id); if (e.data && S.etiketten) { const ids = new Set(e.data.map(x => x.id)); S.etiketten = [...S.etiketten.filter(x => !ids.has(x.id)), ...e.data]; } } catch {}
+  }
+  return {data};
 }
 async function mutatieWeg(id) {
   const m = S.partij_mutaties.find(x => x.id === id); if (!m || !await bevestig('Boeking verwijderen?', `${MUT_SOORTEN.find(x => x[0] === m.soort)?.[1]} · ${m.aantal} ${m.eenheid}`)) return;
@@ -13622,8 +13646,8 @@ async function kcPalletUit(cel, nr) {
     rijen.push({partij_id: r.partij_id, seizoen_id: y?.seizoen_id || bekeken, soort: 'uit', datum: dKey(new Date()), aantal: n, eenheid: r.eenheid || 'kistjes', per_eenheid: r.per, pallet: nr,
       koelcel: r.cel === '—' ? null : r.cel, klant: (w.klant || '').trim() || null, notitie: (w.notitie || '').trim() || null, door: naamMe()}); });
   if (!rijen.length) return;
-  const {data, error} = await sb.from('partij_mutaties').insert(rijen).select(); if (error) { toast(foutTekst(error), 1); return; }
-  S.partij_mutaties = [...(S.partij_mutaties || []), ...(data || [])]; render(true); toast(`⬆️ Pallet ${nr} eruit gehaald`);
+  for (const rij of rijen) { const {error} = await voorraadEruit(rij); if (error) { toast(/voorraad_eruit/i.test(error.message || '') ? 'Draai eerst voorraad-eruit.sql in Supabase' : foutTekst(error), 1); return; } }
+  render(true); toast(`⬆️ Pallet ${nr} eruit gehaald`);
 }
 async function kcVerplaats(pid, van, naar, pallet) {
   if (!mag('voorraad_beheren') || van === naar) return;
@@ -14390,13 +14414,17 @@ function hfItem(e, pal) {
   return `<div class="hfItem ${pal ? 'pal' : ''} ${e.gekiept_op ? 'weg' : ''}"><b>${pal ? '🧱 Pallet' : '📦 Box'} ${esc(e.nr)}</b><span>${esc(hfNaam(e) || 'geen partij')}</span>
     <small>${e.gekiept_op ? '🧺 gekiept' : cel ? '❄️ ' + esc(cel) : 'nog nergens'}${op ? ' · op ' + esc(op) : ''}${pal ? ` · ${hfOpPallet(e.code).length} ${hfOpPallet(e.code).length === 1 ? 'bak' : 'bakken'} erop` : ''}</small></div>`;
 }
-function hfBinnen() {
-  const leeg = !HF.pallet && !HF.hand.length, cellen = kcLijst();
-  const hand = leeg ? `<div class="hfLeeg"><b>Scan een pallet of bakken</b><span>Daarna een koelcel (erin · eruit · verplaatsen) of de kiep.<br>Eerst een pallet en dan bakken = de bakken gaan op die pallet.</span></div>`
+function hfHandHtml(kiep) {
+  const leeg = !HF.pallet && !HF.hand.length;
+  const hand = leeg ? `<div class="hfLeeg"><b>Scan een pallet of bakken</b><span>${kiep ? 'Daarna op 🧺 Gekiept tikken, of de KIEP-code scannen.' : 'Daarna een koelcel (erin · eruit · verplaatsen) of de kiep.<br>Eerst een pallet en dan bakken = de bakken gaan op die pallet.'}</span></div>`
     : `${HF.pallet ? hfItem(HF.pallet, true) : ''}${HF.hand.map(e => hfItem(e)).join('')}`;
   const kop = leeg ? 'In je hand' : HF.pallet ? `In je hand: pallet ${esc(HF.pallet.nr)}${HF.hand.length ? ` + ${HF.hand.length} ${HF.hand.length === 1 ? 'bak' : 'bakken'}` : ''}` : `In je hand: ${HF.hand.length} ${HF.hand.length === 1 ? 'bak' : 'bakken'}`;
   return `<section class="hfHand ${leeg ? '' : 'vol'}"><div class="hfKop"><b>${kop}</b>${HF.bezig ? '<span class="hfBezig">bezig…</span>' : ''}${leeg ? '' : '<button class="knop licht klein" onclick="hfLeeg()">✖ Wissen</button>'}</div>
-      <div class="hfLijst">${hand}</div></section>
+      <div class="hfLijst">${hand}</div></section>`;
+}
+function hfBinnen() {
+  const leeg = !HF.pallet && !HF.hand.length, cellen = kcLijst();
+  return `${hfHandHtml()}
     <div class="hfKnoppen">
       <button class="hfGroot cam" onclick="hfCamera()">📷 ${hfStroom ? 'Camera uit' : 'Scannen met camera'}</button>
       <button class="hfGroot kiep" ${leeg ? 'disabled' : ''} onclick="hfBoek('kiep')">🧺 Gekiept</button>
@@ -14409,7 +14437,7 @@ function hfBinnen() {
     <div class="hfLog">${HF.log.length ? HF.log.map(r => `<div class="${r.fout ? 'fout' : ''}"><small>${tijdKort(r.tijd)}</small> ${esc(r.t)}</div>`).join('') : '<span class="hint">Nog niets gescand</span>'}</div>`;
 }
 function htmlHeftruck() { return `<div id="hfScherm">${hfBinnen()}</div>`; }
-function hfTeken() { const el = $('#hfScherm'); if (el) el.innerHTML = hfBinnen(); else if (kiepScanActief()) kiepVerversen(); }
+function hfTeken() { const el = $('#hfScherm'); if (el) el.innerHTML = hfBinnen(); const kh = $('#kiepHand'); if (kh) kh.innerHTML = kiepHandBinnen(); }
 function hfCamStop() { clearTimeout(hfTimer); try { hfStroom?.getTracks().forEach(t => t.stop()); } catch {} hfStroom = null; $('#hfCam')?.remove(); hfTeken(); }
 async function hfCamera() {
   if (hfStroom) { hfCamStop(); return; }
@@ -14421,7 +14449,7 @@ async function hfCamera() {
     const el = document.createElement('div'); el.id = 'hfCam'; el.innerHTML = '<video playsinline muted></video><button onclick="hfCamStop()" aria-label="Camera uit">✖</button><span>Houd de code in beeld</span>';
     document.body.appendChild(el); const vid = el.querySelector('video'); vid.srcObject = hfStroom; await vid.play(); hfTeken();
     const kijk = async () => { if (!hfStroom || !$('#hfCam')) return;
-      try { const r = await det.detect(vid); const raw = r.map(x => x.rawValue).find(Boolean); if (raw) await (kiepScanActief() ? kiepScanCode(raw) : hfScan(raw)); } catch {}
+      try { const r = await det.detect(vid); const raw = r.map(x => x.rawValue).find(Boolean); if (raw) await hfScan(raw); } catch {}
       hfTimer = setTimeout(kijk, 200); };
     kijk();
   } catch (e) { hfCamStop(); toast('De camera kon niet worden geopend: ' + (e.message || e), 1); }
@@ -14472,9 +14500,8 @@ async function hfLever(rid, deels) {
   const rij = {partij_id: r.partij_id, seizoen_id: y.seizoen_id || bekeken, soort: veld ? 'veld' : 'uit', datum: dKey(new Date()), aantal: per ? Math.round(pl / per * 10000) / 10000 : pl,
     eenheid: per ? v.eenheid : 'planten', per_eenheid: per || null, koelcel: r.koelcel || null, klant: veld ? null : b.klant || b.naam, pakbon: veld ? null : b.ordernr || null,
     notitie: `Order: ${b.naam}`, door: naamMe(), bestemming_id: b.id, ...(veld && b.perceel_id ? {perceel_id: b.perceel_id} : {})};
-  const ins = await sb.from('partij_mutaties').insert(rij).select().single();
-  if (ins.error) { toast(/soort_check|bestemming_id|perceel_id/i.test(ins.error.message || '') ? 'Draai eerst naar-het-veld.sql en orders-kiepplanning.sql in Supabase' : foutTekst(ins.error), 1); return; }
-  S.partij_mutaties = [...(S.partij_mutaties || []), ins.data];
+  const ins = await voorraadEruit({...rij, pallet: '*'});
+  if (ins.error) { toast(/soort_check|bestemming_id|perceel_id|voorraad_eruit/i.test(ins.error.message || '') ? 'Draai eerst voorraad-eruit.sql in Supabase' : foutTekst(ins.error), 1); return; }
   const rest = +r.planten - pl;
   if (rest <= .5) { await sb.from('voorraad_reserveringen').delete().eq('id', rid); S.voorraad_reserveringen = vbRes().filter(x => x.id !== rid); }
   else { const {data} = await sb.from('voorraad_reserveringen').update({planten: rest, geleverd: (+r.geleverd || 0) + pl}).eq('id', rid).select().single(); Object.assign(r, data || {planten: rest}); }
@@ -14543,6 +14570,187 @@ function kiepPlanHtml() {
       <span class="t"><b>${esc(partijRas(y) || '?')} ${esc(y.batch || '')}</b><small>${k.koelcel ? '❄️ ' + esc(k.koelcel) : '🚜 van het veld'}${k.notitie ? ' · ' + esc(k.notitie) : ''}</small></span>
       <span class="n"><b>${getal(g)}${k.aantal ? ' / ' + getal(+k.aantal) : ''}</b>gekiept</span></button>`; }).join('')}</div>`;
 }
+/* =====================================================================================
+   TAAL – Nederlands, Pools, Roemeens. Elk apparaat onthoudt zijn eigen taal (knopje bovenin).
+   Werkt op de schermen zelf: teksten worden na het tekenen vertaald (zinnen in één keer, anders woord voor woord).
+   Eerst vertaald: de schermen voor de medewerkers (heftruck, kieplijst, orders, koelcellen, trekker, prikklok, taken).
+   ===================================================================================== */
+const TALEN = [['nl', 'NL', 'Nederlands'], ['pl', 'PL', 'Polski'], ['ro', 'RO', 'Română']];
+let taal = (() => { try { const t = localStorage.getItem('taal'); return TALEN.some(x => x[0] === t) ? t : 'nl'; } catch { return 'nl'; } })();
+// hele zinnen (# = een getal)
+const VT_ZIN = {
+  pl: {
+    'Scan een pallet of bakken': 'Zeskanuj paletę lub skrzynie',
+    'Daarna een koelcel (erin · eruit · verplaatsen) of de kiep.': 'Potem chłodnię (do środka · na zewnątrz · przenieś) albo wysypywanie.',
+    'Eerst een pallet en dan bakken = de bakken gaan op die pallet.': 'Najpierw paleta, potem skrzynie = skrzynie idą na tę paletę.',
+    'In je hand': 'W ręku',
+    'Scannen met camera': 'Skanuj aparatem', 'Camera uit': 'Wyłącz aparat', 'Houd de code in beeld': 'Trzymaj kod w kadrze',
+    'Gekiept': 'Wysypane', 'Van de pallet halen': 'Zdejmij z palety', 'Wissen': 'Wyczyść', 'Net gedaan': 'Właśnie zrobione', 'Nog niets gescand': 'Jeszcze nic nie zeskanowano',
+    'Koelcel': 'Chłodnia', 'Koelcellen': 'Chłodnie', '(tikken = de koelcel scannen)': '(dotknij = zeskanuj chłodnię)', 'Nog geen koelcellen': 'Brak chłodni',
+    'Code typen (B230, P17, KIEP)': 'Wpisz kod (B230, P17, KIEP)', 'Code typen (B230, P17)': 'Wpisz kod (B230, P17)',
+    'Even wachten, ik ben nog aan het boeken…': 'Chwileczkę, jeszcze zapisuję…', 'Even wachten…': 'Chwileczkę…', 'bezig…': 'w toku…',
+    'Scannen': 'Skanowanie', 'Orders': 'Zamówienia', 'Kieplijst': 'Lista wysypywania', 'Etiketten': 'Etykiety',
+    'Handmatig': 'Ręcznie', 'Scan de bak (of de pallet) die je kiept': 'Zeskanuj skrzynię (lub paletę), którą wysypujesz',
+    'Elke scan wordt meteen als gekiept geboekt en gaat uit de koelcel. Vandaag # gekiept.': 'Każdy skan od razu zapisuje się jako wysypany i znika z chłodni. Dziś wysypano #.',
+    'Tik op de partij van de bak die je pakt. Elke tik = 1 bak gekiept.': 'Dotknij partii skrzyni, którą bierzesz. Każde dotknięcie = 1 skrzynia wysypana.',
+    'Vandaag # gekiept.': 'Dziś wysypano #.',
+    'Vandaag # gekiept (alle tablets samen).': 'Dziś wysypano # (wszystkie tablety razem).', 'Scan de bakken (of een pallet), dan op 🧺 Gekiept tikken.': 'Zeskanuj skrzynie (lub paletę), potem dotknij 🧺 Wysypane.',
+    'Alles is gekiept. Nieuwe bakken komen er vanzelf bij als de rooier een wagen meldt.': 'Wszystko wysypane. Nowe skrzynie pojawią się same, gdy kopaczka zgłosi przyczepę.',
+    'Geen bakken van het veld meer.': 'Nie ma już skrzyń z pola.',
+    'Kuubskisten in de koelcellen': 'Skrzyniopalety w chłodniach', 'tik om te kiepen': 'dotknij, aby wysypać',
+    'Vandaag kiepen': 'Dziś do wysypania', 'gekiept': 'wysypane', 'van het veld': 'z pola',
+    'Annuleren': 'Anuluj', 'Opslaan': 'Zapisz', 'Boeken': 'Zapisz', 'Sluiten': 'Zamknij', 'Verder': 'Dalej', 'Terug': 'Wstecz', 'Weghalen': 'Usuń', 'Klaar': 'Gotowe',
+    'Geen orders om klaar te zetten': 'Brak zamówień do przygotowania',
+    'Orders worden op de computer ingevuld bij Koelcellen → 🧾 Orders.': 'Zamówienia wpisuje się na komputerze w Chłodnie → 🧾 Zamówienia.',
+    'Klaarzetten': 'Przygotuj', 'Klaargezet': 'Przygotowane', 'alles klaargezet': 'wszystko przygotowane', 'Deels…': 'Częściowo…',
+    'Uitgeleverd': 'Wydane', 'Naar het veld': 'Na pole', 'naar het veld': 'na pole',
+    'Tik op een koelcel om te zien wat erin staat, in te slaan of eruit te halen': 'Dotknij chłodni, aby zobaczyć co w niej jest, włożyć lub wyjąć',
+    'Inslaan': 'Włóż', 'Eruit halen': 'Wyjmij', 'Verplaatsen': 'Przenieś', 'Leeg': 'Pusta', 'Totaal': 'Razem',
+    'Wat gaat eruit?': 'Co wychodzi?', 'Hele kistjes / trays / kisten': 'Całe skrzynki / tace / skrzynie', 'Losse planten (bijv. een paar uit een kistje)': 'Pojedyncze rośliny (np. kilka ze skrzynki)',
+    'Waar gaat het heen?': 'Dokąd to idzie?', 'Uit de koelcel': 'Z chłodni', 'Aantal': 'Ilość', 'Datum': 'Data', 'Klant': 'Klient', 'Aantekeningen': 'Uwagi', 'Opmerking': 'Uwaga',
+    'Pakbon / ordernummer': 'Dowód dostawy / nr zamówienia', 'Prijs per eenheid (€)': 'Cena za jednostkę (€)', 'Naar welk perceel? (mag leeg)': 'Na którą działkę? (może być puste)',
+    'Levering aan klant': 'Wydanie klientowi', 'Naar het veld (poten)': 'Na pole (sadzenie)', 'Uitval / afgekeurd': 'Odpad / odrzucone',
+    'Er staat niets in de koelcellen om eruit te halen': 'W chłodniach nie ma nic do wyjęcia',
+    'Uitloggen (wachtwoord nodig)': 'Wyloguj (potrzebne hasło)',
+    'Even laden…': 'Ładowanie…',
+    // trekker
+    'Wie rijdt er?': 'Kto jedzie?', 'Tik op je naam': 'Dotknij swojego imienia', 'Ik ben bezig': 'Pracuję nad tym', 'Ik pak hem': 'Biorę to', 'Niet meer bezig': 'Już nie pracuję',
+    'Pauzeren': 'Pauza', 'Gepauzeerd': 'Wstrzymane', 'Helemaal af': 'Całkiem skończone', 'Taken': 'Zadania', 'Jouw taak': 'Twoje zadanie', 'Jouw trekker': 'Twój ciągnik',
+    'Geen taken voor jou 👍': 'Brak zadań dla ciebie 👍', 'Vandaag niets voor jou 👍': 'Dziś nic dla ciebie 👍', 'Geen gezamenlijke taken 👍': 'Brak wspólnych zadań 👍',
+    'Wagen weg melden': 'Zgłoś odjazd przyczepy', 'Wagen weg': 'Przyczepa odjechała', 'Welke wagen?': 'Która przyczepa?', 'Vul in hoeveel bakken er op de wagen staan': 'Wpisz, ile skrzyń jest na przyczepie',
+    'Nog geen GPS-plek': 'Brak jeszcze pozycji GPS', 'GPS zoeken…': 'Szukam GPS…', 'Je staat niet op een perceel': 'Nie jesteś na działce', 'Niet op een perceel': 'Nie na działce',
+    'Wat zit er aangekoppeld?': 'Co jest podczepione?', 'Niets aangekoppeld': 'Nic nie podczepione', 'Volledige app': 'Pełna aplikacja', 'Terug naar trekker-modus': 'Wróć do trybu ciągnika',
+    'Fijne werkdag!': 'Miłego dnia pracy!', 'Tot de volgende keer!': 'Do zobaczenia!', 'Goedemorgen': 'Dzień dobry', 'Goedemiddag': 'Dzień dobry', 'Goedenavond': 'Dobry wieczór',
+    // prikklok
+    'Tik op je naam om in of uit te klokken': 'Dotknij swojego imienia, aby odbić wejście lub wyjście', 'Uitklokken': 'Odbij wyjście', 'Inklokken': 'Odbij wejście',
+    'Binnen': 'W pracy', 'Buiten': 'Poza pracą', 'Pincode klopt niet': 'Zły PIN', 'Te vaak fout. Probeer het over 10 minuten opnieuw.': 'Za dużo błędów. Spróbuj ponownie za 10 minut.',
+    'Verzoek indienen': 'Wyślij prośbę', 'Verzoek ingediend': 'Prośba wysłana',
+    // inloggen
+    'Log in om de percelen te zien.': 'Zaloguj się, aby zobaczyć działki.', 'Inloggen': 'Zaloguj', 'Wachtwoord': 'Hasło', 'E-mail': 'E-mail',
+    'Nog geen account? Vraag de beheerder om er een voor je aan te maken.': 'Nie masz konta? Poproś administratora o założenie.',
+  },
+  ro: {
+    'Scan een pallet of bakken': 'Scanează un palet sau lăzi',
+    'Daarna een koelcel (erin · eruit · verplaatsen) of de kiep.': 'Apoi o cameră frigorifică (intrare · ieșire · mutare) sau golirea.',
+    'Eerst een pallet en dan bakken = de bakken gaan op die pallet.': 'Întâi paletul, apoi lăzile = lăzile merg pe acel palet.',
+    'In je hand': 'În mână',
+    'Scannen met camera': 'Scanează cu camera', 'Camera uit': 'Oprește camera', 'Houd de code in beeld': 'Ține codul în cadru',
+    'Gekiept': 'Golit', 'Van de pallet halen': 'Scoate de pe palet', 'Wissen': 'Șterge', 'Net gedaan': 'Tocmai făcut', 'Nog niets gescand': 'Nimic scanat încă',
+    'Koelcel': 'Cameră frigorifică', 'Koelcellen': 'Camere frigorifice', '(tikken = de koelcel scannen)': '(atinge = scanează camera)', 'Nog geen koelcellen': 'Nicio cameră frigorifică',
+    'Code typen (B230, P17, KIEP)': 'Scrie codul (B230, P17, KIEP)', 'Code typen (B230, P17)': 'Scrie codul (B230, P17)',
+    'Even wachten, ik ben nog aan het boeken…': 'Un moment, încă înregistrez…', 'Even wachten…': 'Un moment…', 'bezig…': 'în lucru…',
+    'Scannen': 'Scanare', 'Orders': 'Comenzi', 'Kieplijst': 'Listă de golire', 'Etiketten': 'Etichete',
+    'Handmatig': 'Manual', 'Scan de bak (of de pallet) die je kiept': 'Scanează lada (sau paletul) pe care o golești',
+    'Elke scan wordt meteen als gekiept geboekt en gaat uit de koelcel. Vandaag # gekiept.': 'Fiecare scanare se înregistrează imediat ca golită și iese din cameră. Azi golite: #.',
+    'Tik op de partij van de bak die je pakt. Elke tik = 1 bak gekiept.': 'Atinge lotul lăzii pe care o iei. Fiecare atingere = 1 ladă golită.',
+    'Vandaag # gekiept.': 'Azi golite: #.',
+    'Vandaag # gekiept (alle tablets samen).': 'Azi golite: # (toate tabletele împreună).', 'Scan de bakken (of een pallet), dan op 🧺 Gekiept tikken.': 'Scanează lăzile (sau un palet), apoi atinge 🧺 Golit.',
+    'Alles is gekiept. Nieuwe bakken komen er vanzelf bij als de rooier een wagen meldt.': 'Totul e golit. Lăzi noi apar singure când mașina de scos anunță o remorcă.',
+    'Geen bakken van het veld meer.': 'Nu mai sunt lăzi de la câmp.',
+    'Kuubskisten in de koelcellen': 'Lăzi mari în camerele frigorifice', 'tik om te kiepen': 'atinge pentru golire',
+    'Vandaag kiepen': 'De golit azi', 'gekiept': 'golite', 'van het veld': 'de la câmp',
+    'Annuleren': 'Anulează', 'Opslaan': 'Salvează', 'Boeken': 'Înregistrează', 'Sluiten': 'Închide', 'Verder': 'Continuă', 'Terug': 'Înapoi', 'Weghalen': 'Șterge', 'Klaar': 'Gata',
+    'Geen orders om klaar te zetten': 'Nicio comandă de pregătit',
+    'Orders worden op de computer ingevuld bij Koelcellen → 🧾 Orders.': 'Comenzile se introduc pe calculator la Camere frigorifice → 🧾 Comenzi.',
+    'Klaarzetten': 'Pregătește', 'Klaargezet': 'Pregătit', 'alles klaargezet': 'totul pregătit', 'Deels…': 'Parțial…',
+    'Uitgeleverd': 'Livrat', 'Naar het veld': 'La câmp', 'naar het veld': 'la câmp',
+    'Tik op een koelcel om te zien wat erin staat, in te slaan of eruit te halen': 'Atinge o cameră frigorifică pentru a vedea ce e în ea, a pune sau a scoate',
+    'Inslaan': 'Pune', 'Eruit halen': 'Scoate', 'Verplaatsen': 'Mută', 'Leeg': 'Goală', 'Totaal': 'Total',
+    'Wat gaat eruit?': 'Ce iese?', 'Hele kistjes / trays / kisten': 'Lădițe / tăvi / lăzi întregi', 'Losse planten (bijv. een paar uit een kistje)': 'Plante separate (ex. câteva dintr-o lădiță)',
+    'Waar gaat het heen?': 'Unde merge?', 'Uit de koelcel': 'Din camera frigorifică', 'Aantal': 'Cantitate', 'Datum': 'Data', 'Klant': 'Client', 'Aantekeningen': 'Note', 'Opmerking': 'Observație',
+    'Pakbon / ordernummer': 'Aviz / nr. comandă', 'Prijs per eenheid (€)': 'Preț pe unitate (€)', 'Naar welk perceel? (mag leeg)': 'La ce parcelă? (poate fi gol)',
+    'Levering aan klant': 'Livrare la client', 'Naar het veld (poten)': 'La câmp (plantare)', 'Uitval / afgekeurd': 'Rebut / respins',
+    'Er staat niets in de koelcellen om eruit te halen': 'Nu e nimic de scos din camerele frigorifice',
+    'Uitloggen (wachtwoord nodig)': 'Deconectare (e nevoie de parolă)',
+    'Even laden…': 'Se încarcă…',
+    'Wie rijdt er?': 'Cine conduce?', 'Tik op je naam': 'Atinge numele tău', 'Ik ben bezig': 'Lucrez la asta', 'Ik pak hem': 'O iau eu', 'Niet meer bezig': 'Nu mai lucrez',
+    'Pauzeren': 'Pauză', 'Gepauzeerd': 'În pauză', 'Helemaal af': 'Complet terminat', 'Taken': 'Sarcini', 'Jouw taak': 'Sarcina ta', 'Jouw trekker': 'Tractorul tău',
+    'Geen taken voor jou 👍': 'Nicio sarcină pentru tine 👍', 'Vandaag niets voor jou 👍': 'Azi nimic pentru tine 👍', 'Geen gezamenlijke taken 👍': 'Nicio sarcină comună 👍',
+    'Wagen weg melden': 'Anunță plecarea remorcii', 'Wagen weg': 'Remorca a plecat', 'Welke wagen?': 'Ce remorcă?', 'Vul in hoeveel bakken er op de wagen staan': 'Scrie câte lăzi sunt pe remorcă',
+    'Nog geen GPS-plek': 'Încă fără poziție GPS', 'GPS zoeken…': 'Caut GPS…', 'Je staat niet op een perceel': 'Nu ești pe o parcelă', 'Niet op een perceel': 'Nu pe o parcelă',
+    'Wat zit er aangekoppeld?': 'Ce e atașat?', 'Niets aangekoppeld': 'Nimic atașat', 'Volledige app': 'Aplicația completă', 'Terug naar trekker-modus': 'Înapoi la modul tractor',
+    'Fijne werkdag!': 'Zi de lucru plăcută!', 'Tot de volgende keer!': 'Pe data viitoare!', 'Goedemorgen': 'Bună dimineața', 'Goedemiddag': 'Bună ziua', 'Goedenavond': 'Bună seara',
+    'Tik op je naam om in of uit te klokken': 'Atinge numele tău pentru pontare la intrare sau ieșire', 'Uitklokken': 'Pontare ieșire', 'Inklokken': 'Pontare intrare',
+    'Binnen': 'La lucru', 'Buiten': 'Plecat', 'Pincode klopt niet': 'PIN greșit', 'Te vaak fout. Probeer het over 10 minuten opnieuw.': 'Prea multe greșeli. Încearcă din nou peste 10 minute.',
+    'Verzoek indienen': 'Trimite cererea', 'Verzoek ingediend': 'Cerere trimisă',
+    'Log in om de percelen te zien.': 'Conectează-te pentru a vedea parcelele.', 'Inloggen': 'Conectare', 'Wachtwoord': 'Parolă', 'E-mail': 'E-mail',
+    'Nog geen account? Vraag de beheerder om er een voor je aan te maken.': 'Nu ai cont? Cere administratorului să-ți facă unul.',
+  },
+};
+// losse woorden en stukjes (voor zinnen met namen en getallen erin); langste eerst
+const VT_WOORD = {
+  pl: [['kuubskisten', 'skrzyniopalety'], ['kuubskist', 'skrzyniopaleta'], ['koelcellen', 'chłodnie'], ['koelcel', 'chłodnia'], ['kistjes', 'skrzynki'], ['kistje', 'skrzynka'],
+    ['bakken', 'skrzynie'], ['bak', 'skrzynia'], ['pallets', 'palety'], ['pallet', 'paleta'], ['planten', 'rośliny'], ['plant', 'roślina'], ['trays', 'tace'], ['tray', 'taca'],
+    ['partijen', 'partie'], ['partij', 'partia'], ['gekiept', 'wysypane'], ['kiepen', 'wysypywać'], ['geleverd', 'wydane'], ['uitgeleverd', 'wydane'], ['order', 'zamówienie'], ['orders', 'zamówienia'],
+    ['klant', 'klient'], ['perceel', 'działka'], ['percelen', 'działki'], ['spoor', 'rząd'], ['sporen', 'rzędy'], ['rij', 'rząd'], ['rijen', 'rzędy'], ['wagen', 'przyczepa'], ['trekker', 'ciągnik'],
+    ['taak', 'zadanie'], ['taken', 'zadania'], ['vandaag', 'dziś'], ['morgen', 'jutro'], ['nog nergens', 'jeszcze nigdzie'], ['op pallet', 'na palecie'], ['in', 'w'], ['uit', 'z'], ['naar', 'do'],
+    ['van', 'z'], ['en', 'i'], ['of', 'lub'], ['er staan maar', 'jest tylko'], ['meer kan er niet uit', 'więcej nie można wyjąć'], ['is al gekiept', 'jest już wysypana'], ['niet gevonden', 'nie znaleziono'],
+    ['gescand', 'zeskanowane'], ['heb je al gescand', 'już zeskanowane'], ['verplaatst', 'przeniesiono'], ['bewaard, wordt geboekt zodra er bereik is', 'zapisane, zostanie wysłane gdy będzie zasięg'],
+    ['Geen bereik', 'Brak zasięgu'], ['klaargezet', 'przygotowane'], ['bezig', 'w toku'], ['Box', 'Skrzynia'], ['Pallet', 'Paleta']],
+  ro: [['kuubskisten', 'lăzi mari'], ['kuubskist', 'ladă mare'], ['koelcellen', 'camere frigorifice'], ['koelcel', 'cameră frigorifică'], ['kistjes', 'lădițe'], ['kistje', 'lădiță'],
+    ['bakken', 'lăzi'], ['bak', 'ladă'], ['pallets', 'paleți'], ['pallet', 'palet'], ['planten', 'plante'], ['plant', 'plantă'], ['trays', 'tăvi'], ['tray', 'tavă'],
+    ['partijen', 'loturi'], ['partij', 'lot'], ['gekiept', 'golite'], ['kiepen', 'a goli'], ['geleverd', 'livrat'], ['uitgeleverd', 'livrat'], ['order', 'comandă'], ['orders', 'comenzi'],
+    ['klant', 'client'], ['perceel', 'parcelă'], ['percelen', 'parcele'], ['spoor', 'rând'], ['sporen', 'rânduri'], ['rij', 'rând'], ['rijen', 'rânduri'], ['wagen', 'remorcă'], ['trekker', 'tractor'],
+    ['taak', 'sarcină'], ['taken', 'sarcini'], ['vandaag', 'azi'], ['morgen', 'mâine'], ['nog nergens', 'încă nicăieri'], ['op pallet', 'pe palet'], ['in', 'în'], ['uit', 'din'], ['naar', 'la'],
+    ['van', 'din'], ['en', 'și'], ['of', 'sau'], ['er staan maar', 'sunt doar'], ['meer kan er niet uit', 'mai mult nu se poate scoate'], ['is al gekiept', 'e deja golită'], ['niet gevonden', 'negăsit'],
+    ['gescand', 'scanat'], ['heb je al gescand', 'deja scanat'], ['verplaatst', 'mutat'], ['bewaard, wordt geboekt zodra er bereik is', 'salvat, se trimite când e semnal'],
+    ['Geen bereik', 'Fără semnal'], ['klaargezet', 'pregătit'], ['bezig', 'în lucru'], ['Box', 'Ladă'], ['Pallet', 'Palet']],
+};
+const vtWoordRe = {};
+function vtWoorden(t) {
+  const l = VT_WOORD[taal]; if (!l) return t;
+  if (!vtWoordRe[taal]) vtWoordRe[taal] = l.slice().sort((a, b) => b[0].length - a[0].length).map(([nl, v]) => [new RegExp(`(^|[^\\p{L}])${nl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^\\p{L}])`, 'giu'), v]);
+  let r = t; vtWoordRe[taal].forEach(([re, v]) => { r = r.replace(re, (m, voor) => voor + (m.slice(voor.length)[0] === m.slice(voor.length)[0].toUpperCase() && m.slice(voor.length)[0] !== m.slice(voor.length)[0].toLowerCase() ? v[0].toUpperCase() + v.slice(1) : v)); });
+  return r;
+}
+function vtTekst(t) {
+  if (taal === 'nl' || !t || !/\p{L}{2}/u.test(t)) return t;
+  const z = VT_ZIN[taal] || {}, heel = String(t).trim();
+  if (z[heel] != null) return t.replace(heel, z[heel]);
+  const m = String(t).match(/^([\s\p{P}\p{S}\p{M}\p{Cf}]*?)([\p{L}\p{N}][\s\S]*?)?([\s]*)$/u); if (!m || !m[2]) return t;
+  const voor = m[1], kern = m[2], na = m[3], getallen = [];
+  const norm = kern.replace(/\d+(?:[.,]\d+)*/g, x => { getallen.push(x); return '#'; });
+  let r = z[norm] ?? z[norm.replace(/[.!?…]$/, '')];
+  if (r != null) { let i = 0; r = r.replace(/#/g, () => getallen[i++] ?? '#'); return voor + r + na; }
+  const dp = kern.indexOf(': '); if (dp > 0 && z[kern.slice(0, dp)] != null) return voor + z[kern.slice(0, dp)] + ': ' + vtWoorden(kern.slice(dp + 2)) + na;   // "In je hand: pallet 17"
+  return voor + vtWoorden(kern) + na;
+}
+// alles op het scherm vertalen, ook wat er later bij komt
+const vtGezien = new WeakMap();
+const vtOverslaan = el => !el || el.closest?.('script,style,textarea,input,[data-notr],#map,.leaflet-container,svg');
+function vtNode(n) {
+  const cur = n.nodeValue; if (!cur || !cur.trim()) return;
+  const g = vtGezien.get(n); if (g && g.vt === cur) return;
+  if (vtOverslaan(n.parentElement)) return;
+  const vt = vtTekst(cur); vtGezien.set(n, {nl: cur, vt}); if (vt !== cur) n.nodeValue = vt;
+}
+function vtAttr(el) {
+  ['placeholder', 'title', 'aria-label'].forEach(a => { const v = el.getAttribute?.(a); if (!v) return; const k = 'data-vt-' + a; if (el.getAttribute(k) === v) return;
+    const vt = vtTekst(v); if (vt !== v) { el.setAttribute(a, vt); el.setAttribute(k, vt); } });
+}
+function vtBoom(root) {
+  if (taal === 'nl' || !root) return;
+  if (root.nodeType === 3) { vtNode(root); return; }
+  if (root.nodeType !== 1 || vtOverslaan(root)) return;
+  vtAttr(root); root.querySelectorAll?.('[placeholder],[title],[aria-label]').forEach(vtAttr);
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) vtNode(n);
+}
+function vtStart() {
+  document.documentElement.lang = taal;
+  taalKiezerTeken();
+  if (taal === 'nl') return;
+  vtBoom(document.body);
+  new MutationObserver(ms => ms.forEach(m => { if (m.type === 'characterData') vtNode(m.target); else m.addedNodes.forEach(vtBoom); }))
+    .observe(document.body, {childList: true, subtree: true, characterData: true});
+}
+function taalKiezerTeken() {
+  let el = document.getElementById('taalKiezer'); if (!el) { el = document.createElement('div'); el.id = 'taalKiezer'; el.setAttribute('data-notr', ''); document.body.appendChild(el); }
+  el.innerHTML = TALEN.map(([k, kort, naam]) => `<button class="${k === taal ? 'aan' : ''}" title="${naam}" onclick="zetTaal('${k}')">${kort}</button>`).join('');
+}
+function zetTaal(t) { if (t === taal) return; try { localStorage.setItem('taal', t); } catch {} location.reload(); }
+
+if (document.body) setTimeout(vtStart, 0); else addEventListener('DOMContentLoaded', vtStart);
+
 /* =====================================================================================
    KISTKAARTEN (plantenpaspoort) – klaarzetten in de app, printen met BarTender op app01
    ===================================================================================== */
@@ -14678,7 +14886,7 @@ document.addEventListener('keydown', e => {
 }, true);
 function handscan(raw) {
   try {
-    if (kiepScanActief()) { try { navigator.vibrate?.(60); } catch {} kiepScanCode(raw); return; }
+    if (kiepScanActief()) { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
     if (!mijnProfiel?.() || !(ziet('voorraad_bekijken') || mag('voorraad_beheren') || magEtiket())) return;
     const kc = kcCodeUit(raw), et = etCodeUit(raw) || (/^[PB]\d+$/i.test(raw) ? raw.toUpperCase() : null);
     if (isKoelcelPlek() && tab === 'hfscan') { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
@@ -16435,7 +16643,7 @@ const bewaarWachtrij = () => { try { localStorage.setItem('wachtrij', JSON.strin
 const nieuwId = () => crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
 const OFFLINE_TABELLEN = ['taken', 'markeringen', 'oogst', 'uren', 'machine_log', 'kosten', 'meldingen', 'percelen', 'middelen', 'machines', 'soorten', 'rassen', 'monsters', 'partij_mutaties', 'partijen', 'res_invoer', 'etiketten', 'wagens_weg', 'voorraad_bestemmingen', 'voorraad_reserveringen', 'kiep_planning'];
 // database-functies die zonder bereik in de wachtrij mogen (met een eigen sleutel, zodat ze nooit dubbel geboekt worden)
-const OFFLINE_RPC = ['scan_boek', 'kiep_uit_koelcel'];
+const OFFLINE_RPC = ['scan_boek', 'kiep_uit_koelcel', 'voorraad_eruit'];
 // sb.from vervangen door een versie die schrijfacties bij geen bereik in de wachtrij zet
 function maakOfflineBestendig(client) {
   const echt = client.from.bind(client);
@@ -16493,6 +16701,12 @@ function offlineRpcAntwoord(naam, a) {
     S.partij_mutaties = [...(S.partij_mutaties || []), {id: 'offline-' + a.p_sleutel, partij_id: a.p_partij, seizoen_id: pa?.seizoen_id, soort: 'uit', aantal: a.p_aantal, eenheid: 'kuubskisten', koelcel: a.p_cel, notitie: 'gekiept (nog niet verstuurd)', datum: vandaag(), created_at: nu}];
     S.res_invoer = [...(S.res_invoer || []), {id: 'offline-' + a.p_sleutel, soort: 'kiepen', partij_id: a.p_partij, bakken: a.p_aantal, bron: 'koelcel-offline', datum: vandaag(), user_id: me?.id, created_at: nu}];
     return {res_id: null, gekiept: a.p_aantal, offline: true};
+  }
+  if (naam === 'voorraad_eruit') {   // meteen uit de voorraad op dit apparaat; na het versturen wordt alles opnieuw opgehaald
+    const pa = (S.partijen || []).find(y => y.id === a.p_partij);
+    S.partij_mutaties = [...(S.partij_mutaties || []), {id: 'offline-' + a.p_sleutel, partij_id: a.p_partij, seizoen_id: pa?.seizoen_id, soort: a.p_soort, aantal: a.p_aantal, eenheid: a.p_eenheid, per_eenheid: a.p_per,
+      koelcel: a.p_cel, pallet: a.p_pallet === '*' ? null : a.p_pallet, klant: a.p_klant, notitie: a.p_notitie || '(nog niet verstuurd)', datum: a.p_datum || vandaag(), perceel_id: a.p_perceel, bestemming_id: a.p_bestemming, created_at: nu}];
+    return {boxen: 0, aantal: a.p_aantal, offline: true};
   }
   return null;
 }
