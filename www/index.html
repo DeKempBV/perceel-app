@@ -1071,6 +1071,7 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 #hfBalk .hbLijst{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 #hfBalk .hbItem{background:#fff;border:1px solid #e0c97a;border-radius:10px;padding:4px 8px;font-size:13px;line-height:1.25}#hfBalk .hbItem b{font-size:14px}#hfBalk .hbItem.kist{background:#e8f5e9;border-color:#a5d6a7}#hfBalk .hbItem.pal{background:#e3f2fd;border-color:#90caf9}#hfBalk .hbItem.weg{opacity:.6;text-decoration:line-through}
 .wdwTabel td small{display:block;color:#667;font-size:12px}.wdwTabel tr.totaal td{border-top:2px solid #9aa}
+.kiepVandaag{display:flex;flex-direction:column;gap:6px}.kvRij{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px 14px}.kvRij span{flex:1}.kvRij small{display:block;opacity:.75}.kvRij .n{font-size:22px}
 .kiepRijW{display:flex;gap:6px;align-items:stretch}.kiepRijW .kiepKnop{flex:1;min-width:0}.kiepWeg{border:0;border-radius:14px;background:#5d4037;color:#fff;font:700 15px/1.1 system-ui,sans-serif;padding:6px 10px;cursor:pointer;width:64px}
 @media print{#taalKiezer{display:none}}
 #kiepHand .hfHand{color:#1d2a22}#kiepHand .hfLeeg span{color:#5d6b62}
@@ -9055,7 +9056,18 @@ function kiepScanInhoud() {
   const lt = kiepLaatste(), vandaag_ = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag()).reduce((a, i) => a + n0(i.bakken), 0);
   return `${kiepModusKnoppen()}${kiepPlanHtml()}${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste terug <small>${esc(lt.bron === 'scan' ? lt.opmerking || '' : ((S.partijen || []).find(x => x.id === lt.partij_id)?.batch || ''))} · ${tijdKort(lt.created_at)}</small></button>` : ''}
     <div class="kiepUitleg">Scan de bakken (of een pallet), dan op 🧺 Gekiept tikken. <b>Vandaag ${fmt(vandaag_)} gekiept (alle tablets samen).</b></div>
-    <div id="kiepHand">${kiepHandBinnen()}</div>`;
+    <div id="kiepHand">${kiepHandBinnen()}</div>${kiepVandaagHtml()}`;
+}
+// wat er vandaag al gekiept is (alle tablets samen), per partij
+function kiepVandaagHtml() {
+  const l = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag() && n0(i.bakken) > 0), per = new Map();
+  l.forEach(i => { const o = per.get(i.partij_id) || {pid: i.partij_id, n: 0, eerst: i.created_at, laatst: i.created_at, door: new Set()}; o.n += n0(i.bakken);
+    if (String(i.created_at) < String(o.eerst)) o.eerst = i.created_at; if (String(i.created_at) > String(o.laatst)) o.laatst = i.created_at; if (i.door) o.door.add(i.door); per.set(i.partij_id, o); });
+  const rijen = [...per.values()].sort((a, b) => String(b.laatst).localeCompare(String(a.laatst)));
+  return `<div class="kiepKop2" style="margin-top:18px">✅ Vandaag gekiept <small>${fmt(l.reduce((a, i) => a + n0(i.bakken), 0))} bakken</small></div>
+    <div class="kiepVandaag">${rijen.length ? rijen.map(o => { const x = (S.partijen || []).find(y => y.id === o.pid) || {};
+      return `<div class="kvRij"><span><b>${esc(partijRas(x) || '?')}</b> ${esc(x.batch || x.nak || '')}${x.klasse ? ' · ' + esc(x.klasse) : ''}<small>${tijdKort(o.eerst)}${o.laatst !== o.eerst ? '–' + tijdKort(o.laatst) : ''}${o.door.size ? ' · ' + esc([...o.door].join(', ')) : ''}</small></span><b class="n">${fmt(o.n)}</b></div>`; }).join('')
+      : '<div class="kiepLeeg" style="padding:10px">Vandaag nog niets gekiept.</div>'}</div>`;
 }
 function kiepHandBinnen() {
   const leeg = !HF.pallet && !HF.hand.length && !HF.kist.length, n = HF.pallet ? HF.paletten.reduce((a, p) => a + hfOpPallet(p.code).length, 0) + HF.hand.filter(e => !hfPalCodes().includes(e.op_pallet)).length : HF.hand.length;
@@ -9090,7 +9102,7 @@ function kiepInhoud() {
   return `${kiepModusKnoppen()}${kiepPlanHtml()}${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste ${lt.bron === 'koelcel' ? (n0(lt.bakken) === 1 ? 'kuubskist' : n0(lt.bakken) + ' kuubskisten') : lt.bron === 'scan' ? esc(lt.opmerking || 'box') : 'bak'} terug <small>${esc(lx ? partijKort(lx) : '')} · ${tijdKort(lt.created_at)}</small></button>` : ''}
     <div class="kiepUitleg">Tik op de partij van de bak die je pakt. Elke tik = 1 bak gekiept. <b>Vandaag ${fmt(mijnVandaag)} gekiept (alle tablets samen).</b></div>
     <div class="kiepLijst">${l.length ? l.map(y => kiepMagWeg() ? `<div class="kiepRijW">${kiepKnopHtml(y)}<button class="kiepWeg" onclick="kiepBakWeg('${y.x.id}')" title="Deze bak staat er ten onrechte">✖<br><small>weg</small></button></div>` : kiepKnopHtml(y)).join('') : `<div class="kiepLeeg">✅ ${kc.length ? 'Geen bakken van het veld meer.' : 'Alles is gekiept. Nieuwe bakken komen er vanzelf bij als de rooier een wagen meldt.'}</div>`}</div>
-    ${kc.length ? `<div class="kiepKop2">❄️ Kuubskisten in de koelcellen <small>tik om te kiepen</small></div><div class="kiepLijst">${kc.map(kiepKcKnopHtml).join('')}</div>` : ''}`;
+    ${kc.length ? `<div class="kiepKop2">❄️ Kuubskisten in de koelcellen <small>tik om te kiepen</small></div><div class="kiepLijst">${kc.map(kiepKcKnopHtml).join('')}</div>` : ''}${kiepVandaagHtml()}`;
 }
 // kuubskisten die in de koelcellen staan, per partij (batch) en koelcel
 function kiepKcLijst() {
