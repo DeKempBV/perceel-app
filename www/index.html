@@ -8849,8 +8849,13 @@ function htmlResSorteren() {
   const subs = new Map();
   regels.forEach(r => { const id = partijGroep(r).id, m = subs.get(id) || new Map(), k = r.sortering_id ?? '', o = m.get(k) || {naam: r.sortering || (r.sortering_id != null ? 'Sortering ' + r.sortering_id : 'Zonder sortering'), planten: 0}; o.planten += n0(r.planten); m.set(k, o); subs.set(id, m); });
   const subHtml = id => { const l = [...(subs.get(id)?.values() || [])].sort((a, b) => b.planten - a.planten), pr = magEtiket() && !String(id).startsWith('x|');
+    const knop = (naam, n, per) => pr ? ` <button class="icoon" title="Kaartjes afdrukken" onclick='sorAfdrukken(${JSON.stringify(id)},${esc(JSON.stringify(naam))},${n || 0},${per || 0})'>🖨️</button>` : '';
+    const regel = (naam, sub, planten, knp) => `<div><span>${esc(naam)}${sub ? ` <small>${sub}</small>` : ''}${knp}</span><b>${fmt(planten)}</b></div>`;
     return l.length ? `<div class="sorSub">${l.map(o => { const k = sorKisten(o.naam, o.planten);
-      return `<div><span>${esc(o.naam)}${k ? `<br><small>= <b>${fmt(k.heel)} ${k.heel === 1 ? 'kist' : 'kisten'} van ${fmt(k.per)}</b>${k.rest ? ` + ${fmt(k.rest)} los (nog niet vol)` : ''}</small>` : ''}${pr ? ` <button class="icoon" title="Kaartjes afdrukken voor deze sortering" onclick='sorAfdrukken(${JSON.stringify(id)},${esc(JSON.stringify(o.naam))}${k ? ',' + k.heel : ''})'>🖨️</button>` : ''}</span><b>${fmt(o.planten)}</b></div>`; }).join('')}</div>` : ''; };
+      if (!k) return regel(o.naam, '', o.planten, knop(o.naam));
+      // 2 halve kistjes = 1 kist van 800; wat overblijft staat los als kistje van 400
+      return regel(`${k.sort} · kist van ${fmt(k.per)}`, `${fmt(k.heel)} ${k.heel === 1 ? 'kist' : 'kisten'}`, k.heel * k.per, knop(k.sort, k.heel, k.per))
+        + regel(`${k.sort} · kistje van ${fmt(k.half)} (>${fmt(k.per)})`, `${fmt(k.los)} ${k.los === 1 ? 'kistje' : 'kistjes'}`, o.planten - k.heel * k.per, knop(k.sort, k.los, k.half)); }).join('')}</div>` : ''; };
   const gekoppeld = perPartij.filter(o => o.partij), los = perPartij.filter(o => !o.partij);
   const partijRij = o => {
     const x = (S.partijen || []).find(y => y.id === o.partij);
@@ -15003,9 +15008,10 @@ function kkPapier(k) {
 // "FR-A-/400 > 800 per kist": halve kistjes die per 2 samen een kist van 800 worden → hoeveel hele kisten van 800
 function sorKisten(naam, planten) {
   if (!/\/\s*\d+/.test(naam || '')) return null; const sp = kkSortSplits(naam); if (!(sp.per > 0)) return null;
-  const heel = Math.floor(n0(planten) / sp.per); return {per: sp.per, heel, rest: Math.round(n0(planten) - heel * sp.per)};
+  const half = +String(naam).match(/\/\s*(\d+)/)[1] || sp.per / 2, heel = Math.floor(n0(planten) / sp.per), rest = Math.round(n0(planten) - heel * sp.per);
+  return {sort: sp.sort, per: sp.per, half, heel, rest, los: Math.round(rest / half)};
 }
-async function sorAfdrukken(pid, sortering, aantal) {
+async function sorAfdrukken(pid, sortering, aantal, per) {
   if (!magEtiket()) return; const x = (S.partijen || []).find(y => y.id === pid); if (!x) return;
   const w = await formulier(`🖨️ ${partijRas(x) || ''} ${x.batch || x.nak || ''}`, [
     {k: 'wat', label: 'Wat wil je afdrukken?', type: 'select', waarde: 'paspoort', opties: [['paspoort', '🌱 Paspoortkaartjes (kistkaarten) → kistkaartenprinter'], ['papier', '📄 Paspoortkaartjes op gewoon papier (test)'], ['pallet', '🧱 Palletkaarten']]},
@@ -15015,11 +15021,11 @@ async function sorAfdrukken(pid, sortering, aantal) {
   if (w.wat === 'pallet') {
     if (n > 200) { toast('Maximaal 200 palletkaarten tegelijk', 1); return; }
     etVorm = etNieuweVorm(); etSoort = 'pallet'; etKiesPartij(pid);
-    Object.assign(etVorm, {sortering: w.sortering || etVorm.sortering, aantal: n, datum: dKey(new Date()), koelcel: ''});
+    Object.assign(etVorm, {sortering: w.sortering || etVorm.sortering, ...(per ? {per_kist: per} : {}), aantal: n, datum: dKey(new Date()), koelcel: ''});
     await etAfdrukken(); return;
   }
   const sp = kkSortSplits(w.sortering);
-  kkNieuw(null, {pid, sortering: sp.sort, per_kist: sp.per, aantal: n, hoe: w.wat === 'papier' ? 'papier' : 'bartender'});
+  kkNieuw(null, {pid, sortering: sp.sort, per_kist: per || sp.per, aantal: n, hoe: w.wat === 'papier' ? 'papier' : 'bartender'});
 }
 async function kkStatus(id, st) {
   if (st === 'weg' && !await bevestig('Weghalen?', 'Deze kistkaarten worden niet geprint.')) return;
