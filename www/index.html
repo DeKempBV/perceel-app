@@ -1070,6 +1070,7 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 #hfBalk .hbKop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#hfBalk .hbKop b{flex:1;font-size:16px}
 #hfBalk .hbLijst{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 #hfBalk .hbItem{background:#fff;border:1px solid #e0c97a;border-radius:10px;padding:4px 8px;font-size:13px;line-height:1.25}#hfBalk .hbItem b{font-size:14px}#hfBalk .hbItem.pal{background:#e3f2fd;border-color:#90caf9}#hfBalk .hbItem.weg{opacity:.6;text-decoration:line-through}
+.wdwTabel td small{display:block;color:#667;font-size:12px}.wdwTabel tr.totaal td{border-top:2px solid #9aa}
 .kiepRijW{display:flex;gap:6px;align-items:stretch}.kiepRijW .kiepKnop{flex:1;min-width:0}.kiepWeg{border:0;border-radius:14px;background:#5d4037;color:#fff;font:700 15px/1.1 system-ui,sans-serif;padding:6px 10px;cursor:pointer;width:64px}
 @media print{#taalKiezer{display:none}}
 #kiepHand .hfHand{color:#1d2a22}#kiepHand .hfLeeg span{color:#5d6b62}
@@ -4515,7 +4516,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['hfscan', 'hforders', 'trekkeruren', 'busuren', 'water', 'pno', 'bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'ressorteren', 'resprognose', 'resjaren', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['resmensen', 'hfscan', 'hforders', 'trekkeruren', 'busuren', 'water', 'pno', 'bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'ressorteren', 'resprognose', 'resjaren', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -4617,6 +4618,7 @@ function renderPaneel() {
   else if (tab === 'wijzigingen') { if (!wz.geladen) laadWijzigingen(true); h = htmlWijzigingen(); }
   else if (tab === 'resinvoer') h = seizoenKnop() + htmlResInvoer();
   else if (tab === 'resrapport') h = seizoenKnop() + htmlResRapport();
+  else if (tab === 'resmensen') h = htmlResMensen();
   else if (tab === 'ressorteren') h = htmlResSorteren();
   else if (tab === 'resprognose') h = seizoenKnop() + htmlResPrognose();
   else if (tab === 'resjaren') h = htmlResJaren();
@@ -6447,7 +6449,7 @@ function sectieTabsBasis(s) {
     velden: [['percelen', '🗺️', 'Kaart'], ['watstaatwaar', '🌱', 'Wat staat waar'], ['partijen', '🏷️', 'Partijen'], ['prognose', '📈', 'Prognose'], ['plantplan', '🧮', 'Plantplan'], ['vruchtwisseling', '🔄', 'Wisseling'], ['waarnemingen', '🐛', 'Ziektes'], ['monsters', '🧪', 'Monsters'], ...(ziet('weer_bekijken') ? [['water', '💧', 'Water']] : [])],
     werk: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['teeltplan', '📊', 'Teeltplanning'], ['plantzaai', '🌱', 'Planten en zaaien'], ['rooiplanning', '🚜', 'Rooiplanning'], ['spuiten', '🧪', 'Spuiten'], ['bemesten', '🌱', 'Bemesten'],
       ...(trek ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek']] : [])],
-    oogst: resIn ? [['resinvoer', '✍️', 'Invoer'], ['reskiep', '🧺', 'Kieplijst'], ...(resBek ? [['resrapport', '📊', 'Rapport'], ...(sorMagOogst() ? [['ressorteren', '🗂️', 'Gesorteerd']] : []), ['resprognose', '📈', 'Prognose'], ['resjaren', '📅', 'Over de jaren']] : []), ['respoten', '🌱', 'Poten'],
+    oogst: resIn ? [['resinvoer', '✍️', 'Invoer'], ['reskiep', '🧺', 'Kieplijst'], ...(resBek ? [['resrapport', '📊', 'Rapport'], ['resmensen', '👥', 'Wie deed wat'], ...(sorMagOogst() ? [['ressorteren', '🗂️', 'Gesorteerd']] : []), ['resprognose', '📈', 'Prognose'], ['resjaren', '📅', 'Over de jaren']] : []), ['respoten', '🌱', 'Poten'],
       ['reskisten', '📦', 'Kistjes'], ...(magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])] : [],
     voorraad: [...(ziet('voorraad_bekijken') || mag('voorraad_beheren') ? [['voorraad', '❄️', 'Koelcel']] : []), ...(ziet('voorraad_bekijken') || magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ['middelen', '🧪', 'Middelen']],
     mensen: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Uren'], ...(ziet('pno_bekijken') ? [['pno', '📊', 'P&O-dashboard']] : []), ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])],
@@ -6459,7 +6461,7 @@ function sectieTabsBasis(s) {
     kunstmest: [['mesttaken', '📋', 'Taken'], ['mestregister', '🌱', 'Bemesting'], ['middelen', '🌾', 'Meststoffen']],
     monsters: [['waarnemingen', '🐛', 'Ziektes & plagen'], ['monsters', '🧪', 'Monsters']],
     opslag: [['voorraad', '❄️', 'Koelcel'], ...(ziet('voorraad_bekijken') || magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ['middelen', '🧪', 'Middelenvoorraad']],
-    resultaten: [['resinvoer', '✍️', 'Invoer'], ...(ziet('resultaten_bekijken') || mag('resultaten_beheren') ? [['resrapport', '📊', 'Rapport'], ...(sorMagOogst() ? [['ressorteren', '🗂️', 'Gesorteerd']] : []), ['resprognose', '📈', 'Prognose'], ['resjaren', '📅', 'Over de jaren']] : []), ['respoten', '🌱', 'Poten'], ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])],
+    resultaten: [['resinvoer', '✍️', 'Invoer'], ...(ziet('resultaten_bekijken') || mag('resultaten_beheren') ? [['resrapport', '📊', 'Rapport'], ['resmensen', '👥', 'Wie deed wat'], ...(sorMagOogst() ? [['ressorteren', '🗂️', 'Gesorteerd']] : []), ['resprognose', '📈', 'Prognose'], ['resjaren', '📅', 'Over de jaren']] : []), ['respoten', '🌱', 'Poten'], ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])],
     taken: [['taken', '📋', 'Taken'], ['weekplanning', '👥', 'Week'], ['rooiplanning', '🚜', 'Rooiplanning'], ...(ziet('historie_bekijken') ? [['logboek', '📒', 'Logboek'], ['gebeurtenissen', '🔔', 'Gebeurtenissen']] : []), ['uren', '⏱️', 'Uren']],
     percelen: [['percelen', '🗺️', 'Kaart'], ['partijen', '🏷️', 'Partijen'], ['prognose', '📈', 'Prognose'], ['plantplan', '🧮', 'Plantplan'], ['vruchtwisseling', '🔄', 'Wisseling'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
     persoonlijk: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Mijn uren'], ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : [])],
@@ -8846,14 +8848,15 @@ function htmlResSorteren() {
   // onder elke partij: de sorteringen van die partij in deze periode, grootste eerst
   const subs = new Map();
   regels.forEach(r => { const id = partijGroep(r).id, m = subs.get(id) || new Map(), k = r.sortering_id ?? '', o = m.get(k) || {naam: r.sortering || (r.sortering_id != null ? 'Sortering ' + r.sortering_id : 'Zonder sortering'), planten: 0}; o.planten += n0(r.planten); m.set(k, o); subs.set(id, m); });
-  const subHtml = id => { const l = [...(subs.get(id)?.values() || [])].sort((a, b) => b.planten - a.planten); return l.length ? `<div class="sorSub">${l.map(o => `<div><span>${esc(o.naam)}</span><b>${fmt(o.planten)}</b></div>`).join('')}</div>` : ''; };
+  const subHtml = id => { const l = [...(subs.get(id)?.values() || [])].sort((a, b) => b.planten - a.planten), pr = magEtiket() && !String(id).startsWith('x|');
+    return l.length ? `<div class="sorSub">${l.map(o => `<div><span>${esc(o.naam)}${pr ? ` <button class="icoon" title="Kaartjes afdrukken voor deze sortering" onclick='sorAfdrukken(${JSON.stringify(id)},${esc(JSON.stringify(o.naam))})'>🖨️</button>` : ''}</span><b>${fmt(o.planten)}</b></div>`).join('')}</div>` : ''; };
   const gekoppeld = perPartij.filter(o => o.partij), los = perPartij.filter(o => !o.partij);
   const partijRij = o => {
     const x = (S.partijen || []).find(y => y.id === o.partij);
     let c2 = null; try { c2 = x ? resCijfers(x) : null; } catch { c2 = null; }
     const oogst = c2 && (c2.gerB || c2.kiepB) ? `gerooid ${fmt(c2.gerB)} bakken${c2.gerM ? ` (${fmt(c2.gerM)} m)` : ''} · gekiept ${fmt(c2.kiepB)} bakken` : '';
     const dubbel = o.kand > 1 ? `<br>⚠️ Dit NAK-nummer staat bij ${o.kand} partijen; gekoppeld aan de eerste.` : '';
-    return x ? `<div class="resRij"><div><b>${esc(partijKort(x))}</b><small>${esc(partijLabel(x))}${dubbel}</small></div><span style="text-align:right"><b>${fmt(o.planten)}</b>${oogst ? `<small>${oogst}</small>` : ''}</span></div>`
+    return x ? `<div class="resRij"><div><b>${esc(partijKort(x))}</b><small>${esc(partijLabel(x))}${dubbel}</small>${magEtiket() ? `<button class="knop licht klein" style="width:auto;margin-top:4px" onclick='sorAfdrukken(${JSON.stringify(x.id)})'>🖨️ Kaartjes afdrukken</button>` : ''}</div><span style="text-align:right"><b>${fmt(o.planten)}</b>${oogst ? `<small>${oogst}</small>` : ''}</span></div>`
       : `<div class="resRij"><div><b>${esc([o.nak ? 'NAK ' + o.nak : '', o.ras, o.loc].filter(Boolean).join(' · '))}</b><small>Deze partij zit niet in het teeltjaar dat je nu bekijkt</small></div><span style="text-align:right"><b>${fmt(o.planten)}</b></span></div>`;
   };
   const losRij = o => `<div class="resRij"><div><b>Niet gekoppeld: ${esc(o.loc)}${o.nak ? ' NAK ' + esc(o.nak) : ''}</b><small>${o.nak ? 'Geen partij in de app met dit NAK-nummer' : 'In SSOR staat bij deze locatie geen NAK-nummer'}</small></div><span style="text-align:right"><b>${fmt(o.planten)}</b></span></div>`;
@@ -8868,6 +8871,47 @@ function htmlResSorteren() {
     + `<section class="kaartje"><p class="hint" style="margin:0">Planten zijn het aantal uit de scans van de sorteer- en inpakactiviteiten in SSOR (activiteitengroep 100).</p></section>` + status;
 }
 
+/* =====================================================================================
+   WIE DEED WAT – per medewerker: wagens (chauffeur en bijrijder), rooien, kiepen, koelcel
+   ===================================================================================== */
+let wdwPeriode = 'vandaag', wdwDatum = '';
+function wdwBereik() {
+  const nu = new Date(), d = x => dKey(x);
+  if (wdwPeriode === 'gisteren') { const g = new Date(nu); g.setDate(g.getDate() - 1); return [d(g), d(g)]; }
+  if (wdwPeriode === 'week') { const m = new Date(nu); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return [d(m), d(nu)]; }
+  if (wdwPeriode === 'datum' && wdwDatum) return [wdwDatum, wdwDatum];
+  if (wdwPeriode === 'seizoen') return ['0000', '9999'];
+  return [d(nu), d(nu)];
+}
+function htmlResMensen() {
+  const [van, tot] = wdwBereik(), inP = dt => { const k = String(dt || '').slice(0, 10); return k >= van && k <= tot; };
+  const dagVan = i => i.datum || String(i.created_at || '').slice(0, 10);
+  const P = new Map(), pers = naam => { naam = String(naam || '').trim() || 'onbekend'; const k = naam.toLowerCase(); if (!P.has(k)) P.set(k, {naam, wagC: 0, wagB: 0, bijW: 0, bijB: 0, roo: 0, kiep: 0, leeg: 0, kc: 0, kIn: 0, kUit: 0}); return P.get(k); };
+  const tijd = w => String(w.gemeld_op || '').slice(0, 10);
+  (S.wagens_weg || []).forEach(w => {
+    if (inP(tijd(w))) { const c = pers(w.gemeld_door); c.wagC++; c.wagB += n0(w.bakken);
+      if (w.bijrijder) { const b = pers(naamVan(w.bijrijder)); b.bijW++; b.bijB += n0(w.bakken); } }
+    if (w.legen_door && inP(String(w.legen_op || '').slice(0, 10))) pers(w.legen_door).leeg++;
+    if (w.koelcel_door && inP(String(w.koelcel_op || '').slice(0, 10))) pers(w.koelcel_door).kc++;
+  });
+  (S.res_invoer || []).forEach(i => { if (!inP(dagVan(i))) return;
+    if (i.soort === 'rooien' && i.bron !== 'koelcel' && !i.correctie_van) pers(i.door).roo += n0(i.bakken);
+    if (i.soort === 'kiepen') pers(i.door).kiep += n0(i.bakken); });
+  (S.partij_mutaties || []).forEach(m => { if (!m.door || m.door === 'reparatie' || !inP(m.datum || String(m.created_at || '').slice(0, 10))) return;
+    if (m.soort === 'in') pers(m.door).kIn++; else if (['uit', 'uitval', 'veld'].includes(m.soort)) pers(m.door).kUit++; });
+  const l = [...P.values()].filter(c => c.wagC + c.bijW + c.roo + c.kiep + c.leeg + c.kc + c.kIn + c.kUit > 0).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  const som = k => l.reduce((a, c) => a + c[k], 0), cel = (n, b) => n ? `<b>${fmt(n)}</b>${b != null ? `<small>${fmt(b)} bakken</small>` : ''}` : '<span class="hint">–</span>';
+  const kopTekst = van === tot ? new Date(van + 'T12:00').toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long'}) : wdwPeriode === 'seizoen' ? 'Heel het seizoen' : `${datumKort(van + 'T12:00')} t/m ${datumKort(tot + 'T12:00')}`;
+  return `<section class="kaartje"><h4>👥 Wie deed wat</h4>
+    <div class="rij" style="flex-wrap:wrap;gap:8px;align-items:center"><div class="pnoSeg">${[['vandaag', 'Vandaag'], ['gisteren', 'Gisteren'], ['week', 'Deze week'], ['seizoen', 'Seizoen']].map(([k, t]) => `<button class="${wdwPeriode === k ? 'aan' : ''}" onclick="wdwPeriode='${k}';render(true)">${t}</button>`).join('')}</div>
+      <input class="veld" type="date" style="flex:0 0 auto;width:auto" max="${vandaag()}" value="${wdwPeriode === 'datum' ? wdwDatum : ''}" onchange="wdwPeriode='datum';wdwDatum=this.value;render(true)"></div>
+    <p class="hint" style="margin:8px 0 0">${esc(kopTekst)}</p></section>
+    <section class="kaartje">${l.length ? `<div class="tabelScroll"><table class="resTabel wdwTabel"><tr><th>Naam</th><th>🚜 Wagens gereden</th><th>🧑‍🌾 Bijrijder</th><th>✍️ Rooien ingevoerd</th><th>🧺 Gekiept</th><th>🚛 Wagens geleegd</th><th>❄️ Wagens naar koelcel</th><th>⬇️ Koelcel in</th><th>⬆️ Koelcel uit</th></tr>
+      ${l.map(c => `<tr><td><b>${esc(c.naam)}</b></td><td>${cel(c.wagC, c.wagB)}</td><td>${cel(c.bijW, c.bijB)}</td><td>${c.roo ? `<b>${fmt(c.roo)}</b><small>bakken</small>` : '<span class="hint">–</span>'}</td><td>${c.kiep ? `<b>${fmt(c.kiep)}</b><small>bakken</small>` : '<span class="hint">–</span>'}</td><td>${cel(c.leeg)}</td><td>${cel(c.kc)}</td><td>${cel(c.kIn)}</td><td>${cel(c.kUit)}</td></tr>`).join('')}
+      <tr class="totaal"><td><b>Totaal</b></td><td>${cel(som('wagC'), som('wagB'))}</td><td>${cel(som('bijW'), som('bijB'))}</td><td>${cel(som('roo'))}</td><td>${cel(som('kiep'))}</td><td>${cel(som('leeg'))}</td><td>${cel(som('kc'))}</td><td>${cel(som('kIn'))}</td><td>${cel(som('kUit'))}</td></tr></table></div>`
+      : '<p class="hint">In deze periode is er nog niets geregistreerd.</p>'}
+    <p class="hint">Wagens: wie de wagen weg meldde (chauffeur) en wie er bijrijder was. Kiepen telt elke tablet mee. Koelcel in/uit = aantal boekingen. Kijk je naar een ander seizoen, kies dat dan bovenin.</p></section>`;
+}
 /* =====================================================================================
    KISTJES: per gewas welk kistje, en per kwaliteit hoeveel planten erin (per ras kan afwijken; dat gaat dan voor)
    ===================================================================================== */
@@ -9413,7 +9457,7 @@ const TAB_INFO = {
   spuiten: ['🧪', 'Spuiten', 'Planning en spuitregister'], bemesten: ['🌱', 'Bemesten', 'Planning en bemestingsregister'],
   tractoren: ['🚜', 'Trekkers', 'Waar de trekkers nu zijn'], logboek: ['📒', 'Logboek', 'Uitgevoerd werk, met ongedaan maken'],
   resinvoer: ['✍️', 'Invoer', 'Rooien, kiepen, telling en scans'], reskiep: ['🧺', 'Kieplijst', 'Wat er nog gekiept moet worden'],
-  resrapport: ['📊', 'Rapport', 'Resultaat ten opzichte van de prognose'], ressorteren: ['🗂️', 'Gesorteerd', 'Planten per dag uit SSOR, per partij, lijn en sortering'], resprognose: ['📈', 'Prognose', 'Verwachting per partij'], resjaren: ['📅', 'Over de jaren', 'Rassen en percelen door de seizoenen heen'],
+  resrapport: ['📊', 'Rapport', 'Resultaat ten opzichte van de prognose'], resmensen: ['👥', 'Wie deed wat', 'Per medewerker: wagens, rooien, kiepen en koelcel'], ressorteren: ['🗂️', 'Gesorteerd', 'Planten per dag uit SSOR, per partij, lijn en sortering'], resprognose: ['📈', 'Prognose', 'Verwachting per partij'], resjaren: ['📅', 'Over de jaren', 'Rassen en percelen door de seizoenen heen'],
   respoten: ['🌱', 'Poten', 'Het basisbestand per partij'], reskisten: ['📦', 'Kistjes', 'Planten per kistje per kwaliteit'],
   resinstel: ['⚙️', 'Instellingen', 'Kwaliteiten, wagens en grenzen'], voorraad: ['❄️', 'Koelcel', 'Wat er ligt, leveringen en terugzoeken'], etiketten: ['🏷️', 'Etiketten', 'Pallet- en boxkaarten afdrukken en scannen'], bestellingen: ['🛒', 'Bestellen', 'Iets aanvragen; goedkeuren en bijhouden'], pno: ['📊', 'P&O-dashboard', 'Uren, productiviteit en budget uit SSOR'],
   middelen: ['🧪', 'Middelen', 'Gewasbescherming en meststoffen op voorraad'], mij: ['👤', 'Mijn gegevens', 'Gegevens, wachtwoord en ziek melden'],
@@ -14825,10 +14869,10 @@ function htmlKistkaarten() {
     ${open.length ? `<h5 style="margin:12px 0 4px">Klaar om te printen</h5>${open.map(rij).join('')}` : '<p class="hint">Er staat niets klaar.</p>'}
     ${klaar.length ? `<h5 style="margin:12px 0 4px">Laatst geprint</h5>${klaar.map(rij).join('')}` : ''}</section>`;
 }
-async function kkNieuw(vanId) {
+async function kkNieuw(vanId, voor = {}) {
   const vorig = vanId ? (S.kistkaart_opdrachten || []).find(k => k.id === vanId) : null;
-  let pid = vorig?.partij_id || '';
-  if (!vorig) {
+  let pid = vorig?.partij_id || voor.pid || '';
+  if (!vorig && !pid) {
     const ps = (S.partijen || []).filter(y => !bekeken || y.seizoen_id === bekeken || !y.seizoen_id).sort((a, b) => (partijRas(a) || '').localeCompare(partijRas(b) || '', 'nl') || String(a.batch || '').localeCompare(String(b.batch || ''), 'nl', {numeric: true}));
     const w0 = await formulier('🌱 Kistkaarten klaarzetten', [{k: 'pid', label: 'Partij', type: 'select', waarde: '', opties: [['', '– kies de partij –'], ...ps.map(y => [y.id, `${partijRas(y) || '?'} · ${y.batch || y.nak || ''}${y.klasse ? ' · ' + y.klasse : ''}`])]}], 'Verder');
     if (!w0 || !w0.pid) return; pid = w0.pid;
@@ -14838,13 +14882,14 @@ async function kkNieuw(vanId) {
   const lijst = k => [...new Set((S.kistkaart_opdrachten || []).map(z => z[k]).filter(Boolean))];
   const nu = new Date();
   const w = await formulier(`🌱 Kistkaarten · ${partijRas(x) || vorig?.ras || ''}`, [
+    {k: 'hoe', label: 'Waar printen?', type: 'select', waarde: voor.hoe || 'bartender', opties: [['bartender', '🖨️ Kistkaartenprinter (BarTender)'], ['papier', '📄 Op gewoon papier (om te testen)']]},
     {k: 'ras', label: 'Ras', waarde: vorig?.ras || partijRas(x) || ''},
     {k: 'partij_nr', label: 'Partijnummer', waarde: vorig?.partij_nr || x.batch || x.nak || ''},
-    {k: 'sortering', label: 'Sortering', waarde: vorig?.sortering || '', lijst: [...new Set([...lijst('sortering'), ...(etInst().sortering || []), 'Frigo A', 'Frigo A+', 'Frigo A2+', 'Frigo A++', 'Frigo B'])], placeholder: 'bijv. Frigo A2+'},
+    {k: 'sortering', label: 'Sortering', waarde: vorig?.sortering || voor.sortering || '', lijst: [...new Set([...lijst('sortering'), ...(etInst().sortering || []), 'Frigo A', 'Frigo A+', 'Frigo A2+', 'Frigo A++', 'Frigo B'])], placeholder: 'bijv. Frigo A2+'},
     {k: 'categorie', label: 'Categorie', waarde: vorig?.categorie || (eerder.partij_id === pid ? eerder.categorie : '') || (/cac/i.test(x.klasse || '') ? 'CAC' : ''), lijst: [...new Set([...lijst('categorie'), 'Basismateriaal-5', 'CAC', 'Gecertificeerd'])], placeholder: 'bijv. Basismateriaal-5'},
     {k: 'sjabloon', label: 'Kaartje', type: 'select', waarde: vorig?.sjabloon || 'auto', opties: [['auto', `Automatisch volgens de klasse (${x.klasse ? esc(x.klasse) + ' → ' : ''}${KK_SJABLONEN.find(z => z[0] === kkSjabloonVan(x.klasse, vorig?.categorie))?.[1]})`], ...KK_SJABLONEN]},
     {k: 'per_kist', label: 'Aantal per kist', type: 'number', waarde: vorig?.per_kist ?? (eerder.partij_id === pid ? eerder.per_kist : '') ?? ''},
-    {k: 'aantal', label: 'Aantal kaartjes', type: 'number', waarde: vorig?.aantal ?? ''},
+    {k: 'aantal', label: 'Aantal kaartjes', type: 'number', waarde: vorig?.aantal ?? voor.aantal ?? ''},
     {k: 'plantjaar', label: 'Jaar (geplant)', type: 'number', waarde: vorig?.plantjaar || kkPlantjaar(x)},
     {k: 'afgifte', label: '1e afgifte (week en jaar van printen)', waarde: `${weekNr(nu)} ${nu.getFullYear()}`},
     {k: 'certificaat', label: 'Certificaat', waarde: vorig?.certificaat || eerder.certificaat || KK_CERT},
@@ -14857,12 +14902,56 @@ async function kkNieuw(vanId) {
     sjabloon: w.sjabloon === 'auto' ? kkSjabloonVan(x.klasse, w.categorie) : w.sjabloon, per_kist: pk > 0 ? pk : null, aantal: n, plantjaar: parseInt(w.plantjaar, 10) || null,
     afgifte: (w.afgifte || '').trim(), certificaat: (w.certificaat || '').trim() || null, registratie: (w.registratie || '').trim() || null,
     barcode: kkBarcode(w.partij_nr.trim(), (w.sortering || '').trim()), door: naamMe()};
+  if (w.hoe === 'papier') { if (n > 24 && !await bevestigJa(`${n} kaartjes op papier?`, 'Om te testen is 1 blad (8 kaartjes) meestal genoeg.', 'Toch afdrukken')) return; kkPapier(rij); return; }
   const {data, error} = await sb.from('kistkaart_opdrachten').insert(rij).select().single();
   if (error) { toast(/sjabloon_check/.test(error.message) ? 'Draai eerst kistkaart-kleuren.sql in Supabase' : /kistkaart_opdrachten/.test(error.message) && /exist|schema/i.test(error.message) ? 'Draai eerst kistkaarten.sql in Supabase' : foutTekst(error), 1); return; }
   S.kistkaart_opdrachten = [data, ...(S.kistkaart_opdrachten || []).filter(k => k.id !== data.id)]; render(true);
   toast(`🌱 ${n} kistkaarten ${rij.ras} ${rij.partij_nr} klaargezet`);
 }
 const kkOpnieuw = id => kkNieuw(id);
+// kistkaarten op gewoon A4-papier (8 per blad, echte maat 102,5 × 70 mm) om te testen; kleur van het papier nagebootst
+function kkKaartHtml(k) {
+  const vlag = `<svg viewBox="0 0 30 20" width="12mm" height="8mm"><rect width="30" height="20" fill="#039"/>${[...Array(12)].map((_, i) => { const a = i / 12 * 2 * Math.PI; return `<text x="${15 + 6 * Math.sin(a)}" y="${10.9 - 6 * Math.cos(a)}" font-size="3" fill="#fc0" text-anchor="middle">★</text>`; }).join('')}</svg>`;
+  const r = (l, w) => w ? `<div class="kkR"><span>${l}</span><b>${esc(w)}</b></div>` : '';
+  return `<div class="kkKaart" style="background:${{wit: '#fff', standaard: '#cfe3f7', vgs: '#fbf1a6', cac: '#fbf1a6'}[k.sjabloon] || '#fff'}">
+    <div class="kkTop">${vlag}<div><b>Plantenpaspoort / Plant Passport</b><small>Karta / Skrynia</small></div></div>
+    <div class="kkTitel">'${esc(k.ras)}'</div>
+    <div class="kkMid"><div class="kkVeld">${r('A', "Fragaria × ananassa '" + k.ras + "'")}${r('B', k.registratie)}${r('C', k.partij_nr)}${r('D', 'NL')}
+      ${r('Sortering', k.sortering)}${r('Categorie', k.categorie)}${r('Certificaat', k.certificaat)}${r('Jaar', k.plantjaar)}${r('1e afgifte', k.afgifte)}${r('Per kist', k.per_kist)}</div>
+      <div class="kkQr">${qrSvg(k.barcode, 22)}<small>${esc(k.barcode)}</small></div></div></div>`;
+}
+function kkPapier(k) {
+  const kaarten = [...Array(Math.max(1, +k.aantal || 1))].map(() => kkKaartHtml(k));
+  const bladen = []; for (let i = 0; i < kaarten.length; i += 8) bladen.push(`<div class="kkBlad">${kaarten.slice(i, i + 8).join('')}</div>`);
+  const html = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Kistkaarten (test)</title><style>@page{size:A4 portrait;margin:3mm}html,body{margin:0;background:#fff;font-family:Arial,sans-serif;color:#000}
+    *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}.kkBlad{display:grid;grid-template-columns:102.5mm 102.5mm;grid-auto-rows:70mm;width:205mm;page-break-after:always}
+    .kkKaart{border:.2mm dashed #888;padding:2.5mm 3mm;display:flex;flex-direction:column;overflow:hidden}.kkTop{display:flex;gap:2mm;align-items:center;font-size:8pt}.kkTop small{display:block;font-size:6.5pt;color:#333}
+    .kkTitel{font-size:15pt;font-weight:700;margin:1mm 0}.kkMid{display:flex;gap:2mm;flex:1;min-height:0}.kkVeld{flex:1;font-size:7.5pt;line-height:1.3}.kkR{display:flex;gap:1.5mm}.kkR span{min-width:15mm;color:#333}
+    .kkQr{text-align:center;font-size:6.5pt;align-self:flex-end}.kkQr small{display:block}
+    .knoppen{position:sticky;top:0;background:#fff;padding:8px;text-align:center;border-bottom:1px solid #ddd}.knoppen button{font-size:16px;padding:8px 16px}
+    @media screen{body{background:#eee}.kkBlad{margin:10px auto;background:#fff;box-shadow:0 1px 6px #0003}}@media print{.knoppen{display:none}}</style></head>
+    <body><div class="knoppen"><button onclick="print()">🖨️ Afdrukken</button> <small>Test op gewoon papier · echte maat 102,5 × 70 mm · de kleur van het kaartje is nagebootst</small></div>${bladen.join('')}</body></html>`;
+  const win = window.open('', '_blank');
+  if (win) { win.document.write(html); win.document.close(); setTimeout(() => { try { win.focus(); win.print(); } catch {} }, 600); return; }
+  const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(fr);
+  fr.contentDocument.write(html); fr.contentDocument.close(); setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch {} setTimeout(() => fr.remove(), 3000); }, 600);
+}
+// vanuit de SSOR-gegevens: kaartjes voor deze batch (en sortering) afdrukken
+async function sorAfdrukken(pid, sortering) {
+  if (!magEtiket()) return; const x = (S.partijen || []).find(y => y.id === pid); if (!x) return;
+  const w = await formulier(`🖨️ ${partijRas(x) || ''} ${x.batch || x.nak || ''}`, [
+    {k: 'wat', label: 'Wat wil je afdrukken?', type: 'select', waarde: 'paspoort', opties: [['paspoort', '🌱 Paspoortkaartjes (kistkaarten) → kistkaartenprinter'], ['papier', '📄 Paspoortkaartjes op gewoon papier (test)'], ['pallet', '🧱 Palletkaarten']]},
+    {k: 'sortering', label: 'Sortering', waarde: sortering || '', placeholder: 'bijv. Frigo A2+'},
+    {k: 'aantal', label: 'Hoeveel kaartjes?', type: 'number', waarde: ''}], 'Verder');
+  if (!w) return; const n = parseInt(w.aantal, 10); if (!(n >= 1)) { toast('Vul in hoeveel kaartjes', 1); return; }
+  if (w.wat === 'pallet') {
+    if (n > 200) { toast('Maximaal 200 palletkaarten tegelijk', 1); return; }
+    etVorm = etNieuweVorm(); etSoort = 'pallet'; etKiesPartij(pid);
+    Object.assign(etVorm, {sortering: w.sortering || etVorm.sortering, aantal: n, datum: dKey(new Date()), koelcel: ''});
+    await etAfdrukken(); return;
+  }
+  kkNieuw(null, {pid, sortering: w.sortering, aantal: n, hoe: w.wat === 'papier' ? 'papier' : 'bartender'});
+}
 async function kkStatus(id, st) {
   if (st === 'weg' && !await bevestig('Weghalen?', 'Deze kistkaarten worden niet geprint.')) return;
   const {data, error} = await sb.from('kistkaart_opdrachten').update({status: st, geprint_op: st === 'geprint' ? new Date().toISOString() : null}).eq('id', id).select().single();
