@@ -108,17 +108,21 @@ jobs:
       name: github-pages
       url: ${{ steps.zet.outputs.page_url || steps.zet2.outputs.page_url }}
     steps:
+      # GitHub heeft na het inpakken soms een paar seconden nodig voordat het pakketje te vinden is
+      - name: Even wachten tot het pakketje klaarstaat
+        run: sleep 15
       - name: Op de website zetten
         id: zet
+        continue-on-error: true
         uses: actions/deploy-pages@v4
         with:
           artifact_name: website-${{ github.run_attempt }}
       - name: Even wachten (als GitHub haperde)
-        if: failure()
+        if: steps.zet.outcome == 'failure'
         run: sleep 30
       - name: Nog een keer proberen
         id: zet2
-        if: failure()
+        if: steps.zet.outcome == 'failure'
         uses: actions/deploy-pages@v4
         with:
           artifact_name: website-${{ github.run_attempt }}
