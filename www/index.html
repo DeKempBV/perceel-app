@@ -14873,18 +14873,14 @@ async function hfScan(raw, cam) {
     try { const {data} = await sb.from('etiketten').select('*').eq('op_pallet', e.code); if (data?.length) { const ids = new Set(data.map(x => x.id)); S.etiketten = [...data, ...(S.etiketten || []).filter(x => !ids.has(x.id))]; } } catch {}
     if (HF.kist.some(k => k.n > 0 && !k.pal)) {   // kistjes in je hand → op deze pallet
       HF.hand = []; HF.paletten = []; hfPalErbij(e); await hfKistOpPallet(e); hfTeken(); return; }
-    const losseBakken = HF.hand.filter(b => !b.gekiept_op && !hfPalCodes().includes(b.op_pallet));
-    if (losseBakken.length && !HF.paletten.length) {   // bakken in je hand → op deze pallet
-      hfPalErbij(e); await hfBoek('pallet_op', e.code, losseBakken.map(b => b.code), true); HF.hand = HF.hand.filter(b => !losseBakken.includes(b)); hfTeken(); return; }
+    // bakken (kuubskisten) gaan niet op een pallet: die blijven gewoon los in je hand
     hfPalErbij(e); if (HF.paletten.length > 1) HF.log.unshift({t: `🧱 ${HF.paletten.length} pallets in je hand`, tijd: new Date()});
     hfTeken(); return;
   }
   if (HF.hand.some(x => x.code === e.code)) { hfMeld(`Box ${e.nr} heb je al gescand`); return; }
   if (e.gekiept_op) { const t = await hfKiepTerugVraag(e); if (!t) return; e = t; if (HF.hand.some(x => x.code === e.code)) { hfTeken(); return; } }
   HF.hand.push(e);
-  if (HF.pallet && e.op_pallet !== HF.pallet.code && !e.gekiept_op) {   // erop gezet: daarna alleen de pallet in je hand
-    await hfBoek('pallet_op', HF.pallet.code, [e.code], true);
-    HF.hand = HF.hand.filter(x => !(x.code === e.code && x.op_pallet === HF.pallet?.code)); hfTeken(); return; }
+  // bakken (kuubskisten) gaan niet op een pallet: een bak scannen met een pallet in je hand = gewoon de bak erbij in je hand
   hfTeken();
 }
 function hfVanPallet() {
@@ -14924,7 +14920,7 @@ function hfPalletInhoud(e) {
 async function hfKiepNu() { await hfBoek('kiep'); try { const {data} = await sb.from('res_invoer').select('*').order('created_at', {ascending: false}).limit(50); if (data?.length) { const ids = new Set(data.map(z => z.id)); S.res_invoer = [...(S.res_invoer || []).filter(z => !ids.has(z.id)), ...data]; } } catch {} await voorraadVerversen?.(); kiepVerversen(); }
 function hfHandHtml(kiep) {
   const leeg = !HF.pallet && !HF.hand.length && !HF.kist.length;
-  const hand = leeg ? `<div class="hfLeeg"><b>Scan een pallet of bakken</b><span>${kiep ? 'Daarna op 🧺 Gekiept tikken, of de KIEP-code scannen.' : 'Daarna een koelcel (erin · eruit · verplaatsen) of de kiep.<br>Eerst een pallet en dan bakken = de bakken gaan op die pallet.'}</span></div>`
+  const hand = leeg ? `<div class="hfLeeg"><b>Scan een pallet of bakken</b><span>${kiep ? 'Daarna op 🧺 Gekiept tikken, of de KIEP-code scannen.' : 'Daarna een koelcel (erin · eruit · verplaatsen) of de kiep.<br>Kistkaart en dan pallet = kistjes erop · pallet en dan kistkaart = kistjes eraf.'}</span></div>`
     : `${HF.paletten.map(p => hfItem(p, true)).join('')}${HF.hand.map(e => hfItem(e)).join('')}${HF.kist.filter(k => !k.pal).map(k => hfKistItem(k)).join('')}`;
   const kop = leeg ? 'In je hand' : 'In je hand: ' + hfHandTekst();
   // op de kieplijst van de heftruck-tablet: meteen "Gekiept" voor wat je in je hand hebt
