@@ -1064,6 +1064,18 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .kiepTerug{display:block;width:100%;min-height:70px;border:0;border-radius:16px;background:#6d4c41;color:#fff;font-size:22px;font-weight:800;margin-bottom:6px;cursor:pointer}.kiepTerug small{display:block;font-size:14px;font-weight:600;opacity:.85}
 .kiepLeeg{font-size:20px;padding:30px 10px;text-align:center;opacity:.85}
 .kiepKc{background:#1f5fbf}
+.kiepPlan{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.kiepPlanRij{display:flex;align-items:center;gap:12px;border:0;border-radius:14px;background:#33503b;color:#fff;padding:12px 14px;text-align:left;font:inherit;cursor:pointer}
+.kiepPlanRij:disabled{cursor:default;opacity:.9}.kiepPlanRij.af{opacity:.5}
+.kiepPlanRij .nr{font-size:22px;font-weight:800;min-width:34px;text-align:center}.kiepPlanRij .t{flex:1;display:flex;flex-direction:column}.kiepPlanRij .t b{font-size:18px}.kiepPlanRij .t small{opacity:.8}
+.kiepPlanRij .n{display:flex;flex-direction:column;align-items:flex-end;font-size:12px;opacity:.9}.kiepPlanRij .n b{font-size:20px}
+.hfOrder{background:#fff;border:2px solid #9fd3ff;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}.hfOrder.veld{border-color:#97c459}
+.hfOrderKop{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}.hfOrderKop b{font-size:1.25em}.hfOrderKop span{color:#5d6b62}.hfOrderKop em{font-style:normal;color:#2e7d32;font-weight:700;margin-left:auto}
+.hfOrderNotitie{background:#fff8e1;border-radius:8px;padding:6px 10px;font-size:.95em}
+.hfRegel{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;border-top:1px solid #e3e8e4;padding-top:8px}.hfRegel.klaar{background:#f3faf3;border-radius:10px;padding:8px}
+.hfRegelT{flex:1 1 260px;display:flex;flex-direction:column;min-width:0}.hfRegelT b{font-size:1.1em}.hfCel{font-size:1.25em;font-weight:800;color:#0c447c}.hfRegelT small{color:#5d6b62}
+.hfRegelK{display:flex;gap:8px;flex-wrap:wrap}.hfKlein{min-height:52px;padding:0 14px;border-radius:12px;border:2px solid #cfd8d1;background:#fff;font-weight:700;font-size:1em;cursor:pointer;color:#1d2a22}
+.hfKlein.aan{background:#e8f5e9;border-color:#2e7d32;color:#2e7d32}.hfKlein.lever{background:#2e7d32;border-color:#2e7d32;color:#fff}.hfKlein.deels{background:#fff}
 .kiepModus{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}.kiepModus button{min-height:52px;border-radius:14px;border:2px solid #2e7d32;background:transparent;color:inherit;font-size:17px;font-weight:700;cursor:pointer}.kiepModus button.aan{background:#2e7d32;color:#fff}
 .kiepScanVak{display:flex;flex-direction:column;gap:6px;border:2px dashed #6aa84f;border-radius:16px;padding:16px;margin-bottom:10px}.kiepScanVak b{font-size:20px}.kiepScanVak span{opacity:.85}.kiepScanBezig{color:#ffb74d;font-weight:700}
 .kiepScanKnoppen{display:flex;gap:10px}
@@ -1746,7 +1758,7 @@ window.addEventListener('online', () => { if (me) { liveAan(); setTimeout(voorra
 let liveVerstopt = 0;
 document.addEventListener('visibilitychange', () => { if (document.hidden) liveVerstopt = Date.now(); else if (liveVerstopt && Date.now() - liveVerstopt > 30000) { liveVerstopt = 0; voorraadVerversen(); } });
 // veel live-meldingen vlak na elkaar (een scan maakt er meerdere): één keer tekenen
-const LIVE_SAMEN = new Set(['partij_mutaties', 'etiketten', 'scan_log', 'res_invoer']);
+const LIVE_SAMEN = new Set(['partij_mutaties', 'etiketten', 'scan_log', 'res_invoer', 'kiep_planning', 'voorraad_reserveringen', 'voorraad_bestemmingen']);
 function renderStraks() { clearTimeout(renderStraks.t); renderStraks.t = setTimeout(() => render(), 150); }
 function verwerkLive(pl) {
   if (pl.table === 'percelen' || pl.table === 'partijen') spoorPartijMap = null;
@@ -4493,7 +4505,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['hfscan', 'trekkeruren', 'busuren', 'water', 'pno', 'bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'ressorteren', 'resprognose', 'resjaren', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['hfscan', 'hforders', 'trekkeruren', 'busuren', 'water', 'pno', 'bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'ressorteren', 'resprognose', 'resjaren', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -4548,7 +4560,7 @@ function renderPaneel() {
   if (isKoelcelPlek()) {   // koelcel-tablet: vast scherm zoals de trekkertablet, geen menu
     if (!KOELCEL_TABS.includes(tab)) tab = 'hfscan';
     $('#tabs').innerHTML = `<div class="paginaKop kcPlekKop"><div class="pkTitel">🚜 ${esc(mijnProfiel()?.naam || 'Heftruck')}</div>
-      ${[['hfscan', '📷 Scannen'], ['voorraad', '🧊 Koelcellen'], ['reskiep', '🧺 Kieplijst'], ['etiketten', '🏷️ Etiketten']].map(([k, l]) => `<button class="pkKnop ${tab === k ? '' : 'licht'}" onclick="zetTab('${k}')">${l}</button>`).join('')}
+      ${[['hfscan', '📷 Scannen'], ['hforders', '🧾 Orders'], ['voorraad', '🧊 Koelcellen'], ['reskiep', '🧺 Kieplijst'], ['etiketten', '🏷️ Etiketten']].map(([k, l]) => `<button class="pkKnop ${tab === k ? '' : 'licht'}" onclick="zetTab('${k}')">${l}</button>`).join('')}
       <button class="pkKnop licht" onclick="tmUitloggen()" title="Uitloggen (wachtwoord nodig)">🔒</button></div>`;
   } else
   { const bl = {i: blokIcoon(sectie), naam: blokNaam(sectie)}, inf = tegelInfo(tab, (TAB_INFO[tab] || [])[0], (TAB_INFO[tab] || [])[1] || tab), n = (tellers[tab] || [])[0], toggle = tab !== '_blok' && !isMobiel() && !isKoelcelPlek() ? (!isVol() ? `<button class="pkKnop licht" onclick="kaartTonen(false)" title="Kaart weg, hele scherm">⛶ Volledig</button>` : `<button class="pkKnop licht" onclick="kaartTonen(true)" title="De kaart erbij">🗺️ Kaart erbij</button>`) : '';
@@ -4577,6 +4589,7 @@ function renderPaneel() {
   else if (tab === 'voorraad') h = bedrijfGeladen ? (isKoelcelPlek() ? '' : seizoenKnop()) + htmlVoorraad() : '<p class="hint">Laden…</p>';
   else if (tab === 'etiketten') h = bedrijfGeladen ? htmlEtiketten() + htmlKistkaarten() : '<p class="hint">Laden…</p>';
   else if (tab === 'hfscan') h = bedrijfGeladen ? htmlHeftruck() : '<p class="hint">Laden…</p>';
+  else if (tab === 'hforders') h = bedrijfGeladen ? htmlHfOrders() : '<p class="hint">Laden…</p>';
   else if (tab === 'bestellingen') h = htmlBestellingen();
   else if (tab === 'pno') h = htmlPno();
   else if (tab === 'waarnemingen') h = htmlWaarnemingen();
@@ -4603,7 +4616,7 @@ function renderPaneel() {
   else if (tab === '_blok') h = htmlBlokOverzicht(sectie);
   else if (tab === 'watstaatwaar') h = htmlWatStaatWaar();
   else if (tab === 'vandaag') h = htmlVandaag();
-  else if (tab === 'reskiep') h = (isKoelcelPlek() ? '' : seizoenKnop()) + htmlKiepPaneel();
+  else if (tab === 'reskiep') h = (isKoelcelPlek() ? '' : seizoenKnop() + htmlKiepPlanning()) + htmlKiepPaneel();
   else if (tab === 'reskisten') h = htmlResKisten();
   else if (tab === 'dossier') h = seizoenKnop() + htmlDossier();
   else h = htmlSoorten();
@@ -6461,7 +6474,7 @@ const blokUitleg = k => mijnMenu().blokken?.[k]?.uitleg ?? BLOKKEN.find(b => b[0
 const blokkenVolgorde = () => { const v = mijnMenu().volgorde || [], alle = BLOKKEN.map(b => b[0]); return [...v.filter(k => alle.includes(k)), ...alle.filter(k => !v.includes(k))]; };
 const tegelInfo = (k, i, l) => { const t = mijnMenu().tegels?.[k] || {}, inf = TAB_INFO[k] || [i, l, '']; return [t.i || inf[0] || i, t.naam || inf[1] || l, t.uitleg ?? inf[2] ?? '']; };
 // de tegels per kopje volgens je eigen indeling (alleen tegels die je mag zien)
-const sectieTabsGefilterd = s => isKoelcelPlek() ? (s === 'voorraad' ? [['hfscan', '📷 Scannen'], ...sectieTabsBasis(s).filter(t => KOELCEL_TABS.includes(t[0])), ['reskiep', '🧺 Kieplijst']] : []) : sectieTabsBasis(s).filter(t => schermMag(t[0]));
+const sectieTabsGefilterd = s => isKoelcelPlek() ? (s === 'voorraad' ? [['hfscan', '📷 Scannen'], ['hforders', '🧾 Orders'], ...sectieTabsBasis(s).filter(t => KOELCEL_TABS.includes(t[0])), ['reskiep', '🧺 Kieplijst']] : []) : sectieTabsBasis(s).filter(t => schermMag(t[0]));
 function sectieTabs(s) {
   const plek = mijnMenu().plek; if (isKoelcelPlek() || !plek || !BLOKKEN.some(b => b[0] === s)) return sectieTabsGefilterd(s);
   const basis = {}, alle = new Map(); BLOKKEN.forEach(([k]) => { basis[k] = sectieTabsGefilterd(k); basis[k].forEach(t => { if (!alle.has(t[0])) alle.set(t[0], t); }); });
@@ -8909,7 +8922,7 @@ async function kistNaamZet(sid, naam) {
 const isKiep = () => mijnProfiel()?.werkplek === 'kiep';
 // koelcel-account: ziet alleen de koelcellen, de orders en de bakken onderweg (geen percelen, taken, mensen …)
 const isKoelcelPlek = () => mijnProfiel()?.werkplek === 'koelcel' && !isBeheerder();
-const KOELCEL_TABS = ['hfscan', 'voorraad', 'reskiep', 'etiketten'];
+const KOELCEL_TABS = ['hfscan', 'hforders', 'voorraad', 'reskiep', 'etiketten'];
 function kiepLijst() {
   const per = {};
   (S.res_invoer || []).forEach(i => { (per[i.partij_id] ||= []).push(i); });
@@ -8938,7 +8951,7 @@ function kiepModusKnoppen() {
 }
 function kiepScanInhoud() {
   const vandaag_ = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag() && i.user_id === me?.id).reduce((a, i) => a + n0(i.bakken), 0);
-  return `${kiepModusKnoppen()}<div class="kiepScanVak"><b>Scan de bak (of de pallet) die je kiept</b><span>Elke scan wordt meteen als gekiept geboekt en gaat uit de koelcel. Vandaag ${fmt(vandaag_)} gekiept.</span>
+  return `${kiepModusKnoppen()}${kiepPlanHtml()}<div class="kiepScanVak"><b>Scan de bak (of de pallet) die je kiept</b><span>Elke scan wordt meteen als gekiept geboekt en gaat uit de koelcel. Vandaag ${fmt(vandaag_)} gekiept.</span>
       ${KSL.bezig ? '<span class="kiepScanBezig">bezig…</span>' : ''}</div>
     <div class="kiepScanKnoppen"><button class="hfGroot cam" onclick="hfCamera()">📷 ${hfStroom ? 'Camera uit' : 'Scannen met camera'}</button></div>
     <input class="veld" id="kiepCodeIn" placeholder="Code typen (B230, P17)" autocomplete="off" onkeydown="if(event.key==='Enter'){kiepScanCode(this.value);this.value=''}" style="margin:10px 0">
@@ -8966,7 +8979,7 @@ function kiepInhoud() {
   if (kiepModus === 'scan') return kiepScanInhoud();
   const kc = kiepKcLijst(), l = kiepLijst(), mijnVandaag = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag() && i.user_id === me?.id).reduce((a, i) => a + n0(i.bakken), 0), lt = kiepLaatste();
   const lx = lt && (S.partijen || []).find(x => x.id === lt.partij_id);
-  return `${kiepModusKnoppen()}${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste ${lt.bron === 'koelcel' ? (n0(lt.bakken) === 1 ? 'kuubskist' : n0(lt.bakken) + ' kuubskisten') : 'bak'} terug <small>${esc(lx ? partijKort(lx) : '')} · ${tijdKort(lt.created_at)}</small></button>` : ''}
+  return `${kiepModusKnoppen()}${kiepPlanHtml()}${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste ${lt.bron === 'koelcel' ? (n0(lt.bakken) === 1 ? 'kuubskist' : n0(lt.bakken) + ' kuubskisten') : 'bak'} terug <small>${esc(lx ? partijKort(lx) : '')} · ${tijdKort(lt.created_at)}</small></button>` : ''}
     <div class="kiepUitleg">Tik op de partij van de bak die je pakt. Elke tik = 1 bak gekiept. <b>Vandaag ${fmt(mijnVandaag)} gekiept.</b></div>
     <div class="kiepLijst">${l.length ? l.map(kiepKnopHtml).join('') : `<div class="kiepLeeg">✅ ${kc.length ? 'Geen bakken van het veld meer.' : 'Alles is gekiept. Nieuwe bakken komen er vanzelf bij als de rooier een wagen meldt.'}</div>`}</div>
     ${kc.length ? `<div class="kiepKop2">❄️ Kuubskisten in de koelcellen <small>tik om te kiepen</small></div><div class="kiepLijst">${kc.map(kiepKcKnopHtml).join('')}</div>` : ''}`;
@@ -11362,6 +11375,7 @@ async function laadBedrijf() {
     q('perceel_seizoenen', x => x.order('van')),
     q('voorraad_bestemmingen', x => x.order('created_at')), q('voorraad_reserveringen', x => x.order('created_at'))]);
   S.voorraad_bestemmingen = vbb || []; S.voorraad_reserveringen = vbr || []; S.perceel_seizoenen = psz || [];
+  S.kiep_planning = (await q('kiep_planning', x => x.gte('datum', new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10)).order('datum').order('volgorde'))) || [];
   // partijen van een vorig teeltjaar die nog in de koelcel liggen ook laden
   if (pa && pm && !archief) { const al = new Set(pa.map(x => x.id)), som = {}; pm.forEach(m => { if (al.has(m.partij_id)) return; som[m.partij_id] = (som[m.partij_id] || 0) + (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0) * (m.eenheid && m.eenheid !== 'planten' ? (+m.per_eenheid || 1) : 1); });
     const ids = Object.keys(som).filter(k => som[k] > .5); if (ids.length) { const {data} = await sb.from('partijen').select('*').in('id', ids.slice(0, 300)); if (data) pa.push(...data); } }
@@ -13191,7 +13205,7 @@ async function monsterWeg(id) {
 }
 
 /* ---------- 5. VAN PARTIJ TOT KLANT ---------- */
-const MUT_SOORTEN = [['in', '⬇️ Inslag (gerooid, de koelcel in)'], ['uit', '⬆️ Levering aan klant'], ['uitval', '🗑️ Uitval / afgekeurd'], ['correctie', '↕️ Correctie (telling)']];
+const MUT_SOORTEN = [['in', '⬇️ Inslag (gerooid, de koelcel in)'], ['uit', '⬆️ Levering aan klant'], ['veld', '🌱 Naar het veld (poten)'], ['uitval', '🗑️ Uitval / afgekeurd'], ['correctie', '↕️ Correctie (telling)']];
 const mutPlanten = m => (+m.aantal || 0) * (m.eenheid && m.eenheid !== 'planten' ? (+m.per_eenheid || 1) : 1);
 const mutatiesVan = pid => (S.partij_mutaties || []).filter(m => m.partij_id === pid).sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
 function voorraadVan(partijId) {   // per koelcel: planten en de laatst gebruikte eenheid
@@ -13207,7 +13221,7 @@ function voorraadVan(partijId) {   // per koelcel: planten en de laatst gebruikt
 const eenhedenTekst = (pl, eenheid, per) => eenheid && eenheid !== 'planten' ? (per ? `${getal(Math.round(pl / per * 10) / 10)} ${eenheid} (${getal(pl)} pl.)` : `${getal(Math.round(pl * 10) / 10)} ${pl === 1 && eenheid === 'kuubskisten' ? 'kuubskist' : eenheid}`) : `${getal(pl)} planten`;
 async function mutatieFormulier(partijId, soortVast, id, voor = {}) {
   if (!mag('voorraad_beheren')) return;
-  if (!id && (soortVast === 'uit' || soortVast === 'uitval')) return mutatieUitFormulier(partijId, soortVast, voor);   // eruit: alleen kiezen uit wat er echt staat
+  if (!id && (soortVast === 'uit' || soortVast === 'uitval' || soortVast === 'veld')) return mutatieUitFormulier(partijId, soortVast, voor);   // eruit: alleen kiezen uit wat er echt staat
   const m = id ? S.partij_mutaties.find(x => x.id === id) : {soort: soortVast || 'in', datum: dKey(new Date()), eenheid: voor.eenheid || 'trays', partij_id: partijId, koelcel: voor.koelcel};
   const alle = (S.partijen || []).slice().sort((a, b) => (partijRas(a) || '').localeCompare(partijRas(b) || '', 'nl'));
   const vorige = mutatiesVan(m.partij_id || '').filter(x => x.soort === 'in').pop();
@@ -13261,8 +13275,10 @@ async function mutatieUitFormulier(partijId, soort, voor = {}) {
   const kies = regels.find(o => o.pid === partijId) || regels[0];
   const lbl = o => `${o.cel || 'geen koelcel'} · ${partijRas(o.x) || '?'} ${o.x.batch || o.x.nak || ''}${o.x.klasse ? ' ' + o.x.klasse : ''}${o.pallet ? ' · pallet ' + o.pallet : ''} · ${getal(o.n)} ${eenheidNaam(o.eenheid, o.n)}`;
   const klanten = [...new Set((S.partij_mutaties || []).map(x => x.klant).filter(Boolean))];
-  const w = await formulier(soort === 'uitval' ? '🗑️ Uitval / afgekeurd' : '⬆️ Levering aan klant', [
-    {k: 'soort', label: 'Wat', type: 'select', waarde: soort, opties: MUT_SOORTEN.filter(x => x[0] === 'uit' || x[0] === 'uitval')},
+  const percelen = (S.percelen || []).slice().sort((a, b) => String(a.naam || '').localeCompare(String(b.naam || ''), 'nl', {numeric: true}));
+  const w = await formulier(MUT_SOORTEN.find(x => x[0] === soort)?.[1] || 'Eruit halen', [
+    {k: 'soort', label: 'Waar gaat het heen?', type: 'select', waarde: soort, opties: MUT_SOORTEN.filter(x => ['uit', 'veld', 'uitval'].includes(x[0]))},
+    {k: 'perceel_id', label: 'Naar welk perceel? (mag leeg)', type: 'select', waarde: voor.perceel_id || '', opties: [['', '– nog niet bekend –'], ...percelen.map(q => [q.id, q.naam || '?'])], als: ['soort', 'veld']},
     {k: 'regel', label: 'Uit de koelcel', type: 'select', waarde: kies.k, opties: regels.map(o => [o.k, lbl(o)])},
     {k: 'hoe', label: 'Wat gaat eruit?', type: 'select', waarde: 'heel', opties: [['heel', 'Hele kistjes / trays / kisten'], ['planten', 'Losse planten (bijv. een paar uit een kistje)']]},
     {k: 'aantal', label: 'Aantal', type: 'number', waarde: voor.aantal ?? '', placeholder: 'hoeveel gaan eruit'},
@@ -13285,11 +13301,11 @@ async function mutatieUitFormulier(partijId, soort, voor = {}) {
   const prijs = parseFloat(String(w.prijs || '').replace(',', '.'));
   const rij = {partij_id: o.pid, seizoen_id: o.x.seizoen_id || bekeken, soort: w.soort, datum: w.datum || dKey(new Date()), aantal, eenheid: o.eenheid, per_eenheid: o.per, koelcel: o.cel || null,
     pallet: o.pallet || null, klant: w.soort === 'uit' ? (w.klant || '').trim() || null : null, pakbon: w.soort === 'uit' ? w.pakbon || null : null, prijs: w.soort === 'uit' && !isNaN(prijs) ? prijs : null,
-    notitie: [losTekst, w.notitie].filter(Boolean).join(' · ') || null, door: naamMe()};
+    notitie: [losTekst, w.notitie].filter(Boolean).join(' · ') || null, door: naamMe(), ...(w.soort === 'veld' && w.perceel_id ? {perceel_id: w.perceel_id} : {})};
   const res = await sb.from('partij_mutaties').insert(rij).select().single();
-  if (res.error) { toast('Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
+  if (res.error) { toast(/soort_check|perceel_id/i.test(res.error.message || '') ? 'Draai eerst naar-het-veld.sql in Supabase' : 'Opslaan mislukt: ' + foutTekst(res.error), 1); return; }
   S.partij_mutaties = [...(S.partij_mutaties || []), res.data]; render(true);
-  toast(`${w.soort === 'uitval' ? '🗑️' : '⬆️'} ${losTekst || getal(n) + ' ' + eenheidNaam(o.eenheid, n)} ${partijKort(o.x)} uit ${o.cel || 'de voorraad'}`);
+  toast(`${w.soort === 'uitval' ? '🗑️' : w.soort === 'veld' ? '🌱' : '⬆️'} ${losTekst || getal(n) + ' ' + eenheidNaam(o.eenheid, n)} ${partijKort(o.x)} ${w.soort === 'veld' ? 'naar het veld' + (w.perceel_id ? ' (' + (perceel(w.perceel_id)?.naam || '') + ')' : '') : 'uit ' + (o.cel || 'de voorraad')}`);
 }
 async function mutatieWeg(id) {
   const m = S.partij_mutaties.find(x => x.id === id); if (!m || !await bevestig('Boeking verwijderen?', `${MUT_SOORTEN.find(x => x[0] === m.soort)?.[1]} · ${m.aantal} ${m.eenheid}`)) return;
@@ -13306,15 +13322,16 @@ async function vbBestemmingForm(id, soortVast) {
   const b = id ? S.voorraad_bestemmingen.find(x => x.id === id) : {soort: soortVast || 'order'};
   const klanten = [...new Set([...(S.partij_mutaties || []).map(m => m.klant), ...(S.voorraad_bestemmingen || []).map(x => x.klant)].filter(Boolean))];
   const w = await formulier(id ? '✏️ Bestemming' : '＋ Nieuwe bestemming', [
-    {k: 'soort', label: 'Soort', type: 'select', waarde: b.soort, opties: [['order', '🧾 Order van een klant'], ['overig', '📌 Iets anders'], ...(b.soort === 'eigen' ? [['eigen', '🌱 Eigen gebruik']] : [])]},
+    {k: 'soort', label: 'Soort', type: 'select', waarde: b.soort, opties: [['order', '🧾 Order van een klant'], ['eigen', '🌱 Naar het veld (poten / eigen gebruik)'], ['overig', '📌 Iets anders']]},
+    {k: 'perceel_id', label: 'Naar welk perceel?', type: 'select', waarde: b.perceel_id || '', opties: [['', '– nog niet bekend –'], ...(S.percelen || []).slice().sort((a, c) => String(a.naam || '').localeCompare(String(c.naam || ''), 'nl', {numeric: true})).map(q => [q.id, q.naam || '?'])], als: ['soort', 'eigen']},
     {k: 'klant', label: 'Klant', waarde: b.klant || '', lijst: klanten, als: ['soort', 'order']},
     {k: 'ordernr', label: 'Ordernummer', waarde: b.ordernr || '', als: ['soort', 'order']},
     {k: 'naam', label: 'Naam (leeg = klant of soort)', waarde: b.naam || '', placeholder: 'bijv. Eigen gebruik vollegrond, Export Spanje'},
     {k: 'leverdatum', label: 'Leverdatum', type: 'date', waarde: b.leverdatum || ''},
     {k: 'notitie', label: 'Aantekeningen', type: 'textarea', waarde: b.notitie || ''}], id ? 'Opslaan' : 'Toevoegen');
   if (!w) return null;
-  const naam = w.naam?.trim() || (w.soort === 'order' ? [w.klant, w.ordernr && '#' + w.ordernr].filter(Boolean).join(' ') : '') || (w.soort === 'eigen' ? 'Eigen gebruik' : 'Overig');
-  const rij = {naam, soort: w.soort, klant: w.soort === 'order' ? w.klant || null : null, ordernr: w.soort === 'order' ? w.ordernr || null : null, leverdatum: w.leverdatum || null, notitie: w.notitie || null};
+  const naam = w.naam?.trim() || (w.soort === 'order' ? [w.klant, w.ordernr && '#' + w.ordernr].filter(Boolean).join(' ') : '') || (w.soort === 'eigen' ? 'Naar het veld' + (w.perceel_id ? ' · ' + (perceel(w.perceel_id)?.naam || '') : '') : 'Overig');
+  const rij = {naam, soort: w.soort, perceel_id: w.soort === 'eigen' ? w.perceel_id || null : null, klant: w.soort === 'order' ? w.klant || null : null, ordernr: w.soort === 'order' ? w.ordernr || null : null, leverdatum: w.leverdatum || null, notitie: w.notitie || null};
   if (!id) Object.assign(rij, {seizoen_id: bekeken || null, door: naamMe()});
   const res = id ? await sb.from('voorraad_bestemmingen').update(rij).eq('id', id).select().single() : await sb.from('voorraad_bestemmingen').insert(rij).select().single();
   if (res.error) { toast(/does not exist|schema cache/i.test(res.error.message) ? 'Voer eerst het nieuwe beheer.sql uit in Supabase' : foutTekst(res.error), 1); return null; }
@@ -13647,8 +13664,9 @@ function htmlBestemmingen(beh) {
       ${r.length ? r.map(x => { const y = (S.partijen || []).find(p => p.id === x.partij_id), v = voorraadVan(x.partij_id).get(x.koelcel || '—') || {};
         return `<div class="vbRegel"><span>${esc(partijRas(y || {}) || '?')} ${esc(y?.batch || '')} ${esc(y?.klasse || '')}<small>${eenhedenTekst(+x.planten, v.eenheid, v.per_eenheid)}${x.koelcel ? ' · ' + esc(x.koelcel) : ''}</small></span>${beh ? `<button class="weg" title="Terug naar de koelcel" onclick="vbResWeg('${x.id}')">↩</button>` : ''}</div>`; }).join('')
         : `<div class="vbLeeg">${beh ? 'Sleep hier planten naartoe' : 'Nog leeg'}</div>`}
+      ${beh ? `<button class="knop licht klein" style="margin-top:6px" onclick="vbRegelErbij('${b.id}')">＋ Partij erbij</button>` : ''}
       ${beh && r.length ? `<button class="knop licht klein" style="margin-top:6px" onclick="vbLeveren('${b.id}')">${b.soort === 'eigen' ? '🌱 Uit de koelcel halen (gebruikt)' : '⬆️ Geleverd'}</button>` : ''}</div>`; };
-  return `<section class="kaartje"><h4>🧾 Orders ${beh ? '<small>planten die voor een klant klaarstaan; eigen gebruik volgt uit de teeltplanning</small>' : ''}</h4>
+  return `<section class="kaartje"><h4>🧾 Orders ${beh ? '<small>voor een klant of naar het veld; de heftruck ziet ze op zijn tablet bij 🧾 Orders</small>' : ''}</h4>
     <div class="vbDozen">${true ? '' : `<div class="vbDoos eigen" data-vbdoel="eigen"><div class="vbKop"><b>🌱 Eigen gebruik</b></div><div class="vbLeeg">${beh ? 'Sleep hier planten naartoe' : 'Nog leeg'}</div></div>`}${l.map(doos).join('')}
       ${beh ? `<button class="vbDoos nieuw" data-vbdoel="nieuw" onclick="vbBestemmingForm(null)">＋ Nieuwe order / bestemming</button>` : ''}</div></section>`;
 }
@@ -13660,7 +13678,7 @@ function htmlVoorraad() {
     return `<div class="kcTabletKop"><span>Tik op een koelcel om te zien wat erin staat, in te slaan of eruit te halen</span></div>${kcPlattegrondHtml(beh)}`; }
   const kop = `<section class="kaartje"><h4>📦 Van partij tot klant</h4>
     <div class="ptabs" style="grid-template-columns:repeat(${isKoelcelPlek() ? 2 : 3},1fr)">${[['voorraad', '🧊', 'In de koelcel'], ['leveringen', '🚚', 'Leveringen'], ...(isKoelcelPlek() ? [] : [['zoek', '🔎', 'Terugzoeken']])].map(([k, i, l]) => `<button class="${vrWeergave === k ? 'aan' : ''}" onclick="vrWeergave='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
-    ${beh ? `<div class="rij"><button class="knop licht" onclick="mutatieFormulier('', 'in')">⬇️ Inslag</button><button class="knop licht" onclick="mutatieFormulier('', 'uit')">⬆️ Levering</button><button class="knop licht" onclick="mutatieFormulier('', 'uitval')">🗑️ Uitval</button></div>` : ''}
+    ${beh ? `<div class="rij"><button class="knop licht" onclick="mutatieFormulier('', 'in')">⬇️ Inslag</button><button class="knop licht" onclick="mutatieFormulier('', 'uit')">⬆️ Levering</button><button class="knop licht" onclick="mutatieFormulier('', 'veld')">🌱 Naar het veld</button><button class="knop licht" onclick="mutatieFormulier('', 'uitval')">🗑️ Uitval</button></div>` : ''}
     <div class="rij">${beh ? '<button class="knop" onclick="kcScan()">❄️ Koelcel inscannen</button>' : ''}<button class="knop licht" onclick="etScan()">📷 Etiket scannen</button>${isKoelcelPlek() ? '' : `<button class="knop licht" onclick="zetTab('etiketten')">🏷️ Etiketten</button>`}</div>
     ${beh ? '<div class="rij" style="margin-top:4px"><button class="knop licht klein" onclick="kcQrAfdrukken()">🖨️ QR-codes van de koelcellen afdrukken</button></div>' : ''}</section>`;
   if (vrWeergave === 'leveringen') {
@@ -14407,6 +14425,123 @@ async function hfCamera() {
       hfTimer = setTimeout(kijk, 200); };
     kijk();
   } catch (e) { hfCamStop(); toast('De camera kon niet worden geopend: ' + (e.message || e), 1); }
+}
+// order op de computer: een partij uit de koelcel erbij kiezen (zonder slepen)
+async function vbRegelErbij(bid) {
+  const regels = voorraadRegels(); if (!regels.length) { toast('Er staat niets in de koelcellen', 1); return; }
+  const lbl = o => `${o.cel || 'geen koelcel'} · ${partijRas(o.x) || '?'} ${o.x.batch || o.x.nak || ''}${o.x.klasse ? ' ' + o.x.klasse : ''}${o.pallet ? ' · pallet ' + o.pallet : ''} · ${getal(o.n)} ${eenheidNaam(o.eenheid, o.n)}`;
+  const w = await formulier('＋ Partij erbij', [{k: 'r', label: 'Uit de koelcel', type: 'select', waarde: regels[0].k, opties: regels.map(o => [o.k, lbl(o)])}], 'Verder');
+  if (!w) return; const o = regels.find(x => x.k === w.r); if (o) vbReserveer(o.pid, o.cel || '—', bid);
+}
+/* ---------- heftruck: orders klaarzetten en (deels) uitleveren ---------- */
+function htmlHfOrders() {
+  const l = vbBest().map(b => ({b, r: vbRes().filter(x => x.bestemming_id === b.id)})).filter(o => o.r.length)
+    .sort((a, c) => String(a.b.leverdatum || '9').localeCompare(String(c.b.leverdatum || '9')) || (a.b.volgorde - c.b.volgorde));
+  if (!l.length) return `<div id="hfScherm"><div class="hfLeeg" style="padding:24px"><b>Geen orders om klaar te zetten</b><span>Orders worden op de computer ingevuld bij Koelcellen → 🧾 Orders.</span></div></div>`;
+  return `<div id="hfScherm">${l.map(({b, r}) => {
+    const veld = b.soort === 'eigen', dat = b.leverdatum ? new Date(b.leverdatum).toLocaleDateString('nl-NL', {weekday: 'short', day: 'numeric', month: 'short'}) : '';
+    const klaarAlle = r.every(x => x.klaargezet);
+    return `<section class="hfOrder ${veld ? 'veld' : ''}"><div class="hfOrderKop"><b>${veld ? '🌱' : '🧾'} ${esc(b.naam)}</b><span>${[veld ? (b.perceel_id ? 'naar ' + esc(perceel(b.perceel_id)?.naam || 'het veld') : 'naar het veld') : esc(b.klant || ''), b.ordernr ? '#' + esc(b.ordernr) : '', dat ? '📅 ' + dat : ''].filter(Boolean).join(' · ')}</span>${klaarAlle ? '<em>✅ alles klaargezet</em>' : ''}</div>
+      ${b.notitie ? `<div class="hfOrderNotitie">${esc(b.notitie)}</div>` : ''}
+      ${r.map(x => { const y = (S.partijen || []).find(p => p.id === x.partij_id) || {}, v = voorraadVan(x.partij_id).get(x.koelcel || '—') || {};
+        return `<div class="hfRegel ${x.klaargezet ? 'klaar' : ''}"><div class="hfRegelT"><b>${esc(partijRas(y) || '?')} ${esc(y.batch || '')} ${esc(y.klasse || '')}</b><span class="hfCel">❄️ ${esc(x.koelcel || 'geen koelcel')}</span><small>${eenhedenTekst(+x.planten, v.eenheid, v.per_eenheid)}${+x.geleverd ? ` · al ${getal(+x.geleverd)} pl. uitgeleverd` : ''}</small></div>
+          <div class="hfRegelK"><button class="hfKlein ${x.klaargezet ? 'aan' : ''}" onclick="hfKlaarzet('${x.id}')">${x.klaargezet ? '✅ Klaargezet' : '☐ Klaarzetten'}</button>
+          <button class="hfKlein deels" onclick="hfLever('${x.id}',true)">Deels…</button><button class="hfKlein lever" onclick="hfLever('${x.id}')">✔ ${veld ? 'Naar het veld' : 'Uitgeleverd'}</button></div></div>`; }).join('')}</section>`; }).join('')}</div>`;
+}
+async function hfKlaarzet(rid) {
+  const r = vbRes().find(x => x.id === rid); if (!r) return;
+  const {data, error} = await sb.from('voorraad_reserveringen').update({klaargezet: !r.klaargezet}).eq('id', rid).select().single();
+  if (error) { toast(/klaargezet/.test(error.message || '') ? 'Draai eerst orders-kiepplanning.sql in Supabase' : foutTekst(error), 1); return; }
+  Object.assign(r, data || {klaargezet: !r.klaargezet}); render(true);
+}
+async function hfLever(rid, deels) {
+  if (!mag('voorraad_beheren')) { toast('Dit account mag geen voorraad boeken', 1); return; }
+  const r = vbRes().find(x => x.id === rid); if (!r) return; const b = (S.voorraad_bestemmingen || []).find(x => x.id === r.bestemming_id); if (!b) return;
+  const y = (S.partijen || []).find(p => p.id === r.partij_id) || {}, v = voorraadVan(r.partij_id).get(r.koelcel || '—') || {}, veld = b.soort === 'eigen';
+  const per = v.eenheid && v.eenheid !== 'planten' ? +v.per_eenheid || 0 : 0;
+  let pl = +r.planten;
+  if (deels) {
+    const w = await formulier(`${veld ? '🌱' : '⬆️'} Deels: ${partijRas(y) || ''} ${y.batch || ''}`, [
+      {type: 'uitleg', waarde: `Voor deze order: <b>${eenhedenTekst(+r.planten, v.eenheid, v.per_eenheid)}</b> uit ${esc(r.koelcel || 'geen koelcel')}. Hoeveel gaat er nu weg?`},
+      {k: 'n', label: per ? `Aantal ${v.eenheid}` : 'Aantal planten', type: 'number', waarde: ''},
+      ...(per ? [{k: 'een', label: 'In', type: 'select', waarde: v.eenheid, opties: [[v.eenheid, `${v.eenheid} (à ${getal(per)})`], ['planten', 'losse planten']]}] : [])], veld ? 'Naar het veld' : 'Uitgeleverd');
+    if (!w) return; const n = leesGetal(w.n, 0); pl = Math.round(per && w.een !== 'planten' ? n * per : n);
+    if (!(pl > 0)) { toast('Vul een aantal in', 1); return; }
+    if (pl > +r.planten + .5) { toast(`Voor deze order staan maar ${getal(+r.planten)} planten`, 1); return; }
+  }
+  const rij = {partij_id: r.partij_id, seizoen_id: y.seizoen_id || bekeken, soort: veld ? 'veld' : 'uit', datum: dKey(new Date()), aantal: per ? Math.round(pl / per * 10000) / 10000 : pl,
+    eenheid: per ? v.eenheid : 'planten', per_eenheid: per || null, koelcel: r.koelcel || null, klant: veld ? null : b.klant || b.naam, pakbon: veld ? null : b.ordernr || null,
+    notitie: `Order: ${b.naam}`, door: naamMe(), bestemming_id: b.id, ...(veld && b.perceel_id ? {perceel_id: b.perceel_id} : {})};
+  const ins = await sb.from('partij_mutaties').insert(rij).select().single();
+  if (ins.error) { toast(/soort_check|bestemming_id|perceel_id/i.test(ins.error.message || '') ? 'Draai eerst naar-het-veld.sql en orders-kiepplanning.sql in Supabase' : foutTekst(ins.error), 1); return; }
+  S.partij_mutaties = [...(S.partij_mutaties || []), ins.data];
+  const rest = +r.planten - pl;
+  if (rest <= .5) { await sb.from('voorraad_reserveringen').delete().eq('id', rid); S.voorraad_reserveringen = vbRes().filter(x => x.id !== rid); }
+  else { const {data} = await sb.from('voorraad_reserveringen').update({planten: rest, geleverd: (+r.geleverd || 0) + pl}).eq('id', rid).select().single(); Object.assign(r, data || {planten: rest}); }
+  // order leeg: afsluiten (de vaste bak "Eigen gebruik" zonder perceel blijft open)
+  if (!vbRes().some(x => x.bestemming_id === b.id) && (b.soort !== 'eigen' || b.perceel_id)) { const {data: d} = await sb.from('voorraad_bestemmingen').update({klaar: true}).eq('id', b.id).select().single(); if (d) Object.assign(b, d); }
+  try { navigator.vibrate?.(60); } catch {}
+  render(true); toast(`${veld ? '🌱' : '⬆️'} ${eenhedenTekst(pl, v.eenheid, v.per_eenheid)} ${partijRas(y) || ''} ${veld ? 'naar het veld' : 'uitgeleverd aan ' + (b.klant || b.naam)}`);
+}
+/* ---------- kiepplanning: op de computer invullen wat er gekiept moet worden ---------- */
+let kpDatum = null;
+const kpLijst = d => (S.kiep_planning || []).filter(k => k.datum === d).sort((a, c) => a.volgorde - c.volgorde || String(a.created_at).localeCompare(String(c.created_at)));
+const kpGekiept = (pid, d) => (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.partij_id === pid && i.datum === d).reduce((a, i) => a + n0(i.bakken), 0);
+const kpMag = () => mag('resultaten_beheren') || mag('voorraad_beheren');
+function htmlKiepPlanning() {
+  if (!kpMag()) return '';
+  const d = kpDatum || vandaag(), l = kpLijst(d), morgen = dKey(new Date(Date.now() + 864e5));
+  return `<section class="kaartje"><h4>📋 Wat moet er gekiept worden <small>dit ziet de heftruck bovenaan de kieplijst</small></h4>
+    <div class="rij" style="align-items:center"><button class="knop ${d === vandaag() ? '' : 'licht'} klein" onclick="kpDatum=null;render(true)">Vandaag</button><button class="knop ${d === morgen ? '' : 'licht'} klein" onclick="kpDatum='${morgen}';render(true)">Morgen</button>
+      <input class="veld" type="date" value="${d}" style="max-width:170px" onchange="kpDatum=this.value||null;render(true)"></div>
+    ${l.length ? l.map((k, i) => { const y = (S.partijen || []).find(p => p.id === k.partij_id) || {}, g = kpGekiept(k.partij_id, d);
+      return `<div class="srRij"><div class="srDatum"><b>${i + 1}</b></div><div class="t"><b>${esc(partijRas(y) || '?')} ${esc(y.batch || '')} ${esc(y.klasse || '')}${k.aantal ? ' · ' + getal(+k.aantal) + ' bakken' : ''}</b>
+        <small>${[k.koelcel ? '❄️ ' + esc(k.koelcel) : '🚜 van het veld', g ? `${getal(g)} gekiept` : '', k.notitie ? esc(k.notitie) : ''].filter(Boolean).join(' · ')}</small></div>
+        <span class="logknoppen"><button class="weg" title="Hoger" onclick="kpSchuif('${k.id}',-1)">▲</button><button class="weg" title="Lager" onclick="kpSchuif('${k.id}',1)">▼</button><button class="weg" title="Aanpassen" onclick="kpForm('${k.id}')">✏️</button><button class="weg" title="Weghalen" onclick="kpWeg('${k.id}')">✖</button></span></div>`; }).join('') : '<p class="hint">Nog niets ingepland voor deze dag.</p>'}
+    <div class="rij"><button class="knop" onclick="kpForm()">＋ Partij inplannen</button>${l.length ? '' : `<button class="knop licht" onclick="kpKopieer()">↻ Lijst van de vorige dag overnemen</button>`}</div></section>`;
+}
+async function kpForm(id) {
+  if (!kpMag()) return;
+  const k = id ? (S.kiep_planning || []).find(x => x.id === id) : {datum: kpDatum || vandaag()};
+  const ps = (S.partijen || []).filter(y => !bekeken || y.seizoen_id === bekeken || voorraadRegels().some(o => o.pid === y.id)).sort((a, c) => (partijRas(a) || '').localeCompare(partijRas(c) || '', 'nl') || String(a.batch || '').localeCompare(String(c.batch || ''), 'nl', {numeric: true}));
+  const cellen = [...new Set([...kcLijst().map(c => c.naam), ...voorraadRegels().map(o => o.cel).filter(Boolean)])];
+  const w = await formulier(id ? '✏️ Kiepplanning' : '＋ Partij inplannen om te kiepen', [
+    {k: 'partij_id', label: 'Partij', type: 'select', waarde: k.partij_id || '', opties: [['', '– kies –'], ...ps.map(y => [y.id, `${partijRas(y) || '?'} · ${y.batch || y.nak || ''}${y.klasse ? ' ' + y.klasse : ''}${voorraadRegels().filter(o => o.pid === y.id).map(o => ' · ' + o.cel + ': ' + getal(o.n) + ' ' + eenheidNaam(o.eenheid, o.n)).join('')}`])]},
+    {k: 'aantal', label: 'Hoeveel bakken / kisten (mag leeg)', type: 'number', waarde: k.aantal ?? ''},
+    {k: 'koelcel', label: 'Waar staan ze?', type: 'select', waarde: k.koelcel || '', opties: [['', '🚜 Van het veld (wagens)'], ...cellen.map(c => [c, '❄️ ' + c])]},
+    {k: 'datum', label: 'Dag', type: 'date', waarde: k.datum},
+    {k: 'notitie', label: 'Opmerking', waarde: k.notitie || '', placeholder: 'bijv. eerst deze, sortering A+'}], id ? 'Opslaan' : 'Inplannen');
+  if (!w) return; if (!w.partij_id) { toast('Kies een partij', 1); return; }
+  const rij = {partij_id: w.partij_id, aantal: w.aantal === '' ? null : leesGetal(w.aantal, null), koelcel: w.koelcel || null, datum: w.datum || vandaag(), notitie: (w.notitie || '').trim() || null};
+  if (!id) Object.assign(rij, {volgorde: Math.max(0, ...kpLijst(rij.datum).map(x => x.volgorde)) + 1, door: naamMe()});
+  const res = id ? await sb.from('kiep_planning').update(rij).eq('id', id).select().single() : await sb.from('kiep_planning').insert(rij).select().single();
+  if (res.error) { toast(/kiep_planning/.test(res.error.message || '') ? 'Draai eerst orders-kiepplanning.sql in Supabase' : foutTekst(res.error), 1); return; }
+  S.kiep_planning = [...(S.kiep_planning || []).filter(x => x.id !== res.data.id), res.data]; render(true);
+}
+async function kpWeg(id) {
+  const {error} = await sb.from('kiep_planning').delete().eq('id', id); if (error) { toast(foutTekst(error), 1); return; }
+  S.kiep_planning = (S.kiep_planning || []).filter(x => x.id !== id); render(true);
+}
+async function kpSchuif(id, d) {
+  const k = (S.kiep_planning || []).find(x => x.id === id); if (!k) return; const l = kpLijst(k.datum), i = l.findIndex(x => x.id === id), j = i + d; if (j < 0 || j >= l.length) return;
+  [l[i], l[j]] = [l[j], l[i]]; l.forEach((x, n) => x.volgorde = n + 1); render(true);
+  await Promise.all(l.map(x => sb.from('kiep_planning').update({volgorde: x.volgorde}).eq('id', x.id)));
+}
+async function kpKopieer() {
+  const d = kpDatum || vandaag(), eerder = [...new Set((S.kiep_planning || []).map(k => k.datum).filter(x => x < d))].sort().pop(); if (!eerder) { toast('Er is geen eerdere lijst', 1); return; }
+  const rijen = kpLijst(eerder).filter(k => !k.aantal || kpGekiept(k.partij_id, eerder) < +k.aantal).map((k, i) => ({partij_id: k.partij_id, aantal: k.aantal ? Math.max(0, +k.aantal - kpGekiept(k.partij_id, eerder)) || null : null, koelcel: k.koelcel, notitie: k.notitie, datum: d, volgorde: i + 1, door: naamMe()}));
+  if (!rijen.length) { toast('Op de vorige lijst is alles al gekiept', 1); return; }
+  const {data, error} = await sb.from('kiep_planning').insert(rijen).select(); if (error) { toast(foutTekst(error), 1); return; }
+  S.kiep_planning = [...(S.kiep_planning || []), ...(data || [])]; render(true); toast(`↻ ${rijen.length} ${rijen.length === 1 ? 'partij' : 'partijen'} overgenomen (wat nog niet gekiept was)`);
+}
+// op de heftruck: bovenaan de kieplijst
+function kiepPlanHtml() {
+  const d = vandaag(), l = kpLijst(d); if (!l.length) return '';
+  return `<div class="kiepPlan"><div class="kiepKop2" style="margin-top:4px">📋 Vandaag kiepen</div>${l.map((k, i) => { const y = (S.partijen || []).find(p => p.id === k.partij_id) || {}, g = kpGekiept(k.partij_id, d), af = k.aantal && g >= +k.aantal;
+    const kan = k.koelcel && kiepKcLijst().some(o => o.pid === k.partij_id && o.cel === k.koelcel);
+    return `<button class="kiepPlanRij ${af ? 'af' : ''}" ${kan ? `onclick='kiepKcOpen(${JSON.stringify(k.partij_id)},${esc(JSON.stringify(k.koelcel))})'` : 'disabled'}><span class="nr">${af ? '✅' : i + 1}</span>
+      <span class="t"><b>${esc(partijRas(y) || '?')} ${esc(y.batch || '')}</b><small>${k.koelcel ? '❄️ ' + esc(k.koelcel) : '🚜 van het veld'}${k.notitie ? ' · ' + esc(k.notitie) : ''}</small></span>
+      <span class="n"><b>${getal(g)}${k.aantal ? ' / ' + getal(+k.aantal) : ''}</b>gekiept</span></button>`; }).join('')}</div>`;
 }
 /* =====================================================================================
    KISTKAARTEN (plantenpaspoort) – klaarzetten in de app, printen met BarTender op app01
@@ -16298,7 +16433,7 @@ const isNetFout = e => !navigator.onLine || /Failed to fetch|NetworkError|Load f
 let wachtrij = (() => { try { return JSON.parse(localStorage.getItem('wachtrij') || '[]'); } catch { return []; } })();
 const bewaarWachtrij = () => { try { localStorage.setItem('wachtrij', JSON.stringify(wachtrij)); } catch {} netStatus(); };
 const nieuwId = () => crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
-const OFFLINE_TABELLEN = ['taken', 'markeringen', 'oogst', 'uren', 'machine_log', 'kosten', 'meldingen', 'percelen', 'middelen', 'machines', 'soorten', 'rassen', 'monsters', 'partij_mutaties', 'partijen', 'res_invoer', 'etiketten', 'wagens_weg', 'voorraad_bestemmingen', 'voorraad_reserveringen'];
+const OFFLINE_TABELLEN = ['taken', 'markeringen', 'oogst', 'uren', 'machine_log', 'kosten', 'meldingen', 'percelen', 'middelen', 'machines', 'soorten', 'rassen', 'monsters', 'partij_mutaties', 'partijen', 'res_invoer', 'etiketten', 'wagens_weg', 'voorraad_bestemmingen', 'voorraad_reserveringen', 'kiep_planning'];
 // database-functies die zonder bereik in de wachtrij mogen (met een eigen sleutel, zodat ze nooit dubbel geboekt worden)
 const OFFLINE_RPC = ['scan_boek', 'kiep_uit_koelcel'];
 // sb.from vervangen door een versie die schrijfacties bij geen bereik in de wachtrij zet
@@ -16415,7 +16550,7 @@ window.addEventListener('online', () => { netStatus(); verwerkWachtrij(); });
 window.addEventListener('offline', netStatus);
 setInterval(() => { if (wachtrij.length || fotoWachtrij.length) verwerkWachtrij(); }, 20000);
 // De gegevens op het apparaat bewaren om ook zonder bereik te kunnen starten
-const CACHE_LIJSTEN = ['percelen', 'taken', 'soorten', 'rassen', 'markeringen', 'tractoren', 'profielen', 'seizoenen', 'middelen', 'machines', 'machine_log', 'oogst', 'kosten', 'meldingen', 'inst', 'partijen', 'monsters', 'partij_mutaties', 'waarnemingen', 'plantbehoefte', 'rooiplanning', 'res_invoer', 'res_kistinhoud', 'etiketten', 'wagens_weg', 'voorraad_bestemmingen', 'voorraad_reserveringen'];
+const CACHE_LIJSTEN = ['percelen', 'taken', 'soorten', 'rassen', 'markeringen', 'tractoren', 'profielen', 'seizoenen', 'middelen', 'machines', 'machine_log', 'oogst', 'kosten', 'meldingen', 'inst', 'partijen', 'monsters', 'partij_mutaties', 'waarnemingen', 'plantbehoefte', 'rooiplanning', 'res_invoer', 'res_kistinhoud', 'etiketten', 'wagens_weg', 'voorraad_bestemmingen', 'voorraad_reserveringen', 'kiep_planning'];
 let cacheTimer;
 function bewaarCache() {
   if (archief || !S.percelen.length) return;
