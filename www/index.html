@@ -1095,7 +1095,12 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 #kiepPop{position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
 #kiepPop .kpDoos{background:#fff;color:#1d2a22;border-radius:22px;padding:22px;width:min(420px,100%);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}
 #kiepPop .kpTitel{font-size:22px}#kiepPop .kpSub{color:#5d6b62;margin-top:4px}
-/* knop in de hand */.hfItem .hfKnopjes{display:flex;gap:6px;flex-wrap:wrap}.hfItem .hfKnopjes button{margin:6px 0 0!important}
+/* knop in de hand */.etModus{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}.etModus button{flex:1;min-width:120px;border:2px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;font:700 16px/1 system-ui,sans-serif;cursor:pointer;color:#1d2a22}.etModus button.aan{border-color:#2e7d32;background:#2e7d32;color:#fff}
+.etGescand{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid #d5ded8;border-radius:12px;padding:10px 12px;margin-bottom:6px;background:#fff}.etGescand .t{flex:1;min-width:180px}.etGescand small{display:block;color:#5d6b62}.etGescand .k{display:flex;gap:6px;flex-wrap:wrap}
+.etActRij{display:flex;align-items:center;gap:10px;width:100%;border:1px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;margin-bottom:6px;text-align:left;font:inherit;cursor:pointer}.etActRij:active{background:#eef6ef}
+.etActRij .kl{width:10px;align-self:stretch;border-radius:4px;flex:0 0 auto}.etActRij .t{flex:1;min-width:0}.etActRij small{display:block;color:#5d6b62}.etActRij .pr{font-size:22px}
+.hfHand .hfKiepKnop{width:100%;margin-top:10px}
+.hfItem .hfKnopjes{display:flex;gap:6px;flex-wrap:wrap}.hfItem .hfKnopjes button{margin:6px 0 0!important}
 .hfItem .hfPrint{display:inline-block;margin:6px 6px 0 0;border:0;border-radius:10px;background:#e3f2fd;color:#0d47a1;font:700 14px/1 system-ui,sans-serif;padding:8px 12px;cursor:pointer}.hfItem .hfWeg{display:inline-block;margin-top:6px;border:0;border-radius:10px;background:#fdecea;color:#b71c1c;font:700 14px/1 system-ui,sans-serif;padding:8px 12px;cursor:pointer}
 #hfScherm .hftRas{margin-bottom:14px}#hfScherm .hftRasKop{display:flex;justify-content:space-between;align-items:baseline;padding:4px 4px 6px;font-size:18px}#hfScherm .hftRasKop span{font-size:14px;color:#5d6b62}
 #hfScherm .hftRij{display:flex;align-items:center;gap:10px;width:100%;border:1px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;margin-bottom:6px;text-align:left;font:inherit;cursor:pointer}#hfScherm .hftRij.open{border-color:#2e7d32;background:#f1f8f2}
@@ -4618,7 +4623,7 @@ function renderPaneel() {
   else if (tab === 'mestregister') { srSoort = 'bemesting'; h = seizoenKnop() + `<div class="rij" style="margin:0 0 10px;flex-wrap:wrap">${mag('taken_toevoegen') ? `<button class="knop" style="margin:0" onclick="werkTaakFormulier('bemesten')">＋ Bemesten plannen</button>` : ''}${mag('middelen_beheren') ? `<button class="knop licht" style="margin:0" onclick="middelFormulier(null,'meststof')">＋ Meststof toevoegen</button>` : ''}</div>` + htmlBemesting() + htmlSpuitregister(); }
   else if (tab === 'middelen') h = bedrijfGeladen ? htmlMiddelen() : '<p class="hint">Laden…</p>';
   else if (tab === 'voorraad') h = bedrijfGeladen ? (isKoelcelPlek() ? '' : seizoenKnop()) + htmlVoorraad() : '<p class="hint">Laden…</p>';
-  else if (tab === 'etiketten') h = bedrijfGeladen ? htmlEtiketten() + htmlKistkaarten() : '<p class="hint">Laden…</p>';
+  else if (tab === 'etiketten') h = bedrijfGeladen ? htmlEtPagina() : '<p class="hint">Laden…</p>';
   else if (tab === 'hftotaal') h = bedrijfGeladen ? htmlHfTotaal() : '<p class="hint">Laden…</p>';
   else if (tab === 'hfscan') h = bedrijfGeladen ? htmlHeftruck() : '<p class="hint">Laden…</p>';
   else if (tab === 'hforders') h = bedrijfGeladen ? htmlHfOrders() : '<p class="hint">Laden…</p>';
@@ -9053,7 +9058,7 @@ function kiepScanInhoud() {
 function kiepHandBinnen() {
   const leeg = !HF.pallet && !HF.hand.length && !HF.kist.length, n = HF.pallet ? HF.paletten.reduce((a, p) => a + hfOpPallet(p.code).length, 0) + HF.hand.filter(e => !hfPalCodes().includes(e.op_pallet)).length : HF.hand.length;
   return `${isKoelcelPlek() ? '' : hfHandHtml(true)}
-    <div class="hfKnoppen" style="margin-top:10px"><button class="hfGroot kiep" ${leeg || HF.bezig ? 'disabled' : ''} onclick="hfBoek('kiep')">🧺 Gekiept${n ? ' (' + n + ')' : ''}</button><button class="hfGroot cam" onclick="hfCamera()">📷 ${hfStroom ? 'Camera uit' : 'Scannen met camera'}</button></div>
+    <div class="hfKnoppen" style="margin-top:10px">${isKoelcelPlek() ? '' : `<button class="hfGroot kiep" ${leeg || HF.bezig ? 'disabled' : ''} onclick="hfBoek('kiep')">🧺 Gekiept${n ? ' (' + n + ')' : ''}</button>`}<button class="hfGroot cam" onclick="hfCamera()">📷 ${hfStroom ? 'Camera uit' : 'Scannen met camera'}</button></div>
     <input class="veld" id="kiepCodeIn" placeholder="Code typen (B230, P17)" autocomplete="off" onkeydown="if(event.key==='Enter'){hfScan(this.value);this.value=''}" style="margin:10px 0">
     <div class="kiepKop2" style="font-size:16px;margin:6px 0">Net gedaan</div>
     <div class="kiepScanLog">${HF.log.length ? HF.log.map(r => `<div class="${r.fout ? 'fout' : ''}"><small>${tijdKort(r.tijd)}</small> ${esc(r.t)}</div>`).join('') : '<span>Nog niets gescand</span>'}</div>`;
@@ -14232,7 +14237,88 @@ function htmlEtiketten() {
     ${!etAdres() ? '<p class="hint">⚠️ De QR-code bevat nog geen adres van de app, dus een gewone telefooncamera opent hem niet. Vul bij ⚙️ het adres van de app in (de link van de website).</p>' : ''}`
     : `<div class="rij"><button class="knop" onclick="etScan()">📷 Etiket scannen</button></div><p class="hint">Je mag geen etiketten afdrukken; je kunt ze wel scannen.</p>`}</section>
     ${kan ? `<section class="kaartje"><h4>Voorbeeld <small>${pal ? '1 per A4' : '2 onder elkaar op A4'}</small></h4><div class="etVbB" id="etVbB"><div class="etVb" id="etVoorbeeld">${etVoorbeeldHtml()}</div></div></section>` : ''}
-    <section class="kaartje"><h4>Laatst afgedrukt</h4>${recent || '<p class="hint">Nog niets afgedrukt.</p>'}</section>`;
+    ${etModus === 'zelf' ? '' : `<section class="kaartje"><h4>Laatst afgedrukt</h4>${recent || '<p class="hint">Nog niets afgedrukt.</p>'}</section>`}`;
+}
+// alleen de lijst "laatst afgedrukt" (voor het tabje Recent)
+function etRecentHtml() { const m = etModus; etModus = 'recentlijst'; const h = htmlEtiketten(); etModus = m; const i = h.lastIndexOf('<section class="kaartje"><h4>Laatst afgedrukt</h4>'); return i >= 0 ? h.slice(i) : ''; }
+/* ---------- etiketten: Actueel (klaar om te printen) · Zelf invullen · Recent ---------- */
+let etModus = (() => { try { return localStorage.getItem('etModus') || 'actueel'; } catch { return 'actueel'; } })();
+function etZetModus(m) { etModus = m; try { localStorage.setItem('etModus', m); } catch {} render(true); }
+function htmlEtPagina() {
+  if (!magEtiket()) return htmlEtiketten();
+  const knoppen = `<div class="etModus">${[['actueel', '📋 Actueel'], ['zelf', '✍️ Zelf invullen'], ['recent', '🕘 Recent']].map(([k, l]) => `<button class="${etModus === k ? 'aan' : ''}" onclick="etZetModus('${k}')">${l}</button>`).join('')}</div>`;
+  if (etModus === 'zelf') return knoppen + htmlEtiketten() + htmlKistkaarten();
+  if (etModus === 'recent') { if (!etGeladen) etLaad(); if (!kkGeladen) kkLaad(); return knoppen + etRecentHtml() + htmlKkRecent(); }
+  return knoppen + htmlEtActueel();
+}
+let etActDag = 'vandaag';
+function htmlEtActueel() {
+  if (!etGeladen) etLaad();
+  const dag = etActDag === 'gisteren' ? dKey(new Date(Date.now() - 864e5)) : vandaag(), regels = [];
+  // 1. gesorteerd in SSOR (per partij en sortering) → paspoortkaartjes of palletkaarten
+  let sorHtml = '';
+  if (sorMag()) {
+    const c = sorCache[dag + '|' + dag];
+    if (!c || (!c.laden && Date.now() - c.t > 120000)) sorLaad(dag, dag).then(() => { if (tab === 'etiketten' && etModus === 'actueel') render(true); });
+    if (!c?.data) sorHtml = `<p class="hint">${c?.fout ? esc(c.fout) : 'SSOR laden…'}</p>`;
+    else {
+      const m = new Map(); (c.data.regels || []).filter(r => r.partij_id).forEach(r => { const naam = r.sortering || (r.sortering_id != null ? 'Sortering ' + r.sortering_id : ''), k = r.partij_id + '|' + naam;
+        const o = m.get(k) || {pid: r.partij_id, naam, planten: 0}; o.planten += n0(r.planten); m.set(k, o); });
+      const l = []; [...m.values()].forEach(o => { const k = sorKisten(o.naam, o.planten), sp = kkSortSplits(o.naam);
+        if (k) { if (k.heel) l.push({...o, sort: k.sort, per: k.per, n: k.heel, planten: k.heel * k.per}); if (k.los) l.push({...o, sort: k.sort, per: k.half, n: k.los, planten: o.planten - k.heel * k.per, half: true}); }
+        else { const per = sp.per || sp.slash; l.push({...o, sort: sp.sort || o.naam, per, n: per ? Math.floor(o.planten / per) : null}); } });
+      l.sort((a, b) => (partijRas((S.partijen || []).find(y => y.id === a.pid)) || '').localeCompare(partijRas((S.partijen || []).find(y => y.id === b.pid)) || '', 'nl'));
+      sorHtml = l.length ? l.map(o => { const y = (S.partijen || []).find(z => z.id === o.pid) || {};
+        return `<button class="etActRij" onclick='sorAfdrukken(${JSON.stringify(o.pid)},${esc(JSON.stringify(o.sort))},${o.n || 0},${o.per || 0})'><span class="kl" style="background:${etKleur(partijRas(y))}"></span>
+          <span class="t"><b>${esc(partijRas(y) || '?')} ${esc(y.batch || '')}</b> · ${esc(o.sort)}${o.half ? ` <small style="display:inline">(&gt;${getal(o.per * 2)})</small>` : ''}<small>${getal(Math.round(o.planten))} planten${o.n != null ? ` = <b>${getal(o.n)} ${o.n === 1 ? 'kist' : 'kisten'}</b> van ${getal(o.per)}` : ''}</small></span><span class="pr">🖨️</span></button>`; }).join('')
+        : `<p class="hint">${etActDag === 'gisteren' ? 'Gisteren' : 'Vandaag'} is er (nog) niets gesorteerd in SSOR.</p>`;
+    }
+  } else sorHtml = '<p class="hint">Wat er in SSOR gesorteerd is, zie je met het recht resultaten bekijken.</p>';
+  // 2. van het veld: vandaag gerooid (per partij, in bakken) → boxkaarten
+  const roo = new Map(); (S.res_invoer || []).filter(i => i.soort === 'rooien' && i.datum === dag && i.bron !== 'koelcel' && n0(i.bakken) > 0).forEach(i => roo.set(i.partij_id, (roo.get(i.partij_id) || 0) + n0(i.bakken)));
+  (S.wagens_weg || []).filter(w => ['onderweg', 'legen'].includes(w.status) && String(w.gemeld_op || '').slice(0, 10) === dag).forEach(w => (w.inhoud || []).forEach(x => { if (x.partij_id && !roo.has(x.partij_id)) roo.set(x.partij_id, n0(x.bakken)); }));
+  const gedrukt = pid => (S.etiketten || []).filter(e => e.soort === 'box' && e.partij_id === pid && String(e.created_at || '').slice(0, 10) === dag).length;
+  const veldHtml = [...roo].map(([pid, b]) => { const y = (S.partijen || []).find(z => z.id === pid) || {}, al = gedrukt(pid), nog = Math.max(0, b - al);
+    return `<button class="etActRij" onclick="etBoxVoor('${pid}',${nog || b})"><span class="kl" style="background:${etKleur(partijRas(y))}"></span><span class="t"><b>${esc(partijRas(y) || '?')} ${esc(y.batch || '')}</b>${y.klasse ? ' · ' + esc(y.klasse) : ''}
+      <small>${getal(b)} bakken gerooid${al ? ` · ${getal(al)} boxkaarten al gedrukt` : ''}${nog ? ` · <b>nog ${getal(nog)}</b>` : ' · ✅ allemaal gedrukt'}</small></span><span class="pr">🖨️</span></button>`; }).join('')
+    || `<p class="hint">${etActDag === 'gisteren' ? 'Gisteren' : 'Vandaag'} is er (nog) niets gerooid.</p>`;
+  return `${etGescandHtml()}<section class="kaartje"><div class="rij" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h4 style="margin:0">📋 Klaar om te printen</h4>
+      <div class="pnoSeg">${[['vandaag', 'Vandaag'], ['gisteren', 'Gisteren']].map(([k, t]) => `<button class="${etActDag === k ? 'aan' : ''}" onclick="etActDag='${k}';render(true)">${t}</button>`).join('')}</div></div>
+      <p class="hint" style="margin-top:6px">Tik op een regel en kies wat je wilt printen. Het aantal staat al ingevuld.</p></section>
+    <section class="kaartje"><h4>🗂️ Gesorteerd <small>paspoortkaartjes of palletkaarten</small></h4>${sorHtml}</section>
+    <section class="kaartje"><h4>🚜 Van het veld <small>boxkaarten voor de rooiboxen</small></h4>${veldHtml}</section>`;
+}
+// wat je net gescand hebt (in je hand): tik erop en de juiste kaart staat klaar om te printen
+function etGescandHtml() {
+  if (typeof HF === 'undefined' || (!HF.paletten.length && !HF.hand.length && !HF.kist.length)) return '';
+  const pr = (t, f) => `<button class="knop licht klein" style="width:auto;margin:0" onclick="${f}">${t}</button>`;
+  const pallet = e => { const p = kcPallets().find(x => x.nr === String(e.nr));
+    const soorten = (p?.regels || []).map(r => { const y = (S.partijen || []).find(z => z.id === r.partij_id) || {}; const kk = [...(S.partij_mutaties || [])].reverse().find(m => m.pallet === String(e.nr) && m.partij_id === r.partij_id && /^kistkaart K/.test(m.notitie || ''));
+      return {y, r, sort: kk ? kk.notitie.replace(/^kistkaart K[^-]*-?/, '') : (e.data?.sortering || '')}; });
+    return `<div class="etGescand"><div class="t"><b>🧱 Pallet ${esc(e.nr)}</b><small>${soorten.map(o => `${esc(partijRas(o.y) || '?')} ${esc(o.y.batch || '')} · ${getal(o.r.kistjes)} kistjes`).join(' · ') || 'leeg'}</small></div>
+      <div class="k">${e.id ? pr('🧱 Palletkaart', `etOpnieuw(['${e.code}'])`) : ''}${soorten.map(o => pr(`🌱 Paspoort ${esc(partijRas(o.y) || '')}`, `kkNieuw(null,${esc(JSON.stringify({pid: o.y.id, sortering: o.sort, per_kist: o.r.per || null, aantal: Math.round(o.r.kistjes)}))})`)).join('')}</div></div>`; };
+  const box = e => { const y = (S.partijen || []).find(z => z.id === e.partij_id) || {};
+    return `<div class="etGescand"><div class="t"><b>📦 Box ${esc(e.nr)}</b><small>${esc(hfNaam(e) || '')}</small></div><div class="k">${pr('📦 Boxkaart', `etOpnieuw(['${e.code}'])`)}</div></div>`; };
+  const kist = k => `<div class="etGescand"><div class="t"><b>🌱 ${getal(k.n)}× kistje</b><small>${esc(hfKistNaam(k))}${k.per ? ' · ' + getal(k.per) + ' per kist' : ''}</small></div>
+    <div class="k">${pr('🌱 Paspoortkaartjes', `kkNieuw(null,${esc(JSON.stringify({pid: k.pid, sortering: k.sort, per_kist: k.per, aantal: k.n}))})`)}</div></div>`;
+  return `<section class="kaartje"><h4>📷 Net gescand <small>tik op de kaart die je wilt printen</small></h4>${HF.paletten.map(pallet).join('')}${HF.hand.map(box).join('')}${HF.kist.map(kist).join('')}</section>`;
+}
+// boxkaarten voor een partij (vanaf "van het veld")
+async function etBoxVoor(pid, n) {
+  const y = (S.partijen || []).find(z => z.id === pid) || {};
+  const w = await formulier(`📦 Boxkaarten · ${partijRas(y) || ''} ${y.batch || ''}`, [{k: 'aantal', label: 'Hoeveel boxkaarten?', type: 'number', waarde: n || ''}], '🖨️ Afdrukken',
+    r => !(parseInt(r.aantal, 10) >= 1 && parseInt(r.aantal, 10) <= 200) ? ['Vul een aantal in (1 tot 200)', 'aantal'] : '');
+  if (!w) return;
+  etVorm = etNieuweVorm(); etSoort = 'box'; etKiesPartij(pid); Object.assign(etVorm, {aantal: parseInt(w.aantal, 10), datum: vandaag()});
+  await etAfdrukken();
+}
+// recent geprinte kistkaarten (paspoort), met opnieuw printen
+function htmlKkRecent() {
+  const l = (S.kistkaart_opdrachten || []).filter(k => k.status !== 'weg').slice(0, 25);
+  if (S.kistkaart_opdrachten === null) return '';
+  return `<section class="kaartje"><h4>🌱 Kistkaarten <small>paspoortkaartjes</small></h4>${l.length ? l.map(k => `<div class="srRij"><span class="etKleurtje" style="background:${KK_KLEUR[k.sjabloon] || '#fff'};border:1px solid #ccd"></span><div class="t"><b>${esc(k.ras)} · ${esc(k.partij_nr)}${k.sortering ? ' · ' + esc(k.sortering) : ''} · ${fmt(k.aantal)} ${k.aantal === 1 ? 'kaartje' : 'kaartjes'}</b>
+      <small>${[k.status === 'geprint' ? 'geprint ' + (k.geprint_op ? datumKort(k.geprint_op) + ' ' + tijdKort(k.geprint_op) : '') : 'klaargezet', k.per_kist && k.per_kist + ' per kist', k.door].filter(Boolean).map(esc).join(' · ')}</small></div>
+      <span class="logknoppen"><button class="weg" title="Nog een keer" onclick="kkOpnieuw('${k.id}')">🖨️</button></span></div>`).join('') : '<p class="hint">Nog geen kistkaarten.</p>'}</section>`;
 }
 async function etVolgendNr(soort) {
   const {data} = await sb.from('etiketten').select('nr').eq('soort', soort).order('nr', {ascending: false}).limit(1);
@@ -14557,7 +14643,7 @@ async function hfPalletAanpassen(e) {
   if (error) { hfMeld((plus ? 'Toevoegen' : 'Verwijderen') + ' mislukt: ' + foutTekst(error), 1); return; }
   if (data) S.partij_mutaties = [...(S.partij_mutaties || []), ...data];
   HF.log.unshift({t: `${plus ? '➕' : '➖'} ${n} ${n === 1 ? 'kistje' : 'kistjes'} ${partijRas(y) || ''} ${plus ? 'op' : 'van'} pallet ${e.nr}${plus ? '' : ' (uit de voorraad)'}`, tijd: new Date()});
-  if (!plus) hfLeeg(true);   // verwijderd: hand leeg
+  if (!plus) hfNaEraf();
   try { navigator.vibrate?.(60); } catch {} hfTeken();
 }
 // een (nieuwe) soort op een pallet zetten zonder kistkaart: kies de partij en sortering, dan het aantal
@@ -14635,9 +14721,11 @@ async function hfKistEraf(info) {
     if (!cel) { HF.kist.push(k); HF.log.unshift({t: `🧱 ${k.n} kistjes ${hfKistNaam(k)} gaan op pallet ${pe.nr}; scan nu de koelcel`, tijd: new Date()}); hfTeken(); return; }
     HF.bezig = true; hfTeken(); await hfKistBoek(cel, [k], String(pe.nr)); HF.bezig = false; hfTeken(); return;
   }
-  if (await hfKistErafBoek(pe, info, keuze.n)) hfLeeg(true);   // eraf gehaald: hand leeg
+  if (await hfKistErafBoek(pe, info, keuze.n)) hfNaEraf();
   hfTeken();
 }
+// na eraf halen: hand leeg als je maar één pallet had; met meerdere pallets blijven die in je hand (losse kistjes gaan wel weg)
+function hfNaEraf() { if (HF.paletten.length <= 1) hfLeeg(true); else { HF.kist = HF.kist.filter(k => k.pal); HF.hand = []; } }
 // kistjes van een pallet af: ze staan daarna los in dezelfde koelcel
 async function hfKistErafBoek(pe, info, n) {
   const p = kcPallets().find(x => x.nr === String(pe.nr)), r = p?.regels.find(x => x.partij_id === info.pid);
@@ -14657,7 +14745,7 @@ async function hfKistErafBoek(pe, info, n) {
 async function hfKistOpPallet(e) {
   const af = HF.kist.filter(k => k.n > 0 && !k.pal && k.af);   // "eraf" gekozen in de pop-up
   if (af.length) { let ok = true; for (const k of af) ok = await hfKistErafBoek(e, k, k.n) && ok; HF.kist = HF.kist.filter(k => !af.includes(k));
-    if (!HF.kist.some(k => k.n > 0 && !k.pal)) { if (ok) hfLeeg(true); return true; } }
+    if (!HF.kist.some(k => k.n > 0 && !k.pal)) { if (ok) hfNaEraf(); return true; } }
   const l = HF.kist.filter(k => k.n > 0 && !k.pal); if (!l.length) return false;
   const cel = hfCel(e);
   if (!cel) { l.forEach(k => k.pal = String(e.nr)); HF.log.unshift({t: `🧱 ${l.reduce((a, k) => a + k.n, 0)} kistjes gaan op pallet ${e.nr}; scan nu de koelcel`, tijd: new Date()}); return true; }
@@ -14833,13 +14921,17 @@ function hfPalletInhoud(e) {
   const w = wacht.length ? ` · <b>+ ${wacht.map(k => `${getal(k.n)}× ${esc(hfKistNaam(k))}`).join(', ')}</b> (scan de koelcel)` : '';
   return ([b ? ` · ${b} ${b === 1 ? 'bak' : 'bakken'} erop` : '', kist.length ? ' · ' + esc(kist.join(', ')) : ''].join('') || (w ? '' : ' · leeg')) + w;
 }
+async function hfKiepNu() { await hfBoek('kiep'); try { const {data} = await sb.from('res_invoer').select('*').order('created_at', {ascending: false}).limit(50); if (data?.length) { const ids = new Set(data.map(z => z.id)); S.res_invoer = [...(S.res_invoer || []).filter(z => !ids.has(z.id)), ...data]; } } catch {} await voorraadVerversen?.(); kiepVerversen(); }
 function hfHandHtml(kiep) {
   const leeg = !HF.pallet && !HF.hand.length && !HF.kist.length;
   const hand = leeg ? `<div class="hfLeeg"><b>Scan een pallet of bakken</b><span>${kiep ? 'Daarna op 🧺 Gekiept tikken, of de KIEP-code scannen.' : 'Daarna een koelcel (erin · eruit · verplaatsen) of de kiep.<br>Eerst een pallet en dan bakken = de bakken gaan op die pallet.'}</span></div>`
     : `${HF.paletten.map(p => hfItem(p, true)).join('')}${HF.hand.map(e => hfItem(e)).join('')}${HF.kist.filter(k => !k.pal).map(k => hfKistItem(k)).join('')}`;
   const kop = leeg ? 'In je hand' : 'In je hand: ' + hfHandTekst();
+  // op de kieplijst van de heftruck-tablet: meteen "Gekiept" voor wat je in je hand hebt
+  const nKiep = HF.paletten.reduce((a, p) => a + hfOpPallet(p.code).length, 0) + HF.hand.filter(e => !e.gekiept_op && !hfPalCodes().includes(e.op_pallet)).length;
+  const kiepKnop = kiep && isKoelcelPlek() && !leeg ? `<button class="hfGroot kiep hfKiepKnop" ${HF.bezig || !nKiep ? 'disabled' : ''} onclick="hfKiepNu()">🧺 Gekiept${nKiep ? ' (' + nKiep + ')' : ''}</button>` : '';
   return `<section class="hfHand ${leeg ? '' : 'vol'}"><div class="hfKop"><b>${kop}</b>${HF.bezig ? '<span class="hfBezig">bezig…</span>' : ''}${leeg ? '' : '<button class="knop licht klein" onclick="hfLeeg()">✖ Wissen</button>'}</div>
-      <div class="hfLijst">${hand}</div></section>`;
+      <div class="hfLijst">${hand}</div>${kiepKnop}</section>`;
 }
 function hfBinnen() {
   const leeg = !HF.pallet && !HF.hand.length && !HF.kist.length, cellen = kcLijst();
@@ -14856,7 +14948,8 @@ function hfBinnen() {
     <div class="hfLog">${HF.log.length ? HF.log.map(r => `<div class="${r.fout ? 'fout' : ''}"><small>${tijdKort(r.tijd)}</small> ${esc(r.t)}</div>`).join('') : '<span class="hint">Nog niets gescand</span>'}</div>`;
 }
 function htmlHeftruck() { return `<div id="hfScherm">${hfBinnen()}</div>`; }
-function hfTeken() { const el = $('#hfScherm'); if (el && tab === 'hfscan' && !$('#kiepScherm')) el.innerHTML = hfBinnen(); const kh = $('#kiepHand'); if (kh) kh.innerHTML = kiepHandBinnen(); const hb = $('#hfBalkW'); if (hb) hb.innerHTML = hfBalkHtml(); }
+function hfTeken() { const el = $('#hfScherm'); if (el && tab === 'hfscan' && !$('#kiepScherm')) el.innerHTML = hfBinnen(); const kh = $('#kiepHand'); if (kh) kh.innerHTML = kiepHandBinnen(); const hb = $('#hfBalkW'); if (hb) hb.innerHTML = hfBalkHtml();
+  if (tab === 'etiketten' && etModus === 'actueel' && isKoelcelPlek()) { clearTimeout(hfTeken.t); hfTeken.t = setTimeout(() => render(true), 50); } }
 // wat je in je hand hebt, bovenaan op elk tabblad van de heftruck-tablet
 function hfBalkHtml() {
   if (!isKoelcelPlek() || tab === 'hfscan') return '';
@@ -15432,7 +15525,7 @@ function handscan(raw) {
     if (kiepScanActief()) { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
     if (!mijnProfiel?.() || !(ziet('voorraad_bekijken') || mag('voorraad_beheren') || magEtiket())) return;
     const kc = kcCodeUit(raw), et = etCodeUit(raw) || (/^[PB]\d+$/i.test(raw) ? raw.toUpperCase() : null);
-    if (isKoelcelPlek() && (tab === 'hfscan' || HF.hand.length || HF.pallet || HF.kist.length || /^K\d/i.test(String(raw).trim()) || (et && tab !== 'etiketten'))) { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
+    if (isKoelcelPlek() && (tab === 'hfscan' || HF.hand.length || HF.pallet || HF.kist.length || /^K\d/i.test(String(raw).trim()) || et)) { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
     if (!kc && !et) return;
     try { navigator.vibrate?.(60); } catch {}
     if (isKoelcelPlek() && tab === 'hfscan') { hfScan(raw); return; }
