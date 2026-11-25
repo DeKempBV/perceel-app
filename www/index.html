@@ -13783,7 +13783,7 @@ function kcPalletGroepen(pallets) {
 // de popup van één koelcel: wat erin staat, inslaan, verplaatsen
 function kcOpen(naam) {
   const inh = kcInhoud(naam), beh = mag('voorraad_beheren');
-  const los = inh.partijen.map(({y}) => ({y, x: kcLos(y.id, naam)})).filter(({x}) => x.planten > .5);
+  const los = inh.partijen.map(({y}) => ({y, x: kcLos(y.id, naam)})).filter(({x}) => x.planten > .5 || (x.eenheid !== 'planten' && x.eenheden > .01));
   const knop = (t, f) => beh ? `<button class="knop licht klein" style="width:auto" onclick="$('#modal').classList.remove('open');${f}">${t}</button>` : '';
   const ver = (pid, pallet, label) => `kcVerplaatsVan={pid:${pid ? `'${pid}'` : 'null'},cel:${esc(JSON.stringify(naam))},pallet:${pallet ? esc(JSON.stringify(pallet)) : 'null'},naam:${esc(JSON.stringify(label))}};render(true);toast('Tik nu op de koelcel waar het heen moet')`;
   const plek = kcPlek(naam) || {};
@@ -13819,9 +13819,11 @@ async function kcWeg(naam) {
 }
 // wat staat er in een koelcel: partijen (met eenheid) en pallets
 function kcInhoud(cel) {
-  const partijen = []; let planten = 0;
-  (S.partijen || []).forEach(y => { const x = voorraadVan(y.id).get(cel); if (x && x.planten > .5) { partijen.push({y, x}); planten += x.planten; } });
-  return {partijen, planten, pallets: kcPallets().filter(p => p.cel === cel)};
+  // zelfde rekensom als het tabblad Totaal: los (per partij) + wat er op pallets staat
+  const partijen = [], pallets = kcPallets().filter(p => p.cel === cel); let planten = 0;
+  (S.partijen || []).forEach(y => { const l = kcLos(y.id, cel), opP = pallets.reduce((a, p) => a + p.regels.filter(r => r.partij_id === y.id).reduce((b, r) => b + r.kistjes * (+r.per || 0), 0), 0);
+    if (l.planten > .5 || (l.eenheid !== 'planten' && l.eenheden > .01) || opP > .5) { const x = voorraadVan(y.id).get(cel) || {planten: 0}; partijen.push({y, x: {...x, planten: Math.max(l.planten, 0) + opP}}); planten += Math.max(l.planten, 0) + opP || 1; } });
+  return {partijen, planten: planten || (pallets.length ? 1 : 0), pallets};
 }
 // pallets: per palletnummer welke partijen erop staan (in kistjes) en in welke koelcel hij staat
 function kcPallets() {
