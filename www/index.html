@@ -1735,6 +1735,9 @@ async function voorraadVerversen() {
     if (isKoelcelPlek() || /voorraad|etiket|hfscan|bestel/.test(tab)) render(true);
   } catch (e) { console.warn(e); } finally { vvBezig = false; }
 }
+// elke 30 s controleren of de live-verbinding nog staat; zo niet: opnieuw verbinden en alles bijwerken
+setInterval(() => { if (!me || !liveKanaal || document.hidden) return; if (liveKanaal.state && liveKanaal.state !== 'joined' && liveKanaal.state !== 'joining') { liveWeg = liveWeg || Date.now(); liveAan(); } }, 30000);
+window.addEventListener('online', () => { if (me) { liveAan(); setTimeout(voorraadVerversen, 2500); } });
 let liveVerstopt = 0;
 document.addEventListener('visibilitychange', () => { if (document.hidden) liveVerstopt = Date.now(); else if (liveVerstopt && Date.now() - liveVerstopt > 30000) { liveVerstopt = 0; voorraadVerversen(); } });
 // veel live-meldingen vlak na elkaar (een scan maakt er meerdere): één keer tekenen
@@ -8992,6 +8995,7 @@ async function kiepTik(pid) {
 }
 async function kiepTerug() {
   const lt = kiepLaatste(); if (!lt) { toast('Niets meer om terug te zetten (alleen je eigen tikken van het laatste halfuur)', 1); return; }
+  if (String(lt.id).startsWith('offline-')) { toast('Deze kiep is nog niet verstuurd; wacht tot er weer bereik is en zet hem dan terug', 1); return; }
   if (lt.bron === 'koelcel') {   // kuubskisten uit de koelcel: ook weer terug in de koelcel
     const {error} = await sb.rpc('kiep_koelcel_terug', {p_res: lt.id}); if (error) { toast(foutTekst(error), 1); return; }
     S.res_invoer = S.res_invoer.filter(i => i.id !== lt.id); toast(`↶ ${fmt(lt.bakken)} kuubskist(en) terug in de koelcel`); await voorraadVerversen(); kiepVerversen(); return;
@@ -16129,7 +16133,9 @@ const isNetFout = e => !navigator.onLine || /Failed to fetch|NetworkError|Load f
 let wachtrij = (() => { try { return JSON.parse(localStorage.getItem('wachtrij') || '[]'); } catch { return []; } })();
 const bewaarWachtrij = () => { try { localStorage.setItem('wachtrij', JSON.stringify(wachtrij)); } catch {} netStatus(); };
 const nieuwId = () => crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
-const OFFLINE_TABELLEN = ['taken', 'markeringen', 'oogst', 'uren', 'machine_log', 'kosten', 'meldingen', 'percelen', 'middelen', 'machines', 'soorten', 'rassen', 'monsters', 'partij_mutaties', 'partijen'];
+const OFFLINE_TABELLEN = ['taken', 'markeringen', 'oogst', 'uren', 'machine_log', 'kosten', 'meldingen', 'percelen', 'middelen', 'machines', 'soorten', 'rassen', 'monsters', 'partij_mutaties', 'partijen', 'res_invoer', 'etiketten', 'wagens_weg', 'voorraad_bestemmingen', 'voorraad_reserveringen'];
+// database-functies die zonder bereik in de wachtrij mogen (met een eigen sleutel, zodat ze nooit dubbel geboekt worden)
+const OFFLINE_RPC = ['scan_boek', 'kiep_uit_koelcel'];
 // sb.from vervangen door een versie die schrijfacties bij geen bereik in de wachtrij zet
 function maakOfflineBestendig(client) {
   const echt = client.from.bind(client);
@@ -16155,7 +16161,7 @@ function maakOfflineBestendig(client) {
       wachtrij.push({tabel, op, rij, filters, t: Date.now()}); bewaarWachtrij();
       const idF = filters.find(f => f[0] === 'eq' && f[1][0] === 'id')?.[1]?.[1];
       let data = null;
-      if (op === 'insert' || op === 'upsert') data = Array.isArray(rij) ? rij : {created_at: new Date().toISOString(), ...rij};
+      if (op === 'insert' || op === 'upsert') data = Array.isArray(rij) ? rij : {created_at: new Date().toISOString(), user_id: me?.id, ...rij};
       if (op === 'update') data = {...((S[tabel] || []).find(x => x.id === idF) || {}), ...rij, id: idF};
       if (!wachtrijMelding) { wachtrijMelding = true; toast('📴 Geen bereik: opgeslagen op dit apparaat, wordt verstuurd zodra er weer bereik is'); }
       return {data, error: null, offline: true};
@@ -16163,6 +16169,32 @@ function maakOfflineBestendig(client) {
     return b;
   };
   client._echtFrom = echt;
+  // database-functies (scannen, kiepen uit de koelcel): zonder bereik in de wachtrij, met een sleutel tegen dubbel boeken
+  const echtRpc = client.rpc.bind(client);
+  client.rpc = async (naam, args = {}, opties) => {
+    if (!OFFLINE_RPC.includes(naam)) return echtRpc(naam, args, opties);
+    args = {...args, p_sleutel: args.p_sleutel || nieuwId()};
+    let res;
+    try { res = navigator.onLine ? await echtRpc(naam, args, opties) : {error: {message: 'Failed to fetch'}}; }
+    catch (e) { res = {data: null, error: {message: e?.message || String(e)}}; }
+    if (!res?.error || !isNetFout(res.error)) return res;
+    wachtrij.push({rpc: naam, args, t: Date.now()}); bewaarWachtrij(); netStatus();
+    if (!wachtrijMelding) { wachtrijMelding = true; toast('📴 Geen bereik: opgeslagen op dit apparaat, wordt verstuurd zodra er weer bereik is'); }
+    return {data: offlineRpcAntwoord(naam, args), error: null, offline: true};
+  };
+  client._echtRpc = echtRpc;
+}
+// wat de app meteen laat zien als een scan of kiep zonder bereik is bewaard
+function offlineRpcAntwoord(naam, a) {
+  const nu = new Date().toISOString();
+  if (naam === 'scan_boek') return (a.p_codes || []).map(c => ({code: c, ok: true, melding: `📴 ${c}: bewaard, wordt geboekt zodra er bereik is`}));
+  if (naam === 'kiep_uit_koelcel') {   // meteen uit de koelcel en op de kieplijst verwerken; na het versturen wordt alles opnieuw opgehaald
+    const pa = (S.partijen || []).find(y => y.id === a.p_partij);
+    S.partij_mutaties = [...(S.partij_mutaties || []), {id: 'offline-' + a.p_sleutel, partij_id: a.p_partij, seizoen_id: pa?.seizoen_id, soort: 'uit', aantal: a.p_aantal, eenheid: 'kuubskisten', koelcel: a.p_cel, notitie: 'gekiept (nog niet verstuurd)', datum: vandaag(), created_at: nu}];
+    S.res_invoer = [...(S.res_invoer || []), {id: 'offline-' + a.p_sleutel, soort: 'kiepen', partij_id: a.p_partij, bakken: a.p_aantal, bron: 'koelcel-offline', datum: vandaag(), user_id: me?.id, created_at: nu}];
+    return {res_id: null, gekiept: a.p_aantal, offline: true};
+  }
+  return null;
 }
 let wachtrijMelding = false, wachtrijBezig = false;
 async function verwerkWachtrij() {
@@ -16173,11 +16205,17 @@ async function verwerkWachtrij() {
     let gelukt = 0;
     while (wachtrij.length) {
       const w = wachtrij[0];
-      let q = sb._echtFrom(w.tabel)[w.op](w.rij);
-      (w.filters || []).forEach(([m, a]) => q = q[m](...a));
-      let res; try { res = await q; } catch (e) { res = {error: e}; }
+      let res;
+      if (w.rpc) { try { res = await sb._echtRpc(w.rpc, w.args); } catch (e) { res = {error: e}; } }
+      else {
+        let q = sb._echtFrom(w.tabel)[w.op](w.rij);
+        (w.filters || []).forEach(([m, a]) => q = q[m](...a));
+        try { res = await q; } catch (e) { res = {error: e}; }
+      }
+      // een scan die later toch niet kon (bijv. al gekiept): laten weten
+      if (w.rpc === 'scan_boek' && Array.isArray(res?.data)) res.data.filter(r => !r.ok).forEach(r => toast('⚠️ Later verstuurd: ' + r.melding, 1));
       if (res?.error && isNetFout(res.error)) break;
-      if (res?.error && !/duplicate key/i.test(res.error.message || '')) toast(`Een wijziging kon niet worden opgeslagen (${w.tabel}): ${foutTekst(res.error)}`, 1);
+      if (res?.error && !/duplicate key/i.test(res.error.message || '')) toast(`Een wijziging kon niet worden opgeslagen (${w.tabel || w.rpc}): ${foutTekst(res.error)}`, 1);
       wachtrij.shift(); bewaarWachtrij(); gelukt++;
     }
     if (gelukt && !wachtrij.length) { wachtrijMelding = false; toast(`✓ ${gelukt} ${gelukt === 1 ? 'wijziging' : 'wijzigingen'} van zonder bereik verstuurd`); laadAlles(); }
@@ -16212,7 +16250,7 @@ window.addEventListener('online', () => { netStatus(); verwerkWachtrij(); });
 window.addEventListener('offline', netStatus);
 setInterval(() => { if (wachtrij.length || fotoWachtrij.length) verwerkWachtrij(); }, 20000);
 // De gegevens op het apparaat bewaren om ook zonder bereik te kunnen starten
-const CACHE_LIJSTEN = ['percelen', 'taken', 'soorten', 'rassen', 'markeringen', 'tractoren', 'profielen', 'seizoenen', 'middelen', 'machines', 'machine_log', 'oogst', 'kosten', 'meldingen', 'inst', 'partijen', 'monsters', 'partij_mutaties', 'waarnemingen', 'plantbehoefte', 'rooiplanning'];
+const CACHE_LIJSTEN = ['percelen', 'taken', 'soorten', 'rassen', 'markeringen', 'tractoren', 'profielen', 'seizoenen', 'middelen', 'machines', 'machine_log', 'oogst', 'kosten', 'meldingen', 'inst', 'partijen', 'monsters', 'partij_mutaties', 'waarnemingen', 'plantbehoefte', 'rooiplanning', 'res_invoer', 'res_kistinhoud', 'etiketten', 'wagens_weg', 'voorraad_bestemmingen', 'voorraad_reserveringen'];
 let cacheTimer;
 function bewaarCache() {
   if (archief || !S.percelen.length) return;
