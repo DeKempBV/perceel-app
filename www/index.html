@@ -8849,7 +8849,8 @@ function htmlResSorteren() {
   const subs = new Map();
   regels.forEach(r => { const id = partijGroep(r).id, m = subs.get(id) || new Map(), k = r.sortering_id ?? '', o = m.get(k) || {naam: r.sortering || (r.sortering_id != null ? 'Sortering ' + r.sortering_id : 'Zonder sortering'), planten: 0}; o.planten += n0(r.planten); m.set(k, o); subs.set(id, m); });
   const subHtml = id => { const l = [...(subs.get(id)?.values() || [])].sort((a, b) => b.planten - a.planten), pr = magEtiket() && !String(id).startsWith('x|');
-    return l.length ? `<div class="sorSub">${l.map(o => `<div><span>${esc(o.naam)}${pr ? ` <button class="icoon" title="Kaartjes afdrukken voor deze sortering" onclick='sorAfdrukken(${JSON.stringify(id)},${esc(JSON.stringify(o.naam))})'>🖨️</button>` : ''}</span><b>${fmt(o.planten)}</b></div>`).join('')}</div>` : ''; };
+    return l.length ? `<div class="sorSub">${l.map(o => { const k = sorKisten(o.naam, o.planten);
+      return `<div><span>${esc(o.naam)}${k ? `<br><small>= <b>${fmt(k.heel)} ${k.heel === 1 ? 'kist' : 'kisten'} van ${fmt(k.per)}</b>${k.rest ? ` + ${fmt(k.rest)} los (nog niet vol)` : ''}</small>` : ''}${pr ? ` <button class="icoon" title="Kaartjes afdrukken voor deze sortering" onclick='sorAfdrukken(${JSON.stringify(id)},${esc(JSON.stringify(o.naam))}${k ? ',' + k.heel : ''})'>🖨️</button>` : ''}</span><b>${fmt(o.planten)}</b></div>`; }).join('')}</div>` : ''; };
   const gekoppeld = perPartij.filter(o => o.partij), los = perPartij.filter(o => !o.partij);
   const partijRij = o => {
     const x = (S.partijen || []).find(y => y.id === o.partij);
@@ -14907,7 +14908,10 @@ async function kkLaad() {
 const kkSjabloonVan = (...t) => { const s = t.filter(Boolean).join(' ');
   return /\bvgs\b/i.test(s) ? 'vgs' : /\bcac\b/i.test(s) ? 'cac' : /\bcm\b|gecert|certified/i.test(s) ? 'standaard' : /\bbm\s*-?\s*[1-5]\b|basismat/i.test(s) ? 'wit' : 'standaard'; };
 // SSOR-sortering zoals "FR-A-/400 > 800 per kist": het deel "> 800 per kist" is het aantal per kist, niet de sortering
-const kkSortSplits = t => { const m = String(t || '').match(/^(.*?)\s*>\s*(\d+)\s*(?:per\s*kist|p\/?k)?\s*$/i); return m ? {sort: m[1].trim(), per: +m[2]} : {sort: String(t || '').trim(), per: null}; };
+// "FR-A-/400 > 800 per kist" = losse kistjes van 400 uit FR-A die per 2 samen een kist van 800 worden: sortering FR-A, 800 per kist
+const kkSortSplits = t => { const m = String(t || '').match(/^(.*?)\s*>\s*(\d+)\s*(?:per\s*kist|p\/?k)?\s*$/i);
+  const sort = (m ? m[1] : String(t || '')).trim().replace(/\s*-?\s*\/\s*\d+\s*$/, '').replace(/-+$/, '').trim();
+  return {sort, per: m ? +m[2] : null}; };
 const kkBarcode = (nr, sort) => ('K' + String(nr || '').replace(/\s+/g, '') + (sort ? '-' + kkSortSplits(sort).sort.replace(/frigo/i, '').toUpperCase().replace(/[^A-Z0-9+\-]/g, '').replace(/-+$/, '') : '')).slice(0, 40);
 const kkPlantjaar = x => { const sz = (S.seizoenen || []).find(z => z.id === x?.seizoen_id); const m = String(sz?.naam || '').match(/20\d\d/); return m ? +m[0] : new Date().getFullYear(); };
 function htmlKistkaarten() {
@@ -14996,12 +15000,17 @@ function kkPapier(k) {
   fr.contentDocument.write(html); fr.contentDocument.close(); setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch {} setTimeout(() => fr.remove(), 3000); }, 600);
 }
 // vanuit de SSOR-gegevens: kaartjes voor deze batch (en sortering) afdrukken
-async function sorAfdrukken(pid, sortering) {
+// "FR-A-/400 > 800 per kist": halve kistjes die per 2 samen een kist van 800 worden → hoeveel hele kisten van 800
+function sorKisten(naam, planten) {
+  if (!/\/\s*\d+/.test(naam || '')) return null; const sp = kkSortSplits(naam); if (!(sp.per > 0)) return null;
+  const heel = Math.floor(n0(planten) / sp.per); return {per: sp.per, heel, rest: Math.round(n0(planten) - heel * sp.per)};
+}
+async function sorAfdrukken(pid, sortering, aantal) {
   if (!magEtiket()) return; const x = (S.partijen || []).find(y => y.id === pid); if (!x) return;
   const w = await formulier(`🖨️ ${partijRas(x) || ''} ${x.batch || x.nak || ''}`, [
     {k: 'wat', label: 'Wat wil je afdrukken?', type: 'select', waarde: 'paspoort', opties: [['paspoort', '🌱 Paspoortkaartjes (kistkaarten) → kistkaartenprinter'], ['papier', '📄 Paspoortkaartjes op gewoon papier (test)'], ['pallet', '🧱 Palletkaarten']]},
     {k: 'sortering', label: 'Sortering', waarde: sortering || '', placeholder: 'bijv. Frigo A2+'},
-    {k: 'aantal', label: 'Hoeveel kaartjes?', type: 'number', waarde: ''}], 'Verder');
+    {k: 'aantal', label: 'Hoeveel kaartjes?', type: 'number', waarde: aantal || ''}], 'Verder');
   if (!w) return; const n = parseInt(w.aantal, 10); if (!(n >= 1)) { toast('Vul in hoeveel kaartjes', 1); return; }
   if (w.wat === 'pallet') {
     if (n > 200) { toast('Maximaal 200 palletkaarten tegelijk', 1); return; }
