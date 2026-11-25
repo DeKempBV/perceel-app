@@ -427,6 +427,11 @@ section[data-vbcel].over{outline:3px dashed #2e7d32}
 /* schermen */
 .scherm{position:fixed;inset:0;z-index:3000;background:linear-gradient(160deg,#1f4d2b,#2f7a3d 60%,#6aa84f);display:none;align-items:center;justify-content:center;padding:20px}
 .scherm.open{display:flex}
+#laadDoek{position:fixed;inset:0;z-index:2999;background:linear-gradient(160deg,#1f4d2b,#2f7a3d 60%,#6aa84f);display:flex;align-items:center;justify-content:center;padding:20px;transition:opacity .4s ease}
+#laadDoek.weg{opacity:0;pointer-events:none}
+#laadDoek .ldKaart{background:rgba(255,255,255,.96);border-radius:24px;padding:24px 32px 18px;width:min(80vw,420px);text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.25)}
+#laadDoek .ldKaart svg{width:100%;height:auto;display:block}
+#laadDoek .ldTekst{margin-top:10px;color:#5d6b62;font-size:15px}
 .scherm .doos{background:#fff;border-radius:20px;padding:26px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .scherm h1{font-size:26px;color:var(--groen);margin-bottom:4px}
 .scherm p{color:var(--grijs);font-size:14px;line-height:1.5}
@@ -1057,6 +1062,17 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .kiepNog{display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.22);border-radius:14px;padding:8px 12px;font-size:14px;min-width:84px}.kiepNog b{font-size:34px;line-height:1}
 .kiepTerug{display:block;width:100%;min-height:70px;border:0;border-radius:16px;background:#6d4c41;color:#fff;font-size:22px;font-weight:800;margin-bottom:6px;cursor:pointer}.kiepTerug small{display:block;font-size:14px;font-weight:600;opacity:.85}
 .kiepLeeg{font-size:20px;padding:30px 10px;text-align:center;opacity:.85}
+.kiepKc{background:#1f5fbf}
+.kiepKop2{font-size:20px;font-weight:700;margin:22px 0 10px}.kiepKop2 small{font-weight:400;font-size:14px;opacity:.75;margin-left:8px}
+#kiepPop{position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+#kiepPop .kpDoos{background:#fff;color:#1d2a22;border-radius:22px;padding:22px;width:min(420px,100%);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+#kiepPop .kpTitel{font-size:22px}#kiepPop .kpSub{color:#5d6b62;margin-top:4px}
+#kiepPop .kpTeller{display:flex;align-items:center;justify-content:center;gap:22px;margin:22px 0}
+#kiepPop .kpTeller button{width:76px;height:76px;border-radius:50%;border:0;background:#e8efe9;font-size:40px;font-weight:700;cursor:pointer;color:#1d2a22}
+#kiepPop .kpTeller button:disabled{opacity:.3}
+#kiepPop .kpTeller span{font-size:56px;font-weight:800;min-width:90px;font-variant-numeric:tabular-nums}
+#kiepPop .kpKnoppen{display:flex;gap:10px}#kiepPop .kpKnoppen button{flex:1;min-height:62px;border-radius:16px;border:0;font-size:18px;font-weight:700;cursor:pointer}
+#kiepPop .kpNee{background:#e8efe9;color:#1d2a22}#kiepPop .kpJa{background:#e07a12;color:#fff}
 .kiepPaneel{background:#14261a;color:#fff}.kiepPaneel .kiepLijst{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}.kiepPaneel .kiepKnop{min-height:90px}.kiepPaneel .kiepNaam b{font-size:21px}.kiepPaneel .kiepNaam big{font-size:19px}
 /* ---------- wagen weg (trekker) ---------- */
 .wagenTypes{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
@@ -1562,7 +1578,16 @@ function config() {
   const k = c.SUPABASE_KEY || localStorage.getItem('sb_key');
   return u && k ? {u, k} : null;
 }
-function scherm(id) { ['setup', 'auth'].forEach(s => $('#' + s).classList.toggle('open', s === id)); if (id) opstartWeg?.(); }
+// laaddoek: na het inloggen de De Kemp-achtergrond laten staan tot de app klaar is (anders zie je even de kale kaart)
+function laadDoekAan() {
+  const o = document.getElementById('opstart'); if (o && !o.dataset.weg) return;   // het opstartscherm staat er nog
+  if ($('#laadDoek')) return;
+  const d = document.createElement('div'); d.id = 'laadDoek';
+  d.innerHTML = `<div class="ldKaart">${(typeof KEMP_LOGO === 'string' && KEMP_LOGO) || '<b style="font-size:28px;color:#2f7a3d">de Kemp BV</b>'}<div class="ldTekst">Even laden…</div></div>`;
+  document.body.appendChild(d); clearTimeout(laadDoekAan.t); laadDoekAan.t = setTimeout(laadDoekUit, 25000);
+}
+function laadDoekUit() { const d = $('#laadDoek'); if (!d) return; d.classList.add('weg'); setTimeout(() => d.remove(), 450); }
+function scherm(id) { ['setup', 'auth'].forEach(s => $('#' + s).classList.toggle('open', s === id)); if (id) { opstartWeg?.(); laadDoekUit(); } }
 
 function start() {
   const c = config();
@@ -1640,7 +1665,7 @@ ${l.map(esc).join('\n')}</pre>
   m.classList.add('open');
 }
 async function opstarten() {
-  stap('start'); scherm(null);
+  stap('start'); laadDoekAan(); scherm(null);
   initKaart(); stap('kaart klaar');
   if (veilig || /[?&]trekker=1/.test(location.search) || tmAltijd()) TM.aan = true;   // (prikklok-iPad: zie hieronder)   // trekker-modus: de kaart niet eerst helemaal tekenen
   await laadAlles(); stap('gegevens geladen');
@@ -1652,10 +1677,10 @@ async function opstarten() {
   setInterval(() => voertuigenTik(), 10000);
   pgSleepInit();   // plattegrond op de kaart slepen
   const tmLink = /[?&]trekker=1/.test(location.search);
-  if (veilig) { TM.aan = false; toonMenu(); window.opstartWeg?.(); toast('🛟 Veilige start: de kaart wordt pas getekend als je een perceel kiest'); stap('veilige start klaar'); opstartGelukt(); toonVorigeVastloper(); return; }
+  if (veilig) { TM.aan = false; toonMenu(); window.opstartWeg?.(); laadDoekUit(); toast('🛟 Veilige start: de kaart wordt pas getekend als je een perceel kiest'); stap('veilige start klaar'); opstartGelukt(); toonVorigeVastloper(); return; }
   stap('menu of trekker'); if (isPrikklok()) { TM.aan = false; await toonKlok(); } else if (isKiep()) { TM.aan = false; await toonKiep(); } else if (isKoelcelPlek()) { TM.aan = false; document.body.classList.add('koelcelPlek'); vrWeergave = 'voorraad'; kiesSectie('voorraad'); tab = 'hfscan'; render(true); } else if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else toonMenu();
   try { etUitLink(); } catch {}
-  stap('gps'); apparaatGPS(); stap('klaar'); requestAnimationFrame(() => setTimeout(() => window.opstartWeg?.(), 150)); opstartGelukt(); toonVorigeVastloper();   // trekker-tablet: locatie van de gekoppelde trekker delen zolang hij aan staat      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
+  stap('gps'); apparaatGPS(); stap('klaar'); requestAnimationFrame(() => setTimeout(() => { window.opstartWeg?.(); laadDoekUit(); }, 150)); opstartGelukt(); toonVorigeVastloper();   // trekker-tablet: locatie van de gekoppelde trekker delen zolang hij aan staat      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
   setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
 }
 const actiefSeizoen = () => S.seizoenen.find(s => s.actief);
@@ -8896,11 +8921,56 @@ function kiepKnopHtml(y) {
 }
 function kiepLaatste() { return (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.user_id === me?.id && Date.now() - new Date(i.created_at) < 30 * 60e3).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0]; }
 function kiepInhoud() {
-  const l = kiepLijst(), mijnVandaag = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag() && i.user_id === me?.id).reduce((a, i) => a + n0(i.bakken), 0), lt = kiepLaatste();
+  const kc = kiepKcLijst(), l = kiepLijst(), mijnVandaag = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag() && i.user_id === me?.id).reduce((a, i) => a + n0(i.bakken), 0), lt = kiepLaatste();
   const lx = lt && (S.partijen || []).find(x => x.id === lt.partij_id);
-  return `${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste bak terug <small>${esc(lx ? partijKort(lx) : '')} · ${tijdKort(lt.created_at)}</small></button>` : ''}
+  return `${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste ${lt.bron === 'koelcel' ? (n0(lt.bakken) === 1 ? 'kuubskist' : n0(lt.bakken) + ' kuubskisten') : 'bak'} terug <small>${esc(lx ? partijKort(lx) : '')} · ${tijdKort(lt.created_at)}</small></button>` : ''}
     <div class="kiepUitleg">Tik op de partij van de bak die je pakt. Elke tik = 1 bak gekiept. <b>Vandaag ${fmt(mijnVandaag)} gekiept.</b></div>
-    <div class="kiepLijst">${l.length ? l.map(kiepKnopHtml).join('') : '<div class="kiepLeeg">✅ Alles is gekiept. Nieuwe bakken komen er vanzelf bij als de rooier een wagen meldt.</div>'}</div>`;
+    <div class="kiepLijst">${l.length ? l.map(kiepKnopHtml).join('') : `<div class="kiepLeeg">✅ ${kc.length ? 'Geen bakken van het veld meer.' : 'Alles is gekiept. Nieuwe bakken komen er vanzelf bij als de rooier een wagen meldt.'}</div>`}</div>
+    ${kc.length ? `<div class="kiepKop2">❄️ Kuubskisten in de koelcellen <small>tik om te kiepen</small></div><div class="kiepLijst">${kc.map(kiepKcKnopHtml).join('')}</div>` : ''}`;
+}
+// kuubskisten die in de koelcellen staan, per partij (batch) en koelcel
+function kiepKcLijst() {
+  if (!mag('voorraad_beheren')) return [];
+  const per = new Map();
+  (S.partij_mutaties || []).forEach(m => { if (m.eenheid !== 'kuubskisten' || !m.koelcel) return; const k = m.partij_id + '|' + m.koelcel;
+    const o = per.get(k) || {pid: m.partij_id, cel: m.koelcel, n: 0, sinds: m.datum}; o.n += (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0);
+    if (m.soort === 'in' && String(m.datum) < String(o.sinds)) o.sinds = m.datum; per.set(k, o); });
+  return [...per.values()].filter(o => o.n > .001).map(o => ({...o, n: Math.round(o.n * 10) / 10, x: (S.partijen || []).find(y => y.id === o.pid)})).filter(o => o.x)
+    .sort((a, b) => String(a.cel).localeCompare(String(b.cel), 'nl', {numeric: true}) || (partijRas(a.x) || '').localeCompare(partijRas(b.x) || '', 'nl'));
+}
+function kiepKcKnopHtml(o) {
+  const x = o.x;
+  return `<button class="kiepKnop kiepKc" onclick='kiepKcOpen(${JSON.stringify(o.pid)},${esc(JSON.stringify(o.cel))})'><span class="kiepNaam"><b>${esc(partijRas(x) || soort(x.soort_id)?.naam || '?')}</b><big>${esc(x.batch || x.nak || '')}</big>
+      <small>❄️ ${esc(o.cel)}${x.klasse ? ' · ' + esc(x.klasse) : ''}</small></span><span class="kiepNog"><b>${fmt(o.n)}</b>${o.n === 1 ? 'kuubskist' : 'kuubskisten'}</span></button>`;
+}
+// pop-up: aantal (begint op 1) met − en +, dan "Gekiept"
+const KKC = {pid: null, cel: null, n: 1, max: 1};
+function kiepKcOpen(pid, cel) {
+  const o = kiepKcLijst().find(z => z.pid === pid && z.cel === cel); if (!o) { toast('Die staan niet (meer) in de koelcel', 1); return; }
+  Object.assign(KKC, {pid, cel, n: 1, max: Math.max(1, Math.floor(o.n))});
+  let el = $('#kiepPop'); if (!el) { el = document.createElement('div'); el.id = 'kiepPop'; document.body.appendChild(el); }
+  el.onclick = e => { if (e.target === el) kiepKcDicht(); };
+  kiepKcTeken();
+}
+function kiepKcTeken() {
+  const el = $('#kiepPop'); if (!el) return; const x = (S.partijen || []).find(y => y.id === KKC.pid);
+  el.innerHTML = `<div class="kpDoos"><div class="kpTitel">${esc(partijRas(x) || '?')} <b>${esc(x?.batch || x?.nak || '')}</b></div><div class="kpSub">❄️ ${esc(KKC.cel)} · er staan ${fmt(KKC.max)} kuubskisten</div>
+    <div class="kpTeller"><button onclick="kiepKcPlus(-1)" ${KKC.n <= 1 ? 'disabled' : ''} aria-label="Minder">−</button><span>${KKC.n}</span><button onclick="kiepKcPlus(1)" ${KKC.n >= KKC.max ? 'disabled' : ''} aria-label="Meer">+</button></div>
+    <div class="kpKnoppen"><button class="kpNee" onclick="kiepKcDicht()">Annuleren</button><button class="kpJa" onclick="kiepKcBoek()">🧺 ${KKC.n} gekiept</button></div></div>`;
+}
+function kiepKcPlus(d) { KKC.n = Math.min(KKC.max, Math.max(1, KKC.n + d)); kiepKcTeken(); }
+function kiepKcDicht() { $('#kiepPop')?.remove(); }
+async function kiepKcBoek() {
+  if (kiepBezig) return; kiepBezig = true;
+  try {
+    const {data, error} = await sb.rpc('kiep_uit_koelcel', {p_partij: KKC.pid, p_cel: KKC.cel, p_aantal: KKC.n});
+    if (error) { toast(/kiep_uit_koelcel|schema cache/i.test(error.message) ? 'Draai eerst kiep-uit-koelcel.sql in Supabase' : foutTekst(error), 1); return; }
+    navigator.vibrate?.(40); kiepKcDicht();
+    const x = (S.partijen || []).find(y => y.id === KKC.pid); toast(`🧺 ${KKC.n} ${KKC.n === 1 ? 'kuubskist' : 'kuubskisten'} ${x ? partijKort(x) : ''} gekiept`);
+    const [ri, pm] = await Promise.all([sb.from('res_invoer').select('*').eq('id', data?.res_id).maybeSingle(), sb.from('partij_mutaties').select('*').order('created_at', {ascending: false}).limit(300)]);
+    if (ri.data && !(S.res_invoer || []).some(i => i.id === ri.data.id)) S.res_invoer = [...(S.res_invoer || []), ri.data];
+    if (pm.data?.length) { const ids = new Set(pm.data.map(z => z.id)); S.partij_mutaties = [...(S.partij_mutaties || []).filter(z => !ids.has(z.id)), ...pm.data]; }
+  } finally { kiepBezig = false; kiepVerversen(); }
 }
 async function toonKiep(verversen) {
   verbergMenu?.(); document.body.classList.add('klokAan');
@@ -8922,6 +8992,10 @@ async function kiepTik(pid) {
 }
 async function kiepTerug() {
   const lt = kiepLaatste(); if (!lt) { toast('Niets meer om terug te zetten (alleen je eigen tikken van het laatste halfuur)', 1); return; }
+  if (lt.bron === 'koelcel') {   // kuubskisten uit de koelcel: ook weer terug in de koelcel
+    const {error} = await sb.rpc('kiep_koelcel_terug', {p_res: lt.id}); if (error) { toast(foutTekst(error), 1); return; }
+    S.res_invoer = S.res_invoer.filter(i => i.id !== lt.id); toast(`↶ ${fmt(lt.bakken)} kuubskist(en) terug in de koelcel`); await voorraadVerversen(); kiepVerversen(); return;
+  }
   const {error} = await sb.from('res_invoer').delete().eq('id', lt.id); if (error) { toast(foutTekst(error), 1); return; }
   S.res_invoer = S.res_invoer.filter(i => i.id !== lt.id); toast('↶ Bak teruggezet'); kiepVerversen();
 }
@@ -13092,6 +13166,13 @@ async function mutatieFormulier(partijId, soortVast, id, voor = {}) {
   const m = id ? S.partij_mutaties.find(x => x.id === id) : {soort: soortVast || 'in', datum: dKey(new Date()), eenheid: voor.eenheid || 'trays', partij_id: partijId, koelcel: voor.koelcel};
   const alle = (S.partijen || []).slice().sort((a, b) => (partijRas(a) || '').localeCompare(partijRas(b) || '', 'nl'));
   const vorige = mutatiesVan(m.partij_id || '').filter(x => x.soort === 'in').pop();
+  // nieuwe boeking: eenheid en planten per eenheid overnemen van wat er van deze partij in de koelcel staat
+  if (!id && m.partij_id && !voor.eenheid) {
+    const per = new Map(); (S.partij_mutaties || []).filter(x => x.partij_id === m.partij_id && (!m.koelcel || x.koelcel === m.koelcel)).forEach(x => {
+      const k = x.eenheid || 'planten', o = per.get(k) || {e: k, n: 0, per: null}; o.n += (x.soort === 'in' || x.soort === 'correctie' ? 1 : -1) * (+x.aantal || 0); if (x.per_eenheid) o.per = x.per_eenheid; per.set(k, o); });
+    const best = [...per.values()].filter(o => o.n > .001).sort((a, b) => b.n - a.n)[0];
+    if (best) { voor = {...voor, eenheid: best.e, per: voor.per ?? best.per ?? undefined}; m.eenheid = best.e; }
+  }
   const lijst = k => [...new Set((S.partij_mutaties || []).map(x => x[k]).filter(Boolean))];
   const w = await formulier(id ? '✏️ Boeking aanpassen' : MUT_SOORTEN.find(x => x[0] === m.soort)?.[1] || 'Boeking', [
     {k: 'partij_id', label: 'Partij', type: 'select', waarde: m.partij_id || '', opties: alle.map(y => [y.id, `${partijRas(y) || soort(y.soort_id)?.naam || '?'} · ${y.batch || ''} ${y.klasse || ''} · ${partijPerceelNaam(y) || ''}`])},
