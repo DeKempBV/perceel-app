@@ -1069,7 +1069,7 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 #hfBalk{margin:6px 0 0;padding:8px 10px;border-radius:12px;background:#fff8e1;border:2px solid #f9a825;max-height:34vh;overflow:auto}
 #hfBalk .hbKop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#hfBalk .hbKop b{flex:1;font-size:16px}
 #hfBalk .hbLijst{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-#hfBalk .hbItem{background:#fff;border:1px solid #e0c97a;border-radius:10px;padding:4px 8px;font-size:13px;line-height:1.25}#hfBalk .hbItem b{font-size:14px}#hfBalk .hbItem.pal{background:#e3f2fd;border-color:#90caf9}#hfBalk .hbItem.weg{opacity:.6;text-decoration:line-through}
+#hfBalk .hbItem{background:#fff;border:1px solid #e0c97a;border-radius:10px;padding:4px 8px;font-size:13px;line-height:1.25}#hfBalk .hbItem b{font-size:14px}#hfBalk .hbItem.kist{background:#e8f5e9;border-color:#a5d6a7}#hfBalk .hbItem.pal{background:#e3f2fd;border-color:#90caf9}#hfBalk .hbItem.weg{opacity:.6;text-decoration:line-through}
 .wdwTabel td small{display:block;color:#667;font-size:12px}.wdwTabel tr.totaal td{border-top:2px solid #9aa}
 .kiepRijW{display:flex;gap:6px;align-items:stretch}.kiepRijW .kiepKnop{flex:1;min-width:0}.kiepWeg{border:0;border-radius:14px;background:#5d4037;color:#fff;font:700 15px/1.1 system-ui,sans-serif;padding:6px 10px;cursor:pointer;width:64px}
 @media print{#taalKiezer{display:none}}
@@ -9024,7 +9024,7 @@ function kiepScanInhoud() {
     <div id="kiepHand">${kiepHandBinnen()}</div>`;
 }
 function kiepHandBinnen() {
-  const leeg = !HF.pallet && !HF.hand.length, n = HF.pallet ? hfOpPallet(HF.pallet.code).length + HF.hand.filter(e => e.op_pallet !== HF.pallet.code).length : HF.hand.length;
+  const leeg = !HF.pallet && !HF.hand.length && !HF.kist.length, n = HF.pallet ? hfOpPallet(HF.pallet.code).length + HF.hand.filter(e => e.op_pallet !== HF.pallet.code).length : HF.hand.length;
   return `${isKoelcelPlek() ? '' : hfHandHtml(true)}
     <div class="hfKnoppen" style="margin-top:10px"><button class="hfGroot kiep" ${leeg || HF.bezig ? 'disabled' : ''} onclick="hfBoek('kiep')">🧺 Gekiept${n ? ' (' + n + ')' : ''}</button><button class="hfGroot cam" onclick="hfCamera()">📷 ${hfStroom ? 'Camera uit' : 'Scannen met camera'}</button></div>
     <input class="veld" id="kiepCodeIn" placeholder="Code typen (B230, P17)" autocomplete="off" onkeydown="if(event.key==='Enter'){hfScan(this.value);this.value=''}" style="margin:10px 0">
@@ -14402,7 +14402,29 @@ async function kcScanCode(raw) {
    HEFTRUCK SCANNEN – bakken/pallets scannen, dan een koelcel (erin / eruit / verplaatsen) of de kiep
    Pallet eerst en daarna bakken = die bakken staan op die pallet. De database doet de boeking (scan_boek).
    ===================================================================================== */
-const HF = {hand: [], pallet: null, log: [], bezig: false, laatst: '', laatstT: 0};
+const HF = {hand: [], pallet: null, kist: [], log: [], bezig: false, laatst: '', laatstT: 0};
+// kistkaart (QR per batch + sortering, bijv. K260046-FR-A-400): elke scan = 1 kistje van die partij in je hand
+async function hfKistScan(code) {
+  code = code.toUpperCase(); let info = null;
+  try { const {data} = await sb.rpc('kistkaart_code', {p_barcode: code}); if (data?.partij_id) info = data; } catch {}
+  const m = code.match(/^K([^-]+)(?:-(.*))?$/);
+  if (!info && m) {   // zonder database: partij zoeken op het partijnummer in de code
+    const nr = m[1], gelijk = v => String(v || '').replace(/\s+/g, '').toUpperCase() === nr;
+    const ps = (S.partijen || []).filter(y => gelijk(y.batch) || gelijk(y.nak)), y = ps.find(z => z.seizoen_id === bekeken) || ps[0];
+    if (y) info = {partij_id: y.id, sortering: m[2] || '', per_kist: null};
+  }
+  if (!info?.partij_id) { hfMeld(`Kistkaart ${code}: partij niet gevonden`, 1); return; }
+  const per = info.per_kist || [...(S.partij_mutaties || [])].reverse().find(x => x.partij_id === info.partij_id && x.eenheid === 'kistjes' && +x.per_eenheid > 0)?.per_eenheid || null;
+  const o = HF.kist.find(k => k.code === code); if (o) o.n++; else HF.kist.push({code, pid: info.partij_id, sort: info.sortering || m?.[2] || '', per, n: 1});
+  try { navigator.vibrate?.(40); } catch {} hfTeken();
+}
+function hfKistMin(code) { const o = HF.kist.find(k => k.code === code); if (!o) return; o.n--; if (o.n <= 0) HF.kist = HF.kist.filter(k => k !== o); hfTeken(); }
+const hfKistNaam = k => { const y = (S.partijen || []).find(x => x.id === k.pid); return [partijRas(y), y?.batch || y?.nak, k.sort].filter(Boolean).join(' · '); };
+function hfKistItem(k, kort) {
+  return kort ? `<span class="hbItem kist"><b>🌱 ${k.n}× kistje</b> ${esc(hfKistNaam(k))}</span>`
+    : `<div class="hfItem kist"><b>🌱 ${k.n} ${k.n === 1 ? 'kistje' : 'kistjes'}</b><span>${esc(hfKistNaam(k))}</span><small>${k.per ? getal(k.per) + ' per kist · ' : ''}<button class="knop licht klein" style="width:auto;display:inline-block;padding:2px 10px" onclick="hfKistMin(${esc(JSON.stringify(k.code))})">−1</button></small></div>`;
+}
+const hfKistTel = () => HF.kist.reduce((a, k) => a + k.n, 0);
 let hfStroom = null, hfTimer = null;
 const kiepQrTekst = () => { const a = etAdres(); return a ? `${a}?kiep=1` : 'KIEP'; };
 const kiepCodeUit = t => { const s = String(t || '').trim(); return /^KIEP$/i.test(s) || /[?&]kiep=/.test(s); };
@@ -14416,7 +14438,7 @@ function hfCel(e) {
 const hfOpPallet = code => (S.etiketten || []).filter(b => b.op_pallet === code && !b.gekiept_op);
 const hfNaam = e => { const d = e.data || {}, y = (S.partijen || []).find(x => x.id === e.partij_id); return [d.ras || partijRas(y), d.batch || y?.batch, d.sortering].filter(Boolean).join(' · '); };
 function hfMeld(t, fout) { HF.log.unshift({t, fout: !!fout, tijd: new Date()}); HF.log = HF.log.slice(0, 40); if (fout) { toast(t, 1); try { navigator.vibrate?.([90, 60, 90]); } catch {} } hfTeken(); }
-function hfLeeg(stil) { HF.hand = []; HF.pallet = null; if (!stil) hfTeken(); }
+function hfLeeg(stil) { HF.hand = []; HF.pallet = null; HF.kist = []; if (!stil) hfTeken(); }
 // etiketten en voorraad opnieuw ophalen na een boeking
 async function hfVervers(codes, sinds) {
   try {
@@ -14434,7 +14456,10 @@ async function hfVervers(codes, sinds) {
 async function hfBoek(actie, doel, codes, houd) {
   if (!mag('voorraad_beheren')) { toast('Dit account mag geen voorraad boeken', 1); return; }
   if (HF.bezig) return;
+  const metKist = !codes && actie === 'koelcel' && HF.kist.length;
+  if (!codes && actie === 'kiep' && HF.kist.length && !HF.hand.length && !HF.pallet) { hfMeld('Kistjes van een kistkaart worden niet gekiept; scan een koelcel om ze in te slaan', 1); return; }
   codes = codes || (HF.pallet ? [HF.pallet.code, ...HF.hand.filter(e => e.op_pallet !== HF.pallet.code).map(e => e.code)] : HF.hand.map(e => e.code));
+  if (metKist && !codes.length) { HF.bezig = true; hfTeken(); const ok = await hfKistInslaan(doel); HF.bezig = false; if (ok) hfLeeg(true); hfTeken(); return; }
   if (!codes.length) { hfMeld(actie === 'kiep' ? 'Scan eerst de bakken die je kiept' : 'Scan eerst een pallet of de bakken, daarna de koelcel', 1); return; }
   HF.bezig = true; hfTeken();
   const sinds = new Date(Date.now() - 10000).toISOString();
@@ -14448,14 +14473,28 @@ async function hfBoek(actie, doel, codes, houd) {
   HF.log = HF.log.slice(0, 40);
   if (fouten.length) { toast('⚠️ ' + fouten[0].melding + (fouten.length > 1 ? ` (+${fouten.length - 1})` : ''), 1); try { navigator.vibrate?.([90, 60, 90]); } catch {} }
   else try { navigator.vibrate?.(60); } catch {}
+  const kistOk = metKist ? await hfKistInslaan(doel) : true;
   await hfVervers([...new Set([...codes, ...HF.hand.map(e => e.code), ...(HF.pallet ? [HF.pallet.code] : [])])], sinds);
-  if (!houd && !fouten.length) hfLeeg(true);
+  if (!houd && !fouten.length && kistOk) hfLeeg(true);
   hfTeken();
+}
+// kistjes van kistkaarten in de koelcel zetten (op de pallet als je die in je hand hebt)
+async function hfKistInslaan(cel) {
+  const l = HF.kist.filter(k => k.n > 0); if (!l.length) return true;
+  const rijen = l.map(k => { const y = (S.partijen || []).find(x => x.id === k.pid); return {partij_id: k.pid, seizoen_id: y?.seizoen_id || bekeken, soort: 'in', datum: dKey(new Date()), aantal: k.n, eenheid: 'kistjes',
+    per_eenheid: k.per || null, koelcel: cel, pallet: HF.pallet ? String(HF.pallet.nr) : null, notitie: `kistkaart ${k.code}`, door: naamMe()}; });
+  const {data, error} = await sb.from('partij_mutaties').insert(rijen).select();
+  if (error) { hfMeld('Kistjes inslaan mislukt: ' + foutTekst(error), 1); return false; }
+  if (data) S.partij_mutaties = [...(S.partij_mutaties || []), ...data];
+  l.forEach(k => HF.log.unshift({t: `⬇️ ${k.n} ${k.n === 1 ? 'kistje' : 'kistjes'} ${hfKistNaam(k)} in ${cel}${HF.pallet ? ' (pallet ' + HF.pallet.nr + ')' : ''}`, tijd: new Date()}));
+  try { navigator.vibrate?.(60); } catch {} return true;
 }
 async function hfScan(raw) {
   const s = String(raw || '').trim(); if (!s) return;
-  if (s === HF.laatst && Date.now() - HF.laatstT < 2500) return; HF.laatst = s; HF.laatstT = Date.now();
+  const isKist = /^K\d/i.test(s);
+  if (s === HF.laatst && Date.now() - HF.laatstT < (isKist ? 600 : 2500)) return; HF.laatst = s; HF.laatstT = Date.now();
   if (HF.bezig) { toast('Even wachten, ik ben nog aan het boeken…'); return; }
+  if (isKist) { await hfKistScan(s); return; }
   if (kiepCodeUit(s)) { await hfBoek('kiep'); return; }
   const kc = kcCodeUit(s);
   if (kc) { const n = kcZoekNaam(kc); if (!n) { hfMeld(`Koelcel "${kc}" bestaat niet`, 1); return; } await hfBoek('koelcel', n); return; }
@@ -14489,15 +14528,15 @@ function hfItem(e, pal) {
     <small>${e.gekiept_op ? '🧺 gekiept' : cel ? '❄️ ' + esc(cel) : 'nog nergens'}${op ? ' · op ' + esc(op) : ''}${pal ? ` · ${hfOpPallet(e.code).length} ${hfOpPallet(e.code).length === 1 ? 'bak' : 'bakken'} erop` : ''}</small></div>`;
 }
 function hfHandHtml(kiep) {
-  const leeg = !HF.pallet && !HF.hand.length;
+  const leeg = !HF.pallet && !HF.hand.length && !HF.kist.length;
   const hand = leeg ? `<div class="hfLeeg"><b>Scan een pallet of bakken</b><span>${kiep ? 'Daarna op 🧺 Gekiept tikken, of de KIEP-code scannen.' : 'Daarna een koelcel (erin · eruit · verplaatsen) of de kiep.<br>Eerst een pallet en dan bakken = de bakken gaan op die pallet.'}</span></div>`
-    : `${HF.pallet ? hfItem(HF.pallet, true) : ''}${HF.hand.map(e => hfItem(e)).join('')}`;
-  const kop = leeg ? 'In je hand' : HF.pallet ? `In je hand: pallet ${esc(HF.pallet.nr)}${HF.hand.length ? ` + ${HF.hand.length} ${HF.hand.length === 1 ? 'bak' : 'bakken'}` : ''}` : `In je hand: ${HF.hand.length} ${HF.hand.length === 1 ? 'bak' : 'bakken'}`;
+    : `${HF.pallet ? hfItem(HF.pallet, true) : ''}${HF.hand.map(e => hfItem(e)).join('')}${HF.kist.map(k => hfKistItem(k)).join('')}`;
+  const kop = leeg ? 'In je hand' : 'In je hand: ' + hfHandTekst();
   return `<section class="hfHand ${leeg ? '' : 'vol'}"><div class="hfKop"><b>${kop}</b>${HF.bezig ? '<span class="hfBezig">bezig…</span>' : ''}${leeg ? '' : '<button class="knop licht klein" onclick="hfLeeg()">✖ Wissen</button>'}</div>
       <div class="hfLijst">${hand}</div></section>`;
 }
 function hfBinnen() {
-  const leeg = !HF.pallet && !HF.hand.length, cellen = kcLijst();
+  const leeg = !HF.pallet && !HF.hand.length && !HF.kist.length, cellen = kcLijst();
   return `${hfHandHtml()}
     <div class="hfKnoppen">
       <button class="hfGroot cam" onclick="hfCamera()">📷 ${hfStroom ? 'Camera uit' : 'Scannen met camera'}</button>
@@ -14506,7 +14545,7 @@ function hfBinnen() {
     </div>
     <div class="hfSub">Koelcel <small>(tikken = de koelcel scannen)</small></div>
     <div class="hfCellen">${cellen.map(c => `<button ${leeg ? 'disabled' : ''} onclick="hfBoek('koelcel',${esc(JSON.stringify(c.naam))})">${esc(c.naam)}</button>`).join('') || '<span class="hint">Nog geen koelcellen</span>'}</div>
-    <div class="rij"><input class="veld" id="hfCodeIn" placeholder="Code typen (B230, P17, KIEP)" autocomplete="off" onkeydown="if(event.key==='Enter'){hfScan(this.value);this.value=''}"></div>
+    <div class="rij"><input class="veld" id="hfCodeIn" placeholder="Code typen (B230, P17, K260046-A, KIEP)" autocomplete="off" onkeydown="if(event.key==='Enter'){hfScan(this.value);this.value=''}"></div>
     <div class="hfSub">Net gedaan</div>
     <div class="hfLog">${HF.log.length ? HF.log.map(r => `<div class="${r.fout ? 'fout' : ''}"><small>${tijdKort(r.tijd)}</small> ${esc(r.t)}</div>`).join('') : '<span class="hint">Nog niets gescand</span>'}</div>`;
 }
@@ -14514,11 +14553,15 @@ function htmlHeftruck() { return `<div id="hfScherm">${hfBinnen()}</div>`; }
 function hfTeken() { const el = $('#hfScherm'); if (el && tab === 'hfscan' && !$('#kiepScherm')) el.innerHTML = hfBinnen(); const kh = $('#kiepHand'); if (kh) kh.innerHTML = kiepHandBinnen(); const hb = $('#hfBalkW'); if (hb) hb.innerHTML = hfBalkHtml(); }
 // wat je in je hand hebt, bovenaan op elk tabblad van de heftruck-tablet
 function hfBalkHtml() {
-  if (!isKoelcelPlek() || tab === 'hfscan' || (!HF.pallet && !HF.hand.length)) return '';
+  if (!isKoelcelPlek() || tab === 'hfscan' || (!HF.pallet && !HF.hand.length && !HF.kist.length)) return '';
   const it = (e, pal) => { const cel = hfCel(e); return `<span class="hbItem ${pal ? 'pal' : ''} ${e.gekiept_op ? 'weg' : ''}"><b>${pal ? '🧱 Pallet' : '📦 Box'} ${esc(e.nr)}</b> ${esc(hfNaam(e) || '')}<br><small>${e.gekiept_op ? '🧺 gekiept' : cel ? '❄️ ' + esc(cel) : 'nog nergens'}${pal ? ` · ${hfOpPallet(e.code).length} erop` : ''}</small></span>`; };
-  const n = HF.hand.length, kop = HF.pallet ? `In je hand: pallet ${esc(HF.pallet.nr)}${n ? ` + ${n} ${n === 1 ? 'bak' : 'bakken'}` : ''}` : `In je hand: ${n} ${n === 1 ? 'bak' : 'bakken'}`;
+  const kop = 'In je hand: ' + hfHandTekst();
   return `<div id="hfBalk"><div class="hbKop"><b>✋ ${kop}</b>${HF.bezig ? '<span class="hfBezig">bezig…</span>' : ''}<button class="knop licht klein" onclick="zetTab('hfscan')">📷 Naar scannen</button><button class="knop licht klein" onclick="hfLeeg()">✖ Wissen</button></div>
-    <div class="hbLijst">${HF.pallet ? it(HF.pallet, true) : ''}${HF.hand.map(e => it(e)).join('')}</div></div>`;
+    <div class="hbLijst">${HF.pallet ? it(HF.pallet, true) : ''}${HF.hand.map(e => it(e)).join('')}${HF.kist.map(k => hfKistItem(k, true)).join('')}</div></div>`;
+}
+function hfHandTekst() {
+  const n = HF.hand.length, k = hfKistTel();
+  return [HF.pallet ? `pallet ${esc(HF.pallet.nr)}` : '', n ? `${n} ${n === 1 ? 'bak' : 'bakken'}` : '', k ? `${k} ${k === 1 ? 'kistje' : 'kistjes'}` : ''].filter(Boolean).join(' + ');
 }
 // een box die al gekiept is: vragen of hij terug moet
 async function hfKiepTerugVraag(e) {
@@ -14863,7 +14906,9 @@ async function kkLaad() {
 // kleur van het kaartje volgens de klasse: VGS of CAC = geel (ook VGS BM1-5), BM1-5 = wit, CM = blauw (standaard)
 const kkSjabloonVan = (...t) => { const s = t.filter(Boolean).join(' ');
   return /\bvgs\b/i.test(s) ? 'vgs' : /\bcac\b/i.test(s) ? 'cac' : /\bcm\b|gecert|certified/i.test(s) ? 'standaard' : /\bbm\s*-?\s*[1-5]\b|basismat/i.test(s) ? 'wit' : 'standaard'; };
-const kkBarcode = (nr, sort) => ('K' + String(nr || '').replace(/\s+/g, '') + (sort ? '-' + String(sort).replace(/frigo/i, '').replace(/\s+/g, '').toUpperCase() : '')).slice(0, 40);
+// SSOR-sortering zoals "FR-A-/400 > 800 per kist": het deel "> 800 per kist" is het aantal per kist, niet de sortering
+const kkSortSplits = t => { const m = String(t || '').match(/^(.*?)\s*>\s*(\d+)\s*(?:per\s*kist|p\/?k)?\s*$/i); return m ? {sort: m[1].trim(), per: +m[2]} : {sort: String(t || '').trim(), per: null}; };
+const kkBarcode = (nr, sort) => ('K' + String(nr || '').replace(/\s+/g, '') + (sort ? '-' + kkSortSplits(sort).sort.replace(/frigo/i, '').toUpperCase().replace(/[^A-Z0-9+\-]/g, '').replace(/-+$/, '') : '')).slice(0, 40);
 const kkPlantjaar = x => { const sz = (S.seizoenen || []).find(z => z.id === x?.seizoen_id); const m = String(sz?.naam || '').match(/20\d\d/); return m ? +m[0] : new Date().getFullYear(); };
 function htmlKistkaarten() {
   if (!magEtiket()) return '';
@@ -14902,7 +14947,7 @@ async function kkNieuw(vanId, voor = {}) {
     {k: 'sortering', label: 'Sortering', waarde: vorig?.sortering || voor.sortering || '', lijst: [...new Set([...lijst('sortering'), ...(etInst().sortering || []), 'Frigo A', 'Frigo A+', 'Frigo A2+', 'Frigo A++', 'Frigo B'])], placeholder: 'bijv. Frigo A2+'},
     {k: 'categorie', label: 'Categorie', waarde: vorig?.categorie || (eerder.partij_id === pid ? eerder.categorie : '') || (/cac/i.test(x.klasse || '') ? 'CAC' : ''), lijst: [...new Set([...lijst('categorie'), 'Basismateriaal-5', 'CAC', 'Gecertificeerd'])], placeholder: 'bijv. Basismateriaal-5'},
     {k: 'sjabloon', label: 'Kaartje', type: 'select', waarde: vorig?.sjabloon || 'auto', opties: [['auto', `Automatisch volgens de klasse (${x.klasse ? esc(x.klasse) + ' → ' : ''}${KK_SJABLONEN.find(z => z[0] === kkSjabloonVan(x.klasse, vorig?.categorie))?.[1]})`], ...KK_SJABLONEN]},
-    {k: 'per_kist', label: 'Aantal per kist', type: 'number', waarde: vorig?.per_kist ?? (eerder.partij_id === pid ? eerder.per_kist : '') ?? ''},
+    {k: 'per_kist', label: 'Aantal per kist', type: 'number', waarde: vorig?.per_kist ?? voor.per_kist ?? (eerder.partij_id === pid ? eerder.per_kist : '') ?? ''},
     {k: 'aantal', label: 'Aantal kaartjes', type: 'number', waarde: vorig?.aantal ?? voor.aantal ?? ''},
     {k: 'plantjaar', label: 'Jaar (geplant)', type: 'number', waarde: vorig?.plantjaar || kkPlantjaar(x)},
     {k: 'afgifte', label: '1e afgifte (week en jaar van printen)', waarde: `${weekNr(nu)} ${nu.getFullYear()}`},
@@ -14964,7 +15009,8 @@ async function sorAfdrukken(pid, sortering) {
     Object.assign(etVorm, {sortering: w.sortering || etVorm.sortering, aantal: n, datum: dKey(new Date()), koelcel: ''});
     await etAfdrukken(); return;
   }
-  kkNieuw(null, {pid, sortering: w.sortering, aantal: n, hoe: w.wat === 'papier' ? 'papier' : 'bartender'});
+  const sp = kkSortSplits(w.sortering);
+  kkNieuw(null, {pid, sortering: sp.sort, per_kist: sp.per, aantal: n, hoe: w.wat === 'papier' ? 'papier' : 'bartender'});
 }
 async function kkStatus(id, st) {
   if (st === 'weg' && !await bevestig('Weghalen?', 'Deze kistkaarten worden niet geprint.')) return;
@@ -15034,7 +15080,7 @@ function handscan(raw) {
     if (kiepScanActief()) { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
     if (!mijnProfiel?.() || !(ziet('voorraad_bekijken') || mag('voorraad_beheren') || magEtiket())) return;
     const kc = kcCodeUit(raw), et = etCodeUit(raw) || (/^[PB]\d+$/i.test(raw) ? raw.toUpperCase() : null);
-    if (isKoelcelPlek() && (tab === 'hfscan' || HF.hand.length || HF.pallet || (et && tab !== 'etiketten'))) { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
+    if (isKoelcelPlek() && (tab === 'hfscan' || HF.hand.length || HF.pallet || HF.kist.length || /^K\d/i.test(String(raw).trim()) || (et && tab !== 'etiketten'))) { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
     if (!kc && !et) return;
     try { navigator.vibrate?.(60); } catch {}
     if (isKoelcelPlek() && tab === 'hfscan') { hfScan(raw); return; }
