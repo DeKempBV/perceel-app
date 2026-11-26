@@ -13652,11 +13652,16 @@ function kcPan(e) {
   addEventListener('pointermove', mv); addEventListener('pointerup', op); addEventListener('pointercancel', op);
 }
 // tik op een koelcel: open (of: hierheen verplaatsen); in de indeel-stand: schuiven
+let kcBezig = false;
+function kcSlikKlik() { const t = Date.now(), f = e => { if (Date.now() - t < 500) { e.stopPropagation(); e.preventDefault(); } };
+  document.addEventListener('click', f, true); setTimeout(() => document.removeEventListener('click', f, true), 550); }
 function kcBlokDown(e, i) {
   if (e.target.closest('.kcRand')) return;
   if (kcBewerk) { kcSchuif(e, i, 'move'); return; }
   const st = {x: e.clientX, y: e.clientY}, naam = kcLijst()[i]?.naam;
   const op = ev => { removeEventListener('pointerup', op); if (Math.hypot(ev.clientX - st.x, ev.clientY - st.y) > 8 || kcVingers.size > 1) return;
+    kcSlikKlik();   // de "klik" die na het loslaten nog komt mag niet op de net geopende pop-up vallen (bijv. op "Kuubskist inslaan")
+    if (kcBezig) { toast('Even wachten, ik ben nog aan het verplaatsen…'); return; }
     if (kcVerplaatsVan) { const v = kcVerplaatsVan; kcVerplaatsVan = null; if (v.cel !== naam) kcVerplaats(v.pid, v.cel, naam, v.pallet); else render(true); return; }
     kcOpen(naam); };
   addEventListener('pointerup', op);
@@ -13772,14 +13777,14 @@ function kcBon(cel, wat) {
   fr.contentDocument.write(html); fr.contentDocument.close(); setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch {} setTimeout(() => fr.remove(), 3000); }, 600);
 }
 // waar komt de losse voorraad van een partij in een koelcel vandaan: alle boekingen, met weghalen voor een beheerder
-function kcGeschiedenis(pid, cel) {
+function kcGeschiedenis(pid, cel, pallet) {
   const y = (S.partijen || []).find(z => z.id === pid) || {}, beh = isBeheerder();
-  const l = mutatiesVan(pid).filter(m => (m.koelcel || '—') === cel && !m.pallet).sort((a, b) => String(b.created_at || b.datum).localeCompare(String(a.created_at || a.datum)));
+  const l = (pallet ? (S.partij_mutaties || []).filter(m => m.pallet === String(pallet)) : mutatiesVan(pid).filter(m => (m.koelcel || '—') === cel && !m.pallet)).sort((a, b) => String(b.created_at || b.datum).localeCompare(String(a.created_at || a.datum)));
   let som = 0; const rijen = [...l].reverse().map(m => { const t = m.soort === 'in' || m.soort === 'correctie' ? 1 : -1; som += t * (+m.aantal || 0); return {m, t, som}; }).reverse();
-  $('#modal').innerHTML = `<div class="dialoog groot kcPop"><h3>📜 ${esc(partijRas(y) || '?')} ${esc(y.batch || '')} · ${cel === '—' ? 'geen koelcel' : esc(cel)} <small>(los, niet op een pallet)</small></h3>
+  $('#modal').innerHTML = `<div class="dialoog groot kcPop"><h3>📜 ${pallet ? `Pallet ${esc(pallet)} <small>(alle boekingen, alle koelcellen)</small>` : `${esc(partijRas(y) || '?')} ${esc(y.batch || '')} · ${cel === '—' ? 'geen koelcel' : esc(cel)} <small>(los, niet op een pallet)</small>`}</h3>
     <p class="hint" style="margin-top:0">Alle boekingen, nieuwste bovenaan. "Stand" is het aantal daarna.${beh ? ' Een verkeerde boeking kun je met ✖ weghalen.' : ''}</p>
-    <div class="tabelScroll"><table class="resTabel"><tr><th>Datum</th><th>Wat</th><th>Aantal</th><th>Stand</th><th>Per</th><th>Door</th><th>Notitie</th>${beh ? '<th></th>' : ''}</tr>
-    ${rijen.map(({m, t, som}) => `<tr><td>${esc(datumKort((m.datum || '') + 'T12:00'))} ${m.created_at ? tijdKort(m.created_at) : ''}</td><td>${esc(MUT_SOORTEN.find(x => x[0] === m.soort)?.[1] || m.soort)}</td>
+    <div class="tabelScroll"><table class="resTabel"><tr><th>Datum</th><th>Wat</th>${pallet ? '<th>Partij</th><th>Koelcel</th>' : ''}<th>Aantal</th><th>Stand</th><th>Per</th><th>Door</th><th>Notitie</th>${beh ? '<th></th>' : ''}</tr>
+    ${rijen.map(({m, t, som}) => `<tr><td>${esc(datumKort((m.datum || '') + 'T12:00'))} ${m.created_at ? tijdKort(m.created_at) : ''}</td><td>${esc(MUT_SOORTEN.find(x => x[0] === m.soort)?.[1] || m.soort)}</td>${pallet ? `<td>${esc(partijRas((S.partijen || []).find(z => z.id === m.partij_id)) || '?')} ${esc((S.partijen || []).find(z => z.id === m.partij_id)?.batch || '')}</td><td>${esc(m.koelcel || '—')}</td>` : ''}
       <td><b>${t > 0 ? '+' : '−'}${getal(Math.abs(+m.aantal || 0))}</b> ${esc(m.eenheid || '')}</td><td>${getal(Math.round(som * 10) / 10)}</td><td>${m.per_eenheid ? getal(m.per_eenheid) : '–'}</td><td>${esc(m.door || '')}</td><td><small>${esc(m.notitie || '')}</small></td>
       ${beh ? `<td><button class="weg" onclick="$('#modal').classList.remove('open');mutatieWeg('${m.id}')">✖</button></td>` : ''}</tr>`).join('') || '<tr><td colspan="8">Geen boekingen</td></tr>'}</table></div>
     <div class="rij"><button class="knop licht" onclick="$('#modal').classList.remove('open')">Sluiten</button></div></div>`;
@@ -13812,7 +13817,7 @@ function kcOpen(naam) {
         <small>${g.l.length > 1 ? `samen ${getal(g.kistjes)} kistjes · ` : ''}nr. ${g.l.map(p => esc(p.nr)).join(', ')} · tik voor alle info</small></div></summary>
       ${g.l.map(p => `<div class="kcItem pallet"><div><b>🧱 Pallet ${esc(p.nr)}</b> <span class="kcHoog">${getal(p.kistjes)}/${KC_PALLET_MAX} kistjes</span>
         ${kcPalletInfo(p, naam)}</div>
-      <div class="kcItemKnop">${knop('↔ Verplaatsen', ver(null, p.nr, 'pallet ' + p.nr))}${knop('⬆️ Eruit halen', `kcPalletUit(${esc(JSON.stringify(naam))},${esc(JSON.stringify(p.nr))})`)}${magEtiket() && (S.etiketten || []).some(x => x.soort === 'pallet' && String(x.nr) === String(p.nr)) ? knop('🖨️ Kaart', `etOpnieuw(['P${esc(p.nr)}'])`) : ''}${beh ? `<button class="kcX" title="Pallet verwijderen" onclick="$('#modal').classList.remove('open');kcPalletWeg(${esc(JSON.stringify(p.nr))},${esc(JSON.stringify(naam))})">✕</button>` : ''}</div></div>`).join('')}</details>`).join('')}
+      <div class="kcItemKnop">${knop('↔ Verplaatsen', ver(null, p.nr, 'pallet ' + p.nr))}${knop('⬆️ Eruit halen', `kcPalletUit(${esc(JSON.stringify(naam))},${esc(JSON.stringify(p.nr))})`)}${knop('📜', `kcGeschiedenis(null,null,${esc(JSON.stringify(String(p.nr)))})`)}${magEtiket() && (S.etiketten || []).some(x => x.soort === 'pallet' && String(x.nr) === String(p.nr)) ? knop('🖨️ Kaart', `etOpnieuw(['P${esc(p.nr)}'])`) : ''}${beh ? `<button class="kcX" title="Pallet verwijderen" onclick="$('#modal').classList.remove('open');kcPalletWeg(${esc(JSON.stringify(p.nr))},${esc(JSON.stringify(naam))})">✕</button>` : ''}</div></div>`).join('')}</details>`).join('')}
     ${los.map(({y, x}) => `<div class="kcItem"><div><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}<small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)}${vbGereserveerd(y.id, naam) ? ` · ${getal(vbGereserveerd(y.id, naam))} voor een order` : ''}</small></div>
       <div class="kcItemKnop">${knop('📜', `kcGeschiedenis('${y.id}',${esc(JSON.stringify(naam))})`)}${knop('↔ Verplaatsen', ver(y.id, null, partijRas(y) || 'deze partij'))}${knop('🧾 Order', `vbKies('${y.id}',${esc(JSON.stringify(naam))})`)}${knop('⬆️ Eruit halen', `mutatieFormulier('${y.id}','uit',null,{koelcel:${esc(JSON.stringify(naam))}})`)}</div></div>`).join('')}
     <div class="rij"><button class="knop licht" id="mNee">Sluiten</button></div></div>`;
@@ -13910,6 +13915,10 @@ async function kcPalletUit(cel, nr) {
 }
 async function kcVerplaats(pid, van, naar, pallet) {
   if (!mag('voorraad_beheren') || van === naar) return;
+  if (kcBezig) { toast('Even wachten, ik ben nog aan het verplaatsen…'); return; }
+  kcBezig = true; try { await kcVerplaatsNu(pid, van, naar, pallet); } finally { kcBezig = false; }
+}
+async function kcVerplaatsNu(pid, van, naar, pallet) {
   const nu = dKey(new Date()), notitie = `↔ van ${van} naar ${naar}`, rijen = [];
   if (pallet) {
     const p = kcPallets().find(x => x.nr === pallet && x.cel === van); if (!p) return;
@@ -13932,7 +13941,10 @@ async function kcVerplaats(pid, van, naar, pallet) {
     rijen.push({...b, aantal: -n, koelcel: van === '—' ? null : van}, {...b, aantal: n, koelcel: naar});
   }
   const {data, error} = await sb.from('partij_mutaties').insert(rijen).select(); if (error) { toast(foutTekst(error), 1); return; }
-  S.partij_mutaties = [...(S.partij_mutaties || []), ...(data || [])];
+  S.partij_mutaties = [...(S.partij_mutaties || []).filter(m => !(data || []).some(d => d.id === m.id)), ...(data || [])];
+  // de pallet(s) opnieuw uit de database halen, zodat de tablet precies weet wat waar staat (ook bij snel achter elkaar verplaatsen)
+  if (pallet) try { const nrs = [...new Set(rijen.map(r => r.pallet))], {data: vers} = await sb.from('partij_mutaties').select('*').in('pallet', nrs);
+    if (vers) { const ids = new Set(vers.map(m => m.id)); S.partij_mutaties = [...S.partij_mutaties.filter(m => !(nrs.includes(m.pallet) && !String(m.id).startsWith('offline')) && !ids.has(m.id)), ...vers]; } } catch {}
   // wat voor een bestemming klaarstond gaat mee
   const ids = pallet ? [...new Set(rijen.map(r => r.partij_id))] : [pid];
   for (const r of vbRes().filter(r => ids.includes(r.partij_id) && (r.koelcel || '—') === van && !(voorraadVan(r.partij_id).get(van)?.planten > .5))) {
