@@ -1115,6 +1115,8 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .kcBlok.extern{background:#fff3e0!important;border-color:#fb8c00!important;border-style:dashed!important}.kcBlok.laden{background:#ede7f6!important;border-color:#7e57c2!important}
 .kcOnderweg{position:absolute;left:6px;bottom:6px;background:#fff3cd;color:#7a5b00;border-radius:8px;padding:2px 8px;font:700 12px/1.4 system-ui,sans-serif;font-style:normal}.kcWagen{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #ecd9a0;border-radius:10px;padding:8px 10px;margin-top:6px}.kcWagen .t{flex:1;min-width:200px}.kcWagen small{display:block;color:#5d6b62;margin-top:2px}
 .kcOnderwegLijst{background:#fff8e1;border:1px solid #f0d78a;border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.exVb{border:1px solid #d5ded8;border-radius:12px;padding:8px 12px;margin-bottom:6px;background:#fff}.exVb.let{border-color:#f0c36d;background:#fffaf0}.exVb summary{cursor:pointer;display:flex;gap:8px;flex-wrap:wrap}.exVb summary span{margin-left:auto;font-size:13px}
+.exVbIn{margin-top:8px}.exJson{background:#1d2a22;color:#d9f2dd;border-radius:10px;padding:10px;font-size:12px;overflow:auto;max-height:260px;white-space:pre}
 .kcPInfo{margin-top:4px}.kcPInfoRij{padding:4px 0;border-bottom:1px dashed #e0e6e2;font-size:14px}.kcPInfoRij span{display:block;color:#40524a}.kcPInfo small{display:block;margin-top:4px;color:#5d6b62}
 .kcGroep{margin:0}.kcGroep>summary{list-style:none;cursor:pointer}.kcGroep>summary::-webkit-details-marker{display:none}.kcGroep[open]>summary{background:#eef6ef}.kcGroep>.kcItem{margin-left:14px}
 #kiepPop .hfWissel{display:block;margin:14px auto 0;border:0;background:none;color:#1565c0;font:600 15px/1.2 system-ui,sans-serif;text-decoration:underline;cursor:pointer}
@@ -1399,6 +1401,7 @@ const RECHTEN = [
   ['bestellen', 'Iets aanvragen om te bestellen (gereedschap, onderdelen, materiaal …)', 'Bestellen'],
   ['bestellingen_goedkeuren', 'Bestellingen goedkeuren of afkeuren en als besteld zetten', 'Bestellen'],
   ['pno_bekijken', 'P&O-dashboard bekijken (uren per werknemer, productiviteit, budget)', 'P&O'],
+  ['exact_bekijken', 'Exact Online bekijken (relaties, orders, facturen, voorraad, boekingen)', 'P&O'],
   ['pno_beheren', 'P&O: budget, tarieven, toelichtingen, personeelskosten en werknemergroepen aanpassen', 'P&O'],
   ['resultaten_invoeren', 'Resultaten invoeren: rooien, kiepen, telling koelcel', 'Resultaten'],
   ['resultaten_bekijken', 'Resultaten-rapport en prognose bekijken', 'Resultaten'],
@@ -4548,7 +4551,7 @@ function render(forceer) {
 document.addEventListener('focusout', () => { if (wachtRender) { wachtRender = false; setTimeout(renderPaneel, 250); } });
 
 // schermen waar je de kaart niet nodig hebt: dan krijgt het paneel het hele scherm
-const VOL_TABS = new Set(['hftotaal', 'resmensen', 'hfscan', 'hforders', 'trekkeruren', 'busuren', 'water', 'pno', 'bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'ressorteren', 'resprognose', 'resjaren', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
+const VOL_TABS = new Set(['exact', 'hftotaal', 'resmensen', 'hfscan', 'hforders', 'trekkeruren', 'busuren', 'water', 'pno', 'bestellingen', 'etiketten', 'teeltplan', 'wijzigingen', 'plantzaai', 'watstaatwaar', '_blok', 'spuiten', 'bemesten', 'plantplan', 'vandaag', 'reskiep', 'reskisten', 'resinvoer', 'resrapport', 'ressorteren', 'resprognose', 'resjaren', 'respoten', 'resinstel', 'gebeurtenissen', 'rooiplanning', 'spuittaken', 'mesttaken', 'taken', 'uren', 'logboek', 'soorten', 'partijen', 'seizoenen', 'bedrijf', 'team', 'mij', 'spuitregister', 'mestregister', 'middelen', 'voorraad', 'monsters', 'vruchtwisseling', 'prognose', 'weekplanning', 'dossier']);
 let kaartErbij = false;   // even de kaart erbij (bijv. als je een taak op de kaart bekijkt)
 let kaartWeg = false;     // op schermen met de kaart: toch het hele scherm voor het paneel
 function volScherm() {
@@ -4636,6 +4639,7 @@ function renderPaneel() {
   else if (tab === 'hforders') h = bedrijfGeladen ? htmlHfOrders() : '<p class="hint">Laden…</p>';
   else if (tab === 'bestellingen') h = htmlBestellingen();
   else if (tab === 'pno') h = htmlPno();
+  else if (tab === 'exact') h = htmlExact();
   else if (tab === 'waarnemingen') h = htmlWaarnemingen();
   else if (tab === 'monsters') h = htmlMonstersAlle();
   else if (tab === 'trekkeruren') h = htmlWagenUren('trekker');
@@ -6486,7 +6490,7 @@ function sectieTabsBasis(s) {
       ['reskisten', '📦', 'Kistjes'], ...(magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ...(mag('resultaten_beheren') ? [['resinstel', '⚙️', 'Instellingen']] : [])] : [],
     voorraad: [...(ziet('voorraad_bekijken') || mag('voorraad_beheren') ? [['voorraad', '❄️', 'Koelcel']] : []), ...(ziet('voorraad_bekijken') || magEtiket() ? [['etiketten', '🏷️', 'Etiketten']] : []), ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ['middelen', '🧪', 'Middelen']],
     mensen: isApparaat() ? [] : [['mij', '👤', 'Mijn gegevens'], ['uren', '⏱️', 'Uren'], ...(ziet('pno_bekijken') ? [['pno', '📊', 'P&O-dashboard']] : []), ...(magBestellen() || ziet('bestellingen_goedkeuren') ? [['bestellingen', '🛒', 'Bestellen']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])],
-    instellingen: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ['dossier', '📁', 'Bio-dossier'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : [])],
+    instellingen: !magBeheer() ? [] : [['bedrijf', '📦', 'Bedrijf'], ['soorten', '🌱', 'Planten'], ['seizoenen', '📅', 'Seizoen'], ['dossier', '📁', 'Bio-dossier'], ...(trek || mag('tractoren_beheren') ? [['tractoren', '🚜', 'Trekkers']] : []), ...(magTeam() ? [['team', '👥', 'Team']] : []), ...(isBeheerder() || ziet('exact_bekijken') ? [['exact', '🔗', 'Exact Online']] : [])],
     trekkers: ziet('tractoren_volgen') || mag('tractoren_beheren') ? [['trekkeruren', '📊', 'Uren en diesel'], ['tractoren', '🗺️', 'Live en beheer']] : [],
     bussen: ziet('voertuigen_zien') || mag('voertuigen_beheren') ? [['busuren', '📊', 'Uren en km']] : [],
     werken: [['percelen', '🗺️', 'Kaart'], ['taken', '📋', 'Taken'], ...(trek ? [['tractoren', '🚜', 'Trekkers']] : [])],
@@ -9522,7 +9526,7 @@ const TAB_INFO = {
   spuiten: ['🧪', 'Spuiten', 'Planning en spuitregister'], bemesten: ['🌱', 'Bemesten', 'Planning en bemestingsregister'],
   tractoren: ['🚜', 'Trekkers', 'Waar de trekkers nu zijn'], logboek: ['📒', 'Logboek', 'Uitgevoerd werk, met ongedaan maken'],
   resinvoer: ['✍️', 'Invoer', 'Rooien, kiepen, telling en scans'], reskiep: ['🧺', 'Kieplijst', 'Wat er nog gekiept moet worden'],
-  resrapport: ['📊', 'Rapport', 'Resultaat ten opzichte van de prognose'], resmensen: ['👥', 'Wie deed wat', 'Per medewerker: wagens, rooien, kiepen en koelcel'], ressorteren: ['🗂️', 'Gesorteerd', 'Planten per dag uit SSOR, per partij, lijn en sortering'], resprognose: ['📈', 'Prognose', 'Verwachting per partij'], resjaren: ['📅', 'Over de jaren', 'Rassen en percelen door de seizoenen heen'],
+  resrapport: ['📊', 'Rapport', 'Resultaat ten opzichte van de prognose'], exact: ['🔗', 'Exact Online', 'Alles uit Exact: relaties, orders, facturen, voorraad'], resmensen: ['👥', 'Wie deed wat', 'Per medewerker: wagens, rooien, kiepen en koelcel'], ressorteren: ['🗂️', 'Gesorteerd', 'Planten per dag uit SSOR, per partij, lijn en sortering'], resprognose: ['📈', 'Prognose', 'Verwachting per partij'], resjaren: ['📅', 'Over de jaren', 'Rassen en percelen door de seizoenen heen'],
   respoten: ['🌱', 'Poten', 'Het basisbestand per partij'], reskisten: ['📦', 'Kistjes', 'Planten per kistje per kwaliteit'],
   resinstel: ['⚙️', 'Instellingen', 'Kwaliteiten, wagens en grenzen'], voorraad: ['❄️', 'Koelcel', 'Wat er ligt, leveringen en terugzoeken'], etiketten: ['🏷️', 'Etiketten', 'Pallet- en boxkaarten afdrukken en scannen'], bestellingen: ['🛒', 'Bestellen', 'Iets aanvragen; goedkeuren en bijhouden'], pno: ['📊', 'P&O-dashboard', 'Uren, productiviteit en budget uit SSOR'],
   middelen: ['🧪', 'Middelen', 'Gewasbescherming en meststoffen op voorraad'], mij: ['👤', 'Mijn gegevens', 'Gegevens, wachtwoord en ziek melden'],
@@ -13619,22 +13623,38 @@ function kcWagensHtml(cel) {
   return `<div class="kcOnderwegLijst"><b>🚛 Onderweg van het veld</b> <small>${l.length} ${l.length === 1 ? 'wagen' : 'wagens'} · nog ${getal(nog)} ${nog === 1 ? 'bak' : 'bakken'} niet gescand</small>
     ${l.map(w => `<div class="kcWagen"><div class="t"><b>${esc(w.wagen || 'Wagen')}</b> · ${wagenTijd(w.gemeld_op)}${w.gemeld_door ? ' · ' + esc(w.gemeld_door) : ''}${w.bijrijder ? ' · bijrijder ' + esc(naamVan(w.bijrijder)) : ''}${w.status === 'legen' ? ' · 🧺 wordt geleegd' : ''}
       <small>${(w.inhoud || []).filter(x => n0(x.bakken) > 0).map(x => { const y = (S.partijen || []).find(z => z.id === x.partij_id); return `${esc(y ? (partijRas(y) || '?') + ' ' + (y.batch || '') : x.naam || '?')}: <b>${getal(x.bakken)}</b>`; }).join(' · ') || (w.bakken ? getal(w.bakken) + ' bakken' : '')}</small></div>
-      ${mag2 ? `<button class="knop licht klein" style="width:auto" onclick="$('#modal').classList.remove('open');kcWagenHier('${w.id}',${esc(JSON.stringify(cel))})">✅ Wagen is hier</button>` : ''}</div>`).join('')}</div>`;
+      ${mag2 ? `<button class="knop licht klein" style="width:auto" onclick="$('#modal').classList.remove('open');kcWagenHier('${w.id}',${esc(JSON.stringify(cel))})" title="De bakken worden meteen ingeslagen in ${esc(cel)}">✅ Wagen is hier</button>` : ''}</div>`).join('')}</div>`;
 }
-// wagen is aangekomen (met de hand, als de scanner niet werkt); eventueel de bakken meteen inslaan zonder scannen
+// wagen is aangekomen (met de hand, als de scanner niet werkt): de bakken meteen inslaan op de ontvangstplek (laden & lossen)
 async function kcWagenHier(id, cel) {
   const w = (S.wagens_weg || []).find(x => x.id === id); if (!w) return;
+  cel = cel || kcOntvangst(); if (!cel) { toast('Wijs eerst een plek aan waar de wagens binnenkomen (✏️ bij Laden & lossen)', 1); return; }
   const inh = (w.inhoud || []).filter(x => x.partij_id && n0(x.bakken) > 0);
-  const keuze = await formulier(`✅ ${w.wagen || 'Wagen'} van ${wagenTijd(w.gemeld_op)} is hier`, [
-    {type: 'uitleg', waarde: inh.map(x => { const y = (S.partijen || []).find(z => z.id === x.partij_id); return `${esc(y ? (partijRas(y) || '?') + ' ' + (y.batch || '') : x.naam || '?')}: <b>${getal(x.bakken)} bakken</b>`; }).join('<br>')},
-    {k: 'in', label: 'Bakken ook inslaan?', type: 'select', waarde: 'nee', opties: [['nee', 'Nee, ik scan ze nog (of ze worden meteen gekiept)'], ['ja', `Ja, inslaan in ${cel} zonder scannen (de scanner werkt niet)`]]}], '✅ Wagen is hier');
-  if (!keuze) return;
-  if (keuze.in === 'ja' && inh.length) {
-    const rijen = inh.map(x => { const y = (S.partijen || []).find(z => z.id === x.partij_id); return {partij_id: x.partij_id, seizoen_id: y?.seizoen_id || bekeken, soort: 'in', datum: dKey(new Date()), aantal: n0(x.bakken), eenheid: 'kuubskisten', koelcel: cel, notitie: `🚛 ${w.wagen || 'wagen'} van ${wagenTijd(w.gemeld_op)} (zonder scannen)`, door: naamMe()}; });
+  if (inh.length) {
+    const rijen = inh.map(x => { const y = (S.partijen || []).find(z => z.id === x.partij_id); return {partij_id: x.partij_id, seizoen_id: y?.seizoen_id || bekeken, soort: 'in', datum: dKey(new Date()), aantal: n0(x.bakken), eenheid: 'kuubskisten', koelcel: cel, notitie: `🚛 wagen zonder scannen · ${w.wagen || 'wagen'} van ${wagenTijd(w.gemeld_op)}`, door: naamMe()}; });
     const {data, error} = await sb.from('partij_mutaties').insert(rijen).select(); if (error) { toast(foutTekst(error), 1); return; }
     if (data) S.partij_mutaties = [...(S.partij_mutaties || []), ...data];
   }
   await wagenStatus(id, 'koelcel');
+  toast(`✅ ${inh.reduce((a, x) => a + n0(x.bakken), 0)} bakken ingeslagen in ${cel}`);
+}
+// scan je later toch een box van een wagen die al zonder scannen is ingeslagen, dan telt die niet dubbel:
+// de box komt erbij en er gaat één "wagen zonder scannen"-bak van die partij van de ontvangstplek af
+async function kcWagenBoxVerrekenen(codes, sinds) {
+  const cel = kcOntvangst(); if (!cel) return;
+  const nieuw = (S.etiketten || []).filter(e => e.soort === 'box' && codes.includes(e.code)).filter(e => {
+    const rows = (S.partij_mutaties || []).filter(m => m.notitie === 'Box ' + e.nr && m.soort === 'in'); return rows.length === 1 && String(rows[0].created_at) >= String(sinds); });
+  const rijen = [];
+  for (const e of nieuw) {
+    const pid = (S.partij_mutaties || []).find(m => m.notitie === 'Box ' + e.nr)?.partij_id || e.partij_id;
+    const zonder = (S.partij_mutaties || []).filter(m => m.partij_id === pid && m.koelcel === cel && !m.pallet && /wagen zonder scannen/.test(m.notitie || ''))
+      .reduce((a, m) => a + (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0), 0) - rijen.filter(r => r.partij_id === pid).length;
+    if (zonder < 1) continue;
+    const y = (S.partijen || []).find(z => z.id === pid);
+    rijen.push({partij_id: pid, seizoen_id: y?.seizoen_id || bekeken, soort: 'correctie', datum: dKey(new Date()), aantal: -1, eenheid: 'kuubskisten', koelcel: cel, notitie: `🚛 wagen zonder scannen · box ${e.nr} toch gescand`, door: naamMe()});
+  }
+  if (!rijen.length) return;
+  const {data} = await sb.from('partij_mutaties').insert(rijen).select(); if (data) S.partij_mutaties = [...(S.partij_mutaties || []), ...data];
 }
 // onderweg van het veld, per partij: bakken op gemelde wagens (nog niet geleegd/ingeslagen) min wat er sindsdien gescand of gekiept is
 function kcOnderweg() {
@@ -15026,6 +15046,7 @@ async function hfBoek(actie, doel, codes, houd) {
   if (fouten.length) { toast('⚠️ ' + fouten[0].melding + (fouten.length > 1 ? ` (+${fouten.length - 1})` : ''), 1); try { navigator.vibrate?.([90, 60, 90]); } catch {} }
   else try { navigator.vibrate?.(60); } catch {}
   const kistOk = metKist ? await hfKistInslaan(doel) : true;
+  if (actie === 'koelcel') try { await hfVervers(codes, sinds); await kcWagenBoxVerrekenen(codes, sinds); } catch {}
   if (actie === 'koelcel' && !fouten.length) setTimeout(() => kcBonVraag(doel), 300);
   await hfVervers([...new Set([...codes, ...HF.hand.map(e => e.code), ...hfPalCodes()])], sinds);
   if (!houd && !fouten.length && kistOk) hfLeeg(true);
@@ -15185,6 +15206,138 @@ async function vbRegelErbij(bid) {
   const w = await formulier('＋ Partij erbij', [{k: 'r', label: 'Uit de koelcel', type: 'select', waarde: regels[0].k, opties: regels.map(o => [o.k, lbl(o)])}], 'Verder');
   if (!w) return; const o = regels.find(x => x.k === w.r); if (o) vbReserveer(o.pid, o.cel || '—', bid);
 }
+/* ---------- Exact Online: koppeling en alles bekijken (alleen lezen) ---------- */
+const EX = {status: null, delen: null, laden: false, soort: '', rijen: null, zoek: '', t: 0, bezig: false};
+async function exLaad(kracht) {
+  if (EX.laden || (!kracht && Date.now() - EX.t < 30000)) return; EX.laden = true;
+  try {
+    const [st, dl] = await Promise.all([sb.rpc('exact_status'), sb.from('exact_onderdelen').select('*').order('volgorde')]);
+    EX.status = st.error ? {fout: /exact_status|schema cache/i.test(st.error.message) ? 'Draai eerst exact.sql in Supabase' : foutTekst(st.error)} : st.data; EX.delen = dl.data || [];
+  } finally { EX.laden = false; EX.t = Date.now(); if (tab === 'exact') render(true); }
+}
+async function exFunctie(actie) {
+  const {data, error} = await sb.functions.invoke('exact', {body: {actie}});
+  if (error) { let m = error.message || ''; try { const b = await error.context?.json?.(); if (b?.fout) m = b.fout; } catch {}
+    throw new Error(/not found|404|Failed to send/i.test(m) ? 'De Edge Function "exact" staat nog niet in Supabase' : m); }
+  if (data?.fout) throw new Error(data.fout); return data;
+}
+async function exKoppel() { try { const d = await exFunctie('start'); if (d?.url) location.href = d.url; } catch (e) { toast(e.message, 1); } }
+async function exSync() {
+  if (EX.bezig) return; EX.bezig = true; render(true);
+  try { const d = await exFunctie('sync'); toast(d?.bezig ? 'Er wordt al bijgewerkt…' : `🔄 Bijgewerkt: ${getal(Object.values(d?.opgehaald || {}).reduce((a, n) => a + n, 0))} regels (${d?.aanroepen || 0} aanroepen)`); }
+  catch (e) { toast(e.message, 1); } finally { EX.bezig = false; EX.rijen = null; EX.soort = ''; exLaad(true); }
+}
+async function exCron(aan) { const {error} = await sb.rpc('exact_cron', {p_url: config()?.u, p_aan: aan}); if (error) toast(foutTekst(error), 1); else toast(aan ? '⏱️ Elke 15 minuten bijwerken staat aan' : 'Automatisch bijwerken staat uit'); exLaad(true); }
+async function exLos() { if (!await bevestigJa('Koppeling met Exact verbreken?', 'De gegevens die al in de app staan blijven staan. Je kunt later opnieuw koppelen.', 'Verbreken')) return; try { await exFunctie('los'); } catch (e) { toast(e.message, 1); } exLaad(true); }
+async function exOpnieuw() { if (!await bevestigJa('Alles opnieuw ophalen?', 'Bij de volgende keren bijwerken wordt alles opnieuw uit Exact gehaald. Door de limieten van Exact kan dat een paar uur duren (bij heel veel boekingen langer).', 'Opnieuw')) return; try { await exFunctie('opnieuw'); } catch (e) { toast(e.message, 1); } exLaad(true); }
+async function exDeelAan(soort, aan) { const {error} = await sb.from('exact_onderdelen').update({aan}).eq('soort', soort); if (error) toast(foutTekst(error), 1); exLaad(true); }
+async function exKies(soort) {
+  EX.soort = soort; EX.rijen = null; EX.zoek = ''; render(true);
+  const {data, error} = await sb.from('exact_data').select('id,data,gewijzigd').eq('soort', soort).order('gewijzigd', {ascending: false}).limit(1000);
+  EX.rijen = error ? [] : data || []; if (tab === 'exact') render(true);
+}
+// de meest zinnige kolommen van een soort: namen, nummers, datums en bedragen eerst
+function exKolommen(rijen) {
+  const voorkeur = ['Code', 'Name', 'Description', 'OrderNumber', 'InvoiceNumber', 'DeliveryNumber', 'QuotationNumber', 'PurchaseOrderNumber', 'ItemCode', 'ItemDescription', 'OrderedByName', 'DeliverToName', 'InvoiceToName', 'AccountName', 'SupplierName',
+    'OrderDate', 'InvoiceDate', 'DeliveryDate', 'Date', 'Quantity', 'QuantityDelivered', 'InStock', 'Unit', 'AmountDC', 'AmountFC', 'NetPrice', 'Price', 'Currency', 'Status', 'StatusDescription', 'City', 'Email', 'Phone'];
+  const keys = new Set(); (rijen || []).slice(0, 50).forEach(r => Object.entries(r.data || {}).forEach(([k, v]) => { if (v != null && v !== '' && typeof v !== 'object' && !/^[0-9a-f-]{36}$/i.test(String(v))) keys.add(k); }));
+  return [...voorkeur.filter(k => keys.has(k)), ...[...keys].filter(k => !voorkeur.includes(k) && !/ID$|Timestamp|Modified|Created|Division|^Is/.test(k))].slice(0, 8);
+}
+const exWaarde = v => v == null ? '' : typeof v === 'number' ? getal(Math.round(v * 100) / 100) : /^\d{4}-\d\d-\d\dT/.test(v) ? datumKort(v) : String(v);
+function htmlExact() {
+  if (!EX.status && !EX.laden) exLaad(true);
+  const st = EX.status;
+  if (!st) return '<p class="hint">Laden…</p>';
+  if (st.fout && st.mag === undefined) return `<section class="kaartje"><h4>🔗 Exact Online</h4><p class="hint">⚠️ ${esc(st.fout)}</p></section>`;
+  if (!st.mag) return '<section class="kaartje"><p class="hint">🔒 Exact Online zie je alleen met het recht "Exact Online bekijken", en nooit op een gedeeld apparaat.</p></section>';
+  const beh = isBeheerder(), d = EX.delen || [], fnUrl = (config()?.u || 'https://JOUWPROJECT.supabase.co').replace(/\/$/, '') + '/functions/v1/exact';
+  const status = `<section class="kaartje"><h4>🔗 Exact Online</h4>
+    ${st.gekoppeld ? `<p>✅ Gekoppeld${st.divisie ? ` met <b>${esc(st.divisie)}</b>` : ''}${st.division ? ` (administratie ${esc(st.division)})` : ''}${st.door ? ` · door ${esc(st.door)}` : ''}</p>
+      <p class="hint" style="margin-top:0">${st.laatst ? `Laatst bijgewerkt ${datumKort(st.laatst)} ${tijdKort(st.laatst)}` : 'Nog niet bijgewerkt'}${st.aanroepen != null ? ` · vandaag ${getal(st.aanroepen)} van de 5.000 aanroepen gebruikt` : ''} · ${st.cron ? '⏱️ elke 15 minuten' : 'alleen met de hand'}</p>
+      ${st.fout ? `<p class="hint">⚠️ ${esc(st.fout)}</p>` : ''}` : '<p>Nog niet gekoppeld.</p>'}
+    ${beh ? `<div class="rij" style="flex-wrap:wrap;gap:6px">${st.gekoppeld ? `<button class="knop" style="width:auto" ${EX.bezig ? 'disabled' : ''} onclick="exSync()">${EX.bezig ? '⏳ Bezig…' : '🔄 Nu bijwerken'}</button>
+        <button class="knop licht" style="width:auto" onclick="exCron(${!st.cron})">${st.cron ? '⏸️ Automatisch uit' : '⏱️ Elke 15 min bijwerken'}</button>
+        <button class="knop licht" style="width:auto" onclick="exOpnieuw()">♻️ Alles opnieuw ophalen</button><button class="knop licht" style="width:auto" onclick="exLos()">Ontkoppelen</button>`
+      : '<button class="knop" style="width:auto" onclick="exKoppel()">🔗 Koppelen met Exact</button>'}</div>` : ''}
+    ${!st.gekoppeld && beh ? `<details style="margin-top:10px" open><summary>Zo zet je het klaar (één keer)</summary><ol class="hint" style="line-height:1.6">
+      <li>Draai <code>exact.sql</code> in Supabase (SQL Editor).</li>
+      <li>Exact App Center (apps.exactonline.com) → Manage → Apps → nieuwe <b>private</b> app. Redirect URI: <code>${esc(fnUrl)}</code></li>
+      <li>Supabase → Edge Functions → <b>Deploy a new function</b> → naam <code>exact</code> → plak de inhoud van <code>index.ts</code> → Deploy. Zet daarna bij die functie <b>Verify JWT</b> (JWT-controle) <b>uit</b>.</li>
+      <li>Supabase → Edge Functions → Secrets: <code>EXACT_CLIENT_ID</code> en <code>EXACT_CLIENT_SECRET</code> (uit het App Center).</li>
+      <li>Tik hierboven op 🔗 Koppelen met Exact en log in met jullie Exact-account. Daarna 🔄 Nu bijwerken en ⏱️ Elke 15 min.</li></ol></details>` : ''}</section>`;
+  const delen = d.length ? `<section class="kaartje"><h4>Wat er uit Exact komt <small>tik om te bekijken</small></h4><div class="tabelScroll"><table class="resTabel"><tr><th>Onderdeel</th><th>Regels</th><th>Bijgewerkt</th>${beh ? '<th>Ophalen</th>' : ''}</tr>
+    ${d.map(o => `<tr style="cursor:pointer;${EX.soort === o.soort ? 'background:#eef6ef' : ''}" onclick="exKies('${o.soort}')"><td><b>${esc(o.naam)}</b>${o.fout ? `<br><small style="color:#b71c1c">⚠️ ${esc(o.fout)}</small>` : ''}</td><td>${getal(o.aantal || 0)}${o.aan && !o.klaar && o.laatst ? ' <small>(nog bezig…)</small>' : ''}</td>
+      <td><small>${o.laatst ? datumKort(o.laatst) + ' ' + tijdKort(o.laatst) : '–'}</small></td>
+      ${beh ? `<td onclick="event.stopPropagation()"><label class="vinkje"><input type="checkbox" ${o.aan ? 'checked' : ''} onchange="exDeelAan('${o.soort}',this.checked)"> aan</label></td>` : ''}</tr>`).join('')}</table></div>
+    <p class="hint">Alleen lezen: de app verandert niets in Exact. Salarissen en personeelsgegevens worden niet opgehaald. Verwijderde regels in Exact blijven hier (nog) staan.</p></section>` : '';
+  let data = '';
+  if (EX.soort) {
+    const naam = d.find(o => o.soort === EX.soort)?.naam || EX.soort, z = EX.zoek.trim().toLowerCase();
+    const l = (EX.rijen || []).filter(r => !z || JSON.stringify(r.data).toLowerCase().includes(z)), kol = exKolommen(EX.rijen);
+    data = `<section class="kaartje"><div class="rij" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h4 style="margin:0">${esc(naam)} <small>${EX.rijen ? getal(l.length) + (EX.rijen.length >= 1000 ? ' (de nieuwste 1.000)' : '') : 'laden…'}</small></h4>
+      <input id="exZoek" class="veld" style="max-width:320px" placeholder="🔍 Zoeken" value="${esc(EX.zoek)}" oninput="EX.zoek=this.value;clearTimeout(EX.zt);EX.zt=setTimeout(()=>{render(true);const i=document.querySelector('#exZoek');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},300)"></div>
+      ${EX.rijen ? (l.length ? `<div class="tabelScroll" style="margin-top:8px"><table class="resTabel"><tr>${kol.map(k => `<th>${esc(k)}</th>`).join('')}</tr>
+        ${l.slice(0, 300).map(r => `<tr style="cursor:pointer" onclick="exDetail(${esc(JSON.stringify(r.id))})">${kol.map(k => `<td>${esc(exWaarde(r.data[k]))}</td>`).join('')}</tr>`).join('')}</table></div>${l.length > 300 ? '<p class="hint">De eerste 300 staan erbij; zoek om te vinden wat je zoekt.</p>' : ''}`
+        : '<p class="hint">Niets gevonden.</p>') : '<p class="hint">Laden…</p>'}</section>`;
+  }
+  return status + delen + data + (st.gekoppeld || (EX.delen || []).some(o => o.aantal > 0) ? htmlExVoorbeeld() : '');
+}
+/* ---------- proefmodus: wat de app naar Exact zou sturen (er wordt NIETS verstuurd) ---------- */
+const EXV = {open: false, rel: null, art: null, laden: false, dagen: 30};
+async function exVoorbeeldLaad() {
+  if (EXV.laden) return; EXV.laden = true;
+  const haal = async soort => { const uit = []; for (let van = 0; van < 10000; van += 1000) { const {data, error} = await sb.from('exact_data').select('id,data').eq('soort', soort).range(van, van + 999); if (error || !data?.length) break; uit.push(...data); if (data.length < 1000) break; } return uit; };
+  try { [EXV.rel, EXV.art] = await Promise.all([haal('relaties'), haal('artikelen')]); } finally { EXV.laden = false; if (tab === 'exact') render(true); }
+}
+const exNorm = t => String(t || '').toLowerCase().replace(/\b(bv|b\.v\.|vof|v\.o\.f\.)\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+function exZoekRelatie(naam) {
+  const n = exNorm(naam); if (!n) return null;
+  return (EXV.rel || []).find(r => exNorm(r.data.Name) === n) || (EXV.rel || []).find(r => exNorm(r.data.Name).includes(n) || n.includes(exNorm(r.data.Name)) && exNorm(r.data.Name).length > 3) || null;
+}
+function exZoekArtikel(ras, sort) {
+  const r = exNorm(ras), so = exNorm(sort); if (!r) return null;
+  const l = (EXV.art || []).filter(a => exNorm(a.data.Description).includes(r) || exNorm(a.data.Code).includes(r));
+  return l.find(a => so && exNorm(a.data.Description).includes(so)) || l[0] || null;
+}
+function exVoorstellen() {
+  const sinds = dKey(new Date(Date.now() - EXV.dagen * 864e5)), per = new Map();
+  (S.partij_mutaties || []).filter(m => m.soort === 'uit' && (m.datum || '') >= sinds).forEach(m => {
+    const k = `${m.datum}|${m.klant || ''}|${m.pakbon || ''}`, o = per.get(k) || {datum: m.datum, klant: m.klant || '', pakbon: m.pakbon || '', regels: []}; o.regels.push(m); per.set(k, o); });
+  return [...per.values()].sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
+}
+function htmlExVoorbeeld() {
+  const kop = `<section class="kaartje"><div class="rij" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h4 style="margin:0">📤 Proefmodus: wat de app naar Exact zou sturen</h4>
+    <button class="knop licht klein" style="width:auto;margin:0" onclick="EXV.open=!EXV.open;render(true)">${EXV.open ? 'Inklappen' : 'Bekijken'}</button></div>
+    <p class="hint">Er wordt <b>niets</b> naar Exact gestuurd. Dit laat zien welke verkooporder de app per levering zou maken, en of de klant en het artikel in Exact gevonden worden. Zo kun je eerst controleren of het klopt.</p>`;
+  if (!EXV.open) return kop + '</section>';
+  if (!EXV.rel && !EXV.laden) exVoorbeeldLaad();
+  if (!EXV.rel) return kop + '<p class="hint">Relaties en artikelen uit Exact laden…</p></section>';
+  const l = exVoorstellen();
+  const kaart = o => {
+    const rel = exZoekRelatie(o.klant), regels = o.regels.map(m => { const y = (S.partijen || []).find(z => z.id === m.partij_id) || {}, ras = partijRas(y) || '';
+      const sort = (m.notitie || '').match(/kistkaart K[^-]*-(.*)/)?.[1] || ''; const art = exZoekArtikel(ras, sort), pl = Math.round(mutPlanten(m));
+      return {m, y, ras, sort, art, pl, regel: {Item: art?.id || null, Description: [ras, y.batch, sort].filter(Boolean).join(' '), Quantity: pl, UnitPrice: m.prijs != null ? +m.prijs : null}}; });
+    const body = {OrderedBy: rel?.id || null, OrderDate: o.datum, YourRef: o.pakbon || null, Description: `Levering uit Perceel App${o.pakbon ? ' · ' + o.pakbon : ''}`, SalesOrderLines: regels.map(r => r.regel)};
+    const ok = rel && regels.every(r => r.art);
+    return `<details class="exVb ${ok ? 'ok' : 'let'}"><summary><b>${esc(datumKort(o.datum + 'T12:00'))} · ${esc(o.klant || '(geen klant)')}</b>${o.pakbon ? ' · ' + esc(o.pakbon) : ''} <span>${ok ? '✅ klaar om te sturen' : '⚠️ nog niet compleet'}</span></summary>
+      <div class="exVbIn"><p>👤 Klant: ${rel ? `✅ <b>${esc(rel.data.Name)}</b> (${esc(rel.data.Code || '')})` : `⚠️ <b>${esc(o.klant || '–')}</b> niet gevonden in Exact`}</p>
+      <table class="resTabel"><tr><th>Wat</th><th>Artikel in Exact</th><th>Aantal planten</th><th>Prijs</th></tr>${regels.map(r => `<tr><td>${esc(r.regel.Description)}</td><td>${r.art ? `✅ ${esc(r.art.data.Code || '')} ${esc(r.art.data.Description || '')}` : '⚠️ geen artikel gevonden'}</td><td>${getal(r.pl)}</td><td>${r.m.prijs != null ? '€ ' + (+r.m.prijs).toLocaleString('nl-NL', {minimumFractionDigits: 2, maximumFractionDigits: 4}) : '–'}</td></tr>`).join('')}</table>
+      <small>Zou versturen: <code>POST /salesorder/SalesOrders</code></small><pre class="exJson">${esc(JSON.stringify(body, null, 2))}</pre></div></details>`; };
+  return kop + `<div class="rij" style="gap:6px;margin-bottom:8px">${[7, 30, 90].map(d => `<button class="knop licht klein" style="width:auto;margin:0;${EXV.dagen === d ? 'border-color:#2e7d32;font-weight:700' : ''}" onclick="EXV.dagen=${d};render(true)">${d} dagen</button>`).join('')}</div>
+    ${l.length ? l.map(kaart).join('') : '<p class="hint">Geen leveringen in deze periode.</p>'}
+    <p class="hint">${getal((EXV.rel || []).length)} relaties en ${getal((EXV.art || []).length)} artikelen uit Exact gebruikt om te zoeken. Klopt een koppeling niet (verkeerde klant of artikel), zeg het, dan stellen we in hoe de app moet zoeken voordat er ooit iets verstuurd wordt.</p></section>`;
+}
+function exDetail(id) {
+  const r = (EX.rijen || []).find(x => x.id === id); if (!r) return;
+  $('#modal').innerHTML = `<div class="dialoog groot kcPop"><h3>${esc(r.data.Name || r.data.Description || r.data.OrderNumber || r.data.InvoiceNumber || r.data.Code || 'Regel')}</h3>
+    <div class="tabelScroll"><table class="resTabel">${Object.entries(r.data).filter(([, v]) => v != null && v !== '').map(([k, v]) => `<tr><td><small>${esc(k)}</small></td><td>${esc(typeof v === 'object' ? JSON.stringify(v) : exWaarde(v))}</td></tr>`).join('')}</table></div>
+    <div class="rij"><button class="knop licht" onclick="$('#modal').classList.remove('open')">Sluiten</button></div></div>`;
+  $('#modal').classList.add('open');
+}
+// terug van Exact na het koppelen
+setTimeout(() => { try { const q = new URLSearchParams(location.search), e = q.get('exact'); if (!e) return;
+  history.replaceState(null, '', location.pathname + location.hash);
+  setTimeout(() => toast(e === 'ok' ? '✅ Gekoppeld met Exact Online. Ga naar Instellingen → Exact Online en tik op 🔄 Nu bijwerken.' : '⚠️ Koppelen met Exact mislukt: ' + (q.get('melding') || ''), e !== 'ok'), 2500); } catch {} }, 0);
 /* ---------- heftruck: totaal van alles wat er staat; tik = waar staat het ---------- */
 const HFT = {open: new Set(), zoek: ''};
 function hfTotaalData() {
