@@ -796,6 +796,9 @@ body.koelcelPlek #panel>.kop{display:none!important}
 .rpKies{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.rpKies button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:7px 10px;border:1.5px solid #cfd8cc;border-radius:10px;background:#fff;cursor:pointer;font:inherit;color:#26402b}.rpKies button small{color:#6b7a6d;font-size:11px}.rpKies button.aan{background:#2e7d32;border-color:#2e7d32;color:#fff}.rpKies button.aan small{color:#dcefdc}.rpKies button.anders{border-style:dashed}
 .rpLet{background:#fff3e0;border-radius:8px;padding:6px 8px;font-size:13px;margin-top:4px}.rpDag.vandaag{outline:3px solid #f9a825}
 .veldSchets{position:relative;background:#faf8f3;border:1px solid #e0dccf;border-radius:12px;padding:8px;margin:4px 0}.veldSchets svg{width:100%;height:auto;max-height:360px;display:block}
+.dialoog.rpGroot{max-width:min(1100px,96vw);width:96vw;max-height:94vh}.dialoog.rpGroot .veldSchets svg{max-height:58vh}
+.veldSchets.vsGroot{position:fixed;inset:2vh 2vw;z-index:9000;overflow:auto;margin:0;box-shadow:0 10px 40px rgba(0,0,0,.35)}.veldSchets.vsGroot svg{max-height:none;height:calc(96vh - 160px)}
+.vsGrootKnop{float:right;margin:0 0 6px 6px;position:relative;z-index:3;border:1px solid #cfc6b4;background:#fff;border-radius:9px;padding:5px 10px;font-size:13px;cursor:pointer}
 .vsModus{display:flex;gap:6px;margin-bottom:6px}.vsModus button{flex:1;border:1px solid #cfc6b4;background:#fff;border-radius:9px;padding:6px;font-size:13px;cursor:pointer}.vsModus button.aan{background:#2e7d32;color:#fff;border-color:#2e7d32}
 .vsRij{fill:transparent;stroke:none;pointer-events:none}.vsRij.aan{fill:rgba(255,160,0,.6);stroke:#e65100;stroke-width:.6}.vsModusRij .vsRij{pointer-events:auto;cursor:pointer}.vsModusRij .vsRij:hover{fill:rgba(255,193,7,.35)}.vsModusRij .vsVak{pointer-events:none}.vsModusRij .vsVak path{fill:transparent!important;stroke:transparent!important}
 .vsVak path{fill:transparent;stroke:transparent;stroke-width:.6;cursor:pointer}.vsVak:hover path{fill:rgba(255,193,7,.18)}.vsVak.aan path{fill:rgba(255,160,0,.45);stroke:#e65100}
@@ -1110,7 +1113,8 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .dialoog.kcPop{max-width:min(1000px,96vw);width:96vw;max-height:94vh;padding:24px 28px;font-size:16px}.dialoog.kcPop h3{font-size:26px}.dialoog.kcPop .kcItem{padding:12px 14px}.dialoog.kcPop .kcItem b{font-size:17px}.dialoog.kcPop .knop.klein{padding:10px 14px;font-size:15px}
 .kcX{border:0;background:#fdecea;color:#b71c1c;border-radius:50%;width:34px;height:34px;font:700 16px/1 system-ui,sans-serif;cursor:pointer;flex:0 0 auto}
 .kcBlok.extern{background:#fff3e0!important;border-color:#fb8c00!important;border-style:dashed!important}.kcBlok.laden{background:#ede7f6!important;border-color:#7e57c2!important}
-.kcOnderweg{position:absolute;left:6px;bottom:6px;background:#fff3cd;color:#7a5b00;border-radius:8px;padding:2px 8px;font:700 12px/1.4 system-ui,sans-serif;font-style:normal}.kcOnderwegLijst{background:#fff8e1;border:1px solid #f0d78a;border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.kcOnderweg{position:absolute;left:6px;bottom:6px;background:#fff3cd;color:#7a5b00;border-radius:8px;padding:2px 8px;font:700 12px/1.4 system-ui,sans-serif;font-style:normal}.kcWagen{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #ecd9a0;border-radius:10px;padding:8px 10px;margin-top:6px}.kcWagen .t{flex:1;min-width:200px}.kcWagen small{display:block;color:#5d6b62;margin-top:2px}
+.kcOnderwegLijst{background:#fff8e1;border:1px solid #f0d78a;border-radius:12px;padding:10px 12px;margin-bottom:12px}
 .kcPInfo{margin-top:4px}.kcPInfoRij{padding:4px 0;border-bottom:1px dashed #e0e6e2;font-size:14px}.kcPInfoRij span{display:block;color:#40524a}.kcPInfo small{display:block;margin-top:4px;color:#5d6b62}
 .kcGroep{margin:0}.kcGroep>summary{list-style:none;cursor:pointer}.kcGroep>summary::-webkit-details-marker{display:none}.kcGroep[open]>summary{background:#eef6ef}.kcGroep>.kcItem{margin-left:14px}
 #kiepPop .hfWissel{display:block;margin:14px auto 0;border:0;background:none;color:#1565c0;font:600 15px/1.2 system-ui,sans-serif;text-decoration:underline;cursor:pointer}
@@ -7934,6 +7938,7 @@ function htmlWeekplanning() {
 /* ---- plattegrond van een veld in een formulier: wat staat waar, vakken aantikken ---- */
 const partijTekst = x => `${partijRas(x) || soort(x.soort_id)?.naam || 'partij'}${x.batch ? ' · batch ' + x.batch : ''}${x.klasse ? ' · ' + x.klasse : ''}${x.bio ? ' · BIO' : ''}`;
 const partijenOpRij = (p, zid, nr) => partijenVan(p.id).filter(x => (x.sporen || []).some(e => e.z === zid && (e.nrs || []).includes(nr)));
+function veldSchetsGroot(knop) { const el = knop.closest('.veldSchets'); el.classList.toggle('vsGroot'); knop.textContent = el.classList.contains('vsGroot') ? '⤡ Kleiner' : '⤢ Groter'; }
 function veldSchets(p, gekozen = [], opt = {}) {
   const rijSel = new Set(opt.rijen || []);
   if (!p?.geo) return '';
@@ -7966,7 +7971,7 @@ function veldSchets(p, gekozen = [], opt = {}) {
         <text x="${cx}" y="${cy}">${esc(v.letter)}</text></g>`;
     });
     const metVak = perceelVakken(p).length > 0;
-    return `<div class="veldSchets ${!metVak && opt.metRijen ? 'vsModusRij' : ''}"><div class="vsTip"></div>
+    return `<div class="veldSchets ${!metVak && opt.metRijen ? 'vsModusRij' : ''}"><div class="vsTip"></div><button type="button" class="vsGrootKnop" onclick="veldSchetsGroot(this)">⤢ Groter</button>
       ${opt.metRijen && metVak ? `<div class="vsModus"><button type="button" class="aan" onclick="veldSchetsModus(this,0)">▦ Vakken aantikken</button><button type="button" onclick="veldSchetsModus(this,1)">┃ Losse rijen aantikken</button></div>` : ''}
       <svg viewBox="-4 -4 ${W + 8} ${H.toFixed(0) * 1 + 8}" preserveAspectRatio="xMidYMid meet">
       <path d="${pad(p.geo)}" fill="#e8e3d8" stroke="#555" stroke-width="1.2"/>${sporen}<g class="vsRijen">${rijSvg}</g>${vakSvg}</svg>${rijVink ? `<div style="display:none">${rijVink}</div>` : ''}
@@ -9899,6 +9904,35 @@ function htmlRooiplanning() {
         ${l.length ? `<button class="knop licht klein" style="width:auto;margin:0" title="Rooiplanning van deze dag afdrukken (alles van die dag op één blad)" onclick="rooiPrint('${k}',1)">🖨️ Afdrukken</button>` : ''}${beh ? `<button class="icoon" title="Nog iets erbij op deze dag" onclick="rooiFormulier(null,{datum:'${k}'${l[0] ? `,van:'${l[l.length - 1].id}'` : ''}})">＋</button>` : ''}</h4>
         ${l.length ? `${Object.keys(tot).length ? `<p class="hint" style="margin-top:-4px">Totaal: ${Object.entries(tot).map(([e, n]) => `<b>${n.toLocaleString('nl-NL')} ${esc(e)}</b>`).join(' · ')}</p>` : ''}${l.map(rpKaart).join('')}` : '<p class="hint">Niets gepland</p>'}</section>`; }).join('')}`;
 }
+// stap 1 van rooien plannen: op perceel (alleen percelen waar iets staat) of op ras (waar staat dat ras nog, hoeveel meter)
+async function rooiKiesPerceel(velden) {
+  const per = velden.map(p => ({p, t: teeltMeters(p)})).filter(o => [...o.t.values()].some(v => v.m > 1));
+  if (!per.length) { toast('Er staat op geen enkel perceel iets', 1); return null; }
+  const rassen = new Map(); per.forEach(o => o.t.forEach((v, tid) => { if (v.m <= 1) return; const t = teelt(tid); if (!t) return;
+    const x = rassen.get(tid) || {tid, naam: t.naam, m: 0, n: 0}; x.m += v.m; x.n++; rassen.set(tid, x); }));
+  const rl = [...rassen.values()].sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  const w = await formulier('🚜 Rooien plannen', [
+    {k: 'hoe', label: 'Hoe wil je kiezen?', type: 'select', waarde: 'perceel', opties: [['perceel', '📍 Op perceel'], ['ras', '🌱 Op ras']]},
+    {k: 'perceel_id', label: 'Perceel (alleen waar iets staat)', type: 'select', waarde: per.some(o => o.p.id === actief) ? actief : per[0].p.id, als: ['hoe', 'perceel'],
+      opties: per.map(o => [o.p.id, `${o.p.naam} · ${[...o.t.values()].filter(v => v.m > 1).length} ${[...o.t.values()].filter(v => v.m > 1).length === 1 ? 'soort' : 'soorten'}`])},
+    {k: 'ras', label: 'Ras', type: 'select', waarde: rl[0]?.tid, als: ['hoe', 'ras'], opties: rl.map(x => [x.tid, `${x.naam} · ${getal(Math.round(x.m))} m op ${x.n} ${x.n === 1 ? 'perceel' : 'percelen'}`])}], 'Verder');
+  if (!w) return null;
+  if (w.hoe !== 'ras') return {perceel_id: w.perceel_id};
+  // ras gekozen: lijst van percelen waar dat ras nog staat
+  const lijst = per.map(o => ({p: o.p, v: o.t.get(w.ras)})).filter(o => o.v && o.v.m > 1).sort((a, b) => b.v.m - a.v.m), t = teelt(w.ras);
+  return new Promise(klaar => {
+    $('#modal').innerHTML = `<div class="dialoog groot rpGroot"><h3>🌱 ${esc(t?.naam || '')} <small>· waar staat het nog?</small></h3>
+      <p class="hint" style="margin-top:0">Tik op een perceel. De vakken waar dit ras staat worden alvast aangevinkt.</p>
+      ${lijst.map((o, i) => { const pr = partijenVanTeelt(o.p.id, w.ras), vak = Object.entries(o.v.perVak || {}).filter(([, m]) => m > 1).sort();
+        return `<button class="etActRij" data-i="${i}"><span class="t"><b>${esc(o.p.naam)}</b>${pr.length ? ' · ' + pr.map(x => esc(x.batch || x.nak || '')).filter(Boolean).join(', ') : ''}
+          <small>${getal(Math.round(o.v.m))} m · ${o.v.sporen.size} ${o.v.sporen.size === 1 ? 'spoor' : 'sporen'}${vak.length ? ' · vak ' + vak.map(([l, m]) => `${esc(l)} (${getal(Math.round(m))} m)`).join(', ') : ''}</small></span><span class="pr">▸</span></button>`; }).join('')}
+      <div class="rij"><button class="knop licht" id="rpTerug">Annuleren</button></div></div>`;
+    $('#modal').classList.add('open');
+    $('#modal').querySelectorAll('[data-i]').forEach(b => b.onclick = () => { const o = lijst[+b.dataset.i]; $('#modal').classList.remove('open');
+      klaar({perceel_id: o.p.id, vakken: Object.entries(o.v.perVak || {}).filter(([, m]) => m > 1).map(([l]) => l)}); });
+    $('#rpTerug').onclick = () => { $('#modal').classList.remove('open'); klaar(null); };
+  });
+}
 async function rooiFormulier(id, voor = {}) {
   if (!mag('taken_toevoegen')) { toast('Je mag geen rooiplanning maken', 1); return; }
   const oud = id ? (S.rooiplanning || []).find(r => r.id === id) : null, van = voor.van && (S.rooiplanning || []).find(r => r.id === voor.van);
@@ -9907,8 +9941,8 @@ async function rooiFormulier(id, voor = {}) {
   const velden = S.percelen.filter(p => p.type !== 'pand' && !p.uitgeschakeld).sort((a, b) => a.naam.localeCompare(b.naam, 'nl', {numeric: true}));
   // stap 1: perceel (de vakken en partijen hangen ervan af)
   if (!oud && !r.perceel_id) {
-    const k = await formulier('🚜 Rooien plannen: welk perceel?', [{k: 'perceel_id', label: 'Perceel', type: 'select', waarde: actief && perceel(actief) ? actief : velden[0]?.id, opties: velden.map(p => [p.id, p.naam])}], 'Verder');
-    if (!k) return; r.perceel_id = k.perceel_id;
+    const k = await rooiKiesPerceel(velden); if (!k) return;
+    r.perceel_id = k.perceel_id; if (k.vakken?.length) r.vakken = k.vakken;
   }
   const p = perceel(r.perceel_id), pv = p ? perceelVakken(p) : [], partijen = p ? partijenVan(p.id) : [];
   const mensen = [...medewerkers()].filter(u => u.actief !== false).sort((a, b) => ((b.chauffeur ? 1 : 0) - (a.chauffeur ? 1 : 0)) || (a.naam || '').localeCompare(b.naam || '', 'nl'));
@@ -9920,6 +9954,7 @@ async function rooiFormulier(id, voor = {}) {
   rpRegels.extra = Object.fromEntries((r.regels || []).map(g => [g.partij_id, {bakken: g.bakken, opmerking: g.opmerking}]));
   const trekNamen = [...new Set([...(S.tractoren || []).map(t => t.naam), ...(S.rooiplanning || []).flatMap(x => Object.values(x.tractoren || {}))].filter(Boolean))];
   const teams = [...new Set((S.rooiplanning || []).map(x => x.rooiteam).filter(Boolean))];
+  setTimeout(() => $('#modal .dialoog')?.classList.add('rpGroot'), 0);   // groot scherm, zodat je de rijen goed kunt aantikken
   const wP = formulier(oud ? '✏️ Rooi-opdracht aanpassen' : '🚜 Rooien plannen', [
     {type: 'uitleg', waarde: `📍 ${esc(p?.naam || '?')}`},
     {k: 'datum', label: 'Welke dag?', type: 'date', waarde: r.datum},
@@ -13576,6 +13611,31 @@ const kcPlek = naam => kcLijst().find(c => c.naam === naam) || null;
 const kcIsExtern = naam => kcPlek(naam)?.soort === 'extern';
 // de plek waar de wagens van de rooier binnenkomen (aangewezen, anders de eerste "Laden & lossen")
 const kcOntvangst = () => { const l = kcLijst(); return (l.find(c => c.ontvangst) || l.find(c => c.soort === 'laden'))?.naam || null; };
+// de wagens die onderweg zijn, elk apart (log), met "wagen is hier" voor als de scanner niet werkt
+function kcWagensHtml(cel) {
+  const l = (S.wagens_weg || []).filter(w => ['onderweg', 'legen'].includes(w.status) && Date.now() - new Date(w.gemeld_op) < 3 * 864e5).sort((a, b) => String(b.gemeld_op).localeCompare(String(a.gemeld_op)));
+  if (!l.length) return '';
+  const nog = kcOnderweg().reduce((a, o) => a + o.nog, 0), mag2 = wagenBeheer();
+  return `<div class="kcOnderwegLijst"><b>🚛 Onderweg van het veld</b> <small>${l.length} ${l.length === 1 ? 'wagen' : 'wagens'} · nog ${getal(nog)} ${nog === 1 ? 'bak' : 'bakken'} niet gescand</small>
+    ${l.map(w => `<div class="kcWagen"><div class="t"><b>${esc(w.wagen || 'Wagen')}</b> · ${wagenTijd(w.gemeld_op)}${w.gemeld_door ? ' · ' + esc(w.gemeld_door) : ''}${w.bijrijder ? ' · bijrijder ' + esc(naamVan(w.bijrijder)) : ''}${w.status === 'legen' ? ' · 🧺 wordt geleegd' : ''}
+      <small>${(w.inhoud || []).filter(x => n0(x.bakken) > 0).map(x => { const y = (S.partijen || []).find(z => z.id === x.partij_id); return `${esc(y ? (partijRas(y) || '?') + ' ' + (y.batch || '') : x.naam || '?')}: <b>${getal(x.bakken)}</b>`; }).join(' · ') || (w.bakken ? getal(w.bakken) + ' bakken' : '')}</small></div>
+      ${mag2 ? `<button class="knop licht klein" style="width:auto" onclick="$('#modal').classList.remove('open');kcWagenHier('${w.id}',${esc(JSON.stringify(cel))})">✅ Wagen is hier</button>` : ''}</div>`).join('')}</div>`;
+}
+// wagen is aangekomen (met de hand, als de scanner niet werkt); eventueel de bakken meteen inslaan zonder scannen
+async function kcWagenHier(id, cel) {
+  const w = (S.wagens_weg || []).find(x => x.id === id); if (!w) return;
+  const inh = (w.inhoud || []).filter(x => x.partij_id && n0(x.bakken) > 0);
+  const keuze = await formulier(`✅ ${w.wagen || 'Wagen'} van ${wagenTijd(w.gemeld_op)} is hier`, [
+    {type: 'uitleg', waarde: inh.map(x => { const y = (S.partijen || []).find(z => z.id === x.partij_id); return `${esc(y ? (partijRas(y) || '?') + ' ' + (y.batch || '') : x.naam || '?')}: <b>${getal(x.bakken)} bakken</b>`; }).join('<br>')},
+    {k: 'in', label: 'Bakken ook inslaan?', type: 'select', waarde: 'nee', opties: [['nee', 'Nee, ik scan ze nog (of ze worden meteen gekiept)'], ['ja', `Ja, inslaan in ${cel} zonder scannen (de scanner werkt niet)`]]}], '✅ Wagen is hier');
+  if (!keuze) return;
+  if (keuze.in === 'ja' && inh.length) {
+    const rijen = inh.map(x => { const y = (S.partijen || []).find(z => z.id === x.partij_id); return {partij_id: x.partij_id, seizoen_id: y?.seizoen_id || bekeken, soort: 'in', datum: dKey(new Date()), aantal: n0(x.bakken), eenheid: 'kuubskisten', koelcel: cel, notitie: `🚛 ${w.wagen || 'wagen'} van ${wagenTijd(w.gemeld_op)} (zonder scannen)`, door: naamMe()}; });
+    const {data, error} = await sb.from('partij_mutaties').insert(rijen).select(); if (error) { toast(foutTekst(error), 1); return; }
+    if (data) S.partij_mutaties = [...(S.partij_mutaties || []), ...data];
+  }
+  await wagenStatus(id, 'koelcel');
+}
 // onderweg van het veld, per partij: bakken op gemelde wagens (nog niet geleegd/ingeslagen) min wat er sindsdien gescand of gekiept is
 function kcOnderweg() {
   const open = (S.wagens_weg || []).filter(w => ['onderweg', 'legen'].includes(w.status) && Date.now() - new Date(w.gemeld_op) < 3 * 864e5);
@@ -13807,8 +13867,7 @@ function kcOpen(naam) {
   $('#modal').innerHTML = `<div class="dialoog groot kcPop"><h3>${plek.soort ? kcIcoon(plek) : '🧊'} ${esc(naam)}${beh ? ` <button class="knop licht klein" style="width:auto;display:inline-block;vertical-align:middle" onclick="$('#modal').classList.remove('open');kcGegevens(${esc(JSON.stringify(naam))})">✏️</button>` : ''}</h3>
     ${plek.soort === 'extern' ? `<p class="hint" style="margin-top:0">🏢 Extern koelbedrijf${[plek.adres, plek.contact, plek.telefoon, plek.email].filter(Boolean).length ? ' · ' + [plek.adres, plek.contact, plek.telefoon, plek.email].filter(Boolean).map(esc).join(' · ') : ''}</p>
       <div class="rij" style="gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="knop klein" style="width:auto" onclick="kcBon(${esc(JSON.stringify(naam))},'vandaag')">📄 Bon: vandaag hierheen</button><button class="knop licht klein" style="width:auto" onclick="kcBon(${esc(JSON.stringify(naam))},'alles')">📄 Bon: alles wat hier staat</button></div>` : plek.soort === 'laden' ? '<p class="hint" style="margin-top:0">🚚 Laden & lossen: hier staat wat net binnen is of klaarstaat om weg te gaan.</p>' : ''}
-    ${naam === kcOntvangst() ? (() => { const ow = kcOnderweg(); return ow.length ? `<div class="kcOnderwegLijst"><b>🚛 Onderweg van het veld</b> <small>(staan hier tot ze gescand of gekiept zijn)</small>${ow.map(o => { const y = (S.partijen || []).find(z => z.id === o.pid) || {};
-      return `<div class="kcItem"><div><b>${esc(partijRas(y) || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}<small>${getal(o.nog)} ${o.nog === 1 ? 'bak' : 'bakken'} onderweg${o.nog < o.bakken ? ` (van ${getal(o.bakken)}, ${getal(o.bakken - o.nog)} al binnen)` : ''} · ${esc(o.wagens.join(', '))}</small></div></div>`; }).join('')}</div>` : ''; })() : ''}
+    ${naam === kcOntvangst() ? kcWagensHtml(naam) : ''}
     ${inh.planten ? kcTotalenHtml(naam) : naam === kcOntvangst() && kcOnderweg().length ? '' : '<p class="hint">Leeg</p>'}
     ${beh ? `<div class="kcInslaan"><b>⬇️ Inslaan</b><div class="rij" style="gap:6px;flex-wrap:wrap">
       ${knop('🧱 Pallet (kistjes)', `kcPalletInslag(${esc(JSON.stringify(naam))})`)}${knop('📦 Kuubskist', `mutatieFormulier('','in',null,{eenheid:'kuubskisten',koelcel:${esc(JSON.stringify(naam))}})`)}
