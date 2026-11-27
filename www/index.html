@@ -3463,8 +3463,11 @@ function rijWaarde(z, nr) {   // een sproeierspoor tussen twee spuitsporen is ge
 function rijWaardeRuw(z, nr) {   // 1, 0,5, 0, 2 (spuitspoor) of 3 (sproeierspoor)
   if ((spuitVan(z).sproeier || []).includes(nr)) return 3;
   const pp = patroonVan(z);
+  if (pp && pp.length > 40 && (nr - (parseInt(spuitVan(z).patroonStart) || 1) < 0 || nr - (parseInt(spuitVan(z).patroonStart) || 1) >= pp.length)) return 1;   // lange lijst (per spoor uitgeschreven): niet herhalen
   if (pp) { const st = Math.max(1, parseInt(spuitVan(z).patroonStart) || 1), i = (((nr - st) % pp.length) + pp.length) % pp.length; const s = spuitVan(z);
     if ((s.uit || []).includes(nr) && pp[i] === 2) return 1; if ((s.sproeierUit || []).includes(nr) && pp[i] === 3) return 1; if ((s.extra || []).includes(nr)) return 2; return pp[i]; }
+  const s2 = spuitVan(z);
+  if ((s2.half || []).includes(nr)) return .5; if ((s2.leeg || []).includes(nr)) return 0;   // met de hand: half gevuld / leeg
   return spuitSet(z).has(nr) ? 2 : 1;
 }
 // plantrijtjes per spoor (bijv. asperges: 4 op 1,5 m) en hoeveel daarvan er onder een spuitspoor staan (bijv. 3; 0 = spuitspoor leeg)
@@ -3482,7 +3485,7 @@ function spuitSet(z) {
 function spuitSet0(z, s, n) {
   const set = new Set();
   const pp = patroonVan(z);
-  if (pp) { const st = Math.max(1, parseInt(s.patroonStart) || 1), val = nr => pp[(((nr - st) % pp.length) + pp.length) % pp.length];
+  if (pp) { const st = Math.max(1, parseInt(s.patroonStart) || 1), val = nr => pp.length > 40 && (nr - st < 0 || nr - st >= pp.length) ? 1 : pp[(((nr - st) % pp.length) + pp.length) % pp.length];
     for (let nr = 1; nr <= n; nr++) if (val(nr) === 2 || (val(nr) === 3 && nr > 1 && val(nr - 1) === 2 && val(nr + 1) === 2)) set.add(nr); }
   const elke = pp ? 0 : parseInt(s.elke) || 0, start = parseInt(s.start) || elke;
   if (elke > 0 && start > 0) for (let i = start; i <= n; i += elke) set.add(i);
@@ -3567,6 +3570,10 @@ function zetSpuitGetal(zoneId, veld, waarde) {
   zetSpuit(z, {...spuitVan(z), [veld]: Math.max(0, parseInt(waarde) || 0)});
 }
 function wisselSpuit(z, nr) {
+  if (rijWaarde(z, nr) === .5 || rijWaarde(z, nr) === 0) {   // half gevuld / leeg aangetikt: eerst gewoon vol spoor maken
+    const s = patroonVan(z) ? patroonLos(z) : {...spuitVan(z)}; s.half = (s.half || []).filter(x => x !== nr); s.leeg = (s.leeg || []).filter(x => x !== nr);
+    zetSpuit(z, s); toast(`${z._vak ? z.naam + ' · ' : ''}Spoor ${nr} is weer een vol spoor (was ${rijWaarde(z, nr) === 0 ? 'leeg' : 'half gevuld'}). Tik nog een keer voor spuitspoor.`); return;
+  }
   const s = {...spuitVan(z)}; s.extra = [...(s.extra || [])]; s.uit = [...(s.uit || [])];
   const was = spuitSet(z).has(nr);
   if (was) { if (s.extra.includes(nr)) s.extra = s.extra.filter(x => x !== nr); else s.uit.push(nr); }
@@ -11377,12 +11384,8 @@ async function sporenOmzetten(pid, zid, patch, melding) {
   const banen = nieuw.map(bn => oudVanK.has(bn.k) ? oudBanen[oudVanK.get(bn.k) - 1] ?? null : null);
   const extraPatch = {...patch, banen};
   const sproeiOud = new Set((sp.sproeier || []));
-  if (pp || spuitOud.size || sproeiOud.size) {
-    const sproeier = nieuw.filter(bn => sproeiOud.has(oudNr(bn))).map(bn => bn.nr);
-    if (pp) extraPatch.spuit = {...sp, patroon: nieuw.map(bn => { const w = oudWaarde(oudNr(bn)); return w === .5 ? '0,5' : String(w); }).join(''), patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], stukSpuit: {}, stukSproeier: {}, stukLijn: {}};   // losse sproeiers gaan mee in het patroon (3)
-    else extraPatch.spuit = {...sp, elke: 0, start: 0, uit: [], extra: nieuw.filter(bn => !sproeiOud.has(oudNr(bn)) && oudWaarde(oudNr(bn)) === 2).map(bn => bn.nr), sproeier};
-    if ((sp.sproeierLijn || []).length) { const lijn = []; nieuw.forEach((bn, i) => { const o = oudNr(bn), o2 = i + 1 < nieuw.length ? oudNr(nieuw[i + 1]) : null; if (o2 === o + 1 && sp.sproeierLijn.includes(o)) lijn.push(bn.nr); }); extraPatch.spuit.sproeierLijn = lijn; }
-  }
+  const oudLijnen = sproeierLijnenVan(z);
+  if (pp || spuitOud.size || sproeiOud.size || (sp.half || []).length || (sp.leeg || []).length || oudLijnen.size) extraPatch.spuit = spuitAlsLijsten(z, sp, nieuw, oudNr, spuitOud, oudLijnen);
   await zoneZetten(p, z, extraPatch);
   // partijen op dit deel: zelfde spoor (plek in het raster), nieuw nummer; verdwenen sporen eraf
   const nieuwVanK = new Map(nieuw.map(bn => [bn.k, bn.nr])), oudNaarNieuw = new Map(oud.map(bn => [bn.nr, nieuwVanK.get(bn.k)]));
@@ -11484,6 +11487,20 @@ async function spoorHalf(z, bn, ll) {
   const sm = stukMerk();
   banner(`<b>½ Spoor ${bn.nr} splitsen</b><br>Kies hieronder, of tik nog een keer op het spoor <b>aan de kant die half-half moet worden</b> (dan begint de splitsing op de plek waar je net tikte).`,
     [['Annuleren', () => { SPH = null; banner(); }], ...(sm ? [[(bn.gaten?.length ? (isGeknipt(vw) && vw.k.length ? 'Dit stuk (tot de wissel / het kopeinde)' : 'Dit stuk (tot het kopeinde)') : 'Dit stuk (tot de wissel)'), () => doe(sm)]] : []), ['Hele spoor', () => doe('h' + k)]]);
+}
+// spuitsporen, sproeiers, leidingen, half gevuld en leeg als losse lijsten per spoor (geen patroon dat zich over het veld herhaalt).
+// Uitzonderingen per stuk (stukSpuit/stukSproeier/stukLijn) hangen aan de vaste plek in het raster en blijven gewoon staan.
+function spuitAlsLijsten(z, sp, nieuw, oudNr, spuitOud, oudLijnen) {
+  const info = nieuw.map(bn => { const o = oudNr(bn); return Number.isInteger(o) ? {w: rijWaarde(z, o), ruw: rijWaardeRuw(z, o), spuit: spuitOud.has(o)} : {w: 1, ruw: 1, spuit: false}; });
+  const nrs = f => nieuw.filter((bn, i) => f(info[i])).map(bn => bn.nr);
+  const lijn = []; nieuw.forEach((bn, i) => { const o = oudNr(bn), o2 = i + 1 < nieuw.length ? oudNr(nieuw[i + 1]) : null; if (o2 === o + 1 && oudLijnen.has(o)) lijn.push(bn.nr); });
+  return {...sp, patroon: null, patroonStart: 1, elke: 0, start: 0, uit: [], extra: nrs(x => x.spuit), sproeier: nrs(x => x.ruw === 3), half: nrs(x => !x.spuit && x.w === .5), leeg: nrs(x => !x.spuit && x.w === 0),
+    sproeierUit: [], sproeierLijn: lijn, lijnUit: []};
+}
+// het patroon van een veld omzetten naar losse lijsten (zelfde sporen), zodat je elk spoor los kunt aanpassen
+function patroonLos(z) {
+  const bv = banenVan(z), sp = spuitVan(z);
+  return spuitAlsLijsten(z, sp, bv, bn => bn.nr, spuitSet(z), sproeierLijnenVan(z));
 }
 // splitsingen van vóór v110 (twee aparte sporen met elk een nummer) omzetten naar de nieuwe manier (één spoor met stippellijn)
 async function oudeSplitsOmzetten(pid) {
