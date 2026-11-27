@@ -2055,7 +2055,7 @@ function klikBaan(p, bn, ll) {
   }
   const idx = isGeknipt(v) ? v.k.filter(x => x <= t).length : 0;
 
-  if (gereedschap === 'spoorweg') { spoorWeg(p, bn); return; }
+  if (gereedschap === 'spoorweg') { spoorWeg(p, bn, ll); return; }
   if (gereedschap === 'spoorhalf') { spoorHalf(p, bn, ll); return; }
   if (gereedschap === 'spuit') {
     if (!mag('spuitsporen_bewerken')) { toast('Je mag geen spuitsporen aanpassen', 1); return; }
@@ -2063,8 +2063,13 @@ function klikBaan(p, bn, ll) {
   }
   if (gereedschap === 'sproeier') {
     if (!mag('spuitsporen_bewerken')) { toast('Je mag geen sporen aanpassen', 1); return; }
-    let f = .5; if (ll && meta) { const q = meta.naarM([ll.lng, ll.lat]), o = q[0] * meta.n[0] + q[1] * meta.n[1]; f = (o - bn.a) / bn.b; }
-    if (f < .25 && bn.nr > 1) wisselSproeierLijn(p, bn.nr - 1); else if (f > .75 && bn.nr < banenVan(p).length) wisselSproeierLijn(p, bn.nr); else wisselSproeier(p, bn.nr);
+    // waar tikte je dwars op het spoor: op de rand = leiding op de lijn tussen twee sporen (ook tussen twee halve sporen), midden = sproeierspoor
+    let dx = bn.b / 2, w = bn.b;
+    if (ll && meta) { const q = meta.naarM([ll.lng, ll.lat]), o = q[0] * meta.n[0] + q[1] * meta.n[1], tl = q[0] * meta.d[0] + q[1] * meta.d[1];
+      if (bn.split && tl >= bn.split[0] && tl <= bn.split[1]) w = bn.b / 2;   // deels gesplitst spoor: hier is het maar half zo breed
+      dx = o - bn.a; }
+    const zone = Math.min(w * .45, Math.max(w * .25, .4));
+    if (dx < zone && bn.nr > 1) wisselSproeierLijn(p, bn.nr - 1); else if (dx > w - zone && bn.nr < banenVan(p).length) wisselSproeierLijn(p, bn.nr); else wisselSproeier(p, bn.nr);
     return;
   }
   if (gereedschap === 'knip' && magIndelen) {
@@ -3170,8 +3175,27 @@ function banenVan(p) {
       if (sr.rest && !weg.has(k)) res.rest.push(sr.rest);   // wat overblijft: braak, zoals een kopeinde
       // loopt het spoor door een kopeinde (twee of meer losse stukken), dan zit daar vanzelf een wissel: elk stuk apart in te delen
       const gaten = hk && hk.st.length > 1 ? hk.st.slice(1).map((iv, j) => Math.round(((hk.st[j][1] + iv[0]) / 2 - hk.t0) * 10) / 10) : null;
-      if (weg.has(k)) res.weg.push({k, geo: stuk, a: aa, b: bb}); else
-      res.push(hk ? {nr: res.length + 1, k, geo: hk.geo, m2: hk.m2, a: aa, b: bb, t0: hk.t0, t1: hk.t1, half, ...(gaten ? {gaten, delen: hk.st.map(([l, h]) => [l - hk.t0, h - hk.t0])} : {})} : {nr: res.length + 1, k, geo: stuk, m2: sr.m2, a: aa, b: bb, t0: Math.min(...t), t1: Math.max(...t), half});
+      if (weg.has(k)) { res.weg.push({k, geo: stuk, a: aa, b: bb}); return; }
+      const bn = hk ? {nr: res.length + 1, k, geo: hk.geo, m2: hk.m2, a: aa, b: bb, t0: hk.t0, t1: hk.t1, half, ...(gaten ? {gaten, delen: hk.st.map(([l, h]) => [l - hk.t0, h - hk.t0])} : {})} : {nr: res.length + 1, k, geo: stuk, m2: sr.m2, a: aa, b: bb, t0: Math.min(...t), t1: Math.max(...t), half};
+      if (stukWeg(bn, k)) res.push(bn);
+    };
+    // losse stukken van een spoor weggehaald (tot de wissel of het kopeinde): die worden kopeinde, de rest blijft spoor
+    const wegStukken = new Map();
+    weg.forEach(x => { const mm = typeof x === 'string' && x.match(/^w(-?[\d.]+)r(-?[\d.]+)_(-?[\d.]+)$/); if (mm) { const kk = +mm[1]; if (!wegStukken.has(kk)) wegStukken.set(kk, []); wegStukken.get(kk).push({h0: +mm[2], h1: +mm[3], merk: x}); } });
+    const stukWeg = (bn, k) => {
+      const l = wegStukken.get(k); if (!l) return true;
+      const rt = (o1, o2, t1, t2) => turf.polygon([[[o1, t1], [o2, t1], [o2, t2], [o1, t2], [o1, t1]].map(([o, tt]) => naarG([n[0] * o + d[0] * tt, n[1] * o + d[1] * tt]))]);
+      let geo = bn.geo, delen = bn.delen || [[0, bn.t1 - bn.t0]];
+      for (const r of l) {
+        const box = rt(bn.a - 1, bn.a + bn.b + 1, Math.max(r.h0, bn.t0 - 5), Math.min(r.h1, bn.t1 + 5));
+        try { const weg1 = geo && turf.intersect(geo, box); if (weg1 && turf.area(weg1) > .5) res.weg.push({k, geo: weg1, a: bn.a, b: bn.b, merk: r.merk}); geo = geo && turf.difference(geo, box); } catch (e) { console.warn(e); }
+        const r0 = r.h0 - bn.t0, r1 = r.h1 - bn.t0;
+        delen = delen.flatMap(([x, y]) => [[x, Math.min(y, r0)], [Math.max(x, r1), y]]).filter(([x, y]) => y - x > .3);
+      }
+      if (!geo || !delen.length) return false;
+      bn.geo = geo; bn.m2 = turf.area(geo); bn.delen = delen;
+      bn.gaten = delen.length > 1 ? delen.slice(1).map((iv, j) => Math.round(((delen[j][1] + iv[0]) / 2) * 10) / 10) : undefined;
+      return true;
     };
     // spoor dat maar over een deel van de lengte gesplitst is: tot T heel en daarna twee halve sporen (of andersom)
     const deelsDoen = (a, k, h0, h1) => {   // tussen h0 en h1 (langs het spoor) half-half, daarbuiten heel
@@ -3194,8 +3218,8 @@ function banenVan(p) {
         } catch (e) { console.warn('deels splitsen', e); }
         strook.m.set(sk, sr); }
       if (sr.rest && !weg.has(k)) res.rest.push(sr.rest);
-      if (sr.g1) { if (weg.has(k)) res.weg.push({k, geo: sr.g1.geo, a, b}); else res.push({nr: res.length + 1, k, geo: sr.g1.geo, m2: sr.g1.m2, a, b, t0: sr.g1.t0, t1: sr.g1.t1, deels: true}); }
-      if (sr.g2) { if (weg.has(k + 0.5)) res.weg.push({k: k + 0.5, geo: sr.g2.geo, a: a + b / 2, b: b / 2}); else res.push({nr: res.length + 1, k: k + 0.5, geo: sr.g2.geo, m2: sr.g2.m2, a: a + b / 2, b: b / 2, t0: sr.g2.t0, t1: sr.g2.t1, half: true}); }
+      if (sr.g1) { if (weg.has(k)) res.weg.push({k, geo: sr.g1.geo, a, b}); else { const bn = {nr: res.length + 1, k, geo: sr.g1.geo, m2: sr.g1.m2, a, b, t0: sr.g1.t0, t1: sr.g1.t1, deels: true, split: [h0, h1]}; if (stukWeg(bn, k)) res.push(bn); } }
+      if (sr.g2) { if (weg.has(k + 0.5)) res.weg.push({k: k + 0.5, geo: sr.g2.geo, a: a + b / 2, b: b / 2}); else { const bn = {nr: res.length + 1, k: k + 0.5, geo: sr.g2.geo, m2: sr.g2.m2, a: a + b / 2, b: b / 2, t0: sr.g2.t0, t1: sr.g2.t1, half: true}; if (stukWeg(bn, k + 0.5)) res.push(bn); } }
     };
     const splits = new Map();   // k → {heel: true} of {h0, h1}: tussen h0 en h1 (meters langs, zelfde maat als bn.t0) half-half
     weg.forEach(x => { const mm = typeof x === 'string' && x.match(/^h(-?\d+)(?:([ab])|([vt])(-?[\d.]+)|r(-?[\d.]+)_(-?[\d.]+))?$/); if (!mm) return;
@@ -3471,19 +3495,25 @@ function tekenSpuit(z) {
     let lijn;
     try { const c = turf.intersect(bn.geo, rechthoek(meta, o - .15, o + .15, bn.t0 - 1, bn.t1 + 1)); lijn = c ? L.geoJSON(c) : null; } catch {}
     geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#000', weight: 6, opacity: .35, interactive: false})).addTo(laag);
-    geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#ff6d00', weight: 3, dashArray: '10,6', interactive: false})).addTo(laag);
+    if (spuitOokSproeier(z, bn.nr)) {   // spuitspoor waar ook een sproeier op ligt: rode en blauwe streepjes om en om
+      geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#ff6d00', weight: 3, dashArray: '9,9', interactive: false})).addTo(laag);
+      geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#29b6f6', weight: 3, dashArray: '9,9', dashOffset: '9', interactive: false})).addTo(laag);
+    } else geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#ff6d00', weight: 3, dashArray: '10,6', interactive: false})).addTo(laag);
   });
 }
+const spuitOokSproeier = (z, nr) => (spuitVan(z).sproeier || []).includes(nr) || rijWaardeRuw(z, nr) === 3;
 // sproeiersporen: blauwe stippellijn midden in het spoor
 function tekenSproeier(z) {
   const meta = banenVan(z).meta, lijnen = sproeierLijnenVan(z);
   if (meta && lijnen.size) banenVan(z).forEach(bn => { if (!lijnen.has(bn.nr)) return;   // leiding op de lijn tussen spoor nr en nr+1
-    const o = bn.a + bn.b, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
-    geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#000', weight: 6, opacity: .3, interactive: false})).addTo(laag);
-    geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#29b6f6', weight: 3, dashArray: '2,7', interactive: false})).addTo(laag); });
+    const o = bn.split ? bn.a + bn.b / 2 : bn.a + bn.b, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
+    const t0 = bn.split ? Math.max(bn.t0, bn.split[0]) : bn.t0, t1 = bn.split ? Math.min(bn.t1, bn.split[1]) : bn.t1;   // deels gesplitst: alleen langs het halve stuk
+    geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#000', weight: 6, opacity: .3, interactive: false})).addTo(laag);
+    geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#29b6f6', weight: 3, dashArray: '2,7', interactive: false})).addTo(laag); });
   const l = (spuitVan(z).sproeier || []).length || patroonVan(z)?.includes(3); if (!l || !meta) return;
+  const spuit = spuitSet(z);
   banenVan(z).forEach(bn => {
-    if (rijWaarde(z, bn.nr) !== 3) return;
+    if (rijWaarde(z, bn.nr) !== 3 || spuit.has(bn.nr)) return;   // op een spuitspoor tekent tekenSpuit hem (om en om)
     const o = bn.a + bn.b / 2, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
     geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#000', weight: 6, opacity: .3, interactive: false})).addTo(laag);
     geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#29b6f6', weight: 3, dashArray: '2,7', interactive: false})).addTo(laag);
@@ -4599,7 +4629,7 @@ function kopOppervlak(p) {
 function tekenZone(p, isA) {
   const metPatroon = !!patroonVan(p);
   if (isA && gereedschap === 'spoorweg') (banenVan(p).weg || []).forEach(w => geenSnap(L.geoJSON(w.geo, {style: {color: '#e53935', weight: 1.5, dashArray: '5 4', fillColor: '#e53935', fillOpacity: .12}}))
-    .bindTooltip('✂️ Weggehaald spoor · tik om terug te zetten', {sticky: true}).on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); spoorTerug(p, w.k); }).addTo(laag));
+    .bindTooltip('✂️ Weggehaald spoor · tik om terug te zetten', {sticky: true}).on('click', ev => { if (tekent()) return; L.DomEvent.stopPropagation(ev); spoorTerug(p, w.merk || w.k); }).addTo(laag));
   // wat geen spoor is (restjes langs de randen en weggehaalde sporen) hoort bij het kopeinde
   const kl = kopKleur(p);
   (banenVan(p).rest || []).forEach(g => geenSnap(L.geoJSON(g, {style: {stroke: false, fillColor: kl, fillOpacity: .45}})).bindTooltip('🟫 Kopeinde (geen spoor)', {sticky: true}).addTo(laag));
@@ -4626,7 +4656,7 @@ function tekenZone(p, isA) {
       v.k.forEach(k => {
         const t = bn.t0 + k, a = meta.naarG([meta.n[0] * bn.a + meta.d[0] * t, meta.n[1] * bn.a + meta.d[1] * t]);
         const b = meta.naarG([meta.n[0] * (bn.a + bn.b) + meta.d[0] * t, meta.n[1] * (bn.a + bn.b) + meta.d[1] * t]);
-        geenSnap(L.polyline([[a[1], a[0]], [b[1], b[0]]], {color: '#ff1744', weight: 3, interactive: false})).addTo(laag);
+        geenSnap(L.polyline([[a[1], a[0]], [b[1], b[0]]], {color: '#ffffff', weight: 1.5, opacity: .9, interactive: false})).addTo(laag);   // echte scheiding tussen de stukken
       });
     }
   });
@@ -11217,15 +11247,26 @@ function schuifInvoer(z, uit) {
     ${w ? `<p class="hint">✂️ ${w} spoor${w > 1 ? 'en' : ''} weggehaald · <a href="#" onclick="event.preventDefault();sporenAllesTerug('${zid}')">alles terugzetten</a></p>` : ''}</div>`;
 }
 // losse sporen weghalen en terugzetten
-async function spoorWeg(z, bn) {
+async function spoorWeg(z, bn, ll) {
   if (!mag('percelen_bewerken')) { toast('Je mag geen sporen aanpassen', 1); return; }
+  // gesplitst spoor (wissel of kopeinde ertussen): alleen het stuk waar je op tikt gaat weg, tot de splitsing
+  const meta = banenVan(z).meta, t = ll && meta ? langs(meta, ll) - bn.t0 : null, v = (z.banen || [])[bn.nr - 1];
+  let grenzen = null;
+  if (isGeknipt(v) && v.k.length) grenzen = [...v.k];
+  if (bn.gaten?.length) grenzen = [...new Set([...(grenzen || []), ...bn.gaten])].sort((x, y) => x - y);
+  if (t != null && grenzen?.length) {
+    const i = grenzen.filter(g => g <= t).length, h0 = i === 0 ? -1e5 : Math.round((bn.t0 + grenzen[i - 1]) * 10) / 10, h1 = i === grenzen.length ? 1e5 : Math.round((bn.t0 + grenzen[i]) * 10) / 10;
+    const p = ouder(z), stuk = stukkenVan(z, bn).find(q => q.van <= t + .5 && q.tot >= t - .5), had = stuk && teelt(stuk.id);
+    if (had && !await bevestig(`Dit stuk van spoor ${bn.nr} weghalen?`, 'Er staat een plant op dit stuk; die gaat mee weg. Terugzetten kan.')) return;
+    await sporenOmzetten(p.id, z.id, {sporen_weg: [...(z.sporen_weg || []), 'w' + bn.k + 'r' + h0 + '_' + h1]}, `✂️ Stuk van spoor ${bn.nr} weggehaald (wordt kopeinde)`); return;
+  }
   const p = ouder(z), had = waarden((z.banen || [])[bn.nr - 1]).some(Boolean);
   if (had && !await bevestig(`Spoor ${bn.nr} weghalen?`, 'Er staan planten op dit spoor; die gaan mee weg. Terugzetten kan, maar dan komt het spoor leeg terug.')) return;
   await sporenOmzetten(p.id, z.id, {sporen_weg: [...new Set([...(z.sporen_weg || []), bn.k])]}, `✂️ Spoor ${bn.nr} weggehaald`);
 }
 // spoor splitsen in twee halve sporen (elk half zo breed, elk een eigen nummer); nog eens tikken = weer één heel spoor
 const halfMerk = v => typeof v === 'string' && /^h-?\d+([ab]|[vt]-?[\d.]+|r-?[\d.]+_-?[\d.]+)?$/.test(v);
-const sporenWegEcht = z => (z.sporen_weg || []).filter(x => !halfMerk(x));   // echt weggehaalde sporen (zonder de splitsingen)
+const sporenWegEcht = z => (z.sporen_weg || []).filter(x => !halfMerk(x));   // (losse stukken 'w…' tellen mee als weggehaald)   // echt weggehaalde sporen (zonder de splitsingen)
 let SPH = null;   // splitsen: eerst de plek, dan de kant
 async function spoorHalf(z, bn, ll) {
   if (!mag('percelen_bewerken')) { toast('Je mag geen sporen aanpassen', 1); return; }
