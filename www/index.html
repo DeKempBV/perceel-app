@@ -2051,6 +2051,7 @@ function klikBaan(p, bn, ll) {
   const magIndelen = mag('soorten_indelen');
 
   if (gereedschap === 'spoorweg') { spoorWeg(p, bn); return; }
+  if (gereedschap === 'spoorhalf') { spoorHalf(p, bn); return; }
   if (gereedschap === 'spuit') {
     if (!mag('spuitsporen_bewerken')) { toast('Je mag geen spuitsporen aanpassen', 1); return; }
     wisselSpuit(p, bn.nr); return;
@@ -3150,13 +3151,18 @@ function banenVan(p) {
       return {geo: poly.length === 1 ? turf.polygon([poly[0]]) : turf.multiPolygon(poly.map(r => [r])), m2: st.reduce((s2, [l, h]) => s2 + (h - l) * (oHi - oLo), 0), t0: st[0][0], t1: st[st.length - 1][1]}; };
     let a = start - Math.ceil((start - min) / b) * b;
     const maxAantal = +p.aantal > 0 ? +p.aantal : Infinity;
+    const rechth = (o1, o2) => [[o1, -lengte], [o2, -lengte], [o2, lengte], [o1, lengte], [o1, -lengte]].map(([o, t]) => naarG([n[0] * o + d[0] * t, n[1] * o + d[1] * t]));
     for (let i = 0; a < max && res.length < maxAantal && i < 5000; i++, a += b) {
-      const r = [[a, -lengte], [a + b, -lengte], [a + b, lengte], [a, lengte], [a, -lengte]]
-        .map(([o, t]) => naarG([n[0] * o + d[0] * t, n[1] * o + d[1] * t]));
-      const sk = Math.round(a * 1000);
+      // half spoor (half zo breed): alleen de ene helft is spoor, de andere helft hoort bij het kopeinde
+      const k0 = Math.round((a - start) / b), half = weg.has('h' + k0 + 'a') ? 'a' : weg.has('h' + k0 + 'b') ? 'b' : null;
+      const aa = half === 'b' ? a + b / 2 : a, bb = half ? b / 2 : b;
+      const r = rechth(aa, aa + bb);
+      const sk = Math.round(a * 1000) + (half ? '|' + half : '');
       let sr = strook.m.get(sk);
-      if (!sr) { const stuk = turf.intersect(gebied, turf.polygon([r])); sr = {stuk}; if (stuk) { sr.m2 = turf.area(stuk);
-          if (sr.m2 > 0.5) { sr.t = turf.coordAll(stuk).map(q => { const z = naarM(q); return z[0] * d[0] + z[1] * d[1]; }); sr.hk = haaks(a, b);
+      if (!sr) { const stuk = turf.intersect(gebied, turf.polygon([r])); sr = {stuk};
+        if (half) { try { const ao = half === 'a' ? a + b / 2 : a, an = turf.intersect(gebied, turf.polygon([rechth(ao, ao + b / 2)])); sr.ander = zonderSnippers(an); } catch {} }
+        if (stuk) { sr.m2 = turf.area(stuk);
+          if (sr.m2 > 0.5) { sr.t = turf.coordAll(stuk).map(q => { const z = naarM(q); return z[0] * d[0] + z[1] * d[1]; }); sr.hk = haaks(aa, bb);
             if (sr.hk && sr.m2 - sr.hk.m2 > 1) { try { const rr = zonderSnippers(verschil(stuk, sr.hk.geo)); if (rr && turf.area(rr) > 1) sr.rest = rr; } catch {} } } }
         strook.m.set(sk, sr); }
       const stuk = sr.stuk;
@@ -3164,11 +3170,12 @@ function banenVan(p) {
         const m2 = sr.m2;
         if (m2 > 0.5) {
           const t = sr.t;
-          const k = Math.round((a - start) / b);   // vaste plek in het raster: blijft hetzelfde bij opschuiven en weghalen
+          const k = k0;   // vaste plek in het raster: blijft hetzelfde bij opschuiven en weghalen
           const hk = sr.hk;   // haaks afgesloten (rechthoek); lukt dat niet, dan zoals het gebied loopt
           if (sr.rest && !weg.has(k)) res.rest.push(sr.rest);   // wat overblijft: braak, zoals een kopeinde
+          if (sr.ander && !weg.has(k)) res.rest.push(sr.ander);   // de andere helft van een half spoor
           if (weg.has(k)) res.weg.push({k, geo: stuk, a, b}); else
-          res.push(hk ? {nr: res.length + 1, k, geo: hk.geo, m2: hk.m2, a, b, t0: hk.t0, t1: hk.t1} : {nr: res.length + 1, k, geo: stuk, m2, a, b, t0: Math.min(...t), t1: Math.max(...t)});
+          res.push(hk ? {nr: res.length + 1, k, geo: hk.geo, m2: hk.m2, a: aa, b: bb, t0: hk.t0, t1: hk.t1, half} : {nr: res.length + 1, k, geo: stuk, m2, a: aa, b: bb, t0: Math.min(...t), t1: Math.max(...t), half});
         }
       }
     }
@@ -5082,7 +5089,9 @@ function htmlDetail(p) {
       <button class="knop ${gereedschap === 'sproeier' ? '' : 'licht'}" onclick="zetGereedschap('sproeier')">💧 ${gereedschap === 'sproeier' ? 'Klaar met sproeiersporen aanklikken' : 'Sproeiersporen aanklikken op de kaart'}</button>
       ${gereedschap === 'sproeier' ? '<p class="hint"><b>Tik midden op een spoor</b> = sproeierspoor (daar staan geen planten). <b>Tik vlak bij de lijn tussen twee sporen</b> = sproeierleiding op die lijn (de sporen blijven beplant). Nog een keer tikken haalt hem weg. Zoom in om precies te tikken.</p>' : ''}` : ''}
     ${bew && totaalSporen ? `<button class="knop ${gereedschap === 'spoorweg' ? '' : 'licht'}" onclick="zetGereedschap('spoorweg')">✂️ ${gereedschap === 'spoorweg' ? 'Klaar met sporen weghalen' : 'Losse sporen weghalen of terugzetten'}</button>
-      ${gereedschap === 'spoorweg' ? '<p class="hint"><b>Tik op een spoor</b> om het weg te halen. Weggehaalde sporen zie je rood gestippeld; tik erop om ze terug te zetten. Werkt ook in deelvelden.</p>' : ''}` : ''}
+      ${gereedschap === 'spoorweg' ? '<p class="hint"><b>Tik op een spoor</b> om het weg te halen. Weggehaalde sporen zie je rood gestippeld; tik erop om ze terug te zetten. Werkt ook in deelvelden.</p>' : ''}
+      <button class="knop ${gereedschap === 'spoorhalf' ? '' : 'licht'}" onclick="zetGereedschap('spoorhalf')">½ ${gereedschap === 'spoorhalf' ? 'Klaar met halve sporen' : 'Halve sporen maken (half zo breed)'}</button>
+      ${gereedschap === 'spoorhalf' ? '<p class="hint"><b>Tik op een spoor</b> om het half zo breed te maken. Nog eens tikken = de andere helft, nog eens = weer heel. De helft die geen spoor is, wordt kopeinde. De andere sporen blijven op hun plek.</p>' : ''}` : ''}
     ${bew ? abInvoer(p, bew) : ''}
     ${totaalSporen && ziet('exporteren') ? `<button class="knop licht" onclick="exportTrekker('${p.id}')">📤 Exporteren voor de trekker (shapefile)</button>` : ''}
     ${bew ? `<p class="hint">0° = noord, 90° = oost. Gebruik dezelfde hoek als in je GPS. Met een vast A-punt liggen de sporen precies op je GPS-lijnen; "Verschuif" kun je dan op 0 laten. Laat "Aantal" leeg om het hele perceel te vullen.</p>` : ''}
@@ -5229,7 +5238,7 @@ function htmlMarkeringen(p, welke) {
       || `<p class="hint">${leeg}</p>`}
     ${welke !== 'vlag' && !archief && p.type !== 'pand' && mag('percelen_bewerken') && alleZones(p).some(z => banenVan(z).length || (z.sporen_weg || []).length) ? `<div class="rij" style="margin-top:8px;flex-wrap:wrap">
       <button class="knop licht" onclick="legeSporenBraak('${p.id}')">🟫 Lege sporen weghalen (braak)</button>
-      ${alleZones(p).some(z => (z.sporen_weg || []).length) ? `<button class="knop licht" onclick="alleSporenTerug('${p.id}')">↩︎ Alle weggehaalde sporen terug</button>` : ''}
+      ${alleZones(p).some(z => sporenWegEcht(z).length) ? `<button class="knop licht" onclick="alleSporenTerug('${p.id}')">↩︎ Alle weggehaalde sporen terug</button>` : ''}
       ${mag('kopeinden_bewerken') && lijst.some(m => m.soort === 'kopeinde') ? `<button class="knop licht rood" onclick="alleKopeindesWeg('${p.id}')">✕ Alle kopeindes weghalen</button>` : ''}</div>` : ''}
   </section>`;
 }
@@ -5260,7 +5269,7 @@ async function legeSporenBraak(pid) {
 }
 async function alleSporenTerug(pid) {
   const p = perceel(pid); if (!p) return;
-  for (const z of alleZones(p)) if ((z.sporen_weg || []).length) await sporenOmzetten(pid, z.id, {sporen_weg: []}, false);
+  for (const z of alleZones(p)) if (sporenWegEcht(z).length) await sporenOmzetten(pid, z.id, {sporen_weg: (z.sporen_weg || []).filter(halfMerk)}, false);
   render(true); toast('↩︎ Alle weggehaalde sporen staan er weer (leeg)');
 }
 async function alleKopeindesWeg(pid) {
@@ -11163,7 +11172,7 @@ function zetSchuif(zid, waarde) {
   sporenOmzetten(actief, zid, {verschuiving: n}, `↔️ ${z._vak ? z.naam + ': ' : ''}sporen ${n >= 0 ? '+' : ''}${String(n).replace('.', ',')} m verschoven`);
 }
 function schuifInvoer(z, uit) {
-  const zid = z.id, v = +z.verschuiving || 0, w = (z.sporen_weg || []).length;
+  const zid = z.id, v = +z.verschuiving || 0, w = sporenWegEcht(z).length;
   const k = (d, t) => `<button class="knop klein licht" ${uit} onclick="schuifSporen('${zid}',${d})">${t}</button>`;
   return `<div class="schuifBlok"><label>↔️ Sporen opschuiven <small>(dwars op de rijen)</small></label>
     <div class="rij schuifRij">${k(-1, '−1 m')}${k(-.1, '−10 cm')}${k(-.01, '−1 cm')}
@@ -11179,11 +11188,22 @@ async function spoorWeg(z, bn) {
   if (had && !await bevestig(`Spoor ${bn.nr} weghalen?`, 'Er staan planten op dit spoor; die gaan mee weg. Terugzetten kan, maar dan komt het spoor leeg terug.')) return;
   await sporenOmzetten(p.id, z.id, {sporen_weg: [...new Set([...(z.sporen_weg || []), bn.k])]}, `✂️ Spoor ${bn.nr} weggehaald`);
 }
+// half spoor: heel → half (ene kant) → half (andere kant) → weer heel
+const halfMerk = v => typeof v === 'string' && /^h-?\d+[ab]$/.test(v);
+const sporenWegEcht = z => (z.sporen_weg || []).filter(x => !halfMerk(x));   // echt weggehaalde sporen (zonder de halve)
+async function spoorHalf(z, bn) {
+  if (!mag('percelen_bewerken')) { toast('Je mag geen sporen aanpassen', 1); return; }
+  const p = ouder(z), l = z.sporen_weg || [], nu = l.includes('h' + bn.k + 'a') ? 'a' : l.includes('h' + bn.k + 'b') ? 'b' : null;
+  const volgende = nu === null ? 'a' : nu === 'a' ? 'b' : null;
+  const rest = l.filter(x => x !== 'h' + bn.k + 'a' && x !== 'h' + bn.k + 'b');
+  await sporenOmzetten(p.id, z.id, {sporen_weg: volgende ? [...rest, 'h' + bn.k + volgende] : rest},
+    volgende ? `½ Spoor ${bn.nr} is nu half zo breed (${volgende === 'a' ? 'ene' : 'andere'} helft)${volgende === 'a' ? ' · tik nog eens voor de andere helft' : ' · tik nog eens voor weer heel'}` : `Spoor ${bn.nr} is weer heel`);
+}
 async function spoorTerug(z, k) {
   const p = ouder(z); await sporenOmzetten(p.id, z.id, {sporen_weg: (z.sporen_weg || []).filter(x => x !== k)}, '↩︎ Spoor teruggezet');
 }
 async function sporenAllesTerug(zid) {
-  const z = zoneVan(actief, zid); if (!z) return; await sporenOmzetten(actief, zid, {sporen_weg: []}, '↩︎ Alle sporen teruggezet');
+  const z = zoneVan(actief, zid); if (!z) return; await sporenOmzetten(actief, zid, {sporen_weg: (z.sporen_weg || []).filter(halfMerk)}, '↩︎ Alle sporen teruggezet');
 }
 
 const grootsteDeel = g => !g ? null : g.geometry.type === 'MultiPolygon' ? g.geometry.coordinates.map(c => turf.polygon(c)).sort((a, b) => turf.area(b) - turf.area(a))[0] : g;
