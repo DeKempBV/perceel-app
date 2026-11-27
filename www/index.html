@@ -5178,7 +5178,7 @@ function htmlDetail(p) {
     ${bew && totaalSporen ? `<button class="knop ${gereedschap === 'spoorweg' ? '' : 'licht'}" onclick="zetGereedschap('spoorweg')">✂️ ${gereedschap === 'spoorweg' ? 'Klaar met sporen weghalen' : 'Losse sporen weghalen of terugzetten'}</button>
       ${gereedschap === 'spoorweg' ? '<p class="hint"><b>Tik op een spoor</b> om het weg te halen. Weggehaalde sporen zie je rood gestippeld; tik erop om ze terug te zetten. Werkt ook in deelvelden.</p>' : ''}
       <button class="knop ${gereedschap === 'spoorhalf' ? '' : 'licht'}" onclick="zetGereedschap('spoorhalf')">½ ${gereedschap === 'spoorhalf' ? 'Klaar met halve sporen' : 'Spoor in twee halve sporen splitsen'}</button>
-      ${gereedschap === 'spoorhalf' ? '<p class="hint"><b>Tik op het spoor</b> en kies <b>Hele spoor</b> of <b>Dit stuk (tot het kopeinde)</b>. Of tik daarna nog een keer aan de kant die half-half moet worden: dan begint de splitsing op de plek van je eerste tik. Tik op een gesplitst spoor om het weer één spoor te maken. Een helft kun je daarna gewoon beplanten, spuitspoor of sproeier maken, of met ✂️ weghalen als het kopeinde moet worden.</p>' : ''}` : ''}
+      ${gereedschap === 'spoorhalf' ? '<p class="hint"><b>Tik op het spoor</b> en kies <b>Hele spoor</b> of <b>Dit stuk</b> (tot de wissel of het kopeinde). Of tik daarna nog een keer aan de kant die half-half moet worden: dan begint de splitsing op de plek van je eerste tik. Tik op een gesplitst spoor om het weer één spoor te maken. Een helft kun je daarna gewoon beplanten, spuitspoor of sproeier maken, of met ✂️ weghalen als het kopeinde moet worden.</p>' : ''}` : ''}
     ${bew ? abInvoer(p, bew) : ''}
     ${totaalSporen && ziet('exporteren') ? `<button class="knop licht" onclick="exportTrekker('${p.id}')">📤 Exporteren voor de trekker (shapefile)</button>` : ''}
     ${bew ? `<p class="hint">0° = noord, 90° = oost. Gebruik dezelfde hoek als in je GPS. Met een vast A-punt liggen de sporen precies op je GPS-lijnen; "Verschuif" kun je dan op 0 laten. Laat "Aantal" leeg om het hele perceel te vullen.</p>` : ''}
@@ -11302,9 +11302,10 @@ async function spoorHalf(z, bn, ll) {
   }
   const doe = async merkNieuw => { SPH = null; banner(); await sporenOmzetten(p.id, z.id, {sporen_weg: [...l, merkNieuw]}, `½ Spoor ${bn.nr} is gesplitst${/[vtr]/.test(merkNieuw) ? ' (deels)' : ''} in twee halve sporen`); };
   // het stuk tussen twee kopeindes waar je op tikte (of tot het eind van het spoor)
-  const stukMerk = () => { if (!bn.delen || t == null) return null; const r = t - bn.t0, dl = bn.delen;
-    let i = dl.findIndex(([x, y]) => r >= x - .5 && r <= y + .5); if (i < 0) i = dl.reduce((bi, [x, y], j) => Math.abs(r - (x + y) / 2) < Math.abs(r - (dl[bi][0] + dl[bi][1]) / 2) ? j : bi, 0);
-    const h0 = i === 0 ? -1e5 : Math.round((bn.t0 + (dl[i - 1][1] + dl[i][0]) / 2) * 10) / 10, h1 = i === dl.length - 1 ? 1e5 : Math.round((bn.t0 + (dl[i][1] + dl[i + 1][0]) / 2) * 10) / 10;
+  // grenzen: wissels die je zelf zette en de kopeindes waar het spoor doorheen loopt (meters vanaf het begin van het spoor)
+  const vw = (z.banen || [])[bn.nr - 1], grenzen = [...new Set([...(isGeknipt(vw) ? vw.k : []), ...(bn.gaten || [])])].sort((x, y) => x - y);
+  const stukMerk = () => { if (!grenzen.length || t == null) return null; const r = t - bn.t0, i = grenzen.filter(g => g <= r).length;
+    const h0 = i === 0 ? -1e5 : Math.round((bn.t0 + grenzen[i - 1]) * 10) / 10, h1 = i === grenzen.length ? 1e5 : Math.round((bn.t0 + grenzen[i]) * 10) / 10;
     return 'h' + k + 'r' + h0 + '_' + h1; };
   if (SPH && SPH.zid === z.id && SPH.k === k && t != null) {   // tweede tik: aan die kant wordt het spoor half-half
     if (Math.abs(t - SPH.T) < 0.5) { toast('Tik iets verder van de plek, aan de kant die half moet worden', 1); return; }
@@ -11314,7 +11315,7 @@ async function spoorHalf(z, bn, ll) {
   SPH = {zid: z.id, k, T: t};
   const sm = stukMerk();
   banner(`<b>½ Spoor ${bn.nr} splitsen</b><br>Kies hieronder, of tik nog een keer op het spoor <b>aan de kant die half-half moet worden</b> (dan begint de splitsing op de plek waar je net tikte).`,
-    [['Annuleren', () => { SPH = null; banner(); }], ...(sm ? [['Dit stuk (tot het kopeinde)', () => doe(sm)]] : []), ['Hele spoor', () => doe('h' + k)]]);
+    [['Annuleren', () => { SPH = null; banner(); }], ...(sm ? [[(bn.gaten?.length ? (isGeknipt(vw) && vw.k.length ? 'Dit stuk (tot de wissel / het kopeinde)' : 'Dit stuk (tot het kopeinde)') : 'Dit stuk (tot de wissel)'), () => doe(sm)]] : []), ['Hele spoor', () => doe('h' + k)]]);
 }
 async function spoorTerug(z, k) {
   const p = ouder(z); await sporenOmzetten(p.id, z.id, {sporen_weg: (z.sporen_weg || []).filter(x => x !== k)}, '↩︎ Spoor teruggezet');
