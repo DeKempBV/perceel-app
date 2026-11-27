@@ -4579,7 +4579,17 @@ const satTegelUrl = (z, x, y) => pdokGebruiken() && tegelInNL(z, x, y) ? PDOK_SA
 function zetLuchtfoto(k) { weergave._lucht = k; bewaarWeergave(); try { basis.sat.redraw(); } catch {} }
 function initKaart() {
   if (map) return;
-  map = L.map('map', {zoomControl: false, preferCanvas: true}).setView([52.2, 5.4], 8);
+  // vooraf inladen rondom het beeld: kaarttegels één ring extra, en de percelen/sporen op een groter tekenvlak,
+  // zodat je bij schuiven en uitzoomen niet eerst op het nieuwe stuk hoeft te wachten
+  if (!L.GridLayer.prototype._randOrig) {
+    L.GridLayer.prototype._randOrig = L.GridLayer.prototype._getTiledPixelBounds;
+    L.GridLayer.prototype._getTiledPixelBounds = function (center) {
+      const b = this._randOrig(center), n = (this.options.randTegels ?? 1) * this.getTileSize().x;
+      return new L.Bounds(b.min.subtract([n, n]), b.max.add([n, n]));
+    };
+    L.GridLayer.mergeOptions({keepBuffer: 6, updateWhenIdle: false});
+  }
+  map = L.map('map', {zoomControl: false, preferCanvas: true, renderer: L.canvas({padding: 0.6})}).setView([52.2, 5.4], 8);
   const SatLaag = L.TileLayer.extend({getTileUrl: c => satTegelUrl(c.z, c.x, c.y)});
   basis.sat = new SatLaag('', {maxZoom: 21, maxNativeZoom: 20, attribution: 'Luchtfoto: Beeldmateriaal Nederland (PDOK) · buiten NL: Esri'});
   basis.sat.on('tileerror', e => { const t = e.tile, c = e.coords; if (!t.dataset.esri) { t.dataset.esri = '1'; t.src = ESRI_SAT(Math.min(c.z, 19), c.x >> Math.max(0, c.z - 19), c.y >> Math.max(0, c.z - 19)); } });
@@ -4898,7 +4908,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v127';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v128';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
