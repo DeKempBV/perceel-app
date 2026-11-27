@@ -2058,7 +2058,7 @@ function klikBaan(p, bn, ll) {
   // altijd met de nieuwste indeling werken: snel achter elkaar tikken (vooral in een deelveld) zag anders de vorige tik niet en zette die terug
   { const vers = p._vak ? zoneVan(ouder(p).id, p.id) : perceel(p.id); if (vers) { p = vers; bn = banenVan(p).find(x => x.k === bn.k) || bn; } }
   if (PZ && ouder(p).id === PZ.pid) { pzKlik(p, bn); return; }
-  if (partijKwast && partijKlikSpoor(p, bn)) return;
+  if (partijKwast && partijKlikSpoor(p, bn, ll)) return;
   if (ouder(p).id !== actief) { kies(ouder(p).id); return; }
   const meta = banenVan(p).meta, lengte = bn.t1 - bn.t0;
   const t = ll ? Math.round((langs(meta, ll) - bn.t0) * 10) / 10 : 0;
@@ -2122,7 +2122,7 @@ function klikBaan(p, bn, ll) {
       return;
     }
     if (xp && isGeknipt(v) && mag('partijen_beheren')) {   // stuk van een gesplitst spoor: ras én partij op dat stuk
-      if (isSpuitRij(p, bn.nr)) { toast('Dat is een spuitspoor, daar staat geen partij op', 1); return; }
+      if (isSpuitStuk(p, bn.nr, null, ll && meta ? langs(meta, ll) : null)) { toast('Dat is een spuitpad of sproeier, daar staat geen partij op', 1); return; }
       const al = partijOpSpoor(p, bn.nr, idx) === xp, n = zetStukWaarde(v, idx, xp.ras_id || kwast);
       if (!al) { arr[bn.nr - 1] = n; zetBanen(p, arr); }
       setTimeout(() => partijZetStuk(xp, alleZones(ouder(p)).find(q => q.id === p.id) || p, bn.nr, idx, !al), 30);
@@ -3320,9 +3320,10 @@ const mMeta0 = z => !!banenVan(z).meta;
 const halfAf = (bn, van, tot) => (bn.halfBraak || []).reduce((x, [a, b]) => x + Math.max(0, Math.min(b, tot) - Math.max(a, van)) / 2, 0);
 const spoorLen = bn => (bn.delen ? bn.delen.reduce((x, [a, b]) => x + b - a, 0) : bn.t1 - bn.t0) - halfAf(bn, -1e9, 1e9);   // meters spoor (zonder kopeinde ertussen)
 function spoorDeel(bn, van, tot) {
-  if (!bn.delen) return {van, tot, len: tot - van - halfAf(bn, van, tot)};
+  // len = meters voor de telling (een braak helft telt half), echt = de echte lengte van het spoor
+  if (!bn.delen) return {van, tot, len: tot - van - halfAf(bn, van, tot), echt: tot - van};
   const l = bn.delen.map(([a, b]) => [Math.max(a, van), Math.min(b, tot)]).filter(([a, b]) => b - a > .01);
-  return l.length ? {van: l[0][0], tot: l[l.length - 1][1], len: l.reduce((x, [a, b]) => x + b - a - halfAf(bn, a, b), 0), segs: l} : {van, tot: van, len: 0, segs: []};
+  return l.length ? {van: l[0][0], tot: l[l.length - 1][1], len: l.reduce((x, [a, b]) => x + b - a - halfAf(bn, a, b), 0), echt: l.reduce((x, [a, b]) => x + b - a, 0), segs: l} : {van, tot: van, len: 0, echt: 0, segs: []};
 }
 function stukkenVan(p, bn) {
   const v = (p.banen || [])[bn.nr - 1], lengte = bn.t1 - bn.t0, metHelft = isGeknipt(v) && v.h && bn.halves && Object.keys(v.h).length;
@@ -3345,8 +3346,8 @@ function stukkenVan(p, bn) {
       let gB = null, gA = geo;
       for (const [a, b] of ol) { try { const r = turf.intersect(geo, rechthoek(meta, bn.a + bn.b / 2, bn.a + bn.b + .05, a, b)); if (r) gB = gB ? (turf.union(gB, r) || gB) : r; } catch {} }
       if (gB) { try { gA = turf.difference(geo, gB) || geo; } catch {} }
-      if (gA) uit.push({geo: gA, id: v.s[j] ?? null, idx: j, ...deel, len: Math.max(0, deel.len - olLen / 2), m2: turf.area(gA)});
-      if (gB) uit.push({geo: gB, id: v.h[j] ?? null, idx: 1000 + j, ...deel, len: olLen / 2, m2: turf.area(gB), helft: true});
+      if (gA) uit.push({geo: gA, id: v.s[j] ?? null, idx: j, ...deel, len: Math.max(0, deel.len - olLen / 2), m2: turf.area(gA), helft: olLen > .5});
+      if (gB) uit.push({geo: gB, id: v.h[j] ?? null, idx: 1000 + j, ...deel, len: olLen / 2, echt: olLen, m2: turf.area(gB), helft: true});
       continue;
     }
     uit.push({geo, id: v.s[j] ?? null, idx: j, ...deel, m2: turf.area(geo)});
@@ -6997,7 +6998,7 @@ function spoorPartijIndex() {
   spoorPartijMap = new Map(); spoorPartijVan = S.partijen; spoorPartijPer = new Map(); spoorPartijImpl = new Set();
   const zones = new Map(S.percelen.flatMap(p => alleZones(p)).map(z => [z.id, z]));
   (S.partijen || []).forEach(x => (Array.isArray(x.sporen) ? x.sporen : []).forEach(s => { const z = zones.get(s.z);
-    (s.nrs || []).forEach(nr => { if (!z || !isSpuitRij(z, nr)) spoorPartijMap.set(s.z + '|' + nr + (s.st != null ? '|' + s.st : ''), x); }); }));
+    (s.nrs || []).forEach(nr => { if (!z || !(s.st != null ? isSpuitStuk(z, nr, s.st) : isSpuitRij(z, nr))) spoorPartijMap.set(s.z + '|' + nr + (s.st != null ? '|' + s.st : ''), x); }); }));
   // wat getekend is telt: staat er op een perceel maar één partij van een ras, dan horen alle sporen met dat ras bij die partij
   // (behalve sporen die je zelf aan een andere partij hebt gegeven)
   try {
@@ -7027,6 +7028,19 @@ function spoorPartijIndex() {
 // spuitsporen (en lege sporen uit het rijpatroon) horen bij geen enkele partij
 const isSpuitRij = (z, nr) => { try { const w = rijWaarde(z, nr); if (w === 2 && spuitBeplant(z)) return false;   // er staan planten onder het spuitspoor
   return w === 3 || (patroonVan(z) ? w === 2 || w === 0 : spuitSet(z).has(nr)); } catch { return false; } };
+// is dít stuk van het spoor een spuitpad of sproeier (met de uitzonderingen per stuk)? zonder st: het hele spoor
+function isSpuitStuk(z, nr, st, tAbs) {
+  if (st == null && tAbs == null) return isSpuitRij(z, nr);
+  try {
+    const bn = banenVan(z)[nr - 1]; if (!bn) return isSpuitRij(z, nr); const sp = spuitVan(z);
+    if (tAbs == null) { const q = stukkenVan(z, bn).find(k => k.idx === st); if (!q) return isSpuitRij(z, nr); tAbs = bn.t0 + (q.van + q.tot) / 2; }
+    if (!Object.keys(sp.stukSpuit || {}).length && !Object.keys(sp.stukSproeier || {}).length) return isSpuitRij(z, nr);
+    const w = rijWaarde(z, nr), spuit = stukWaarde(sp.stukSpuit, bn.k, tAbs) ?? (spuitSet(z).has(nr) || (patroonVan(z) && w === 2) ? 1 : 0);
+    const sproei = stukWaarde(sp.stukSproeier, bn.k, tAbs) ?? (w === 3 ? 1 : 0);
+    if (sproei && !spuit) return true; if (spuit && !spuitBeplant(z)) return true;
+    return !spuit && !sproei && patroonVan(z) && w === 0;
+  } catch { return isSpuitRij(z, nr); }
+}
 // st = welk stuk van een gesplitst spoor (0, 1, …); zonder st geldt de partij voor het hele spoor
 const partijOpSpoor = (z, nr, st) => { const m = spoorPartijIndex(); return (st != null && m.get(z.id + '|' + nr + '|' + st)) || m.get(z.id + '|' + nr) || null; };
 const partijSporen = (x, zid) => { spoorPartijIndex(); return [...new Set((spoorPartijPer.get(x) || []).filter(q => !zid || q.z === zid).map(q => q.nr))].sort((a, b) => a - b); };
@@ -7080,9 +7094,23 @@ async function partijZetSporen(x, z, nrs, aan) {
   spoorPartijMap = null; render(true); partijKwastBalk();
   for (const y of wijzigingen.values()) { const {error} = await sb.from('partijen').update({sporen: y.sporen, perceel_id: y.perceel_id || null}).eq('id', y.id); if (error) { toast('Opslaan mislukt: ' + error.message, 1); break; } }
 }
-function partijKlikSpoor(z, bn) {
+function partijKlikSpoor(z, bn, ll) {
   const x = (S.partijen || []).find(y => y.id === partijKwast?.id); if (!x) return false;
   if (ouder(z).id !== x.perceel_id) { toast('Deze partij hoort bij ' + (perceel(x.perceel_id)?.naam || 'een ander perceel'), 1); return true; }
+  // spoor met een kopeinde of wissel ertussen: alleen het stuk waar je op tikt (zo kan een stuk naast een spuitpad/sproeier toch planten krijgen)
+  const meta = banenVan(z).meta, tAbs = ll && meta ? langs(meta, ll) : null;
+  if (tAbs != null && stukGrenzen(z, bn).length) {
+    const arr = [...(z.banen || [])]; while (arr.length < bn.nr) arr.push(null);
+    let v = arr[bn.nr - 1]; for (const g of (bn.gaten || [])) { const n = voegKnipToe(v, g); if (n) v = n; }
+    if (!isGeknipt(v)) v = {k: [], s: [v ?? null]};
+    const idx = v.k.filter(g => g <= tAbs - bn.t0).length;
+    if (isSpuitStuk(z, bn.nr, null, tAbs)) { toast('Dat is een spuitpad of sproeier, daar staat geen partij op', 1); return true; }
+    const al = partijOpSpoor(z, bn.nr, idx) === x;
+    if (!al && x.ras_id && (v.s[idx] ?? null) !== x.ras_id) v = zetStukWaarde(v, idx, x.ras_id);   // het ras van de partij op dit stuk
+    if (v !== arr[bn.nr - 1]) { arr[bn.nr - 1] = v; zetBanen(z, arr); }
+    setTimeout(() => { const zv = z._vak ? zoneVan(ouder(z).id, z.id) || z : perceel(z.id) || z; partijZetStuk(x, zv, bn.nr, idx, !al); }, 30);
+    toast(`${al ? 'Partij eraf' : 'Partij ' + partijKort(x)} · spoor ${bn.nr}, dit stuk`); return true;
+  }
   partijZetSporen(x, z, [bn.nr], !partijSporen(x, z.id).includes(bn.nr));
   return true;
 }
@@ -7381,12 +7409,12 @@ function spoorTip(p, bn, st) {
   const f3 = rijWaarde(p, bn.nr) === 3, moe = spuitVan(p).moeder;
   const rt = rijtjesVan(p), rtHier = f3 ? 0 : f === 2 ? spuitRijtjesVan(p) : rt ? Math.round(rt * (f === .5 ? .5 : f === 0 ? 0 : 1)) : 0;
   const kop = `<b>Spoor ${bn.nr}</b>${vak ? ` · vak ${vak.letter}` : ''}${f3 ? ' · 💧 sproeierspoor' : f === 2 ? ' · 🚜 spuitspoor' : f === .5 ? ' · half gevuld' : f === 0 ? ' · leeg' : ''}${rtHier ? ` · ${rtHier} ${rtHier === 1 ? 'rijtje' : 'rijtjes'}${f === 2 ? ' eronder' : ''}` : ''}${moe && !f3 ? ' · 🌱 moederplanten (onder de trekker)' : ''}`;
-  if (!t) return `${kop}<br><small>Niet ingedeeld · ${Math.round(st.len ?? st.tot - st.van)} m</small>`;
+  if (!t) return `${kop}<br><small>Niet ingedeeld · ${Math.round(st.echt ?? st.len ?? st.tot - st.van)} m${st.helft || bn.halfBraak?.length ? ' (half zo breed)' : ''}</small>`;
   // alleen de partij die op dit spoor is aangewezen; is er maar één partij van dit ras, dan is het die
   const kand = partijenVanTeelt(ouder(p).id, st.id), aangewezen = partijOpSpoor(p, bn.nr, st.idx);
   const eigen = aangewezen && !vanTeelt(t) && (kand.some(y => y.id === aangewezen.id) || aangewezen.soort_id === t.plantId) ? aangewezen : kand.length === 1 ? kand[0] : null;
   const pr = eigen ? [eigen] : [], r = ras(st.id);
-  return `${kop}<br>${icoonHtml(t.icoon)} <b>${esc(t.naam)}</b>${pr.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}<br><small>${Math.round(st.len ?? st.tot - st.van)} m · ${Math.round(st.m2 * (f === .5 ? .5 : 1)).toLocaleString('nl-NL')} m²</small>
+  return `${kop}<br>${icoonHtml(t.icoon)} <b>${esc(t.naam)}</b>${pr.some(y => y.bio) ? ' <span class="badge bio">BIO</span>' : ''}<br><small>${Math.round(st.echt ?? st.len ?? st.tot - st.van)} m${st.helft || bn.halfBraak?.length ? ' (half zo breed)' : ''} · ${Math.round(st.m2 * (f === .5 ? .5 : 1)).toLocaleString('nl-NL')} m²</small>
     ${eigen ? `<div class="tipPartijen">${aangewezen ? '<b>Op dit spoor:</b>' : ''}${partijRegel(eigen)}</div>`
       : kand.length > 1 ? `<div class="tipPartijen"><small>${kand.length} partijen ${esc(t.naam)} op dit perceel · nog niet aangewezen welke hier staat${mag('partijen_beheren') ? ' (🖌️ bij Wat staat er)' : ''}</small></div>` : ''}
     ${r?.notitie ? `<div class="pi">📝 ${esc(r.notitie.slice(0, 120))}</div>` : ''}`;
@@ -9985,8 +10013,8 @@ function tekenPlantInfo(p) {
   const teken = []; plantInfoCache.set(p.id, {sm, b: p.banen, v: p.vakken, s: p.spuit, w: p.sporen_weg, pa: S.partijen, teken});
   const groepen = [];
   alleZones(p).forEach(z => { let open = new Map();
-    banenVan(z).forEach(bn => { const nu = new Map(); if (isSpuitRij(z, bn.nr)) { open = new Map(); return; }   // spuitsporen tellen niet mee; per vak een eigen regel
-      stukkenVan(z, bn).forEach(st => { const t = teelt(st.id); if (!t || vanTeelt(t)) return;
+    banenVan(z).forEach(bn => { const nu = new Map(); const stk = stukkenVan(z, bn); if (stk.every(st => isSpuitStuk(z, bn.nr, st.idx))) { open = new Map(); return; }   // spuitsporen tellen niet mee; per vak een eigen regel
+      stk.forEach(st => { const t = teelt(st.id); if (!t || vanTeelt(t) || isSpuitStuk(z, bn.nr, st.idx)) return;
         const x = partijOpSpoor(z, bn.nr, st.idx), key = x ? 'p:' + x.id : 't:' + t.id;
         let g = open.get(key); if (!g) { g = {z, key, x, t, nrs: [], m: 0, m2: 0, pts: []}; groepen.push(g); }
         g.nrs.push(bn.nr); g.m += (st.len ?? st.tot - st.van) * (rijFactor(z, bn.nr) || 1); g.m2 += st.m2 || 0;
@@ -10011,7 +10039,7 @@ function tekenPlantInfo(p) {
 }
 // een partij op één stuk van een gesplitst spoor (st = welk stuk)
 async function partijZetStuk(x, z, nr, st, aan) {
-  if (isSpuitRij(z, nr)) { toast('Dat is een spuitspoor, daar staat geen partij op', 1); return; }
+  if (aan && isSpuitStuk(z, nr, st)) { toast('Dat is een spuitpad of sproeier, daar staat geen partij op', 1); return; }
   const bn = banenVan(z)[nr - 1]; if (!bn) return; const alle = stukkenVan(z, bn).map(q => q.idx), wijz = new Map();
   // whole spoor → losse stukken (zodat de andere stukken hun partij houden)
   const splits = y => { const l = Array.isArray(y.sporen) ? y.sporen.map(q => ({...q, nrs: [...(q.nrs || [])]})) : []; let heel = false;
