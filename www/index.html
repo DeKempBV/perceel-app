@@ -4910,7 +4910,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v134';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v136';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -14248,6 +14248,27 @@ function kcOnderweg() {
     o.nog = Math.max(0, o.bakken - gescand - gekiept); });
   return [...per.values()].filter(o => o.nog > 0);
 }
+// gerooid (volgens de wagens/rooi-invoer) en nog niet gekiept, maar nergens in een koelcel en ook niet onderweg:
+// die bakken staan wel ergens op het bedrijf (bijv. van vóór "wagen is hier"), dus ze horen bij Laden & lossen
+function nietIngeslagen() {
+  const ow = new Map(kcOnderweg().map(o => [o.pid, o.nog])), inCel = new Map();
+  (S.partij_mutaties || []).forEach(m => { if (!m.koelcel || m.eenheid !== 'kuubskisten') return; inCel.set(m.partij_id, (inCel.get(m.partij_id) || 0) + (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0)); });
+  return kiepLijst().map(y => ({x: y.x, pid: y.x.id, n: Math.round(y.nog - Math.max(0, inCel.get(y.x.id) || 0) - (ow.get(y.x.id) || 0)), oudste: y.oudste})).filter(o => o.n > 0);
+}
+function nietIngeslagenHtml(cel) {
+  const l = nietIngeslagen(); if (!l.length) return '';
+  const tot = l.reduce((a, o) => a + o.n, 0), beh = mag('voorraad_beheren');
+  return `<div class="kcOnderwegLijst"><b>🚜 Gerooid, nog niet ingeslagen</b> <small>${getal(tot)} ${tot === 1 ? 'bak' : 'bakken'} staan op de kieplijst maar in geen enkele koelcel</small>
+    ${l.map(o => `<div class="kcWagen"><div class="t"><b>📦 ${esc(partijRas(o.x) || '?')} ${esc(o.x.batch || o.x.nak || '')}</b> · ${getal(o.n)} ${o.n === 1 ? 'bak' : 'bakken'}<small>${esc(kcHerkomst(o.x, cel) || '')}</small></div></div>`).join('')}
+    ${beh ? `<button class="knop klein" style="width:auto;margin-top:6px" onclick="$('#modal').classList.remove('open');nietIngeslagenInslaan(${esc(JSON.stringify(cel))})">⬇️ Inslaan in ${esc(cel)}</button>` : ''}</div>`;
+}
+async function nietIngeslagenInslaan(cel) {
+  const l = nietIngeslagen(); if (!l.length) return;
+  if (!await bevestigJa(`${getal(l.reduce((a, o) => a + o.n, 0))} bakken inslaan in ${esc(cel)}?`, l.map(o => `${esc(partijRas(o.x) || '?')} ${esc(o.x.batch || '')}: ${getal(o.n)}`).join('<br>') + '<br><br>Scan je later toch een box daarvan, dan telt die niet dubbel.', '⬇️ Inslaan')) return;
+  const rijen = l.map(o => ({partij_id: o.pid, seizoen_id: o.x.seizoen_id || bekeken, soort: 'in', datum: dKey(new Date()), aantal: o.n, eenheid: 'kuubskisten', koelcel: cel, notitie: '🚛 wagen zonder scannen · van het veld, nog niet ingeslagen', door: naamMe()}));
+  const {data, error} = await sb.from('partij_mutaties').insert(rijen).select(); if (error) { toast(foutTekst(error), 1); return; }
+  S.partij_mutaties = [...(S.partij_mutaties || []), ...(data || [])]; toast(`⬇️ ${getal(rijen.reduce((a, r) => a + r.aantal, 0))} bakken ingeslagen in ${cel}`); render(true); kcOpen(cel);
+}
 const kcIcoon = c => c?.soort === 'extern' ? '🏢' : c?.soort === 'laden' ? '🚚' : '❄️';
 function kcGegevensVelden(c = {}) {
   return [{k: 'naam', label: 'Naam', waarde: c.naam || '', placeholder: 'bijv. Koelcel 8, Laden/lossen, Koelhuis Venlo'},
@@ -14276,12 +14297,12 @@ async function kcErbij() {
   l.push({naam, ...plek, gw: 8, gh: 6, ...extra}); if (await kcBewaar(l)) { render(true); toast(`${kcIcoon(extra)} ${naam} toegevoegd`); }
 }
 function kcPlattegrondHtml(beh) {
-  const l = kcLijst(), ontv = (l.find(c => c.ontvangst) || l.find(c => c.soort === 'laden'))?.naam, owN = ontv ? kcOnderweg().reduce((a, o) => a + o.nog, 0) : 0;
+  const l = kcLijst(), ontv = (l.find(c => c.ontvangst) || l.find(c => c.soort === 'laden'))?.naam, owN = ontv ? kcOnderweg().reduce((a, o) => a + o.nog, 0) : 0, niN = ontv ? nietIngeslagen().reduce((a, o) => a + o.n, 0) : 0;
   return `<div class="kcKaart ${kcBewerk ? 'bewerk' : ''} ${kcVerplaatsVan ? 'kiezen' : ''}" id="kcKaart" onpointerdown="kcPan(event)" onwheel="kcWiel(event)">
     <div class="kcStage" id="kcStage" style="width:${KC_KOL * KC_HOK}px;height:${KC_RIJ * KC_HOK}px;transform:translate(${KCZ.px}px,${KCZ.py}px) scale(${KCZ.z})">
       ${l.map((c, i) => { const inh = kcInhoud(c.naam), vol = inh.planten > .5, hier = kcVerplaatsVan && kcVerplaatsVan.cel === c.naam;
         return `<div class="kcBlok ${c.soort || ''} ${vol ? 'vol' : ''} ${hier ? 'bron' : ''}" data-vbcel="${esc(c.naam)}" data-i="${i}" style="left:${c.gx * KC_HOK}px;top:${c.gy * KC_HOK}px;width:${c.gw * KC_HOK}px;height:${c.gh * KC_HOK}px"
-          onpointerdown="kcBlokDown(event,${i})"><span>${c.soort ? kcIcoon(c) + ' ' : ''}${esc(c.naam)}</span>${c.naam === ontv && owN ? `<em class="kcOnderweg">🚛 ${getal(owN)} onderweg</em>` : ''}${kcBewerk ? `<div class="kcRand" onpointerdown="kcSchuif(event,${i},'maat')"></div>` : ''}</div>`; }).join('')}
+          onpointerdown="kcBlokDown(event,${i})"><span>${c.soort ? kcIcoon(c) + ' ' : ''}${esc(c.naam)}</span>${c.naam === ontv && owN ? `<em class="kcOnderweg">🚛 ${getal(owN)} onderweg</em>` : ''}${c.naam === ontv && niN ? `<em class="kcOnderweg" style="background:#8d6e63">🚜 ${getal(niN)} niet ingeslagen</em>` : ''}${kcBewerk ? `<div class="kcRand" onpointerdown="kcSchuif(event,${i},'maat')"></div>` : ''}</div>`; }).join('')}
     </div>
     <div class="kcZoom"><button onclick="kcZoomStap(1.25)">＋</button><button onclick="kcZoomStap(.8)">－</button><button title="Alles in beeld" onclick="kcPassend()">⤢</button></div>
     ${kcVerplaatsVan ? `<div class="kcKiesBalk">↔ Tik op de koelcel waar <b>${esc(kcVerplaatsVan.naam)}</b> heen moet <button onclick="kcVerplaatsVan=null;render(true)">Annuleren</button></div>` : ''}
@@ -14485,8 +14506,8 @@ function kcOpen(naam) {
   $('#modal').innerHTML = `<div class="dialoog groot kcPop"><h3>${plek.soort ? kcIcoon(plek) : '🧊'} ${esc(naam)}${beh ? ` <button class="knop licht klein" style="width:auto;display:inline-block;vertical-align:middle" onclick="$('#modal').classList.remove('open');kcGegevens(${esc(JSON.stringify(naam))})">✏️</button>` : ''}</h3>
     ${plek.soort === 'extern' ? `<p class="hint" style="margin-top:0">🏢 Extern koelbedrijf${[plek.adres, plek.contact, plek.telefoon, plek.email].filter(Boolean).length ? ' · ' + [plek.adres, plek.contact, plek.telefoon, plek.email].filter(Boolean).map(esc).join(' · ') : ''}</p>
       <div class="rij" style="gap:6px;flex-wrap:wrap;margin-bottom:10px"><button class="knop klein" style="width:auto" onclick="kcBon(${esc(JSON.stringify(naam))},'vandaag')">📄 Bon: vandaag hierheen</button><button class="knop licht klein" style="width:auto" onclick="kcBon(${esc(JSON.stringify(naam))},'alles')">📄 Bon: alles wat hier staat</button></div>` : plek.soort === 'laden' ? '<p class="hint" style="margin-top:0">🚚 Laden & lossen: hier staat wat net binnen is of klaarstaat om weg te gaan.</p>' : ''}
-    ${naam === kcOntvangst() ? kcWagensHtml(naam) : ''}
-    ${inh.planten ? kcTotalenHtml(naam) : naam === kcOntvangst() && kcOnderweg().length ? '' : '<p class="hint">Leeg</p>'}
+    ${naam === kcOntvangst() ? kcWagensHtml(naam) + nietIngeslagenHtml(naam) : ''}
+    ${inh.planten ? kcTotalenHtml(naam) : naam === kcOntvangst() && (kcOnderweg().length || nietIngeslagen().length) ? '' : '<p class="hint">Leeg</p>'}
     ${beh ? `<div class="kcInslaan"><b>⬇️ Inslaan</b><div class="rij" style="gap:6px;flex-wrap:wrap">
       ${knop('🧱 Pallet (kistjes)', `kcPalletInslag(${esc(JSON.stringify(naam))})`)}${knop('📦 Kuubskist', `mutatieFormulier('','in',null,{eenheid:'kuubskisten',koelcel:${esc(JSON.stringify(naam))}})`)}
       ${knop('🥡 Trays', `mutatieFormulier('','in',null,{eenheid:'trays',koelcel:${esc(JSON.stringify(naam))}})`)}${knop('🌱 Losse planten', `mutatieFormulier('','in',null,{eenheid:'planten',koelcel:${esc(JSON.stringify(naam))}})`)}</div></div>` : ''}
@@ -15508,12 +15529,20 @@ async function hfPalletAanpassen(e) {
       el.innerHTML = `<div class="kpDoos"><div class="kpTitel">🧱 Pallet ${esc(e.nr)}</div><div class="kpSub">${cel ? '❄️ ' + esc(cel) + ' · ' : ''}${getal(p.kistjes)} kistjes erop</div>
         <div class="hfKeuze">${regels.map((r, k) => `<button class="${k === i ? 'aan' : ''}" data-i="${k}">${naam(r)}<small>${getal(r.kistjes)} kistjes</small></button>`).join('')}<button data-ander="1">＋ Andere soort erop zetten…</button></div>
         ${hfTellerHtml(v)}
-        <div class="kpKnoppen"><button class="kpNee" data-x="1">Annuleren</button><button class="kpJa" data-a="min" style="background:#c62828">➖ Eraf</button><button class="kpJa" data-a="plus" style="background:#2e7d32">➕ Erbij</button></div></div>`;
+        <div class="kpKnoppen"><button class="kpNee" data-x="1">Annuleren</button><button class="kpJa" data-a="min" style="background:#c62828">➖ Eraf</button><button class="kpJa" data-a="plus" style="background:#2e7d32">➕ Erbij</button></div>
+        <div class="kpKnoppen" style="margin-top:6px"><button class="kpJa" data-a="zet" style="background:#1565c0">= Precies zoveel erop</button><button class="kpJa" data-a="vol" style="background:#6d4c41">🧱 Pallet vol: ${KC_PALLET_MAX}</button></div></div>`;
       const inp = el.querySelector('#hfKaIn'), neem = () => { const w = parseInt(inp.value, 10); if (/^\d{1,3}$/.test(String(inp.value).trim()) && w >= 1) v = w; return v; };
       el.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { neem(); i = +b.dataset.i; teken(); });
       el.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { v = Math.max(1, neem() + +b.dataset.d); inp.value = v; });
       el.querySelector('[data-x]').onclick = () => dicht(null); el.querySelector('[data-ander]').onclick = () => dicht({ander: true});
-      el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => dicht({r: regels[i], n: neem(), plus: b.dataset.a === 'plus'}));
+      el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+        const a = b.dataset.a, r = regels[i];
+        if (a === 'plus' || a === 'min') return dicht({r, n: neem(), plus: a === 'plus'});
+        // precies zoveel van deze soort erop, of de pallet vol maken: het verschil wordt erbij of eraf gezet
+        const doel = a === 'vol' ? r.kistjes + (KC_PALLET_MAX - p.kistjes) : neem(), d = Math.round((doel - r.kistjes) * 10) / 10;
+        if (Math.abs(d) < .05) { hfMeld(a === 'vol' ? `Pallet ${e.nr} is al vol (${KC_PALLET_MAX})` : `Er staan al ${getal(r.kistjes)} kistjes van deze soort op`); return dicht(null); }
+        dicht({r, n: Math.abs(d), plus: d > 0});
+      });
     };
     el.onclick = ev => { if (ev.target === el) dicht(null); };
     teken();
@@ -16444,8 +16473,7 @@ function kkKaartHtml(k) {
     <div class="kkTop">${vlag}<div><b>Plantenpaspoort / Plant Passport</b><small>Karta / Skrynia</small></div></div>
     <div class="kkTitel">'${esc(k.ras)}'</div>
     <div class="kkMid"><div class="kkVeld">${r('A', "Fragaria × ananassa '" + k.ras + "'")}${r('B', k.registratie)}${r('C', k.partij_nr)}${r('D', 'NL')}
-      ${r('Sortering', k.sortering)}${r('Categorie', k.categorie)}${r('Certificaat', k.certificaat)}${r('Jaar', k.plantjaar)}${r('1e afgifte', k.afgifte)}${r('Per kist', k.per_kist)}</div>
-      <div class="kkQr">${qrSvg(k.barcode, 22)}<small>${esc(k.barcode)}</small></div></div></div>`;
+      ${r('Sortering', k.sortering)}${r('Categorie', k.categorie)}${r('Certificaat', k.certificaat)}${r('Jaar', k.plantjaar)}${r('1e afgifte', k.afgifte)}${r('Per kist', k.per_kist)}</div></div></div>`;   // geen QR-code meer: kistjes erbij/eraf gaat via 3× de palletkaart scannen
 }
 function kkPapier(k) {
   const kaarten = [...Array(Math.max(1, +k.aantal || 1))].map(() => kkKaartHtml(k));
