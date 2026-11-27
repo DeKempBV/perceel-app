@@ -1101,6 +1101,7 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 #kiepPop .kpTitel{font-size:22px}#kiepPop .kpSub{color:#5d6b62;margin-top:4px}
 /* knop in de hand */.etModus{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}.etModus button{flex:1;min-width:120px;border:2px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;font:700 16px/1 system-ui,sans-serif;cursor:pointer;color:#1d2a22}.etModus button.aan{border-color:#2e7d32;background:#2e7d32;color:#fff}
 .etGescand{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid #d5ded8;border-radius:12px;padding:10px 12px;margin-bottom:6px;background:#fff}.etGescand .t{flex:1;min-width:180px}.etGescand small{display:block;color:#5d6b62}.etGescand .k{display:flex;gap:6px;flex-wrap:wrap}
+.wagenPlekken{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:10px 0}.wagenPlekken button{font:inherit;font-weight:700;font-size:17px;padding:16px 10px;border:1px solid #c9d6cc;border-radius:12px;background:#fff;cursor:pointer}.wagenPlekken button:active{background:#e6f2e8}
 .psKaart.aan{border:2px solid #2e7d32;background:#f3faf3}.psKaart code{background:#eef;padding:1px 4px;border-radius:4px;word-break:break-all}.psUitleg summary{cursor:pointer;font-weight:600;margin-top:8px}.psLog{margin-top:8px}
 .etActRij{display:flex;align-items:center;gap:10px;width:100%;border:1px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;margin-bottom:6px;text-align:left;font:inherit;cursor:pointer}.etActRij:active{background:#eef6ef}
 .etActRij .kl{width:10px;align-self:stretch;border-radius:4px;flex:0 0 auto}.etActRij .t{flex:1;min-width:0}.etActRij small{display:block;color:#5d6b62}.etActRij .pr{font-size:22px}
@@ -3965,6 +3966,8 @@ function kopeindeGeo(m) {
     kopVlakken(m).forEach(c => { try { delen.push(turf.polygon(c)); } catch {} });
     let u = delen.shift() || null;
     for (const d of delen) { try { u = turf.union(u, d) || u; } catch (e) { console.warn(e); } }
+    // stukken die er met ✂️ Eraf af geknipt zijn: precies dat vlak eraf
+    for (const c of (m.geo?.properties?.eraf || [])) { if (!u) break; try { u = turf.difference(u, turf.polygon(c)); } catch (e) { console.warn(e); } }
     geo = u ? turf.intersect(u, p.geo) : null;
   } catch (e) { console.warn(e); }
   kopCache.set(m.id, {rg: m.geo, rb: m.breedte, rp: p.geo, sl, geo}); return geo;
@@ -4102,11 +4105,12 @@ function voegAanMarkeringToe(id, nieuw) {
   if (m.soort === 'kopeinde' && isVlak(nieuw)) {   // vlak erbij: precies het getekende stuk wordt kopeinde
     const props = {...(m.geo.properties || {})};
     props.vlakken = [...(props.vlakken || []), ...(nieuw.geometry.type === 'Polygon' ? [nieuw.geometry.coordinates] : nieuw.geometry.coordinates)];
+    if (props.eraf?.length) props.eraf = props.eraf.flatMap(c => { let r = null; try { r = turf.difference(turf.polygon(c), nieuw); } catch { return [c]; } return !r ? [] : r.geometry.type === 'Polygon' ? [r.geometry.coordinates] : r.geometry.coordinates; });   // wat je er weer bij tekent, is niet meer afgeknipt
     slaMarkGeoOp(m, {...m.geo, properties: props}, 'Stuk kopeinde toegevoegd'); return;
   }
   if (m.soort === 'kopeinde' && !kopHeeftLijn(m)) {   // eerste lijn bij een kopeinde dat alleen uit vlakken bestond
     if (!(+m.breedte)) { m.breedte = (+perceel(m.perceel_id)?.breedte || 6) * 2; sb.from('markeringen').update({breedte: m.breedte}).eq('id', m.id).then(() => {}); }
-    slaMarkGeoOp(m, {type: 'Feature', properties: {vlakken: kopVlakken(m)}, geometry: nieuw.geometry}, 'Stuk kopeinde toegevoegd'); return;
+    slaMarkGeoOp(m, {type: 'Feature', properties: {vlakken: kopVlakken(m), ...(m.geo.properties?.eraf ? {eraf: m.geo.properties.eraf} : {})}, geometry: nieuw.geometry}, 'Stuk kopeinde toegevoegd'); return;
   }
   const delen = lijnDelen(m.geo), extra = nieuw.geometry.coordinates, d = (a, b) => turf.distance(a, b) * 1000;
   // sluit het nieuwe stuk aan op een uiteinde als het daar begint of eindigt (binnen 3 m): dan wordt de lijn verlengd
@@ -4135,7 +4139,13 @@ function knipVanMarkering(id, vlak) {
       if (!vlakken.length) { toast('Dan blijft er niets over. Verwijder het kopeinde liever helemaal.', 1); return; }
       slaMarkGeoOp(m, {type: 'Feature', properties: {}, geometry: vlakken.length === 1 ? {type: 'Polygon', coordinates: vlakken[0]} : {type: 'MultiPolygon', coordinates: vlakken}}, 'Stuk eraf geknipt'); return;
     }
-    m = {...m, geo: {...m.geo, properties: {...(m.geo.properties || {}), vlakken}}, _origineel: m};
+    // kopeinde als lijn met breedte: de lijn zelf blijft heel (anders schuift de ronde kop gewoon terug en verandert er niets),
+    // het getekende vlak wordt bewaard en precies dat stuk gaat eraf
+    const props = {...(m.geo.properties || {})}, erafNieuw = vlak.geometry.type === 'Polygon' ? [vlak.geometry.coordinates] : vlak.geometry.coordinates;
+    const geo = {...m.geo, properties: {...props, vlakken, eraf: [...(props.eraf || []), ...erafNieuw]}};
+    if (!kopeindeGeo({...m, id: '__proef', geo})) { kopCache.delete('__proef'); toast('Dan blijft er niets over. Verwijder het kopeinde liever helemaal.', 1); return; }
+    kopCache.delete('__proef');
+    slaMarkGeoOp(m, geo, 'Stuk eraf geknipt'); return;
   }
   const over = [];
   lijnDelen(m.geo).forEach(deel => {
@@ -9271,6 +9281,40 @@ async function tmWagenTerug(wid0) {
 }
 /* ---------- wagens van het veld: onderweg → legen → in de koelcel ---------- */
 const WAGEN_STATUS = {onderweg: '🚛 Onderweg', legen: '🧺 Aan het legen', koelcel: '❄️ In de koelcel', uit: '✓ Verwerkt'};
+const wagenStatusTekst = w => w.status === 'koelcel' && w.plek ? `${kcIcoon(kcPlek(w.plek))} ${w.plek}` : WAGEN_STATUS[w.status];
+// wagen binnen: gelost (op de plek Laden & lossen) of in een koelcel die je kiest. De bakken worden meteen ingeslagen.
+async function wagenBinnen(id, hoe, celGegeven) {
+  const w = (S.wagens_weg || []).find(x => x.id === id); if (!w) return;
+  let cel = celGegeven || (hoe === 'lossen' ? kcOntvangst() : null);
+  if (hoe === 'lossen' && !cel) toast('Er is nog geen plek "Laden & lossen"; kies waar de bakken staan', 1);
+  if (!cel) cel = await wagenKiesPlek(w); if (!cel) return;
+  // alleen wat nog niet gescand of gekiept is (zo telt niets dubbel)
+  const nogTot = new Map(kcOnderweg().map(o => [o.pid, o.nog]));
+  const nieuwer = pid => (S.wagens_weg || []).filter(v => v.id !== w.id && ['onderweg', 'legen'].includes(v.status) && String(v.gemeld_op) > String(w.gemeld_op))
+    .reduce((a, v) => a + (v.inhoud || []).filter(x => x.partij_id === pid).reduce((b, x) => b + n0(x.bakken), 0), 0);
+  const inhoud = (w.inhoud || []).filter(x => x.partij_id && n0(x.bakken) > 0).map(x => ({partij_id: x.partij_id, bakken: Math.max(0, Math.min(n0(x.bakken), (nogTot.get(x.partij_id) || 0) - nieuwer(x.partij_id)))}));
+  const wie = (typeof TM !== 'undefined' && TM.aan && TM.chauffeur?.naam) || naamMe();
+  const {data: n, error} = await sb.rpc('wagen_inslaan', {p_wagen: id, p_cel: cel, p_inhoud: inhoud, p_door: wie});
+  if (error) { toast(/wagen_inslaan|function|schema cache/i.test(error.message) ? 'Draai eerst wagen-inslaan.sql in Supabase' : foutTekst(error), 1); return; }
+  Object.assign(w, {status: 'koelcel', plek: cel, koelcel_op: new Date().toISOString(), koelcel_door: wie});
+  try { const pids = [...new Set(inhoud.map(x => x.partij_id))]; if (pids.length && mag('voorraad_bekijken')) { const {data} = await sb.from('partij_mutaties').select('*').in('partij_id', pids);
+    if (data) S.partij_mutaties = [...(S.partij_mutaties || []).filter(m => !pids.includes(m.partij_id)), ...data]; } } catch {}
+  toast(`${kcIcoon(kcPlek(cel))} ${getal(n || 0)} ${n === 1 ? 'bak' : 'bakken'} staan nu in ${cel}`);
+  render(true); if (typeof TM !== 'undefined' && TM.aan) tmRender();
+}
+// kiezen waar de bakken van de wagen staan: alle koelcellen en laden & lossen (geen externe koelbedrijven)
+function wagenKiesPlek(w) {
+  return new Promise(klaar => {
+    const l = kcLijst().filter(c => c.soort !== 'extern'), ontv = kcOntvangst();
+    if (!l.length) { toast('Er zijn nog geen koelcellen; voeg ze toe bij Koelcellen', 1); klaar(null); return; }
+    l.sort((a, b) => (a.naam === ontv ? -1 : b.naam === ontv ? 1 : 0) || (a.soort === 'laden' ? -1 : b.soort === 'laden' ? 1 : 0) || a.naam.localeCompare(b.naam, 'nl', {numeric: true}));
+    const m = $('#modal'); window.__wagenKies = c => { m.classList.remove('open'); window.__wagenKies = null; klaar(c); };
+    m.innerHTML = `<div class="dialoog"><h3>❄️ Waar staan de bakken?</h3><p class="hint">${esc(w.wagen || 'Wagen')} van ${wagenTijd(w.gemeld_op)} · ${esc(w.tekst || '')}</p>
+      <div class="wagenPlekken">${l.map(c => `<button onclick='__wagenKies(${esc(JSON.stringify(c.naam))})'>${kcIcoon(c)} ${esc(c.naam)}</button>`).join('')}</div>
+      <div class="rij"><button class="knop licht" onclick="__wagenKies(null)">Annuleren</button></div></div>`;
+    m.classList.add('open');
+  });
+}
 const wagenVanMij = (w, uid, naam) => (uid && (w.bijrijder_id === uid || w.bijrijder === uid)) || (naam && String(w.bijrijder || '').startsWith('~') && normTekst(w.bijrijder.slice(1)) === normTekst(naam));
 async function wagenStatus(id, status) {
   const nu = new Date().toISOString(), wie = (typeof TM !== 'undefined' && TM.aan && TM.chauffeur?.naam) || naamMe();
@@ -9282,8 +9326,8 @@ async function wagenStatus(id, status) {
   render(true); if (typeof TM !== 'undefined' && TM.aan) tmRender();
 }
 const wagenBeheer = () => isBeheerder() || mag('voorraad_beheren') || mag('taken_toevoegen');
-const wagenKnoppen = w => w.status === 'onderweg' ? `<button class="knop licht klein" onclick="wagenStatus('${w.id}','legen')">🧺 Wordt geleegd</button><button class="knop licht klein" onclick="wagenStatus('${w.id}','koelcel')">❄️ Aangekomen, in koelcel</button>`
-  : w.status === 'legen' ? `<button class="knop licht klein" onclick="wagenStatus('${w.id}','koelcel')">❄️ In koelcel</button>` : w.status === 'koelcel' ? `<button class="knop licht klein" title="Verwerkt (gekiept/gesorteerd)" onclick="wagenStatus('${w.id}','uit')">✓ Verwerkt</button>` : '';
+const wagenKnoppen = w => ['onderweg', 'legen'].includes(w.status) ? `<button class="knop licht klein" onclick="wagenBinnen('${w.id}','lossen')">🚚 Gelost (laden &amp; lossen)</button><button class="knop licht klein" onclick="wagenBinnen('${w.id}')">❄️ In koelcel…</button>`
+  : w.status === 'koelcel' ? `<button class="knop licht klein" title="Verwerkt (gekiept/gesorteerd)" onclick="wagenStatus('${w.id}','uit')">✓ Verwerkt</button>` : '';
 const wagenTijd = x => x ? new Date(x).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) : '';
 // voor de bijrijder: zijn wagens die nog niet in de koelcel staan
 function mijnWagensHtml(groot) {
@@ -9291,12 +9335,12 @@ function mijnWagensHtml(groot) {
   const l = (S.wagens_weg || []).filter(w => (w.status === 'onderweg' || w.status === 'legen') && wagenVanMij(w, uid, naam)); if (!l.length) return '';
   return `<div class="mijnWagens ${groot ? 'groot' : ''}">${l.map(w => `<div class="mw ${w.status}"><div><b>${w.status === 'legen' ? '🧺 Je bent je ' + esc(w.wagen || 'wagen') + ' aan het legen' : '🚛 Je ' + esc(w.wagen || 'wagen') + ' is weg gemeld'}</b>
       <small>${wagenTijd(w.gemeld_op)}${w.gemeld_door ? ' door ' + esc(w.gemeld_door) : ''} · ${esc(w.tekst || '')} · <b>${fmt(n0(w.bakken))} bakken</b></small></div>
-      ${w.status === 'onderweg' ? `<button onclick="wagenStatus('${w.id}','legen')">🏠 Ik ben terug, ik ga legen</button>` : `<button class="groen" onclick="wagenStatus('${w.id}','koelcel')">✓ Leeg, staat in de koelcel</button>`}</div>`).join('')}</div>`;
+      ${w.status === 'onderweg' ? `<button onclick="wagenStatus('${w.id}','legen')">🏠 Ik ben terug, ik ga legen</button>` : `<button class="groen" onclick="wagenBinnen('${w.id}')">✓ Gelost, kies waar ze staan</button>`}</div>`).join('')}</div>`;
 }
 // kort: welke bakken nu onderweg zijn (rooiplanning, trekker)
 function onderwegHtml(tm) {
   const l = (S.wagens_weg || []).filter(w => w.status === 'onderweg' || w.status === 'legen'); if (!l.length) return '';
-  const in1 = w => `<div class="ow ${w.status}"><b>${w.status === 'legen' ? '🧺' : '🚛'} ${esc(w.wagen || 'wagen')}${w.bijrijder ? ' · ' + esc(naamVan(w.bijrijder)) : ''} · ${fmt(n0(w.bakken))} bakken</b><small>${WAGEN_STATUS[w.status]} · weg om ${wagenTijd(w.gemeld_op)} · ${esc(w.tekst || '')}</small>${!tm && wagenBeheer() ? `<div class="rij" style="gap:6px;margin-top:6px">${wagenKnoppen(w)}</div>` : ''}</div>`;
+  const in1 = w => `<div class="ow ${w.status}"><b>${w.status === 'legen' ? '🧺' : '🚛'} ${esc(w.wagen || 'wagen')}${w.bijrijder ? ' · ' + esc(naamVan(w.bijrijder)) : ''} · ${fmt(n0(w.bakken))} bakken</b><small>${wagenStatusTekst(w)} · weg om ${wagenTijd(w.gemeld_op)} · ${esc(w.tekst || '')}</small>${!tm && wagenBeheer() ? `<div class="rij" style="gap:6px;margin-top:6px">${wagenKnoppen(w)}</div>` : ''}</div>`;
   return tm ? `<div class="owLijst tm">${l.map(in1).join('')}</div>` : `<section class="kaartje"><h4>🚛 Onderweg naar het bedrijf <small>${fmt(l.reduce((a, w) => a + n0(w.bakken), 0))} bakken</small></h4><div class="owLijst">${l.map(in1).join('')}</div></section>`;
 }
 // in de koelcel: wat er van het veld is binnengekomen
@@ -9305,7 +9349,7 @@ function koelcelWagensHtml() {
   const groep = st => l.filter(w => w.status === st);
   const per = new Map(); groep('koelcel').forEach(w => (w.inhoud || []).forEach(i => { const k = i.partij_id || i.naam; const x = per.get(k) || {naam: i.naam, b: 0}; x.b += n0(i.bakken); per.set(k, x); }));
   const rij = w => `<div class="srRij" style="flex-wrap:wrap"><div class="t"><b>${esc(w.wagen || 'wagen')}${w.bijrijder ? ' · ' + esc(naamVan(w.bijrijder)) : ''}</b> · ${fmt(n0(w.bakken))} bakken
-      <small>${esc(w.tekst || '')} · gemeld ${wagenTijd(w.gemeld_op)} ${new Date(w.gemeld_op).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})}${w.koelcel_op ? ' · in de koelcel ' + wagenTijd(w.koelcel_op) + (w.koelcel_door ? ' (' + esc(w.koelcel_door) + ')' : '') : w.legen_op ? ' · legen sinds ' + wagenTijd(w.legen_op) : ''}</small></div>
+      <small>${esc(w.tekst || '')} · gemeld ${wagenTijd(w.gemeld_op)} ${new Date(w.gemeld_op).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short'})}${w.koelcel_op ? ' · ' + (w.plek ? 'in ' + esc(w.plek) : 'in de koelcel') + ' ' + wagenTijd(w.koelcel_op) + (w.koelcel_door ? ' (' + esc(w.koelcel_door) + ')' : '') : w.legen_op ? ' · legen sinds ' + wagenTijd(w.legen_op) : ''}</small></div>
       <span class="logknoppen" style="flex-wrap:wrap;gap:4px">${wagenKnoppen(w)}</span></div>`;
   return `<section class="kaartje"><h4>🚛 Bakken van het veld</h4>
     ${['onderweg', 'legen'].map(st => groep(st).length ? `<div class="trKop">${WAGEN_STATUS[st]} (${groep(st).length})</div>${groep(st).map(rij).join('')}` : '').join('')}
@@ -9322,7 +9366,7 @@ function tmWagensWeg(t) {
 function tmWagenLijstHtml(t) {
   const ws = tmWagensWeg(t); if (!ws.length) return '';
   const pn = id => { const x = (S.partijen || []).find(y => y.id === id); return x ? [partijRas(x), x.batch || x.nak].filter(Boolean).join(' ') : '?'; };
-  return `<div class="wagenLijst">${ws.map((w, i) => `<div><b>${ws.length - i}. ${esc(w.wagen)}${w.bijr && !/^via/.test(w.bijr) ? ' · ' + esc(w.bijr) : ''}</b><span>${(() => { const ww = (S.wagens_weg || []).find(x => x.id === w.wid); return ww ? WAGEN_STATUS[ww.status] + ' · ' : ''; })()}${w.tijd ? new Date(w.tijd).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) + ' · ' : ''}${w.l.map(i => `${esc(pn(i.partij_id))}: ${fmt(n0(i.bakken))}`).join(' · ')} · <b>${fmt(w.b)} bakken</b></span>
+  return `<div class="wagenLijst">${ws.map((w, i) => `<div><b>${ws.length - i}. ${esc(w.wagen)}${w.bijr && !/^via/.test(w.bijr) ? ' · ' + esc(w.bijr) : ''}</b><span>${(() => { const ww = (S.wagens_weg || []).find(x => x.id === w.wid); return ww ? wagenStatusTekst(ww) + ' · ' : ''; })()}${w.tijd ? new Date(w.tijd).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'}) + ' · ' : ''}${w.l.map(i => `${esc(pn(i.partij_id))}: ${fmt(n0(i.bakken))}`).join(' · ')} · <b>${fmt(w.b)} bakken</b></span>
     <button onclick="tmWagenTerug('${w.wid}')" title="Weghalen">↶</button></div>`).join('')}</div>`;
 }
 function tmWagenOverzicht(t) {
@@ -13628,29 +13672,22 @@ function kcWagensHtml(cel) {
 }
 // wagen is aangekomen (met de hand, als de scanner niet werkt): de bakken meteen inslaan op de ontvangstplek (laden & lossen)
 async function kcWagenHier(id, cel) {
-  const w = (S.wagens_weg || []).find(x => x.id === id); if (!w) return;
   cel = cel || kcOntvangst(); if (!cel) { toast('Wijs eerst een plek aan waar de wagens binnenkomen (✏️ bij Laden & lossen)', 1); return; }
-  const inh = (w.inhoud || []).filter(x => x.partij_id && n0(x.bakken) > 0);
-  if (inh.length) {
-    const rijen = inh.map(x => { const y = (S.partijen || []).find(z => z.id === x.partij_id); return {partij_id: x.partij_id, seizoen_id: y?.seizoen_id || bekeken, soort: 'in', datum: dKey(new Date()), aantal: n0(x.bakken), eenheid: 'kuubskisten', koelcel: cel, notitie: `🚛 wagen zonder scannen · ${w.wagen || 'wagen'} van ${wagenTijd(w.gemeld_op)}`, door: naamMe()}; });
-    const {data, error} = await sb.from('partij_mutaties').insert(rijen).select(); if (error) { toast(foutTekst(error), 1); return; }
-    if (data) S.partij_mutaties = [...(S.partij_mutaties || []), ...data];
-  }
-  await wagenStatus(id, 'koelcel');
-  toast(`✅ ${inh.reduce((a, x) => a + n0(x.bakken), 0)} bakken ingeslagen in ${cel}`);
+  const w = (S.wagens_weg || []).find(x => x.id === id); if (!w) return;
+  await wagenBinnen(id, 'lossen', cel);
 }
 // scan je later toch een box van een wagen die al zonder scannen is ingeslagen, dan telt die niet dubbel:
 // de box komt erbij en er gaat één "wagen zonder scannen"-bak van die partij van de ontvangstplek af
 async function kcWagenBoxVerrekenen(codes, sinds) {
-  const cel = kcOntvangst(); if (!cel) return;
   const nieuw = (S.etiketten || []).filter(e => e.soort === 'box' && codes.includes(e.code)).filter(e => {
     const rows = (S.partij_mutaties || []).filter(m => m.notitie === 'Box ' + e.nr && m.soort === 'in'); return rows.length === 1 && String(rows[0].created_at) >= String(sinds); });
   const rijen = [];
   for (const e of nieuw) {
-    const pid = (S.partij_mutaties || []).find(m => m.notitie === 'Box ' + e.nr)?.partij_id || e.partij_id;
-    const zonder = (S.partij_mutaties || []).filter(m => m.partij_id === pid && m.koelcel === cel && !m.pallet && /wagen zonder scannen/.test(m.notitie || ''))
-      .reduce((a, m) => a + (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0), 0) - rijen.filter(r => r.partij_id === pid).length;
-    if (zonder < 1) continue;
+    const boxIn = (S.partij_mutaties || []).find(m => m.notitie === 'Box ' + e.nr), pid = boxIn?.partij_id || e.partij_id;
+    const zonderIn = c => (S.partij_mutaties || []).filter(m => m.partij_id === pid && m.koelcel === c && !m.pallet && /wagen zonder scannen/.test(m.notitie || ''))
+      .reduce((a, m) => a + (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0), 0) - rijen.filter(r => r.partij_id === pid && r.koelcel === c).length;
+    const cellen = [...new Set([boxIn?.koelcel, kcOntvangst(), ...(S.partij_mutaties || []).filter(m => m.partij_id === pid && /wagen zonder scannen/.test(m.notitie || '')).map(m => m.koelcel)].filter(Boolean))];
+    const cel = cellen.find(c => zonderIn(c) >= 1); if (!cel) continue;
     const y = (S.partijen || []).find(z => z.id === pid);
     rijen.push({partij_id: pid, seizoen_id: y?.seizoen_id || bekeken, soort: 'correctie', datum: dKey(new Date()), aantal: -1, eenheid: 'kuubskisten', koelcel: cel, notitie: `🚛 wagen zonder scannen · box ${e.nr} toch gescand`, door: naamMe()});
   }
