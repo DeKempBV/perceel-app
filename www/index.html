@@ -4925,7 +4925,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v146';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v148';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -9666,9 +9666,9 @@ async function ssorKoppelInstellen() {
 }
 // partij uit een gescande code (box, pallet of kistkaart)
 async function lijnPartijUitCode(raw) {
-  const s = String(raw || '').trim().toUpperCase(); if (!s) return null;
-  if (/^K/.test(s)) { const i = await hfKistInfo(s); return i?.partij_id || null; }
-  const code = etCodeUit(s) || (/^[PB]\d+$/.test(s) ? s : null); if (!code) return null;
+  const s = String(raw || '').trim(); if (!s) return null;   // niet eerst in hoofdletters: de QR is een adres met ?etiket=B230
+  if (/^K\d/i.test(s)) { const i = await hfKistInfo(s.toUpperCase()); return i?.partij_id || null; }
+  const code = etCodeUit(s) || (/^[PB]\d+$/i.test(s) ? s.toUpperCase() : null); if (!code) return null;
   const e = await etZoek(code); if (!e) return null;
   if (e.partij_id) return e.partij_id;
   if (e.soort === 'pallet') { const b = (S.etiketten || []).find(x => x.op_pallet === e.code && x.partij_id); return b?.partij_id || null; }
@@ -16509,7 +16509,12 @@ async function kpKopieer() {
 }
 // op de heftruck: bovenaan de kieplijst
 let kiepTab = (() => { try { return localStorage.getItem('kiepTab') || 'gepland'; } catch { return 'gepland'; } })();
-function kiepZetTab(t) { kiepTab = t; try { localStorage.setItem('kiepTab', t); } catch {} kiepVerversen(); }
+function kiepZetTab(t) {
+  // naar Lijnen: je hand leegmaken, zodat een scan daar nooit per ongeluk iets boekt; terug: de gescande partij vergeten
+  if (t === 'lijnen' && kiepTab !== 'lijnen') { const had = HF.hand.length || HF.pallet || HF.paletten.length || HF.kist.length; hfLeeg(true); hfKistPopDicht?.(); if (had) toast('✋ Je hand is leeggemaakt'); }
+  if (t !== 'lijnen') LS.pid = null;
+  kiepTab = t; try { localStorage.setItem('kiepTab', t); } catch {} kiepVerversen(); try { hfTeken(); } catch {}
+}
 function kiepPlanHtml(groot) {
   const d = vandaag(), l = kpLijst(d); if (!l.length) return groot ? '<p class="kiepUitleg">Er is voor vandaag niets ingepland.</p>' : '';
   return `<div class="kiepPlan ${groot ? 'groot' : ''}">${groot ? '' : '<div class="kiepKop2" style="margin-top:4px">📋 Vandaag kiepen</div>'}${l.map((k, i) => { const y = (S.partijen || []).find(p => p.id === k.partij_id) || {}, g = kpGekiept(k.partij_id, d), af = k.aantal && g >= +k.aantal;
