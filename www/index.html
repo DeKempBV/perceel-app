@@ -1107,6 +1107,17 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .eigenIc{height:1.25em;width:1.25em;vertical-align:-.25em;display:inline-block}
 .kiepLijnen{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}.kiepLijnen>span{font-weight:800;color:#c8e6c9;margin-right:4px}.kiepLijnen button{border:2px solid #1565c0;background:transparent;color:#fff;border-radius:10px;padding:9px 13px;font:inherit;font-weight:800;font-size:16px;cursor:pointer;min-width:64px}.kiepLijnen button.aan{background:#1565c0}.kiepLijnStand{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#1e3a26;border-radius:10px;padding:8px 10px;margin:0 0 8px}.kiepLijnStand>span{flex:1;min-width:0}.kiepLijnStand small{opacity:.7}.kiepLijnStand button{border:2px solid #ffb74d;background:transparent;color:#ffcc80;border-radius:10px;padding:8px 12px;font:inherit;font-weight:800;cursor:pointer}
 .kiepLijnSync{display:block;width:100%;margin:4px 0 8px;border:0;background:#1565c0;color:#fff;border-radius:12px;padding:12px;font:inherit;font-weight:800;font-size:16px;cursor:pointer}.kiepLijnInst{border:1px solid #888;background:transparent;color:#ddd;border-radius:9px;padding:6px 10px;cursor:pointer}
+.kiepTabs.drie{grid-template-columns:1fr 1fr 1fr}
+.lpScan{background:#1e3a26;border-radius:10px;padding:10px;margin:8px 0}.lpScan button{background:none;border:0;color:#ffcc80;font-size:16px;cursor:pointer}
+.lpKaart{display:block;width:100%;text-align:left;background:#22412c;border:2px solid #2e7d32;color:#fff;border-radius:12px;padding:12px;margin:8px 0;font:inherit;cursor:pointer}.lpKop{display:flex;justify-content:space-between;gap:8px;font-size:18px;margin-bottom:4px}.lpKop small{font-size:13px;opacity:.75;align-self:center}
+.lpChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.lpChips span{background:#14261a;border-radius:8px;padding:3px 8px;font-size:13px}
+.lpKl{display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid #0006;vertical-align:-2px;margin-right:6px}
+.lpOk{color:#a5d6a7}.lpFout{color:#ffcc80}.lpBezig{color:#90caf9}
+#lpPop{position:fixed;inset:0;z-index:5200;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:16px}
+.lpVenster{background:#14261a;color:#fff;border-radius:14px;width:min(640px,100%);padding:14px;box-shadow:0 10px 40px #000a}.lpTitel{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:800}.lpTitel small{font-size:13px;opacity:.7;font-weight:400;flex:1}.lpTitel button{background:none;border:0;color:#fff;font-size:22px;cursor:pointer}
+.lpPartij{background:#1e3a26;border-radius:10px;padding:10px;margin:10px 0;line-height:1.5}.lpPartij select{font:inherit;padding:4px;border-radius:6px}.lpNu{color:#ffd54f;margin-top:4px}
+.lpZoek{margin:4px 0 8px}.lpRij{display:flex;align-items:center;gap:8px;margin:6px 0}.lpRij .lpKl{width:26px;height:26px;margin:0;flex:none}.lpNaam{width:56px;font-weight:700}.lpRij select{flex:1;min-width:0;font:inherit;font-size:16px;padding:8px;border-radius:8px}
+.lpLet{font-size:13px;opacity:.75;margin:10px 0}.lpStatus{margin:8px 0;font-weight:700}.lpKnoppen{display:grid;grid-template-columns:1fr 2fr;gap:8px}.lpKnoppen button{border:0;border-radius:12px;padding:14px;font:inherit;font-weight:800;font-size:17px;cursor:pointer}.lpNee{background:#37474f;color:#fff}.lpJa{background:#2e7d32;color:#fff}.lpJa:disabled{opacity:.5}
 .kiepTabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}.kiepTabs button{border:2px solid #2e7d32;background:transparent;color:#fff;border-radius:12px;padding:12px;font:inherit;font-weight:800;font-size:17px;cursor:pointer}.kiepTabs button.aan{background:#2e7d32}.kiepTabs small{background:#ffd54f;color:#222;border-radius:9px;padding:0 7px;font-size:12px;margin-left:4px}.kiepPlan.groot .kiepPlanRij{min-height:76px;font-size:18px}
 .psKaart.aan{border:2px solid #2e7d32;background:#f3faf3}.psKaart code{background:#eef;padding:1px 4px;border-radius:4px;word-break:break-all}.psUitleg summary{cursor:pointer;font-weight:600;margin-top:8px}.psLog{margin-top:8px}
 .etActRij{display:flex;align-items:center;gap:10px;width:100%;border:1px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;margin-bottom:6px;text-align:left;font:inherit;cursor:pointer}.etActRij:active{background:#eef6ef}
@@ -1412,6 +1423,7 @@ const RECHTEN = [
   ['exact_bekijken', 'Exact Online bekijken (relaties, orders, facturen, voorraad, boekingen)', 'P&O'],
   ['pno_beheren', 'P&O: budget, tarieven, toelichtingen, personeelskosten en werknemergroepen aanpassen', 'P&O'],
   ['resultaten_invoeren', 'Resultaten invoeren: rooien, kiepen, telling koelcel', 'Resultaten'],
+  ['lijnen_instellen', 'Sorteerlijnen in SSOR instellen (partij en kistjes per kleur)', 'Resultaten'],
   ['resultaten_bekijken', 'Resultaten-rapport en prognose bekijken', 'Resultaten'],
   ['resultaten_beheren', 'Resultaten beheren: SSOR inlezen, corrigeren, prognose en instellingen', 'Resultaten'],
   ['ai_gebruiken', 'AI-assistent gebruiken (typen of praten tegen de app; acties altijd eerst bevestigen)', 'AI'],
@@ -4913,7 +4925,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v143';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v145';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -9554,7 +9566,10 @@ async function kiepLijnCheck(pids) {
     `Op deze lijn ligt nog <b>${esc(lijnStandTekst(st))}</b>${st.sinds ? ' (sinds ' + tijdKort(st.sinds) + ')' : ''}.<br>Je kiept nu <b>${esc(nTekst)}</b>, een andere soort.`,
     [['leeg', `✅ Ja, lijn is leeg: kiep ${esc(nTekst)}`]]);
   if (k !== 'leeg') { toast('Niet gekiept'); return false; }
-  return await lijnLeegMaken(lijn, true);
+  const ok = await lijnLeegMaken(lijn, true);
+  // nieuwe soort op de lijn: meteen de kistjes per kleur instellen in SSOR
+  if (ok && magLijnenSsor() && ssorLijnVan(lijn) && anders.length === 1) setTimeout(() => lijnPopOpen(lijn, anders[0].id), 900);
+  return ok;
 }
 async function lijnLeegMaken(lijn = kiepLijnNu(), zonderVraag) {
   if (!lijn) return false;
@@ -9567,6 +9582,177 @@ async function lijnLeegMaken(lijn = kiepLijnNu(), zonderVraag) {
   if (error) { toast(/lijn_leeg|schema cache/i.test(error.message) ? 'Draai eerst lijn-stand.sql in Supabase' : foutTekst(error), 1); return false; }
   S.lijnStand = {...(S.lijnStand || {}), [lijn]: {lijn, partij_id: null, ras: null, sinds: null, leeg_op: new Date().toISOString(), leeg_door: naamMe()}};
   toast(`🧹 ${lijnKort(lijn)} is leeg`); kiepVerversen(); return true;
+}
+/* ---------- 🏭 LIJNEN: partij + kistjes per kleur kistkaart in SSOR zetten (via de wachtrij ssor_opdrachten) ---------- */
+// De app schrijft niet zelf in SSOR: hij zet een opdracht klaar; de uitvoerder op de pc van de Control Tower voert hem uit.
+const SSOR_KLEUR_STD = {Blauw: 4, Geel: 12, Groen: 6, Rood: 5, Wit: 3, Mint: 1, Rose: 2};
+const SSOR_KLEUR_CSS = {Blauw: '#1e88e5', Geel: '#fdd835', Groen: '#43a047', Rood: '#e53935', Wit: '#ffffff', Mint: '#8fe3c8', Rose: '#f8a5c2'};
+const ssorKleuren = () => { let k = null; try { k = JSON.parse(S.inst?.ssor_kleuren || 'null'); } catch {} k = k && typeof k === 'object' && Object.keys(k).length ? k : SSOR_KLEUR_STD;
+  const volg = Object.keys(SSOR_KLEUR_STD); return Object.entries(k).sort((a, b) => (volg.indexOf(a[0]) + 1 || 99) - (volg.indexOf(b[0]) + 1 || 99)); };
+const ssorKleurNaam = code => (ssorKleuren().find(([, c]) => +c === +code) || ['Kleur ' + code])[0];
+const ssorKoppeling = () => { try { return JSON.parse(S.inst?.ssor_lijn_koppeling || '{}') || {}; } catch { return {}; } };
+const magLijnenSsor = () => !archief && (isKiep() || mag('lijnen_instellen') || isBeheerder());
+// de SSOR-lijn bij een app-lijn: eerst de vaste koppeling, anders alleen bij precies dezelfde naam
+const ssorLijnVan = appLijn => { const k = ssorKoppeling()[appLijn]; if (k) return k; const l = (S.ssorL?.lijnen || []).find(x => x.naam === appLijn); return l ? l.naam : ''; };
+async function ssorLijnenLaden(forceer) {
+  if (!forceer && S.ssorL && Date.now() - S.ssorL.t < 60000) return S.ssorL;
+  if (ssorLijnenLaden.bezig) return ssorLijnenLaden.bezig;
+  ssorLijnenLaden.bezig = (async () => {
+    try {
+      const [l, st, kl, ks, op] = await Promise.all([sb.from('ssor_lijnen').select('*').order('naam'), sb.from('ssor_lijn_stand').select('*'), sb.from('ssor_lijn_kleuren').select('*'),
+        S.ssorL?.kistsoorten?.length && !forceer ? Promise.resolve({data: S.ssorL.kistsoorten}) : sb.from('ssor_kistsoorten').select('id,naam,aantal,kleur').order('naam'),
+        sb.from('ssor_opdrachten').select('*').order('id', {ascending: false}).limit(40)]);
+      if (l.error) { S.ssorL = {fout: /ssor_lijnen|schema cache|does not exist/i.test(l.error.message) ? 'Draai eerst ssor-lijnen.sql in Supabase' : foutTekst(l.error), t: Date.now(), lijnen: [], kistsoorten: []}; return S.ssorL; }
+      const ids = [...new Set((st.data || []).flatMap(r => [r.locatie_id, r.sublocatie_id]).filter(Boolean))];
+      const pl = ids.length ? (await sb.from('ssor_plekken').select('id,naam,nak').in('id', ids)).data || [] : [];
+      S.ssorL = {lijnen: l.data || [], stand: st.data || [], kleuren: kl.data || [], kistsoorten: ks.data || [], opdrachten: op.data || [], plekken: Object.fromEntries(pl.map(p => [p.id, p])), t: Date.now()};
+    } catch (e) { S.ssorL = {fout: foutTekst(e), t: Date.now(), lijnen: [], kistsoorten: []}; }
+    finally { ssorLijnenLaden.bezig = null; }
+    return S.ssorL;
+  })();
+  return ssorLijnenLaden.bezig;
+}
+// wat staat er volgens SSOR op een SSOR-lijn (of volgens de laatste gelukte opdracht als die nieuwer is dan de laatste sync)
+function ssorStandVan(ssorLijn) {
+  const D = S.ssorL || {}, l = (D.lijnen || []).find(x => x.naam === ssorLijn); if (!l && !ssorLijn) return null;
+  const st = l && (D.stand || []).find(s => +s.lijn_id === +l.id), kl = l ? (D.kleuren || []).filter(k => +k.lijn_id === +l.id) : [];
+  const op = (D.opdrachten || []).find(o => o.ssor_lijn === ssorLijn && o.status === 'klaar');
+  if (op && (!st || new Date(op.klaar_op) > new Date(st.bijgewerkt)))
+    return {bron: 'app', partij: op.partij, perceel: op.perceel, kleuren: (op.kleuren || []).map(k => ({kleur: +k.kleur, sortering_id: +k.sortering_id})), tijd: op.klaar_op, lijn: l};
+  const p = id => id && D.plekken?.[id];
+  return {bron: 'ssor', partij: p(st?.sublocatie_id)?.naam || '', perceel: p(st?.locatie_id)?.naam || '', kleuren: kl.map(k => ({kleur: +k.kleur, sortering_id: +k.sortering_id})), tijd: st?.bijgewerkt, lijn: l};
+}
+const kistSoort = id => (S.ssorL?.kistsoorten || []).find(k => +k.id === +id);
+const kistSoortTekst = k => k ? `${k.naam}${k.aantal ? ' · ' + getal(+k.aantal) + ' per kist' : ''}` : '?';
+const ssorOpdrachtVan = ssorLijn => (S.ssorL?.opdrachten || []).find(o => o.ssor_lijn === ssorLijn);
+function ssorOpdrachtStatus(o) {
+  if (!o) return '';
+  if (o.status === 'klaar') return `<span class="lpOk">✔ in SSOR gezet ${tijdKort(o.klaar_op)}</span>`;
+  if (o.status === 'fout') return o.fout === 'Vervangen door een nieuwere opdracht' ? '' : `<span class="lpFout">⚠️ ${esc(o.fout || 'Mislukt')}</span>`;
+  const oud = Date.now() - new Date(o.gemaakt_op) > 10 * 60e3;
+  return oud && o.status === 'wacht' ? `<span class="lpFout">⚠️ Control Tower niet bereikbaar (wacht sinds ${tijdKort(o.gemaakt_op)})</span>` : `<span class="lpBezig">⏳ ${o.status === 'bezig' ? 'wordt nu in SSOR gezet…' : 'wacht op de Control Tower…'}</span>`;
+}
+const kleurBlokje = naam => `<i class="lpKl" style="background:${SSOR_KLEUR_CSS[naam] || '#999'}"></i>`;
+// het tabblad 🏭 Lijnen op de kieptelefoon
+const LS = {pid: null};
+function kiepLijnenHtml() {
+  if (!S.ssorL || Date.now() - S.ssorL.t > 30000) setTimeout(() => ssorLijnenLaden(true).then(() => kiepVerversen()), 0);
+  const D = S.ssorL; if (!D) return '<div class="kiepUitleg">Lijnen laden…</div>';
+  if (D.fout) return `<div class="kiepUitleg" style="color:#ffd54f">⚠️ ${esc(D.fout)}</div>`;
+  const lijnen = sorteerLijnen(), beh = mag('voorraad_beheren') || isBeheerder(), y = LS.pid && (S.partijen || []).find(z => z.id === LS.pid);
+  return `<div class="kiepUitleg">Scan de box (kuubskist) van de partij, en tik dan op de lijn. Daarna kies je per kleur kistkaart het soort kistje.</div>
+    <div class="lpScan">${y ? `📦 Gescand: <b>${esc(partijKort(y))}</b>${y.nak && y.nak !== y.batch ? ` <small>NAK ${esc(y.nak)}</small>` : ''} <button onclick="LS.pid=null;kiepVerversen()">✖</button>` : '📷 Nog geen box gescand. Je kunt ook meteen een lijn aantikken.'}</div>
+    ${lijnen.map(n => { const sl = ssorLijnVan(n), st = sl ? ssorStandVan(sl) : null, op = sl && ssorOpdrachtVan(sl);
+      return `<button class="lpKaart" onclick='lijnPopOpen(${esc(JSON.stringify(n))})'><div class="lpKop"><b>${esc(lijnKort(n))}</b><small>${sl ? 'SSOR: ' + esc(sl) : '⚠️ nog niet aan een SSOR-lijn gekoppeld'}</small></div>
+        ${st && st.partij ? `<div>Partij <b>${esc(st.partij)}</b>${st.perceel ? ' · ' + esc(st.perceel) : ''}</div>` : sl ? '<div style="opacity:.7">Geen partij op de lijn</div>' : ''}
+        ${st?.kleuren?.length ? `<div class="lpChips">${st.kleuren.map(k => `<span>${kleurBlokje(ssorKleurNaam(k.kleur))}${esc(kistSoort(k.sortering_id)?.naam || '#' + k.sortering_id)}</span>`).join('')}</div>` : ''}
+        ${op ? `<div>${ssorOpdrachtStatus(op)}</div>` : ''}</button>`; }).join('') || '<div class="kiepUitleg">Nog geen sorteerlijnen opgegeven.</div>'}
+    ${beh ? '<button class="kiepLijnSync" style="background:#37474f" onclick="ssorKoppelInstellen()">🔗 App-lijnen koppelen aan SSOR-lijnen</button>' : ''}
+    <div class="kiepUitleg" style="opacity:.6">SSOR bijgewerkt: ${D.stand?.[0]?.bijgewerkt ? datumKort(D.stand[0].bijgewerkt) + ' ' + tijdKort(D.stand[0].bijgewerkt) : 'nog niet'} (elk half uur, of na ✔)</div>`;
+}
+// beheer: welke app-lijn hoort bij welke SSOR-lijn (PRODUCTIONLINE.NAME = tabblad in de Control Tower)
+async function ssorKoppelInstellen() {
+  await ssorLijnenLaden(true);
+  const sl = (S.ssorL?.lijnen || []).map(l => l.naam).filter(Boolean), k = ssorKoppeling(), app = sorteerLijnen();
+  if (!app.length) { toast('Geef eerst de sorteerlijnen op (⚙️)', 1); return; }
+  if (!sl.length) { toast('Er zijn nog geen SSOR-lijnen binnen. Draai ssor-lijnen.sql en laat de koppeling één keer bijwerken.', 1); return; }
+  const w = await formulier('🔗 App-lijn → SSOR-lijn', [{type: 'uitleg', waarde: 'Kies per lijn de SSOR-lijn zoals die in de Control Tower als tabblad staat (bijv. Lijn 1a). Die loopt niet altijd gelijk met de naam van de dagtaak, dus niet raden op naam.'},
+    ...app.map((n, i) => ({k: 'l' + i, label: lijnKort(n) + '  (' + n + ')', type: 'select', waarde: k[n] || (sl.includes(n) ? n : ''), opties: [['', '— niet gekoppeld —'], ...sl.map(x => [x, x])]}))], 'Opslaan');
+  if (!w) return;
+  const obj = {}; app.forEach((n, i) => { if (w['l' + i]) obj[n] = w['l' + i]; });
+  const {error} = await sb.rpc('zet_instelling', {p_sleutel: 'ssor_lijn_koppeling', p_waarde: JSON.stringify(obj)});
+  if (error) { toast(/Onbekende instelling/.test(error.message) ? 'Draai eerst ssor-lijnen.sql in Supabase' : foutTekst(error), 1); return; }
+  S.inst = {...(S.inst || {}), ssor_lijn_koppeling: JSON.stringify(obj)}; toast(`🔗 ${Object.keys(obj).length} lijnen gekoppeld`); kiepVerversen();
+}
+// partij uit een gescande code (box, pallet of kistkaart)
+async function lijnPartijUitCode(raw) {
+  const s = String(raw || '').trim().toUpperCase(); if (!s) return null;
+  if (/^K/.test(s)) { const i = await hfKistInfo(s); return i?.partij_id || null; }
+  const code = etCodeUit(s) || (/^[PB]\d+$/.test(s) ? s : null); if (!code) return null;
+  const e = await etZoek(code); if (!e) return null;
+  if (e.partij_id) return e.partij_id;
+  if (e.soort === 'pallet') { const b = (S.etiketten || []).find(x => x.op_pallet === e.code && x.partij_id); return b?.partij_id || null; }
+  return null;
+}
+const lijnScanWil = () => !!$('#lpPop') || ((!!$('#kiepScherm') || tab === 'reskiep') && kiepTab === 'lijnen');
+async function lijnScan(raw) {
+  const pid = await lijnPartijUitCode(raw);
+  if (!pid) { toast(`${String(raw).trim()}: geen partij gevonden`, 1); try { navigator.vibrate?.([90, 60, 90]); } catch {} return; }
+  try { navigator.vibrate?.(60); } catch {}
+  if ($('#lpPop')) { LP.pid = pid; await lijnPopPartij(); lijnPopTeken(); return; }
+  LS.pid = pid; const y = (S.partijen || []).find(z => z.id === pid); toast(`📦 ${y ? partijKort(y) : 'Partij'}: tik nu op de lijn`); kiepVerversen();
+}
+// de pop-up, zoals het lijnscherm in de Control Tower
+const LP = {};
+async function lijnPopOpen(appLijn, pid) {
+  if (!magLijnenSsor()) { toast('Je mag geen sorteerlijnen in SSOR instellen', 1); return; }
+  await ssorLijnenLaden();
+  const sl = ssorLijnVan(appLijn);
+  if (!sl) { if (mag('voorraad_beheren') || isBeheerder()) { toast('Koppel deze lijn eerst aan een SSOR-lijn', 1); ssorKoppelInstellen(); } else toast('Deze lijn is nog niet aan een SSOR-lijn gekoppeld; vraag de beheerder', 1); return; }
+  const st = ssorStandVan(sl) || {};
+  const appSt = (S.lijnStand || {})[appLijn];
+  Object.keys(LP).forEach(k => delete LP[k]);
+  Object.assign(LP, {appLijn, ssorLijn: sl, st, pid: pid || LS.pid || appSt?.partij_id || null, zoek: '', kleuren: Object.fromEntries((st.kleuren || []).map(k => [k.kleur, k.sortering_id])), opdracht: null});
+  LS.pid = null;
+  if (!LP.pid && st.partij) LP.partijNaam = st.partij, LP.perceel = st.perceel || '';
+  await lijnPopPartij(); lijnPopTeken();
+}
+// de partij opzoeken in SSOR (NAK; bij meerdere percelen kiezen)
+async function lijnPopPartij() {
+  const y = LP.pid && (S.partijen || []).find(z => z.id === LP.pid); LP.treffers = null;
+  if (!y) return;
+  const probeer = [y.nak, y.batch].map(v => String(v || '').trim()).filter((v, i, a) => v && a.indexOf(v) === i);
+  for (const nak of probeer) {
+    const {data, error} = await sb.rpc('ssor_partij_zoek', {p_nak: nak});
+    if (error) { LP.treffers = []; LP.zoekFout = /ssor_partij_zoek|schema cache/i.test(error.message) ? 'Draai eerst ssor-lijnen.sql in Supabase' : foutTekst(error); return; }
+    if (data?.length) { LP.treffers = data; LP.partijNaam = data[0].partij; LP.perceel = data.length === 1 ? data[0].perceel || '' : (data.find(t => t.perceel === LP.perceel)?.perceel || ''); return; }
+  }
+  LP.treffers = []; LP.partijNaam = probeer[0] || ''; LP.perceel = '';
+}
+function lijnPopTeken() {
+  let el = $('#lpPop'); if (!el) { el = document.createElement('div'); el.id = 'lpPop'; document.body.appendChild(el); }
+  const y = LP.pid && (S.partijen || []).find(z => z.id === LP.pid), st = LP.st || {}, ks = S.ssorL?.kistsoorten || [], z = (LP.zoek || '').toLowerCase();
+  const anders = st.partij && LP.partijNaam && st.partij !== LP.partijNaam;
+  const rijen = ssorKleuren().map(([naam, code]) => {
+    const keus = ks.filter(k => +k.kleur === +code), gek = LP.kleuren[code];
+    const zicht = keus.filter(k => !z || String(k.naam || '').toLowerCase().includes(z) || +k.id === +gek);
+    const dubbel = n => keus.filter(k => k.naam === n).length > 1;
+    return `<div class="lpRij">${kleurBlokje(naam)}<span class="lpNaam">${esc(naam)}</span>
+      <select onchange="LP.kleuren[${+code}]=this.value?+this.value:null">${[`<option value="">(Geen)</option>`, ...zicht.map(k => `<option value="${k.id}" ${+k.id === +gek ? 'selected' : ''}>${esc(kistSoortTekst(k))}${dubbel(k.naam) ? ' (id ' + k.id + ')' : ''}</option>`)].join('')}</select></div>`; }).join('');
+  const op = LP.opdracht && (S.ssorL?.opdrachten || []).find(o => o.id === LP.opdracht) || (LP.opdracht ? {status: 'wacht', gemaakt_op: new Date().toISOString()} : null);
+  el.innerHTML = `<div class="lpVenster"><div class="lpTitel">🏭 ${esc(lijnKort(LP.appLijn))} <small>SSOR: ${esc(LP.ssorLijn)}</small><button onclick="lijnPopDicht()">✖</button></div>
+    <div class="lpPartij">${y ? `<b>${esc(partijKort(y))}</b>${y.klasse ? ' · ' + esc(y.klasse) : ''}` : LP.partijNaam ? `<b>Partij ${esc(LP.partijNaam)}</b>` : '<b style="color:#ffd54f">📷 Scan de box van de partij</b>'}
+      ${LP.partijNaam ? `<div>SSOR-partij (NAK): <b>${esc(LP.partijNaam)}</b>${LP.treffers?.length > 1 ? ` · perceel <select onchange="LP.perceel=this.value">${['<option value="">— kies het perceel —</option>', ...LP.treffers.map(t => `<option ${t.perceel === LP.perceel ? 'selected' : ''}>${esc(t.perceel || '')}</option>`)].join('')}</select>` : LP.perceel ? ' · ' + esc(LP.perceel) : ''}</div>` : ''}
+      ${LP.zoekFout ? `<div class="lpFout">⚠️ ${esc(LP.zoekFout)}</div>` : LP.treffers && !LP.treffers.length && y ? `<div class="lpFout">⚠️ Deze partij staat (nog) niet actief in SSOR. Zet hem eerst in SSOR, of wacht op de volgende bijwerking.</div>` : ''}
+      ${anders ? `<div class="lpNu">Nu in SSOR op deze lijn: partij ${esc(st.partij)}${st.perceel ? ' · ' + esc(st.perceel) : ''}</div>` : ''}</div>
+    <input class="veld lpZoek" placeholder="🔍 Zoek kistje (bijv. FR-A2+)" value="${esc(LP.zoek || '')}" oninput="LP.zoek=this.value;clearTimeout(LP.zt);LP.zt=setTimeout(()=>{const p=this.selectionStart;lijnPopTeken();const i=$('#lpPop .lpZoek');i.focus();i.setSelectionRange(p,p)},250)">
+    <div class="lpRijen">${rijen}</div>
+    <div class="lpLet">De lijn staat een paar seconden stil tijdens het opslaan (de koppeling stopt en start hem in de Control Tower).</div>
+    ${op ? `<div class="lpStatus">${ssorOpdrachtStatus(op)}</div>` : ''}
+    <div class="lpKnoppen"><button class="lpNee" onclick="lijnPopDicht()">${op?.status === 'klaar' ? 'Sluiten' : 'Annuleren'}</button><button class="lpJa" ${LP.bezig ? 'disabled' : ''} onclick="lijnPopOpslaan()">💾 Opslaan in SSOR</button></div></div>`;
+}
+function lijnPopDicht() { clearInterval(LP.poll); $('#lpPop')?.remove(); kiepVerversen(); }
+async function lijnPopOpslaan() {
+  if (LP.bezig) return;
+  if (!LP.partijNaam) { toast('Scan eerst de box van de partij', 1); return; }
+  if (LP.treffers?.length > 1 && !LP.perceel) { toast('Deze partij staat op meer percelen: kies het perceel', 1); return; }
+  const kleuren = Object.entries(LP.kleuren).filter(([, v]) => v).map(([k, v]) => ({kleur: +k, sortering_id: +v}));
+  if (!kleuren.length && !await bevestigJa('Geen kistjes gekozen', 'Bij geen enkele kleur is een kistje gekozen. Dan wordt alles in de Control Tower op (Geen) gezet. Toch doorgaan?', 'Toch opslaan')) return;
+  LP.bezig = true; lijnPopTeken();
+  const {data, error} = await sb.rpc('ssor_lijn_opdracht', {p_ssor_lijn: LP.ssorLijn, p_partij: LP.partijNaam, p_perceel: LP.treffers?.length > 1 ? LP.perceel : (LP.perceel || null), p_kleuren: kleuren, p_partij_id: LP.pid || null, p_app_lijn: LP.appLijn});
+  LP.bezig = false;
+  if (error) { toast(/ssor_lijn_opdracht|schema cache/i.test(error.message) ? 'Draai eerst ssor-lijnen.sql in Supabase' : foutTekst(error), 1); lijnPopTeken(); return; }
+  LP.opdracht = data; toast('⏳ Wordt in SSOR gezet…'); lijnPopTeken();
+  // volgen tot klaar of fout (de uitvoerder kijkt elke minuut)
+  clearInterval(LP.poll);
+  LP.poll = setInterval(async () => {
+    if (!$('#lpPop')) { clearInterval(LP.poll); return; }
+    const {data: o} = await sb.from('ssor_opdrachten').select('*').eq('id', LP.opdracht).maybeSingle();
+    if (!o) return;
+    S.ssorL.opdrachten = [o, ...(S.ssorL.opdrachten || []).filter(x => x.id !== o.id)];
+    lijnPopTeken();
+    if (o.status === 'klaar' || o.status === 'fout') { clearInterval(LP.poll); if (o.status === 'klaar') { try { navigator.vibrate?.(80); } catch {} toast(`✔ ${lijnKort(LP.appLijn)} staat in SSOR`); } else toast('⚠️ ' + (o.fout || 'Mislukt'), 1); }
+  }, 4000);
 }
 async function kiepZetLijn(n) {
   const p = mijnProfiel(), nieuw = kiepLijnNu() === n ? '' : n;
@@ -9636,8 +9822,9 @@ function kiepInhoud() {
   const kc = kiepKcLijst(), l = kiepLijst(), mijnVandaag = (S.res_invoer || []).filter(i => i.soort === 'kiepen' && i.datum === vandaag()).reduce((a, i) => a + n0(i.bakken), 0), lt = kiepLaatste();
   const lx = lt && (S.partijen || []).find(x => x.id === lt.partij_id);
   // tabjes: Gepland (wat er vandaag gekiept moet worden) en Wat staat er (alles, voor als ze nog een extra bak kiepen)
-  const plan = kpLijst(vandaag()), tabK = kiepTab === 'alles' || !plan.length ? 'alles' : 'gepland';
-  const tabs = `<div class="kiepTabs"><button class="${tabK === 'gepland' ? 'aan' : ''}" onclick="kiepZetTab('gepland')">📋 Gepland${plan.length ? ` <small>${plan.length}</small>` : ''}</button><button class="${tabK === 'alles' ? 'aan' : ''}" onclick="kiepZetTab('alles')">📦 Wat staat er <small>${fmt(l.reduce((a, y) => a + y.nog, 0) + kc.reduce((a, o) => a + o.n, 0))}</small></button></div>`;
+  const plan = kpLijst(vandaag()), metLijnen = magLijnenSsor() && sorteerLijnen().length, tabK = kiepTab === 'lijnen' && metLijnen ? 'lijnen' : kiepTab === 'alles' || !plan.length ? 'alles' : 'gepland';
+  const tabs = `<div class="kiepTabs${metLijnen ? ' drie' : ''}"><button class="${tabK === 'gepland' ? 'aan' : ''}" onclick="kiepZetTab('gepland')">📋 Gepland${plan.length ? ` <small>${plan.length}</small>` : ''}</button><button class="${tabK === 'alles' ? 'aan' : ''}" onclick="kiepZetTab('alles')">📦 Wat staat er <small>${fmt(l.reduce((a, y) => a + y.nog, 0) + kc.reduce((a, o) => a + o.n, 0))}</small></button>${metLijnen ? `<button class="${tabK === 'lijnen' ? 'aan' : ''}" onclick="kiepZetTab('lijnen')">🏭 Lijnen</button>` : ''}</div>`;
+  if (tabK === 'lijnen') return `${kiepModusKnoppen()}${kiepLijnHtml()}${tabs}${kiepLijnenHtml()}`;
   if (tabK === 'gepland') return `${kiepModusKnoppen()}${kiepLijnHtml()}${tabs}${lt ? `<button class="kiepTerug" onclick="kiepTerug()">↶ Oeps, laatste bak terug<small>${esc(lx ? partijKort(lx) : '')} · ${tijdKort(lt.created_at)}</small></button>` : ''}
     <div class="kiepUitleg">Dit moet er vandaag gekiept worden. Tik op een regel om te kiepen. <b>Vandaag ${fmt(mijnVandaag)} gekiept (alle tablets samen).</b></div>${kiepPlanHtml(true)}
     <p class="kiepUitleg" style="opacity:.8">Nog een extra bak kiepen die niet gepland is? Kijk bij <b>📦 Wat staat er</b>.</p>${kiepVandaagHtml()}`;
@@ -14540,18 +14727,22 @@ async function kcPalletWeg(nr, cel) {
   toast(data || `🗑️ Pallet ${nr} verwijderd`); render(true); kcOpen(cel);
 }
 // BON voor een extern koelbedrijf: wat er heen gaat (vandaag) of wat er staat. Opmaak voorlopig; de echte bon volgt nog.
-async function kcBonVraag(naar) { if (!kcIsExtern(naar)) return; if (await bevestigJa(`📄 Bon voor ${esc(naar)}?`, 'Dit gaat naar een extern koelbedrijf. Wil je een bon printen zodat zij weten wat eraan komt?', '📄 Bon maken')) kcBon(naar, 'vandaag'); }
-function kcBon(cel, wat) {
-  const plek = kcPlek(cel) || {naam: cel}, dag = vandaag(), regels = [];
-  if (wat === 'vandaag') {   // wat er vandaag in deze plek is gekomen (inslag of verplaatst hierheen)
-    const m = new Map(); (S.partij_mutaties || []).filter(x => x.koelcel === cel && x.datum === dag && (x.soort === 'in' || (x.soort === 'correctie' && +x.aantal > 0))).forEach(x => {
+// ids = de boekingen van wat je nu in je hand had → de bon bevat alleen dat
+async function kcBonVraag(naar, ids) { if (!kcIsExtern(naar)) return; if (await bevestigJa(`📄 Bon voor ${esc(naar)}?`, 'Dit gaat naar een extern koelbedrijf. Wil je een bon printen met wat je nu hebt weggezet?', '📄 Bon maken')) kcBon(naar, ids?.length ? 'nu' : 'vandaag', ids); }
+// boekingen die er sinds een momentopname bij zijn gekomen in een koelcel
+const kcMutIds = () => new Set((S.partij_mutaties || []).map(m => m.id));
+const kcNieuweIn = (voor, cel) => (S.partij_mutaties || []).filter(m => !voor.has(m.id) && m.koelcel === cel && (m.soort === 'in' || (m.soort === 'correctie' && +m.aantal > 0))).map(m => m.id);
+function kcBon(cel, wat, ids) {
+  const plek = kcPlek(cel) || {naam: cel}, dag = vandaag(), regels = [], idSet = new Set(ids || []);
+  if (wat === 'vandaag' || wat === 'nu') {   // vandaag: alles wat er vandaag heen ging · nu: alleen wat je net in je hand had
+    const m = new Map(); (S.partij_mutaties || []).filter(x => x.koelcel === cel && (wat === 'nu' ? idSet.has(x.id) : x.datum === dag) && (x.soort === 'in' || (x.soort === 'correctie' && +x.aantal > 0))).forEach(x => {
       const k = x.partij_id + '|' + (x.pallet || '') + '|' + x.eenheid, o = m.get(k) || {pid: x.partij_id, pallet: x.pallet, eenheid: x.eenheid, per: x.per_eenheid, n: 0}; o.n += +x.aantal || 0; if (x.per_eenheid) o.per = x.per_eenheid; m.set(k, o); });
     regels.push(...m.values());
   } else {
     kcPallets().filter(p => p.cel === cel).forEach(p => p.regels.forEach(r => regels.push({pid: r.partij_id, pallet: p.nr, eenheid: r.eenheid || 'kistjes', per: r.per, n: r.kistjes})));
     (S.partijen || []).forEach(y => { const l = kcLos(y.id, cel); if (l.planten > .5) { const per = l.eenheid !== 'planten' ? +l.per_eenheid || 0 : 0; regels.push({pid: y.id, pallet: null, eenheid: per ? l.eenheid : l.eenheid === 'planten' ? 'planten' : l.eenheid, per: per || null, n: per ? l.planten / per : l.planten}); } });
   }
-  if (!regels.length) { toast(wat === 'vandaag' ? `Er is vandaag niets naar ${cel} gegaan` : `Er staat niets in ${cel}`, 1); return; }
+  if (!regels.length) { toast(wat === 'nu' ? 'Ik kan niet vinden wat je net hebt weggezet; gebruik 📄 Bon: vandaag hierheen' : wat === 'vandaag' ? `Er is vandaag niets naar ${cel} gegaan` : `Er staat niets in ${cel}`, 1); return; }
   const r1 = n => getal(Math.round(n * 10) / 10);
   const rij = o => { const y = (S.partijen || []).find(z => z.id === o.pid) || {}, kk = [...(S.partij_mutaties || [])].reverse().find(m => m.partij_id === o.pid && /^kistkaart K/.test(m.notitie || ''));
     const pl = o.eenheid === 'planten' ? o.n : o.per ? o.n * o.per : null;
@@ -14566,7 +14757,7 @@ function kcBon(cel, wat) {
     .teken{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:40px}.teken div{border-top:1px solid #000;padding-top:4px;font-size:9pt}
     .knoppen{position:sticky;top:0;background:#fff;padding:8px;text-align:center;border-bottom:1px solid #ddd}.knoppen button{font-size:16px;padding:8px 16px}@media print{.knoppen{display:none}}</style></head><body>
     <div class="knoppen"><button onclick="print()">🖨️ Afdrukken</button></div>
-    <div class="kop"><div><h1>Vrachtbon koelhuis</h1><small>De Kemp BV</small></div><div style="text-align:right"><b>Bon ${nr}</b><small>${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</small><small>${wat === 'vandaag' ? 'Wat er vandaag heen gaat' : 'Alles wat er staat'}</small></div></div>
+    <div class="kop"><div><h1>Vrachtbon koelhuis</h1><small>De Kemp BV</small></div><div style="text-align:right"><b>Bon ${nr}</b><small>${new Date().toLocaleDateString('nl-NL', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</small><small>${wat === 'nu' ? 'Deze lading' : wat === 'vandaag' ? 'Wat er vandaag heen gaat' : 'Alles wat er staat'}</small></div></div>
     <div class="adr"><div><b>Van</b>De Kemp BV</div><div><b>Naar</b>${esc(plek.naam)}${plek.adres ? '<br>' + esc(plek.adres) : ''}${plek.contact ? '<br>t.a.v. ' + esc(plek.contact) : ''}${plek.telefoon ? '<br>' + esc(plek.telefoon) : ''}</div></div>
     <table><thead><tr><th>Pallet</th><th>Ras</th><th>Batch</th><th>Klasse</th><th>Sortering</th><th class="g">Aantal</th><th class="g">Per kist</th><th class="g">Planten</th></tr></thead>
       <tbody>${rs.map(r => r.html).join('')}</tbody><tfoot><tr><td colspan="5">${npal ? npal + ' ' + (npal === 1 ? 'pallet' : 'pallets') : ''}</td><td></td><td></td><td class="g">${getal(Math.round(tot))}</td></tr></tfoot></table>
@@ -14771,7 +14962,7 @@ async function kcVerplaatsNu(pid, van, naar, pallet) {
   const ids = pallet ? [...new Set(rijen.map(r => r.partij_id))] : [pid];
   for (const r of vbRes().filter(r => ids.includes(r.partij_id) && (r.koelcel || '—') === van && !(voorraadVan(r.partij_id).get(van)?.planten > .5))) {
     const {data: d} = await sb.from('voorraad_reserveringen').update({koelcel: naar}).eq('id', r.id).select().single(); if (d) Object.assign(r, d); }
-  render(true); toast(`↔ ${pallet ? 'Pallet ' + pallet : 'Verplaatst'} naar ${naar}`); kcBonVraag(naar);
+  render(true); toast(`↔ ${pallet ? 'Pallet ' + pallet : 'Verplaatst'} naar ${naar}`); kcBonVraag(naar, (data || []).filter(d => d.koelcel === naar && +d.aantal > 0).map(d => d.id));
 }
 function htmlBestemmingen(beh) {
   const l = vbBest(), heeftEigen = l.some(b => b.soort === 'eigen');
@@ -15868,7 +16059,8 @@ async function hfBoek0(actie, doel, codes, houd) {
   // kistjes die je net van de pallet hebt gehaald: alleen die verplaatsen, de pallet zelf blijft staan
   if (metKist && HF.kist.some(k => k.cel) && !HF.hand.length && !HF.kist.some(k => k.pal)) codes = [];
   if (metKist) HF.paletten.forEach(pe => { if (HF.kist.some(k => k.pal === String(pe.nr)) && !hfCel(pe) && !hfOpPallet(pe.code).length) codes = codes.filter(c => c !== pe.code); });
-  if (metKist && !codes.length) { HF.bezig = true; hfTeken(); const ok = await hfKistInslaan(doel); HF.bezig = false; if (ok) hfLeeg(true); hfTeken(); return; }
+  const bonVoor = actie === 'koelcel' && kcIsExtern(doel) ? kcMutIds() : null;
+  if (metKist && !codes.length) { HF.bezig = true; hfTeken(); const ok = await hfKistInslaan(doel); HF.bezig = false; if (ok) hfLeeg(true); hfTeken(); if (ok && bonVoor) setTimeout(() => kcBonVraag(doel, kcNieuweIn(bonVoor, doel)), 300); return; }
   if (!codes.length) { hfMeld(actie === 'kiep' ? 'Scan eerst de bakken die je kiept' : 'Scan eerst een pallet of de bakken, daarna de koelcel', 1); return; }
   if (actie === 'kiep') { HF.bezig = true; const ok = await kiepLijnCheck(kiepPidsVanCodes(codes)); HF.bezig = false; if (!ok) { hfTeken(); return; } }
   HF.bezig = true; hfTeken();
@@ -15885,7 +16077,7 @@ async function hfBoek0(actie, doel, codes, houd) {
   else try { navigator.vibrate?.(60); } catch {}
   const kistOk = metKist ? await hfKistInslaan(doel) : true;
   if (actie === 'koelcel') try { await hfVervers(codes, sinds); await kcWagenBoxVerrekenen(codes, sinds); } catch {}
-  if (actie === 'koelcel' && !fouten.length) setTimeout(() => kcBonVraag(doel), 300);
+  if (actie === 'koelcel' && !fouten.length && bonVoor) setTimeout(() => kcBonVraag(doel, kcNieuweIn(bonVoor, doel)), 300);
   await hfVervers([...new Set([...codes, ...HF.hand.map(e => e.code), ...hfPalCodes()])], sinds);
   if (!houd && !fouten.length && kistOk) hfLeeg(true);
   hfTeken();
@@ -15900,6 +16092,7 @@ async function hfKistInslaan(cel) {
 }
 async function hfScan(raw, cam) {
   const s = String(raw || '').trim(); if (!s) return;
+  if (lijnScanWil()) { if (s === LS.laatst && Date.now() - LS.t < 2000) return; LS.laatst = s; LS.t = Date.now(); await lijnScan(s); return; }
   const isKist = /^K\d/i.test(s);
   if (s === HF.laatst && Date.now() - HF.laatstT < (!cam && (isKist || /(^|[=:])P\d+$/i.test(s)) ? 600 : 2500)) return; HF.laatst = s; HF.laatstT = Date.now();
   if (HF.bezig) { toast('Even wachten, ik ben nog aan het boeken…'); return; }
@@ -16705,6 +16898,7 @@ document.addEventListener('keydown', e => {
 }, true);
 function handscan(raw) {
   try {
+    if (lijnScanWil()) { hfScan(raw); return; }
     if (kiepScanActief()) { try { navigator.vibrate?.(60); } catch {} hfScan(raw); return; }
     if (!mijnProfiel?.() || !(ziet('voorraad_bekijken') || mag('voorraad_beheren') || magEtiket())) return;
     const kc = kcCodeUit(raw), et = etCodeUit(raw) || (/^[PB]\d+$/i.test(raw) ? raw.toUpperCase() : null);
@@ -17632,7 +17826,7 @@ async function pnoGroepenInlezen() {
 }
 
 // het koppelprogramma (wordt bij het downloaden ingevuld met het adres en de sleutel)
-const PNO_SCRIPT = "# =====================================================================\n#  SSOR -> Perceel App\n#  Leest uren, eenheden, dagtaken en stamgegevens uit SSOR (Firebird, via de bestaande\n#  ODBC-gegevensbron) en stuurt ze naar de app. Alleen lezen in SSOR, en alleen\n#  de kolommen die nodig zijn (geen adressen, BSN, IBAN, paspoort e.d.).\n#\n#  Draaien met de 32-bits PowerShell (want de ODBC-bron is 32-bits):\n#    C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy Bypass -File ssor-sync.ps1\n#  Eenmalig als taak inplannen (elke 2 minuten):\n#    ... -File ssor-sync.ps1 -Installeer\n#  Alles opnieuw inlezen vanaf $Vanaf:\n#    ... -File ssor-sync.ps1 -Volledig\n#  Nu meteen bijwerken, ook als het nog niet nodig is (handig om te testen):\n#    ... -File ssor-sync.ps1 -Altijd\n#\n#  Hoe vaak werkt hij echt bij? De taak start elke 2 minuten, maar het programma vraagt eerst aan de app\n#  (ssor_moet) of er iets te doen is. Hij werkt pas echt bij als het laatste keer meer dan een half uur geleden\n#  is, of als iemand in de app op \"Nu bijwerken\" klikte. Is er niets te doen, dan stopt hij meteen en schrijft\n#  hij niets in het logboek. Kan hij de app niet bereiken (geen internet), dan schrijft hij dat in het logboek\n#  en stopt hij met een foutcode, zodat de taakplanner het over 2 minuten opnieuw probeert.\n#  Met -Altijd of -Volledig slaat hij die vraag over en werkt hij altijd bij.\n# =====================================================================\nparam([switch]$Installeer, [switch]$Volledig, [switch]$Altijd)\n\n$Url     = '__URL__'          # Supabase-adres van de app\n$Anon    = '__ANON__'         # publieke sleutel van de app (dezelfde als in de app)\n$Sleutel = '__SLEUTEL__'      # geheime koppelsleutel (aangemaakt in de app bij P&O -> Koppeling)\n$Verbinding = '__VERBINDING__'  # ODBC-verbinding; staat het wachtwoord niet in de gegevensbron, zet er dan ;UID=...;PWD=... achter\n$Vanaf   = '__VANAF__'        # eerste keer alles inlezen vanaf deze datum\n$Venster = 21                 # elke keer de laatste zoveel dagen opnieuw vergelijken (wijzigingen en verwijderde regels)\n$Blok    = 2000               # regels per keer versturen\n\n$ErrorActionPreference = 'Stop'\n$Map = Split-Path -Parent $MyInvocation.MyCommand.Path\n$Log = Join-Path $Map 'ssor-sync.log'\n$Status = Join-Path $Map 'ssor-sync.status'\nfunction Schrijf($tekst) { $regel = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  ' + $tekst; Write-Host $regel; Add-Content -Path $Log -Value $regel -Encoding UTF8 }\n# uren van activiteiten over ziekte, verzuim of medische zaken worden nooit gelezen (besluit Siem, 20 nov 2026)\n# waarschuwingen: iets dat niet lukte maar de rest van de sync niet mag stoppen (komt in het logboek en in de app)\n$Waarschuwingen = New-Object System.Collections.Generic.List[string]\nfunction Waarschuw($tekst) { $kort = ([string]$tekst) -replace '\\s+', ' '; if ($kort.Length -gt 200) { $kort = $kort.Substring(0, 200) }; $Waarschuwingen.Add($kort); Schrijf ('WAARSCHUWING: ' + $kort) }\n\nif ($Installeer) {\n  $ps = (Get-Process -Id $PID).Path  # dezelfde PowerShell (32- of 64-bits) als waarmee je hem nu draait, die vindt de ODBC-bron\n  $actie = \"`\"$ps`\" -NoProfile -ExecutionPolicy Bypass -File `\"$($MyInvocation.MyCommand.Path)`\"\"\n  schtasks /Create /SC MINUTE /MO 2 /TN \"SSOR naar Perceel App\" /TR $actie /RU SYSTEM /F | Out-Null\n  Schrijf 'Taak \"SSOR naar Perceel App\" ingepland: elke 2 minuten even kijken; echt bijwerken elk half uur of na Nu bijwerken in de app.'\n  exit 0\n}\n\n[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12\n$Kop = @{ apikey = $Anon; Authorization = \"Bearer $Anon\" }\n\nfunction Lees([string]$sql) {\n  $cmd = $script:con.CreateCommand(); $cmd.CommandText = $sql; $cmd.CommandTimeout = 900\n  $rd = $cmd.ExecuteReader(); $lijst = New-Object System.Collections.Generic.List[object]\n  while ($rd.Read()) {\n    $o = [ordered]@{}\n    for ($i = 0; $i -lt $rd.FieldCount; $i++) {\n      $w = $rd.GetValue($i)\n      if ($w -is [DBNull]) { $w = $null }\n      elseif ($w -is [DateTime]) { $w = $w.ToString('yyyy-MM-dd') }\n      elseif ($w -is [TimeSpan]) { $w = $w.ToString() }\n      else { $w = [string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0}', $w).Trim() }\n      $o[$rd.GetName($i).ToLower()] = $w\n    }\n    $lijst.Add([pscustomobject]$o)\n  }\n  $rd.Close(); return ,$lijst\n}\n# versturen naar de app; gaat het mis, dan de echte melding van de database erbij (en welke tabel)\nfunction Post([string]$tabel, [string]$json, [string]$rpc = 'ssor_sync') {\n  try { return Invoke-RestMethod -Method Post -Uri \"$Url/rest/v1/rpc/$rpc\" -Headers $Kop -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($json)) }\n  catch { $d = [string]$_.ErrorDetails.Message; if ($d.Length -gt 400) { $d = $d.Substring(0, 400) }; throw ('Versturen van ' + $tabel + ' mislukt: ' + $_.Exception.Message + ' ' + $d) }\n}\nfunction Stuur([string]$tabel, $rijen, [string]$van = $null, [string]$tot = $null) {\n  $n = 0\n  for ($i = 0; $i -lt [Math]::Max($rijen.Count, 1); $i += $Blok) {\n    $deel = @(); if ($rijen.Count -gt 0) { $deel = @($rijen[$i..([Math]::Min($i + $Blok, $rijen.Count) - 1)]) }\n    $body = @{ p_sleutel = $Sleutel; p_tabel = $tabel; p_rijen = $deel }\n    if ($van) { $body.p_van = $van; $body.p_tot = $tot }\n    $json = ConvertTo-Json -InputObject $body -Depth 4 -Compress\n    if ($deel.Count -eq 0) { $json = $json -replace '\"p_rijen\":(null|\\{\\})', '\"p_rijen\":[]' }\n    $r = Post $tabel $json\n    $n += [int]$r.rijen\n    if ($rijen.Count -le $Blok) { break }\n  }\n  return $n\n}\n# alleen id's (voor het opruimen van regels die in SSOR verwijderd zijn)\nfunction StuurIds([string]$tabel, $ids, [string]$van, [string]$tot) {\n  $json = ConvertTo-Json -InputObject @{ p_sleutel = $Sleutel; p_tabel = $tabel; p_rijen = @($ids); p_van = $van; p_tot = $tot } -Depth 3 -Compress\n  if ($ids.Count -eq 0) { $json = $json -replace '\"p_rijen\":(null|\\{\\})', '\"p_rijen\":[]' }\n  $r = Post $tabel $json\n  return [int]$r.rijen\n}\n\n# Moet er nu bijgewerkt worden? Dat vraagt hij als allereerste aan de app, nog voor hij SSOR aanraakt.\n# Niet nodig: stoppen zonder iets in het logboek te schrijven (anders loopt het vol, hij draait elke 2 minuten).\nif (-not $Altijd -and -not $Volledig) {\n  $m = $null\n  try { $m = Post 'ssor_moet' (ConvertTo-Json -InputObject @{ p_sleutel = $Sleutel } -Compress) 'ssor_moet' }\n  catch {\n    $fout = $_.Exception.Message\n    if ($fout -match 'PGRST202|Could not find|does not exist|\\(404\\)') {\n      # het nieuwe onderdeel staat nog niet in de database: tijdelijk een eigen half uur aanhouden\n      $oud = (-not (Test-Path $Status)) -or (((Get-Date) - (Get-Item $Status).LastWriteTime).TotalMinutes -ge 30)\n      if (-not $oud) { exit 0 }\n      $m = [pscustomobject]@{ moet = $true; reden = 'ssor_moet staat nog niet in de database; eigen halfuurklok gebruikt' }\n    } else { Schrijf ('Kon niet vragen of bijwerken nodig is: ' + $fout); exit 1 }\n  }\n  if ($null -eq $m -or $null -eq $m.moet) { Schrijf 'Kon niet vragen of bijwerken nodig is: onverwacht antwoord van de app'; exit 1 }\n  if (-not $m.moet) { exit 0 }\n  Schrijf ('Bijwerken: ' + $m.reden)\n}\nSchrijf ('PowerShell ' + $(if ([IntPtr]::Size -eq 4) { '32-bits' } else { '64-bits' }) + '. Vindt hij de ODBC-bron niet (IM002), probeer dan de andere PowerShell of kijk in ODBC-gegevensbronnen hoe de bron heet.')\n\n$SqlUren = @\"\nSELECT h.ID AS \"id\", CAST(h.DATE_ AS DATE) AS \"datum\", DATEDIFF(SECOND FROM h.STARTTIME TO h.ENDTIME) / 3600.000 AS \"uren\",\n       h.ACTIVITYID AS \"activiteit_id\", h.COSTCENTERID AS \"kostenplaats_id\", h.DAYJOBID AS \"dagtaak_id\", h.EMPLOYEEID AS \"medewerker_id\",\n       h.LOCATIONID AS \"locatie_id\", h.SUBLOCATIONID AS \"sublocatie_id\"\n  FROM HOURS h WHERE h.DATE_ >= '{0}' AND h.DATE_ <= '{1}'\n   AND NOT EXISTS (SELECT 1 FROM ACTIVITY x WHERE x.ID = h.ACTIVITYID AND (x.NAME CONTAINING 'ziek' OR x.NAME CONTAINING 'verzuim'\n       OR x.NAME CONTAINING 'medisch' OR x.NAME CONTAINING 'bedrijfsarts' OR x.NAME CONTAINING 'huisarts' OR x.NAME CONTAINING 'sick'))\n\"@\n$SqlEenheden = @\"\nSELECT u.ID AS \"id\", CAST(u.PRODUCTIONDATETIME AS DATE) AS \"datum\", SUBSTRING(CAST(CAST(u.PRODUCTIONDATETIME AS TIME) AS VARCHAR(20)) FROM 1 FOR 8) AS \"tijd\", u.AMOUNT AS \"aantal\",\n       u.ACTIVITYID AS \"activiteit_id\", CAST(NULL AS INTEGER) AS \"kostenplaats_id\", u.DAYJOBID AS \"dagtaak_id\", u.EMPLOYEEID AS \"medewerker_id\",\n       u.LOCATIONID AS \"locatie_id\", u.SUBLOCATIONID AS \"sublocatie_id\", u.SORTINGID AS \"sortering_id\"\n  FROM UNIT u WHERE u.PRODUCTIONDATETIME >= '{0}' AND u.PRODUCTIONDATETIME < DATEADD(1 DAY TO CAST('{1}' AS DATE))\n\"@\n# dagtaken: de \"lijn\" (NAME, bv. een sorteerlijn) met dagnorm, per dag\n$SqlDagtaken = @\"\nSELECT d.ID AS \"id\", d.NR AS \"nr\", d.NAME AS \"naam\", CAST(d.DATE_ AS DATE) AS \"datum\", d.ACTIVITYID AS \"activiteit_id\",\n       d.LOCATIONID AS \"locatie_id\", d.SUBLOCATIONID AS \"sublocatie_id\", d.STANDARD AS \"norm\"\n  FROM DAYJOB d WHERE d.DATE_ >= '{0}' AND d.DATE_ < DATEADD(1 DAY TO CAST('{1}' AS DATE))\n\"@\n\ntry {\n  $script:con = New-Object System.Data.Odbc.OdbcConnection($Verbinding); $script:con.Open()\n  Schrijf (\"Verbonden met \" + ($Verbinding -replace 'PWD=[^;]*', 'PWD=***'))\n\n  # stamgegevens (klein, elke keer helemaal)\n  $n = Stuur 'activiteitgroepen' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\" FROM ACTIVITYGROUP')\n  $n += Stuur 'activiteiten' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\", ACTIVITYGROUP AS \"groep_id\", DEFAULTNORM AS \"norm\" FROM ACTIVITY')\n  $n += Stuur 'kostenplaatsen' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\" FROM COSTCENTERS')\n  # locaties: ook de sublocaties/partijen (geen filter op BUSINESSID), met NAK, ras en de bovenliggende locatie\n  # lukt dat niet (andere kolomnamen), dan de oude lijst zodat uren en eenheden gewoon doorgaan\n  try { $n += Stuur 'locaties' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\", NAKNUMBER AS \"nak\", PLANTVARIETYID AS \"ras_id\", PARENTLOCATIONID AS \"ouder_id\", ISACTIVE AS \"actief\" FROM LOCATION') }\n  catch { Waarschuw ('Tabel LOCATION zonder NAK gelezen: ' + $_.Exception.Message); $n += Stuur 'locaties' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\" FROM LOCATION WHERE BUSINESSID IS NOT NULL') }\n  $n += Stuur 'medewerkers' (Lees @\"\nSELECT e.ID AS \"id\", e.NUMBER AS \"nummer\",\n       TRIM(COALESCE(e.FIRSTNAME, '') || ' ' || COALESCE(e.SMALLNAME, '') || ' ' || COALESCE(e.LASTNAME, '')) AS \"naam\",\n       e.ISACTIVE AS \"actief\",\n       (SELECT FIRST 1 c.NAME FROM EMPLOYEECONTRACT ec JOIN CONTRACT c ON c.ID = ec.CONTRACTID\n         WHERE ec.EMPLOYEEID = e.ID ORDER BY ec.LASTWORKDATE DESC NULLS FIRST, ec.FIRSTWORKDATE DESC) AS \"contracttype\"\n  FROM EMPLOYEE e\n\"@)\n  # sorteringen en rassen: de kolomnamen zijn niet zeker. Lukt het niet, dan een waarschuwing en gewoon doorgaan.\n  foreach ($st in @(@('sorteringen', 'SORTING'), @('rassen', 'PLANTVARIETY'))) {\n    try { $n += Stuur $st[0] (Lees ('SELECT ID AS \"id\", NAME AS \"naam\" FROM ' + $st[1])) }\n    catch { Waarschuw ('Tabel ' + $st[1] + ' niet gelezen: ' + $_.Exception.Message) }\n  }\n  Schrijf \"Stamgegevens bijgewerkt ($n regels)\"\n\n  # uren en eenheden: de eerste keer per maand alles, daarna alleen het laatste venster\n  $vandaag = (Get-Date).Date\n  if ($Volledig -or -not (Test-Path $Status)) { $begin = [DateTime]::ParseExact($Vanaf, 'yyyy-MM-dd', $null) } else { $begin = $vandaag.AddDays(-$Venster) }\n  $van = $begin\n  while ($van -le $vandaag) {\n    $tot = $van.AddMonths(1).AddDays(-1); if ($tot -gt $vandaag) { $tot = $vandaag }\n    $a = $van.ToString('yyyy-MM-dd'); $b = $tot.ToString('yyyy-MM-dd')\n    $uren = Lees ([string]::Format($SqlUren, $a, $b)); $nu = Stuur 'uren' $uren\n    $weg = StuurIds 'uren_opruimen' ($uren | ForEach-Object { $_.id }) $a $b\n    $eenh = Lees ([string]::Format($SqlEenheden, $a, $b)); $ne = Stuur 'eenheden' $eenh\n    $weg += StuurIds 'eenheden_opruimen' ($eenh | ForEach-Object { $_.id }) $a $b\n    # dagtaken (de lijn per dag): lukt dit niet, dan een waarschuwing; uren en eenheden gaan gewoon door\n    $nd = 0\n    try {\n      $dag = Lees ([string]::Format($SqlDagtaken, $a, $b)); $nd = Stuur 'dagtaken' $dag\n      $weg += StuurIds 'dagtaken_opruimen' ($dag | ForEach-Object { $_.id }) $a $b\n    } catch { Waarschuw ('Dagtaken (DAYJOB) ' + $a + ' t/m ' + $b + ' niet verwerkt: ' + $_.Exception.Message) }\n    Schrijf \"$a t/m $b : $nu uren-regels, $ne eenheden-regels, $nd dagtaken-regels, $weg verwijderd\"\n    $van = $tot.AddDays(1)\n  }\n  # laat de app weten of er iets te melden was (leeg = alles gelukt); mislukt dit, dan is dat niet erg\n  try { $null = Stuur 'waarschuwing' @($Waarschuwingen | ForEach-Object { [pscustomobject]@{ tekst = $_ } }) } catch { Schrijf ('Melding aan de app niet gelukt: ' + $_.Exception.Message) }\n  Set-Content -Path $Status -Value (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') -Encoding UTF8\n  Schrijf 'Klaar.'\n} catch {\n  Schrijf ('FOUT: ' + $_.Exception.Message)\n  exit 1\n} finally {\n  if ($script:con) { $script:con.Close() }\n}\n";
+const PNO_SCRIPT = "# =====================================================================\n#  SSOR -> Perceel App\n#  Leest uren, eenheden, dagtaken, sorteerlijnen en stamgegevens uit SSOR (Firebird, via de bestaande\n#  ODBC-gegevensbron) en stuurt ze naar de app. Alleen lezen in SSOR, en alleen\n#  de kolommen die nodig zijn (geen adressen, BSN, IBAN, paspoort e.d.).\n#\n#  Draaien met de 32-bits PowerShell (want de ODBC-bron is 32-bits):\n#    C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe -ExecutionPolicy Bypass -File ssor-sync.ps1\n#  Eenmalig als taak inplannen (elke 2 minuten):\n#    ... -File ssor-sync.ps1 -Installeer\n#  Alles opnieuw inlezen vanaf $Vanaf:\n#    ... -File ssor-sync.ps1 -Volledig\n#  Nu meteen bijwerken, ook als het nog niet nodig is (handig om te testen):\n#    ... -File ssor-sync.ps1 -Altijd\n#\n#  Hoe vaak werkt hij echt bij? De taak start elke 2 minuten, maar het programma vraagt eerst aan de app\n#  (ssor_moet) of er iets te doen is. Hij werkt pas echt bij als het laatste keer meer dan een half uur geleden\n#  is, of als iemand in de app op \"Nu bijwerken\" klikte. Is er niets te doen, dan stopt hij meteen en schrijft\n#  hij niets in het logboek. Kan hij de app niet bereiken (geen internet), dan schrijft hij dat in het logboek\n#  en stopt hij met een foutcode, zodat de taakplanner het over 2 minuten opnieuw probeert.\n#  Met -Altijd of -Volledig slaat hij die vraag over en werkt hij altijd bij.\n# =====================================================================\nparam([switch]$Installeer, [switch]$Volledig, [switch]$Altijd)\n\n$Url     = '__URL__'          # Supabase-adres van de app\n$Anon    = '__ANON__'         # publieke sleutel van de app (dezelfde als in de app)\n$Sleutel = '__SLEUTEL__'      # geheime koppelsleutel (aangemaakt in de app bij P&O -> Koppeling)\n$Verbinding = '__VERBINDING__'  # ODBC-verbinding; staat het wachtwoord niet in de gegevensbron, zet er dan ;UID=...;PWD=... achter\n$Vanaf   = '__VANAF__'        # eerste keer alles inlezen vanaf deze datum\n$Venster = 21                 # elke keer de laatste zoveel dagen opnieuw vergelijken (wijzigingen en verwijderde regels)\n$Blok    = 2000               # regels per keer versturen\n\n$ErrorActionPreference = 'Stop'\n$Map = Split-Path -Parent $MyInvocation.MyCommand.Path\n$Log = Join-Path $Map 'ssor-sync.log'\n$Status = Join-Path $Map 'ssor-sync.status'\nfunction Schrijf($tekst) { $regel = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  ' + $tekst; Write-Host $regel; Add-Content -Path $Log -Value $regel -Encoding UTF8 }\n# uren van activiteiten over ziekte, verzuim of medische zaken worden nooit gelezen (besluit Siem, 20 nov 2026)\n# waarschuwingen: iets dat niet lukte maar de rest van de sync niet mag stoppen (komt in het logboek en in de app)\n$Waarschuwingen = New-Object System.Collections.Generic.List[string]\nfunction Waarschuw($tekst) { $kort = ([string]$tekst) -replace '\\s+', ' '; if ($kort.Length -gt 200) { $kort = $kort.Substring(0, 200) }; $Waarschuwingen.Add($kort); Schrijf ('WAARSCHUWING: ' + $kort) }\n\nif ($Installeer) {\n  $ps = (Get-Process -Id $PID).Path  # dezelfde PowerShell (32- of 64-bits) als waarmee je hem nu draait, die vindt de ODBC-bron\n  $actie = \"`\"$ps`\" -NoProfile -ExecutionPolicy Bypass -File `\"$($MyInvocation.MyCommand.Path)`\"\"\n  schtasks /Create /SC MINUTE /MO 2 /TN \"SSOR naar Perceel App\" /TR $actie /RU SYSTEM /F | Out-Null\n  Schrijf 'Taak \"SSOR naar Perceel App\" ingepland: elke 2 minuten even kijken; echt bijwerken elk half uur of na Nu bijwerken in de app.'\n  exit 0\n}\n\n[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12\n$Kop = @{ apikey = $Anon; Authorization = \"Bearer $Anon\" }\n\nfunction Lees([string]$sql) {\n  $cmd = $script:con.CreateCommand(); $cmd.CommandText = $sql; $cmd.CommandTimeout = 900\n  $rd = $cmd.ExecuteReader(); $lijst = New-Object System.Collections.Generic.List[object]\n  while ($rd.Read()) {\n    $o = [ordered]@{}\n    for ($i = 0; $i -lt $rd.FieldCount; $i++) {\n      $w = $rd.GetValue($i)\n      if ($w -is [DBNull]) { $w = $null }\n      elseif ($w -is [DateTime]) { $w = $w.ToString('yyyy-MM-dd') }\n      elseif ($w -is [TimeSpan]) { $w = $w.ToString() }\n      else { $w = [string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0}', $w).Trim() }\n      $o[$rd.GetName($i).ToLower()] = $w\n    }\n    $lijst.Add([pscustomobject]$o)\n  }\n  $rd.Close(); return ,$lijst\n}\n# versturen naar de app; gaat het mis, dan de echte melding van de database erbij (en welke tabel)\nfunction Post([string]$tabel, [string]$json, [string]$rpc = 'ssor_sync') {\n  try { return Invoke-RestMethod -Method Post -Uri \"$Url/rest/v1/rpc/$rpc\" -Headers $Kop -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($json)) }\n  catch { $d = [string]$_.ErrorDetails.Message; if ($d.Length -gt 400) { $d = $d.Substring(0, 400) }; throw ('Versturen van ' + $tabel + ' mislukt: ' + $_.Exception.Message + ' ' + $d) }\n}\nfunction Stuur([string]$tabel, $rijen, [string]$van = $null, [string]$tot = $null) {\n  $n = 0\n  for ($i = 0; $i -lt [Math]::Max($rijen.Count, 1); $i += $Blok) {\n    $deel = @(); if ($rijen.Count -gt 0) { $deel = @($rijen[$i..([Math]::Min($i + $Blok, $rijen.Count) - 1)]) }\n    $body = @{ p_sleutel = $Sleutel; p_tabel = $tabel; p_rijen = $deel }\n    if ($van) { $body.p_van = $van; $body.p_tot = $tot }\n    $json = ConvertTo-Json -InputObject $body -Depth 4 -Compress\n    if ($deel.Count -eq 0) { $json = $json -replace '\"p_rijen\":(null|\\{\\})', '\"p_rijen\":[]' }\n    $r = Post $tabel $json\n    $n += [int]$r.rijen\n    if ($rijen.Count -le $Blok) { break }\n  }\n  return $n\n}\n# alleen id's (voor het opruimen van regels die in SSOR verwijderd zijn)\nfunction StuurIds([string]$tabel, $ids, [string]$van, [string]$tot) {\n  $json = ConvertTo-Json -InputObject @{ p_sleutel = $Sleutel; p_tabel = $tabel; p_rijen = @($ids); p_van = $van; p_tot = $tot } -Depth 3 -Compress\n  if ($ids.Count -eq 0) { $json = $json -replace '\"p_rijen\":(null|\\{\\})', '\"p_rijen\":[]' }\n  $r = Post $tabel $json\n  return [int]$r.rijen\n}\n\n# Moet er nu bijgewerkt worden? Dat vraagt hij als allereerste aan de app, nog voor hij SSOR aanraakt.\n# Niet nodig: stoppen zonder iets in het logboek te schrijven (anders loopt het vol, hij draait elke 2 minuten).\nif (-not $Altijd -and -not $Volledig) {\n  $m = $null\n  try { $m = Post 'ssor_moet' (ConvertTo-Json -InputObject @{ p_sleutel = $Sleutel } -Compress) 'ssor_moet' }\n  catch {\n    $fout = $_.Exception.Message\n    if ($fout -match 'PGRST202|Could not find|does not exist|\\(404\\)') {\n      # het nieuwe onderdeel staat nog niet in de database: tijdelijk een eigen half uur aanhouden\n      $oud = (-not (Test-Path $Status)) -or (((Get-Date) - (Get-Item $Status).LastWriteTime).TotalMinutes -ge 30)\n      if (-not $oud) { exit 0 }\n      $m = [pscustomobject]@{ moet = $true; reden = 'ssor_moet staat nog niet in de database; eigen halfuurklok gebruikt' }\n    } else { Schrijf ('Kon niet vragen of bijwerken nodig is: ' + $fout); exit 1 }\n  }\n  if ($null -eq $m -or $null -eq $m.moet) { Schrijf 'Kon niet vragen of bijwerken nodig is: onverwacht antwoord van de app'; exit 1 }\n  if (-not $m.moet) { exit 0 }\n  Schrijf ('Bijwerken: ' + $m.reden)\n}\nSchrijf ('PowerShell ' + $(if ([IntPtr]::Size -eq 4) { '32-bits' } else { '64-bits' }) + '. Vindt hij de ODBC-bron niet (IM002), probeer dan de andere PowerShell of kijk in ODBC-gegevensbronnen hoe de bron heet.')\n\n$SqlUren = @\"\nSELECT h.ID AS \"id\", CAST(h.DATE_ AS DATE) AS \"datum\", DATEDIFF(SECOND FROM h.STARTTIME TO h.ENDTIME) / 3600.000 AS \"uren\",\n       h.ACTIVITYID AS \"activiteit_id\", h.COSTCENTERID AS \"kostenplaats_id\", h.DAYJOBID AS \"dagtaak_id\", h.EMPLOYEEID AS \"medewerker_id\",\n       h.LOCATIONID AS \"locatie_id\", h.SUBLOCATIONID AS \"sublocatie_id\"\n  FROM HOURS h WHERE h.DATE_ >= '{0}' AND h.DATE_ <= '{1}'\n   AND NOT EXISTS (SELECT 1 FROM ACTIVITY x WHERE x.ID = h.ACTIVITYID AND (x.NAME CONTAINING 'ziek' OR x.NAME CONTAINING 'verzuim'\n       OR x.NAME CONTAINING 'medisch' OR x.NAME CONTAINING 'bedrijfsarts' OR x.NAME CONTAINING 'huisarts' OR x.NAME CONTAINING 'sick'))\n\"@\n$SqlEenheden = @\"\nSELECT u.ID AS \"id\", CAST(u.PRODUCTIONDATETIME AS DATE) AS \"datum\", SUBSTRING(CAST(CAST(u.PRODUCTIONDATETIME AS TIME) AS VARCHAR(20)) FROM 1 FOR 8) AS \"tijd\", u.AMOUNT AS \"aantal\",\n       u.ACTIVITYID AS \"activiteit_id\", CAST(NULL AS INTEGER) AS \"kostenplaats_id\", u.DAYJOBID AS \"dagtaak_id\", u.EMPLOYEEID AS \"medewerker_id\",\n       u.LOCATIONID AS \"locatie_id\", u.SUBLOCATIONID AS \"sublocatie_id\", u.SORTINGID AS \"sortering_id\"\n  FROM UNIT u WHERE u.PRODUCTIONDATETIME >= '{0}' AND u.PRODUCTIONDATETIME < DATEADD(1 DAY TO CAST('{1}' AS DATE))\n\"@\n# dagtaken: de \"lijn\" (NAME, bv. een sorteerlijn) met dagnorm, per dag\n$SqlDagtaken = @\"\nSELECT d.ID AS \"id\", d.NR AS \"nr\", d.NAME AS \"naam\", CAST(d.DATE_ AS DATE) AS \"datum\", d.ACTIVITYID AS \"activiteit_id\",\n       d.LOCATIONID AS \"locatie_id\", d.SUBLOCATIONID AS \"sublocatie_id\", d.STANDARD AS \"norm\"\n  FROM DAYJOB d WHERE d.DATE_ >= '{0}' AND d.DATE_ < DATEADD(1 DAY TO CAST('{1}' AS DATE))\n\"@\n\ntry {\n  $script:con = New-Object System.Data.Odbc.OdbcConnection($Verbinding); $script:con.Open()\n  Schrijf (\"Verbonden met \" + ($Verbinding -replace 'PWD=[^;]*', 'PWD=***'))\n\n  # stamgegevens (klein, elke keer helemaal)\n  $n = Stuur 'activiteitgroepen' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\" FROM ACTIVITYGROUP')\n  $n += Stuur 'activiteiten' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\", ACTIVITYGROUP AS \"groep_id\", DEFAULTNORM AS \"norm\" FROM ACTIVITY')\n  $n += Stuur 'kostenplaatsen' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\" FROM COSTCENTERS')\n  # locaties: ook de sublocaties/partijen (geen filter op BUSINESSID), met NAK, ras en de bovenliggende locatie\n  # lukt dat niet (andere kolomnamen), dan de oude lijst zodat uren en eenheden gewoon doorgaan\n  try { $n += Stuur 'locaties' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\", NAKNUMBER AS \"nak\", PLANTVARIETYID AS \"ras_id\", PARENTLOCATIONID AS \"ouder_id\", ISACTIVE AS \"actief\" FROM LOCATION') }\n  catch { Waarschuw ('Tabel LOCATION zonder NAK gelezen: ' + $_.Exception.Message); $n += Stuur 'locaties' (Lees 'SELECT ID AS \"id\", NUMBER AS \"nummer\", NAME AS \"naam\" FROM LOCATION WHERE BUSINESSID IS NOT NULL') }\n  $n += Stuur 'medewerkers' (Lees @\"\nSELECT e.ID AS \"id\", e.NUMBER AS \"nummer\",\n       TRIM(COALESCE(e.FIRSTNAME, '') || ' ' || COALESCE(e.SMALLNAME, '') || ' ' || COALESCE(e.LASTNAME, '')) AS \"naam\",\n       e.ISACTIVE AS \"actief\",\n       (SELECT FIRST 1 c.NAME FROM EMPLOYEECONTRACT ec JOIN CONTRACT c ON c.ID = ec.CONTRACTID\n         WHERE ec.EMPLOYEEID = e.ID ORDER BY ec.LASTWORKDATE DESC NULLS FIRST, ec.FIRSTWORKDATE DESC) AS \"contracttype\"\n  FROM EMPLOYEE e\n\"@)\n  # sorteringen en rassen: de kolomnamen zijn niet zeker. Lukt het niet, dan een waarschuwing en gewoon doorgaan.\n  foreach ($st in @(@('sorteringen', 'SORTING'), @('rassen', 'PLANTVARIETY'))) {\n    try { $n += Stuur $st[0] (Lees ('SELECT ID AS \"id\", NAME AS \"naam\" FROM ' + $st[1])) }\n    catch { Waarschuw ('Tabel ' + $st[1] + ' niet gelezen: ' + $_.Exception.Message) }\n  }\n  Schrijf \"Stamgegevens bijgewerkt ($n regels)\"\n\n  # sorteerlijnen (PRODUCTIONLINE*), soorten kistjes en partij-plekken: voor het instellen van lijnen vanuit de app.\n  # Eigen rpc ssor_sync_lijnen (ssor-lijnen.sql). Lukt het niet (bijv. SQL nog niet gedraaid), dan een waarschuwing en gewoon door.\n  function StuurLijnen([string]$tabel, $rijen, [switch]$InDelen) {\n    $stap = $(if ($InDelen) { $Blok } else { [Math]::Max($rijen.Count, 1) }); $tot = 0\n    for ($i = 0; $i -lt [Math]::Max($rijen.Count, 1); $i += $stap) {\n      $deel = @(); if ($rijen.Count -gt 0) { $deel = @($rijen[$i..([Math]::Min($i + $stap, $rijen.Count) - 1)]) }\n      $json = ConvertTo-Json -InputObject @{ p_sleutel = $Sleutel; p_tabel = $tabel; p_rijen = $deel } -Depth 4 -Compress\n      if ($deel.Count -eq 0) { $json = $json -replace '\"p_rijen\":(null|\\{\\})', '\"p_rijen\":[]' }\n      $r = Post $tabel $json 'ssor_sync_lijnen'; $tot += [int]$r.rijen\n      if ($rijen.Count -le $stap) { break }\n    }\n    return $tot\n  }\n  try {\n    $nl = StuurLijnen 'lijnen' (Lees 'SELECT ID AS \"id\", NAME AS \"naam\", LINENR AS \"nr\", HASSCANNER AS \"scanner\", PRODUCTIONLINEID AS \"hoofdlijn_id\" FROM PRODUCTIONLINE')\n    $nl += StuurLijnen 'lijn_stand' (Lees 'SELECT PRODUCTIONLINEID AS \"lijn_id\", DAYJOBID AS \"dagtaak_id\", LOCATIONID AS \"locatie_id\", SUBLOCATIONID AS \"sublocatie_id\" FROM PRODUCTIONLINESETTING')\n    $nl += StuurLijnen 'lijn_kleuren' (Lees 'SELECT PRODUCTIONLINEID AS \"lijn_id\", COLOURCODE AS \"kleur\", SORTINGID AS \"sortering_id\" FROM PRODUCTIONLINESORTING')\n    $nl += StuurLijnen 'kistsoorten' (Lees 'SELECT ID AS \"id\", NAME AS \"naam\", PLANTAMOUNT AS \"aantal\", COLOURCODE AS \"kleur\" FROM SORTING') -InDelen\n    $nl += StuurLijnen 'plekken' (Lees 'SELECT ID AS \"id\", NAME AS \"naam\", NAKNUMBER AS \"nak\", PARENTLOCATIONID AS \"ouder_id\", ISACTIVE AS \"actief\" FROM LOCATION') -InDelen\n    Schrijf \"Sorteerlijnen, kistsoorten en partij-plekken bijgewerkt ($nl regels)\"\n  } catch { Waarschuw ('Sorteerlijnen niet bijgewerkt: ' + $_.Exception.Message) }\n\n  # uren en eenheden: de eerste keer per maand alles, daarna alleen het laatste venster\n  $vandaag = (Get-Date).Date\n  if ($Volledig -or -not (Test-Path $Status)) { $begin = [DateTime]::ParseExact($Vanaf, 'yyyy-MM-dd', $null) } else { $begin = $vandaag.AddDays(-$Venster) }\n  $van = $begin\n  while ($van -le $vandaag) {\n    $tot = $van.AddMonths(1).AddDays(-1); if ($tot -gt $vandaag) { $tot = $vandaag }\n    $a = $van.ToString('yyyy-MM-dd'); $b = $tot.ToString('yyyy-MM-dd')\n    $uren = Lees ([string]::Format($SqlUren, $a, $b)); $nu = Stuur 'uren' $uren\n    $weg = StuurIds 'uren_opruimen' ($uren | ForEach-Object { $_.id }) $a $b\n    $eenh = Lees ([string]::Format($SqlEenheden, $a, $b)); $ne = Stuur 'eenheden' $eenh\n    $weg += StuurIds 'eenheden_opruimen' ($eenh | ForEach-Object { $_.id }) $a $b\n    # dagtaken (de lijn per dag): lukt dit niet, dan een waarschuwing; uren en eenheden gaan gewoon door\n    $nd = 0\n    try {\n      $dag = Lees ([string]::Format($SqlDagtaken, $a, $b)); $nd = Stuur 'dagtaken' $dag\n      $weg += StuurIds 'dagtaken_opruimen' ($dag | ForEach-Object { $_.id }) $a $b\n    } catch { Waarschuw ('Dagtaken (DAYJOB) ' + $a + ' t/m ' + $b + ' niet verwerkt: ' + $_.Exception.Message) }\n    Schrijf \"$a t/m $b : $nu uren-regels, $ne eenheden-regels, $nd dagtaken-regels, $weg verwijderd\"\n    $van = $tot.AddDays(1)\n  }\n  # laat de app weten of er iets te melden was (leeg = alles gelukt); mislukt dit, dan is dat niet erg\n  try { $null = Stuur 'waarschuwing' @($Waarschuwingen | ForEach-Object { [pscustomobject]@{ tekst = $_ } }) } catch { Schrijf ('Melding aan de app niet gelukt: ' + $_.Exception.Message) }\n  Set-Content -Path $Status -Value (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') -Encoding UTF8\n  Schrijf 'Klaar.'\n} catch {\n  Schrijf ('FOUT: ' + $_.Exception.Message)\n  exit 1\n} finally {\n  if ($script:con) { $script:con.Close() }\n}\n";
 
 /* =====================================================================================
    ONDERGROND: bodemkaart (BRO) en hoogte (AHN) van PDOK, als kaartlaag en per perceel
