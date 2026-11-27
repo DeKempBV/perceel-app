@@ -2046,9 +2046,14 @@ function klikBaan(p, bn, ll) {
   const meta = banenVan(p).meta, lengte = bn.t1 - bn.t0;
   const t = ll ? Math.round((langs(meta, ll) - bn.t0) * 10) / 10 : 0;
   const arr = [...(p.banen || [])]; while (arr.length < bn.nr) arr.push(null);
-  const v = arr[bn.nr - 1];
-  const idx = isGeknipt(v) ? v.k.filter(x => x <= t).length : 0;
+  let v = arr[bn.nr - 1];
   const magIndelen = mag('soorten_indelen');
+  // spoor dat door een kopeinde loopt: bij het indelen vanzelf een wissel op de plek(ken) van het kopeinde
+  if (bn.gaten?.length && kwast !== undefined && magIndelen && !['spoorweg', 'spoorhalf', 'spuit', 'sproeier', 'knip', 'ontknip'].includes(gereedschap)) {
+    let v2 = v; for (const g of bn.gaten) { const n = voegKnipToe(v2, g); if (n) v2 = n; }
+    v = v2;
+  }
+  const idx = isGeknipt(v) ? v.k.filter(x => x <= t).length : 0;
 
   if (gereedschap === 'spoorweg') { spoorWeg(p, bn); return; }
   if (gereedschap === 'spoorhalf') { spoorHalf(p, bn, ll); return; }
@@ -3148,7 +3153,7 @@ function banenVan(p) {
       st = st.filter(([l, h]) => h - l > 0.5); if (!st.length) return null;
       const oLo = lijnen[0].o <= a + b * 0.03 ? a : lijnen[0].o, oHi = lijnen[lijnen.length - 1].o >= a + b * 0.97 ? a + b : lijnen[lijnen.length - 1].o;
       const poly = st.map(([l, h]) => [[oLo, l], [oHi, l], [oHi, h], [oLo, h], [oLo, l]].map(([o, t]) => naarG([n[0] * o + d[0] * t, n[1] * o + d[1] * t])));
-      return {geo: poly.length === 1 ? turf.polygon([poly[0]]) : turf.multiPolygon(poly.map(r => [r])), m2: st.reduce((s2, [l, h]) => s2 + (h - l) * (oHi - oLo), 0), t0: st[0][0], t1: st[st.length - 1][1]}; };
+      return {geo: poly.length === 1 ? turf.polygon([poly[0]]) : turf.multiPolygon(poly.map(r => [r])), m2: st.reduce((s2, [l, h]) => s2 + (h - l) * (oHi - oLo), 0), t0: st[0][0], t1: st[st.length - 1][1], st}; };
     let a = start - Math.ceil((start - min) / b) * b;
     const maxAantal = +p.aantal > 0 ? +p.aantal : Infinity;
     const rechth = (o1, o2) => [[o1, -lengte], [o2, -lengte], [o2, lengte], [o1, lengte], [o1, -lengte]].map(([o, t]) => naarG([n[0] * o + d[0] * t, n[1] * o + d[1] * t]));
@@ -3163,8 +3168,10 @@ function banenVan(p) {
       const stuk = sr.stuk; if (!stuk || !(sr.m2 > 0.5)) return;
       const hk = sr.hk, t = sr.t, half = bb < b * 0.75;   // haaks afgesloten (rechthoek); lukt dat niet, dan zoals het gebied loopt
       if (sr.rest && !weg.has(k)) res.rest.push(sr.rest);   // wat overblijft: braak, zoals een kopeinde
+      // loopt het spoor door een kopeinde (twee of meer losse stukken), dan zit daar vanzelf een wissel: elk stuk apart in te delen
+      const gaten = hk && hk.st.length > 1 ? hk.st.slice(1).map((iv, j) => Math.round(((hk.st[j][1] + iv[0]) / 2 - hk.t0) * 10) / 10) : null;
       if (weg.has(k)) res.weg.push({k, geo: stuk, a: aa, b: bb}); else
-      res.push(hk ? {nr: res.length + 1, k, geo: hk.geo, m2: hk.m2, a: aa, b: bb, t0: hk.t0, t1: hk.t1, half} : {nr: res.length + 1, k, geo: stuk, m2: sr.m2, a: aa, b: bb, t0: Math.min(...t), t1: Math.max(...t), half});
+      res.push(hk ? {nr: res.length + 1, k, geo: hk.geo, m2: hk.m2, a: aa, b: bb, t0: hk.t0, t1: hk.t1, half, ...(gaten ? {gaten} : {})} : {nr: res.length + 1, k, geo: stuk, m2: sr.m2, a: aa, b: bb, t0: Math.min(...t), t1: Math.max(...t), half});
     };
     // spoor dat maar over een deel van de lengte gesplitst is: tot T heel en daarna twee halve sporen (of andersom)
     const deelsDoen = (a, k, mode, T) => {
