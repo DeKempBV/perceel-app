@@ -1103,7 +1103,8 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .etGescand{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid #d5ded8;border-radius:12px;padding:10px 12px;margin-bottom:6px;background:#fff}.etGescand .t{flex:1;min-width:180px}.etGescand small{display:block;color:#5d6b62}.etGescand .k{display:flex;gap:6px;flex-wrap:wrap}
 .wagenPlekken{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:10px 0}.wagenPlekken button{font:inherit;font-weight:700;font-size:17px;padding:16px 10px;border:1px solid #c9d6cc;border-radius:12px;background:#fff;cursor:pointer}.wagenPlekken button:active{background:#e6f2e8}
 #appNieuw{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9999;background:#1f4d2b;color:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 8px 30px rgba(0,0,0,.3);font-weight:700;display:flex;gap:10px;align-items:center;max-width:94%}#appNieuw button{border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:800;background:#f4c430;color:#1f4d2b;cursor:pointer}#appNieuw button.x{background:transparent;color:#fff;padding:4px 8px}.mVersie{color:inherit;opacity:.8;text-decoration:none;white-space:nowrap}
-.kcGroepInfo{padding:6px 12px}.kcHerkomst{display:block;color:#5a6b5e;margin-top:2px}.kcPalNrs{display:flex;flex-wrap:wrap;gap:6px;padding:4px 12px 10px}.kcPalNr{border:1px solid #d5ded8;background:#fff;border-radius:10px;padding:8px 12px;font:inherit;font-weight:700;cursor:pointer}.kcPalNr.aan{background:#1f4d2b;color:#fff;border-color:#1f4d2b}.kcPalNr small{font-weight:500;opacity:.8}.kcPalActies{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px 12px;border-top:1px dashed #d5ded8}.kcPalActies .kcItemKnop{margin-left:auto}
+.kcGroepInfo{padding:6px 12px}.kcHerkomst{display:block;color:#5a6b5e;margin-top:2px}.kcPalNrs{display:flex;flex-wrap:wrap;gap:6px;padding:4px 12px 10px}.kcPalNr{border:1px solid #d5ded8;background:#fff;border-radius:10px;padding:8px 12px;font:inherit;font-weight:700;cursor:pointer}.kcPalNr.aan{background:#1f4d2b;color:#fff;border-color:#1f4d2b}.kcPalNr small{font-weight:500;opacity:.8}.kcPalActies{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px 12px;border-top:1px dashed #d5ded8}.kcPalActies .kcItemKnop{margin-left:auto}.kcPalActies[hidden]{display:none}
+.eigenIc{height:1.25em;width:1.25em;vertical-align:-.25em;display:inline-block}
 .psKaart.aan{border:2px solid #2e7d32;background:#f3faf3}.psKaart code{background:#eef;padding:1px 4px;border-radius:4px;word-break:break-all}.psUitleg summary{cursor:pointer;font-weight:600;margin-top:8px}.psLog{margin-top:8px}
 .etActRij{display:flex;align-items:center;gap:10px;width:100%;border:1px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;margin-bottom:6px;text-align:left;font:inherit;cursor:pointer}.etActRij:active{background:#eef6ef}
 .etActRij .kl{width:10px;align-self:stretch;border-radius:4px;flex:0 0 auto}.etActRij .t{flex:1;min-width:0}.etActRij small{display:block;color:#5d6b62}.etActRij .pr{font-size:22px}
@@ -4909,7 +4910,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v131';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v132';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -15104,7 +15105,7 @@ function etGescandHtml() {
       <div class="k">${e.id ? pr('🧱 Palletkaart', `etOpnieuw(['${e.code}'])`) : ''}${soorten.map(o => pr(`🌱 Paspoort ${esc(partijRas(o.y) || '')}`, `kkNieuw(null,${esc(JSON.stringify({pid: o.y.id, sortering: o.sort, per_kist: o.r.per || null, aantal: Math.round(o.r.kistjes)}))})`)).join('')}</div></div>`; };
   const box = e => { const y = (S.partijen || []).find(z => z.id === e.partij_id) || {};
     return `<div class="etGescand"><div class="t"><b>📦 Box ${esc(e.nr)}</b><small>${esc(hfNaam(e) || '')}</small></div><div class="k">${pr('📦 Boxkaart', `etOpnieuw(['${e.code}'])`)}</div></div>`; };
-  const kist = k => `<div class="etGescand"><div class="t"><b>🌱 ${getal(k.n)}× kistje</b><small>${esc(hfKistNaam(k))}${k.per ? ' · ' + getal(k.per) + ' per kist' : ''}</small></div>
+  const kist = k => `<div class="etGescand"><div class="t"><b>🪵 ${getal(k.n)}× kistje</b><small>${esc(hfKistNaam(k))}${k.per ? ' · ' + getal(k.per) + ' per kist' : ''}</small></div>
     <div class="k">${pr('🌱 Paspoortkaartjes', `kkNieuw(null,${esc(JSON.stringify({pid: k.pid, sortering: k.sort, per_kist: k.per, aantal: k.n}))})`)}</div></div>`;
   return `<section class="kaartje"><h4>📷 Net gescand <small>tik op de kaart die je wilt printen</small></h4>${HF.paletten.map(pallet).join('')}${HF.hand.map(box).join('')}${HF.kist.map(kist).join('')}</section>`;
 }
@@ -15657,8 +15658,8 @@ async function hfKistBoek(cel, l, pallet) {
 function hfKistMin(code) { const o = HF.kist.find(k => k.code === code); if (!o) return; o.n--; if (o.n <= 0) HF.kist = HF.kist.filter(k => k !== o); hfTeken(); }
 const hfKistNaam = k => { const y = (S.partijen || []).find(x => x.id === k.pid); return [y ? partijRas(y) : '', y?.batch || y?.nak, k.sort].filter(Boolean).join(' · '); };
 function hfKistItem(k, kort) {
-  return kort ? `<span class="hbItem kist"><b>🌱 ${k.n}× kistje</b> ${esc(hfKistNaam(k))}</span>`
-    : `<div class="hfItem kist"><b>🌱 ${k.n} ${k.n === 1 ? 'kistje' : 'kistjes'}</b><span>${esc(hfKistNaam(k))}</span><small>${k.per ? getal(k.per) + ' per kist · ' : ''}${k.cel ? 'los in ' + esc(k.cel) + ' · ' : ''}${k.pal ? 'gaat op pallet ' + esc(k.pal) + ' · ' : ''}${k.af ? '<b>➖ gaat van de pallet af</b> · ' : ''}<button class="knop licht klein" style="width:auto;display:inline-block;padding:2px 10px" onclick="hfKistMin(${esc(JSON.stringify(k.code))})">−1</button></small></div>`;
+  return kort ? `<span class="hbItem kist"><b>🪵 ${k.n}× kistje</b> ${esc(hfKistNaam(k))}</span>`
+    : `<div class="hfItem kist"><b>🪵 ${k.n} ${k.n === 1 ? 'kistje' : 'kistjes'}</b><span>${esc(hfKistNaam(k))}</span><small>${k.per ? getal(k.per) + ' per kist · ' : ''}${k.cel ? 'los in ' + esc(k.cel) + ' · ' : ''}${k.pal ? 'gaat op pallet ' + esc(k.pal) + ' · ' : ''}${k.af ? '<b>➖ gaat van de pallet af</b> · ' : ''}<button class="knop licht klein" style="width:auto;display:inline-block;padding:2px 10px" onclick="hfKistMin(${esc(JSON.stringify(k.code))})">−1</button></small></div>`;
 }
 const hfKistTel = () => HF.kist.reduce((a, k) => a + k.n, 0);
 let hfStroom = null, hfTimer = null;
@@ -21184,6 +21185,42 @@ function tekenOverlay3d() {
 initPaneel();
 // service worker: nodig om de app te kunnen installeren
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
+/* ---------- eigen plaatjes: kuubskist (📦), kistje (🪵) en pallet met kistjes (🧱) ----------
+   De emoji's in de teksten worden op het scherm vervangen door deze tekeningen (niet in keuzelijsten en invulvelden). */
+const IC_SVG = {
+  '📦': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect x="3" y="27" width="26" height="3" rx=".5" fill="#c9a46a" stroke="#7a5a2e" stroke-width=".8"/><rect x="5" y="30" width="3" height="1.6" fill="#7a5a2e"/><rect x="14.5" y="30" width="3" height="1.6" fill="#7a5a2e"/><rect x="24" y="30" width="3" height="1.6" fill="#7a5a2e"/>
+    <rect x="5" y="4" width="22" height="23" fill="#d9a865" stroke="#7a4f24" stroke-width=".9"/>${[6.5, 10.5, 14.5, 18.5, 22.5].map(y => `<rect x="5" y="${y}" width="22" height="3" fill="#${y === 14.5 ? 'b9b9a8' : 'e0b678'}" stroke="#8a5a2b" stroke-width=".5"/>`).join('')}
+    <rect x="3.6" y="3.4" width="3" height="24" rx=".4" fill="#5f6f45" stroke="#3d4a2c" stroke-width=".6"/><rect x="25.4" y="3.4" width="3" height="24" rx=".4" fill="#5f6f45" stroke="#3d4a2c" stroke-width=".6"/></svg>`,
+  '🪵': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M3 12 L10 7 L29 7 L22 12 Z" fill="#cf9150" stroke="#6e4317" stroke-width=".7"/><path d="M5.6 11.4 L10.8 8 L26.4 8 L21.2 11.4 Z" fill="#5a3510"/>
+    ${[13, 18, 23].map(y => `<rect x="3" y="${y}" width="19" height="4" rx=".4" fill="#cf9150" stroke="#6e4317" stroke-width=".6"/><path d="M22 ${y} L29 ${y - 5} L29 ${y - 1} L22 ${y + 4} Z" fill="#b97a3c" stroke="#6e4317" stroke-width=".6"/>`).join('')}
+    <rect x="3" y="12" width="2.6" height="15.5" fill="#a9692c" stroke="#6e4317" stroke-width=".5"/><rect x="19.4" y="12" width="2.6" height="15.5" fill="#a9692c" stroke="#6e4317" stroke-width=".5"/></svg>`,
+  '🧱': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect x="1.5" y="27" width="29" height="2.6" rx=".4" fill="#c9a46a" stroke="#7a5a2e" stroke-width=".7"/><rect x="3" y="29.6" width="3" height="1.8" fill="#7a5a2e"/><rect x="14.5" y="29.6" width="3" height="1.8" fill="#7a5a2e"/><rect x="26" y="29.6" width="3" height="1.8" fill="#7a5a2e"/>
+    ${[[2, 20], [16.5, 20], [2, 13], [16.5, 13], [2, 6], [16.5, 6]].map(([x, y]) => `<rect x="${x}" y="${y}" width="13.5" height="6.8" rx=".5" fill="#cf9150" stroke="#6e4317" stroke-width=".6"/><line x1="${x + .6}" y1="${y + 2.3}" x2="${x + 12.9}" y2="${y + 2.3}" stroke="#8a5a2b" stroke-width=".5"/><line x1="${x + .6}" y1="${y + 4.5}" x2="${x + 12.9}" y2="${y + 4.5}" stroke="#8a5a2b" stroke-width=".5"/>`).join('')}</svg>`
+};
+const IC_URL = Object.fromEntries(Object.entries(IC_SVG).map(([k, v]) => [k, 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(v.replace(/\s+/g, ' '))]));
+const IC_NAAM = {'📦': 'kuubskist', '🪵': 'kistje', '🧱': 'pallet'};
+const IC_RE = /📦|🪵|🧱/;
+function icVervang(root) {
+  if (!root) return;
+  const doe = t => {
+    const p = t.parentNode; if (!p || /^(OPTION|SELECT|TEXTAREA|INPUT|SCRIPT|STYLE|TITLE)$/.test(p.nodeName) || !IC_RE.test(t.nodeValue)) return;
+    const frag = document.createDocumentFragment();
+    t.nodeValue.split(/(📦|🪵|🧱)/).forEach(d => { if (!d) return;
+      if (IC_URL[d]) { const i = document.createElement('img'); i.src = IC_URL[d]; i.className = 'eigenIc'; i.alt = d; i.title = IC_NAAM[d]; frag.appendChild(i); }
+      else frag.appendChild(document.createTextNode(d)); });
+    p.replaceChild(frag, t);
+  };
+  if (root.nodeType === 3) { doe(root); return; }
+  if (root.nodeType !== 1 || /^(OPTION|SELECT|TEXTAREA|SCRIPT|STYLE)$/.test(root.nodeName)) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), l = []; let n; while ((n = w.nextNode())) if (IC_RE.test(n.nodeValue)) l.push(n);
+  l.forEach(doe);
+}
+try {
+  new MutationObserver(ms => ms.forEach(m => { if (m.type === 'characterData') icVervang(m.target); else m.addedNodes.forEach(icVervang); }))
+    .observe(document.body, {childList: true, subtree: true, characterData: true});
+  icVervang(document.body);
+} catch (e) { console.warn('plaatjes', e); }
+
 // nieuwe versie van de app: zelf kijken (elke 3 minuten en als je terugkomt in de app) en met één tik bijwerken.
 // Bijwerken laadt de pagina met een uniek adres, zodat ook een tussenopslag (GitHub Pages) de nieuwe versie moet geven.
 let appNieuw = null;
