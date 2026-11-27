@@ -4809,6 +4809,18 @@ function tekenZone(p, isA) {
     stukken.forEach(st => {
       const f = stukFactor(p, bn, st, f0);   // per stuk: een stuk zonder spuitpad/sproeier is een gewoon plantspoor
       const s = teelt(st.id), mLijn = moeder && s && f > 0;
+      // tweede (derde …) partij van hetzelfde ras: schuine streepjes in de kleur van de naam, zodat je de nummers uit elkaar houdt
+      if (s && f > 0 && map.getZoom() >= 15) { const xp = partijOpSpoor(p, bn.nr, stukken.length > 1 ? st.idx : null), rg = xp && partijKleurRang(ouder(p)).get(xp.id);
+        if (rg > 0) { const meta = banenVan(p).meta, kl = PI_KLEUREN[rg % PI_KLEUREN.length], a0 = st.idx >= 1000 ? bn.a + bn.b / 2 : bn.a, b0 = st.helft ? bn.b / 2 : bn.b, stap = 3;
+          const pt = (o, t) => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; }, lijnen = [];
+          (st.segs || [[st.van, st.tot]]).forEach(([v0, v1]) => { const t0 = bn.t0 + v0, t1 = bn.t0 + v1;
+            // patroon per nummer: 2e = schuin /, 3e = schuin \, 4e = geruit (allebei), 5e = dwars
+            const soorten = rg === 1 ? ['/'] : rg === 2 ? ['\\'] : rg === 3 ? ['/', '\\'] : ['|'];
+            for (let t = Math.ceil(t0 / stap) * stap; t < t1; t += stap) soorten.forEach(sr => {
+              if (sr === '|') { lijnen.push([pt(a0, t), pt(a0 + b0, t)]); return; }
+              const e = Math.min(t + b0, t1), w = e - t;
+              lijnen.push(sr === '/' ? [pt(a0, t), pt(a0 + w, e)] : [pt(a0 + b0, t), pt(a0 + b0 - w, e)]); }); });
+          if (lijnen.length) geenSnap(L.polyline(lijnen, {color: kl, weight: 1.6, opacity: .7, interactive: false})).addTo(laag); } }
       geenSnap(L.geoJSON(st.geo, {style: {color: isA ? '#ffffff' : '#111', weight: isA ? .9 : .4, opacity: .75,
         fillColor: s ? s.kleur : '#ffffff', fillOpacity: mLijn ? .07 : s ? (f >= .99 ? .62 : f === 0 ? .04 : f >= .6 ? .48 : .12) : .06}}))
         .bindTooltip(() => spoorTip(p, bn, st), {sticky: true, direction: 'top', offset: [0, -8], className: 'spoortip', opacity: .97})
