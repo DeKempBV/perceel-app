@@ -1743,7 +1743,7 @@ async function opstarten() {
   pgSleepInit();   // plattegrond op de kaart slepen
   const tmLink = /[?&]trekker=1/.test(location.search);
   if (veilig) { TM.aan = false; toonMenu(); window.opstartWeg?.(); laadDoekUit(); toast('🛟 Veilige start: de kaart wordt pas getekend als je een perceel kiest'); stap('veilige start klaar'); opstartGelukt(); toonVorigeVastloper(); return; }
-  stap('menu of trekker'); if (isPrikklok()) { TM.aan = false; await toonKlok(); } else if (isKiep()) { TM.aan = false; await toonKiep(); } else if (isKoelcelPlek()) { TM.aan = false; document.body.classList.add('koelcelPlek'); vrWeergave = 'voorraad'; kiesSectie('voorraad'); tab = 'hfscan'; render(true); } else if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else toonMenu();
+  stap('menu of trekker'); if (isPrikklok()) { TM.aan = false; await toonKlok(); } else if (isKiep()) { TM.aan = false; await toonKiep(); } else if (isKoelcelPlek()) { TM.aan = false; document.body.classList.add('koelcelPlek'); vrWeergave = 'voorraad'; kiesSectie('voorraad'); tab = 'hfscan'; render(true); } else if (tmLink || tmAltijd() || isApparaat()) await trekkerModus(true); else if (!plekTerug()) toonMenu();
   try { etUitLink(); } catch {}
   stap('gps'); apparaatGPS(); stap('klaar'); requestAnimationFrame(() => setTimeout(() => { window.opstartWeg?.(); laadDoekUit(); }, 150)); opstartGelukt(); toonVorigeVastloper();   // trekker-tablet: locatie van de gekoppelde trekker delen zolang hij aan staat      // beginnen bij het hoofdmenu (of in de trekker-modus)   // bussen en auto's: elke 20 seconden de nieuwste positie bij FleetGO
   setInterval(() => { if (tab === 'uren' || (tab === 'taken' && S.taken.some(t => t.bezig_door && !t.klaar))) urenVerversen(); }, 30000);   // lopende klokken
@@ -2071,7 +2071,7 @@ function klikBaan(p, bn, ll) {
     // waar tikte je dwars op het spoor: op de rand = leiding op de lijn tussen twee sporen (ook tussen twee halve sporen), midden = sproeierspoor
     let dx = bn.b / 2, w = bn.b;
     if (ll && meta) { const q = meta.naarM([ll.lng, ll.lat]), o = q[0] * meta.n[0] + q[1] * meta.n[1], tl = q[0] * meta.d[0] + q[1] * meta.d[1];
-      if (bn.split && tl >= bn.split[0] && tl <= bn.split[1]) w = bn.b / 2;   // deels gesplitst spoor: hier is het maar half zo breed
+      if (bn.splits && bn.splits.some(([h0, h1]) => tl >= h0 && tl <= h1)) w = bn.b / 2;   // deels gesplitst spoor: hier is het maar half zo breed
       dx = o - bn.a; }
     const zone = Math.min(w * .45, Math.max(w * .25, .4));
     const bz = banenVan(p), lijnen = sproeierLijnenVan(p);
@@ -3122,6 +3122,11 @@ function zonderSnippers(g) {
   const goed = delen.filter(c => { try { const f = turf.polygon(c), a = turf.area(f), omtrek = turf.length(turf.polygonToLine(f)) * 1000; return a > 1 && a / Math.max(0.01, omtrek / 2) > 0.4; } catch { return false; } });
   return !goed.length ? null : goed.length === 1 ? turf.polygon(goed[0]) : turf.multiPolygon(goed);
 }
+// splits-merk uit sporen_weg: 'h12' = heel spoor 12 gesplitst, 'h12r10_250' = alleen tussen 10 en 250 m (oude vorm h12v… / h12t…)
+function splitBereik(x) {
+  const mm = typeof x === 'string' && x.match(/^h(-?\d+)(?:([ab])|([vt])(-?[\d.]+)|r(-?[\d.]+)_(-?[\d.]+))?$/); if (!mm) return null;
+  return mm[3] === 'v' ? {k: +mm[1], h0: +mm[4], h1: 1e5, merk: x} : mm[3] === 't' ? {k: +mm[1], h0: -1e5, h1: +mm[4], merk: x} : mm[5] != null ? {k: +mm[1], h0: +mm[5], h1: +mm[6], merk: x} : {k: +mm[1], heel: true, merk: x};
+}
 function banenVan(p) {
   if (!p || p.type === 'pand' || !p.banen_aan || !(+p.breedte > 0)) return [];
   const gebied = p._vak ? p.vulgeo : vulGebied(p);   // waar sporen mogen komen
@@ -3206,8 +3211,9 @@ function banenVan(p) {
       return true;
     };
     // spoor dat maar over een deel van de lengte gesplitst is: tot T heel en daarna twee halve sporen (of andersom)
-    const deelsDoen = (a, k, h0, h1) => {   // tussen h0 en h1 (langs het spoor) half-half, daarbuiten heel
-      const sk = Math.round(a * 1000) + '|' + h0 + '_' + h1;
+    const deelsDoen = (a, k, rr) => {   // binnen de stukken rr = [[h0, h1], …] (langs het spoor) half-half, daarbuiten heel
+      rr = rr.slice().sort((x, y) => x[0] - y[0]);
+      const sk = Math.round(a * 1000) + '|' + rr.map(r => r.join('_')).join(',');
       let sr = strook.m.get(sk);
       if (!sr) { sr = {};
         try {
@@ -3216,11 +3222,16 @@ function banenVan(p) {
             const hk = haaks(a, b), vorm = hk ? hk.geo : vol;
             const t = hk ? [hk.t0, hk.t1] : (() => { const ts = turf.coordAll(vol).map(q => { const z = naarM(q); return z[0] * d[0] + z[1] * d[1]; }); return [Math.min(...ts), Math.max(...ts)]; })();
             const rh = (o1, o2, t1, t2) => turf.polygon([[[o1, t1], [o2, t1], [o2, t2], [o1, t2], [o1, t1]].map(([o, tt]) => naarG([n[0] * o + d[0] * tt, n[1] * o + d[1] * tt]))]);
-            const L = lengte + 10, heelA = h0 > -L ? turf.intersect(vorm, rh(a - 1, a + b + 1, -L, h0)) : null, heelB = h1 < L ? turf.intersect(vorm, rh(a - 1, a + b + 1, h1, L)) : null;
-            const half1 = turf.intersect(vorm, rh(a - 1, a + b / 2, h0, h1)), half2 = turf.intersect(vorm, rh(a + b / 2, a + b + 1, h0, h1));
-            let g1 = null; for (const x of [heelA, half1, heelB]) if (x) g1 = g1 ? (turf.union(g1, x) || g1) : x;
+            const L = lengte + 10, kl = x => Math.max(-L, Math.min(L, x)), un = (x, y) => !x ? y : !y ? x : (turf.union(x, y) || x);
+            let heel = vorm, half1 = null, half2 = null;
+            for (const [h0, h1] of rr) {
+              try { heel = heel && turf.difference(heel, rh(a - 1, a + b + 1, kl(h0), kl(h1))); } catch {}
+              half1 = un(half1, turf.intersect(vorm, rh(a - 1, a + b / 2, kl(h0), kl(h1))));
+              half2 = un(half2, turf.intersect(vorm, rh(a + b / 2, a + b + 1, kl(h0), kl(h1))));
+            }
+            const g1 = un(heel, half1);
             // waar het spoor echt ligt (stukken tussen de kopeindes), voor meters, lijnen en de vanzelf-wissel bij een kopeinde
-            const ivs = hk ? hk.st : [t], ivs2 = ivs.map(([x, y]) => [Math.max(x, h0), Math.min(y, h1)]).filter(([x, y]) => y - x > .3);
+            const ivs = hk ? hk.st : [t], ivs2 = rr.flatMap(([h0, h1]) => ivs.map(([x, y]) => [Math.max(x, h0), Math.min(y, h1)])).filter(([x, y]) => y - x > .3).sort((x, y) => x[0] - y[0]);
             const ligt = (l, t0) => l.length > 1 ? {delen: l.map(([x, y]) => [x - t0, y - t0]), gaten: l.slice(1).map((iv, j) => Math.round(((l[j][1] + iv[0]) / 2 - t0) * 10) / 10)} : {};
             sr.g1 = g1 ? {geo: g1, m2: turf.area(g1), t0: t[0], t1: t[1], ...ligt(ivs, t[0])} : null;
             sr.g2 = half2 && turf.area(half2) > 0.5 && ivs2.length ? {geo: half2, m2: turf.area(half2), t0: ivs2[0][0], t1: ivs2[ivs2.length - 1][1], ...ligt(ivs2, ivs2[0][0])} : null;
@@ -3229,17 +3240,17 @@ function banenVan(p) {
         } catch (e) { console.warn('deels splitsen', e); }
         strook.m.set(sk, sr); }
       if (sr.rest && !weg.has(k)) res.rest.push(sr.rest);
-      if (sr.g1) { if (weg.has(k)) res.weg.push({k, geo: sr.g1.geo, a, b}); else { const bn = {nr: res.length + 1, k, geo: sr.g1.geo, m2: sr.g1.m2, a, b, t0: sr.g1.t0, t1: sr.g1.t1, deels: true, split: [h0, h1], ...(sr.g1.delen ? {delen: sr.g1.delen, gaten: sr.g1.gaten} : {})}; if (stukWeg(bn, k)) res.push(bn); } }
+      if (sr.g1) { if (weg.has(k)) res.weg.push({k, geo: sr.g1.geo, a, b}); else { const bn = {nr: res.length + 1, k, geo: sr.g1.geo, m2: sr.g1.m2, a, b, t0: sr.g1.t0, t1: sr.g1.t1, deels: true, splits: rr, ...(sr.g1.delen ? {delen: sr.g1.delen, gaten: sr.g1.gaten} : {})}; if (stukWeg(bn, k)) res.push(bn); } }
       if (sr.g2) { if (weg.has(k + 0.5)) res.weg.push({k: k + 0.5, geo: sr.g2.geo, a: a + b / 2, b: b / 2}); else { const bn = {nr: res.length + 1, k: k + 0.5, geo: sr.g2.geo, m2: sr.g2.m2, a: a + b / 2, b: b / 2, t0: sr.g2.t0, t1: sr.g2.t1, half: true, ...(sr.g2.delen ? {delen: sr.g2.delen, gaten: sr.g2.gaten} : {})}; if (stukWeg(bn, k + 0.5)) res.push(bn); } }
     };
-    const splits = new Map();   // k → {heel: true} of {h0, h1}: tussen h0 en h1 (meters langs, zelfde maat als bn.t0) half-half
-    weg.forEach(x => { const mm = typeof x === 'string' && x.match(/^h(-?\d+)(?:([ab])|([vt])(-?[\d.]+)|r(-?[\d.]+)_(-?[\d.]+))?$/); if (!mm) return;
-      splits.set(+mm[1], mm[3] === 'v' ? {h0: +mm[4], h1: 1e5} : mm[3] === 't' ? {h0: -1e5, h1: +mm[4]} : mm[5] != null ? {h0: +mm[5], h1: +mm[6]} : {heel: true}); });
+    const splits = new Map();   // k → {heel: true} of {rr: [[h0, h1], …]}: binnen die stukken (meters langs, zelfde maat als bn.t0) half-half
+    weg.forEach(x => { const r = splitBereik(x); if (!r) return; const o = splits.get(r.k) || {rr: []};
+      if (r.heel) o.heel = true; else o.rr.push([r.h0, r.h1]); splits.set(r.k, o); });
     for (let i = 0; a < max && res.length < maxAantal && i < 5000; i++, a += b) {
       const k0 = Math.round((a - start) / b), sp = splits.get(k0);
       // gesplitst spoor: twee halve sporen naast elkaar, elk met een eigen nummer (planten, spuitspoor, sproeier, weghalen = kopeinde)
       if (sp?.heel) { strookDoen(a, b / 2, k0, Math.round(a * 1000) + '|a'); strookDoen(a + b / 2, b / 2, k0 + 0.5, Math.round(a * 1000) + '|b'); }
-      else if (sp) deelsDoen(a, k0, sp.h0, sp.h1);
+      else if (sp) deelsDoen(a, k0, sp.rr);
       else strookDoen(a, b, k0, Math.round(a * 1000));
     }
   } catch (e) { console.warn('Banen berekenen mislukt', e); }
@@ -3559,10 +3570,10 @@ function tekenSproeier(z) {
     geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#29b6f6', weight: 3, dashArray: '2,7', interactive: false})).addTo(laag); };
   banenVan(z).forEach(bn => {   // leiding op de lijn tussen spoor nr en nr+1
     const basis = lijnen.has(bn.nr); if (!basis && !Object.keys(sp.stukLijn || {}).some(x => +x.split('|')[0] === bn.k)) return;
-    const o = bn.split ? bn.a + bn.b / 2 : bn.a + bn.b, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
-    const v0 = bn.split ? Math.max(bn.t0, bn.split[0]) : bn.t0, v1 = bn.split ? Math.min(bn.t1, bn.split[1]) : bn.t1;   // deels gesplitst: alleen langs het halve stuk
+    const o = bn.splits ? bn.a + bn.b / 2 : bn.a + bn.b, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
+    const bereik = bn.splits ? bn.splits.map(([h0, h1]) => [Math.max(bn.t0, h0), Math.min(bn.t1, h1)]) : [[bn.t0, bn.t1]];   // deels gesplitst: alleen langs de halve stukken
     const nb = banenVan(z)[bn.nr];   // de leiding ligt alleen waar beide sporen echt liggen (niet door een kopeinde)
-    spoorSegs(bn, v0, v1).flatMap(([a, b]) => nb ? spoorSegs(nb, a, b) : [[a, b]]).forEach(([a, b]) => stukkenAan(sp.stukLijn, bn, a, b, basis).forEach(([t0, t1]) => blauw(pt, t0, t1)));
+    bereik.flatMap(([v0, v1]) => spoorSegs(bn, v0, v1)).flatMap(([a, b]) => nb ? spoorSegs(nb, a, b) : [[a, b]]).forEach(([a, b]) => stukkenAan(sp.stukLijn, bn, a, b, basis).forEach(([t0, t1]) => blauw(pt, t0, t1)));
   });
   const spuit = spuitSet(z);
   banenVan(z).forEach(bn => {   // sproeierspoor (midden); op een spuitspoor tekent tekenSpuit hem (om en om)
@@ -4460,6 +4471,7 @@ function initKaart() {
   map.on('zoomend', zetKaartSchaal);
   // plantinfo komt pas bij inzoomen: opnieuw tekenen als je over die grens zoomt
   let zoomNiv = map.getZoom() >= 16 ? 2 : map.getZoom() >= 15 ? 1 : 0;
+  map.on('moveend', () => { clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300); });   // kaartpositie onthouden voor na verversen
   map.on('zoomend', () => { const n = map.getZoom() >= 16 ? 2 : map.getZoom() >= 15 ? 1 : 0; if (n !== zoomNiv) { zoomNiv = n; try { renderKaart(); } catch {} } });
 
   map.pm.setLang('nl');
@@ -4723,7 +4735,28 @@ function tekenZone(p, isA) {
 }
 
 /* ============ paneel ============ */
+// waar je was onthouden, zodat je na verversen (F5 / herladen) op dezelfde pagina terugkomt
+function plekBewaar() {
+  if (!sectie || (typeof TM !== 'undefined' && TM.aan) || $('#hoofdmenu.open')) return;
+  try { const c = typeof map !== 'undefined' && map?.getCenter ? map.getCenter() : null;
+    sessionStorage.setItem('plek', JSON.stringify({sectie, tab, actief, perceelTab, werkSub: typeof werkSub !== 'undefined' ? werkSub : null, kaart: c ? [c.lat, c.lng, map.getZoom()] : null, t: Date.now()})); } catch {}
+}
+function plekTerug() {
+  let w = null; try { w = JSON.parse(sessionStorage.getItem('plek') || 'null'); } catch {}
+  if (!w || !w.sectie || Date.now() - w.t > 12 * 36e5 || !SECTIES[w.sectie]) return false;
+  try {
+    kiesSectie(w.sectie);
+    if (w.werkSub && typeof werkSub !== 'undefined') Object.assign(werkSub, w.werkSub);
+    if (w.tab) tab = w.tab;
+    if (w.actief && perceel(w.actief)) { actief = w.actief; if (w.perceelTab) perceelTab = w.perceelTab; }
+    render(true);
+    if (w.kaart && typeof map !== 'undefined' && map?.setView) setTimeout(() => { try { map.setView([w.kaart[0], w.kaart[1]], w.kaart[2], {animate: false}); } catch {} }, 50);
+    return true;
+  } catch (e) { console.warn('plek terugzetten', e); return false; }
+}
+let plekTimer = null;
 function render(forceer) {
+  clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
   const a = document.activeElement;
   if (!forceer && a && $('#panel').contains(a) && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) { wachtRender = true; return; }
@@ -6759,6 +6792,7 @@ function menuSleep(e, soort, k, blok) {
 }
 
 function toonMenu() {
+  try { sessionStorage.removeItem('plek'); } catch {}   // in het startmenu: na verversen gewoon weer het menu
   if (isKoelcelPlek()) { $('#hoofdmenu')?.classList.remove('open'); if (!KOELCEL_TABS.includes(tab)) tab = 'hfscan'; render(true); return; }
   let el = $('#hoofdmenu');
   if (!el) { el = document.createElement('div'); el.id = 'hoofdmenu'; document.body.appendChild(el); }
@@ -11330,16 +11364,20 @@ const sporenWegEcht = z => (z.sporen_weg || []).filter(x => !halfMerk(x));   // 
 let SPH = null;   // splitsen: eerst de plek, dan de kant
 async function spoorHalf(z, bn, ll) {
   if (!mag('percelen_bewerken')) { toast('Je mag geen sporen aanpassen', 1); return; }
-  const p = ouder(z), l = z.sporen_weg || [], k = Math.floor(bn.k), merk = x => typeof x === 'string' && new RegExp('^h' + k + '([ab]|[vt]-?[\\d.]+|r-?[\\d.]+_-?[\\d.]+)?$').test(x);
+  const p = ouder(z), l = z.sporen_weg || [], k = Math.floor(bn.k);
   const meta = banenVan(z).meta, t = ll && meta ? Math.round(langs(meta, ll) * 10) / 10 : null;
-  if (l.some(merk)) {   // weer heel: de tweede helft verdwijnt (staat daar iets op, dan eerst vragen)
+  const mijn = l.map(splitBereik).filter(r => r && r.k === k);
+  // tik je op een stuk dat al gesplitst is: alleen dát stuk weer heel maken (na bevestigen)
+  const hier = mijn.find(r => r.heel || (t != null && t >= r.h0 - .5 && t <= r.h1 + .5));
+  if (hier) {
     SPH = null; banner();
-    const z2 = banenVan(z).find(x => x.k === k + 0.5), had = z2 && waarden((z.banen || [])[z2.nr - 1]).some(Boolean);
-    if (had && !await bevestig('Weer één heel spoor maken?', `Op de tweede helft (spoor ${z2.nr}) staan planten; die gaan eraf. De planten van de eerste helft komen op het hele spoor.`)) return;
-    await sporenOmzetten(p.id, z.id, {sporen_weg: l.filter(x => !merk(x) && x !== k + 0.5)}, `Spoor ${bn.nr} is weer één heel spoor`); return;
+    const z2 = banenVan(z).find(x => x.k === k + 0.5), had = z2 && waarden((z.banen || [])[z2.nr - 1]).some(Boolean), spuitHalf = z2 && spuitSet(z).has(z2.nr);
+    if (!await bevestig(hier.heel || mijn.length === 1 ? 'Weer één heel spoor maken?' : 'Dit stuk weer één heel spoor maken?',
+      `${hier.heel || mijn.length === 1 ? 'Het tweede halve spoor (' + (z2 ? 'spoor ' + z2.nr : '') + ') verdwijnt' : 'Op dit stuk verdwijnt het tweede halve spoor; de andere gesplitste stukken blijven'}.${had ? ' Er staan planten op die helft; die gaan eraf.' : ''}${spuitHalf ? ' Die helft is spuitspoor; dat gaat ook weg.' : ''}`)) return;
+    const rest = l.filter(x => x !== hier.merk), nogSplits = rest.some(x => splitBereik(x)?.k === k);
+    await sporenOmzetten(p.id, z.id, {sporen_weg: nogSplits ? rest : rest.filter(x => x !== k + 0.5)}, `Spoor ${bn.nr}${nogSplits ? ': dit stuk is' : ' is'} weer één heel spoor`); return;
   }
-  const doe = async merkNieuw => { SPH = null; banner(); await sporenOmzetten(p.id, z.id, {sporen_weg: [...l, merkNieuw]}, `½ Spoor ${bn.nr} is gesplitst${/[vtr]/.test(merkNieuw) ? ' (deels)' : ''} in twee halve sporen`); };
-  // het stuk tussen twee kopeindes waar je op tikte (of tot het eind van het spoor)
+  const doe = async merkNieuw => { SPH = null; banner(); await sporenOmzetten(p.id, z.id, {sporen_weg: [...(merkNieuw === 'h' + k ? l.filter(x => splitBereik(x)?.k !== k) : l), merkNieuw]}, `½ Spoor ${bn.nr} is gesplitst${merkNieuw === 'h' + k ? '' : ' (dit stuk)'} in twee halve sporen`); };
   // grenzen: wissels die je zelf zette en de kopeindes waar het spoor doorheen loopt (meters vanaf het begin van het spoor)
   const vw = (z.banen || [])[bn.nr - 1], grenzen = [...new Set([...(isGeknipt(vw) ? vw.k : []), ...(bn.gaten || [])])].sort((x, y) => x - y);
   const stukMerk = () => { if (!grenzen.length || t == null) return null; const r = t - bn.t0, i = grenzen.filter(g => g <= r).length;
@@ -11347,7 +11385,7 @@ async function spoorHalf(z, bn, ll) {
     return 'h' + k + 'r' + h0 + '_' + h1; };
   if (SPH && SPH.zid === z.id && SPH.k === k && t != null) {   // tweede tik: aan die kant wordt het spoor half-half
     if (Math.abs(t - SPH.T) < 0.5) { toast('Tik iets verder van de plek, aan de kant die half moet worden', 1); return; }
-    return doe('h' + k + (t > SPH.T ? 'v' : 't') + SPH.T);
+    return doe(t > SPH.T ? 'h' + k + 'r' + SPH.T + '_' + 1e5 : 'h' + k + 'r' + -1e5 + '_' + SPH.T);
   }
   if (t == null) return doe('h' + k);
   SPH = {zid: z.id, k, T: t};
