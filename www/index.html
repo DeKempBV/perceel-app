@@ -2040,6 +2040,8 @@ function nieuwePartijVoorRas(rid) {
 function zetGereedschap(g) { gereedschap = gereedschap === g ? undefined : g; kwast = undefined; gekozenPlant = undefined; render(true); }
 
 function klikBaan(p, bn, ll) {
+  // altijd met de nieuwste indeling werken: snel achter elkaar tikken (vooral in een deelveld) zag anders de vorige tik niet en zette die terug
+  { const vers = p._vak ? zoneVan(ouder(p).id, p.id) : perceel(p.id); if (vers) { p = vers; bn = banenVan(p).find(x => x.k === bn.k) || bn; } }
   if (PZ && ouder(p).id === PZ.pid) { pzKlik(p, bn); return; }
   if (partijKwast && partijKlikSpoor(p, bn)) return;
   if (ouder(p).id !== actief) { kies(ouder(p).id); return; }
@@ -3103,7 +3105,7 @@ function gewasKeuze(z, bew) {
 const alleZones = p => p.type === 'pand' ? [] : [p, ...(p.vakken || []).map(v => vakZone(p, v))];
 function zetBanen(z, arr) {
   if (!z._vak) { wijzig(z.id, {banen: arr}); return; }
-  const p = z._perceel;
+  const p = perceel(z._perceel.id) || z._perceel;
   wijzig(p.id, {vakken: (p.vakken || []).map(v => v.id === z._vak.id ? {...v, banen: arr} : v)});
 }
 const banenCache = new Map(), stroken = new Map();
@@ -3211,15 +3213,18 @@ function banenVan(p) {
             const L = lengte + 10, heelA = h0 > -L ? turf.intersect(vorm, rh(a - 1, a + b + 1, -L, h0)) : null, heelB = h1 < L ? turf.intersect(vorm, rh(a - 1, a + b + 1, h1, L)) : null;
             const half1 = turf.intersect(vorm, rh(a - 1, a + b / 2, h0, h1)), half2 = turf.intersect(vorm, rh(a + b / 2, a + b + 1, h0, h1));
             let g1 = null; for (const x of [heelA, half1, heelB]) if (x) g1 = g1 ? (turf.union(g1, x) || g1) : x;
-            sr.g1 = g1 ? {geo: g1, m2: turf.area(g1), t0: t[0], t1: t[1]} : null;
-            sr.g2 = half2 && turf.area(half2) > 0.5 ? {geo: half2, m2: turf.area(half2), t0: Math.max(t[0], h0), t1: Math.min(t[1], h1)} : null;
+            // waar het spoor echt ligt (stukken tussen de kopeindes), voor meters, lijnen en de vanzelf-wissel bij een kopeinde
+            const ivs = hk ? hk.st : [t], ivs2 = ivs.map(([x, y]) => [Math.max(x, h0), Math.min(y, h1)]).filter(([x, y]) => y - x > .3);
+            const ligt = (l, t0) => l.length > 1 ? {delen: l.map(([x, y]) => [x - t0, y - t0]), gaten: l.slice(1).map((iv, j) => Math.round(((l[j][1] + iv[0]) / 2 - t0) * 10) / 10)} : {};
+            sr.g1 = g1 ? {geo: g1, m2: turf.area(g1), t0: t[0], t1: t[1], ...ligt(ivs, t[0])} : null;
+            sr.g2 = half2 && turf.area(half2) > 0.5 && ivs2.length ? {geo: half2, m2: turf.area(half2), t0: ivs2[0][0], t1: ivs2[ivs2.length - 1][1], ...ligt(ivs2, ivs2[0][0])} : null;
             if (hk && turf.area(vol) - hk.m2 > 1) { const rr = zonderSnippers(verschil(vol, hk.geo)); if (rr && turf.area(rr) > 1) sr.rest = rr; }
           }
         } catch (e) { console.warn('deels splitsen', e); }
         strook.m.set(sk, sr); }
       if (sr.rest && !weg.has(k)) res.rest.push(sr.rest);
-      if (sr.g1) { if (weg.has(k)) res.weg.push({k, geo: sr.g1.geo, a, b}); else { const bn = {nr: res.length + 1, k, geo: sr.g1.geo, m2: sr.g1.m2, a, b, t0: sr.g1.t0, t1: sr.g1.t1, deels: true, split: [h0, h1]}; if (stukWeg(bn, k)) res.push(bn); } }
-      if (sr.g2) { if (weg.has(k + 0.5)) res.weg.push({k: k + 0.5, geo: sr.g2.geo, a: a + b / 2, b: b / 2}); else { const bn = {nr: res.length + 1, k: k + 0.5, geo: sr.g2.geo, m2: sr.g2.m2, a: a + b / 2, b: b / 2, t0: sr.g2.t0, t1: sr.g2.t1, half: true}; if (stukWeg(bn, k + 0.5)) res.push(bn); } }
+      if (sr.g1) { if (weg.has(k)) res.weg.push({k, geo: sr.g1.geo, a, b}); else { const bn = {nr: res.length + 1, k, geo: sr.g1.geo, m2: sr.g1.m2, a, b, t0: sr.g1.t0, t1: sr.g1.t1, deels: true, split: [h0, h1], ...(sr.g1.delen ? {delen: sr.g1.delen, gaten: sr.g1.gaten} : {})}; if (stukWeg(bn, k)) res.push(bn); } }
+      if (sr.g2) { if (weg.has(k + 0.5)) res.weg.push({k: k + 0.5, geo: sr.g2.geo, a: a + b / 2, b: b / 2}); else { const bn = {nr: res.length + 1, k: k + 0.5, geo: sr.g2.geo, m2: sr.g2.m2, a: a + b / 2, b: b / 2, t0: sr.g2.t0, t1: sr.g2.t1, half: true, ...(sr.g2.delen ? {delen: sr.g2.delen, gaten: sr.g2.gaten} : {})}; if (stukWeg(bn, k + 0.5)) res.push(bn); } }
     };
     const splits = new Map();   // k → {heel: true} of {h0, h1}: tussen h0 en h1 (meters langs, zelfde maat als bn.t0) half-half
     weg.forEach(x => { const mm = typeof x === 'string' && x.match(/^h(-?\d+)(?:([ab])|([vt])(-?[\d.]+)|r(-?[\d.]+)_(-?[\d.]+))?$/); if (!mm) return;
