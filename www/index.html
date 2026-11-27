@@ -4908,7 +4908,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v128';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v129';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -15665,7 +15665,16 @@ async function hfVervers(codes, sinds) {
       HF.hand = HF.hand.map(x => nw(x.code) || x); HF.paletten = HF.paletten.map(x => nw(x.code) || x); HF.pallet = HF.paletten[HF.paletten.length - 1] || null; }
   } catch (e) { console.warn(e); }
 }
+// boeken met een slot: tot het helemaal klaar is (ook het verversen en de hand leegmaken) geen tweede boeking.
+// De scanner las een koelcel soms twee keer; de tweede keer boekte dan dezelfde pallets weer uit (leeg).
 async function hfBoek(actie, doel, codes, houd) {
+  if (HF.boekSlot) return;
+  if (actie === 'koelcel' && HF.naBoekDoel === doel && Date.now() - (HF.naBoek || 0) < 3000) return;   // dubbel gelezen koelcel
+  HF.boekSlot = true;
+  try { return await hfBoek0(actie, doel, codes, houd); }
+  finally { HF.boekSlot = false; HF.naBoek = Date.now(); HF.naBoekDoel = doel; }
+}
+async function hfBoek0(actie, doel, codes, houd) {
   if (!mag('voorraad_beheren')) { toast('Dit account mag geen voorraad boeken', 1); return; }
   if (HF.bezig) return;
   hfKistPopDicht();
