@@ -1101,6 +1101,7 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 #kiepPop .kpTitel{font-size:22px}#kiepPop .kpSub{color:#5d6b62;margin-top:4px}
 /* knop in de hand */.etModus{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}.etModus button{flex:1;min-width:120px;border:2px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;font:700 16px/1 system-ui,sans-serif;cursor:pointer;color:#1d2a22}.etModus button.aan{border-color:#2e7d32;background:#2e7d32;color:#fff}
 .etGescand{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid #d5ded8;border-radius:12px;padding:10px 12px;margin-bottom:6px;background:#fff}.etGescand .t{flex:1;min-width:180px}.etGescand small{display:block;color:#5d6b62}.etGescand .k{display:flex;gap:6px;flex-wrap:wrap}
+.psKaart.aan{border:2px solid #2e7d32;background:#f3faf3}.psKaart code{background:#eef;padding:1px 4px;border-radius:4px;word-break:break-all}.psUitleg summary{cursor:pointer;font-weight:600;margin-top:8px}.psLog{margin-top:8px}
 .etActRij{display:flex;align-items:center;gap:10px;width:100%;border:1px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;margin-bottom:6px;text-align:left;font:inherit;cursor:pointer}.etActRij:active{background:#eef6ef}
 .etActRij .kl{width:10px;align-self:stretch;border-radius:4px;flex:0 0 auto}.etActRij .t{flex:1;min-width:0}.etActRij small{display:block;color:#5d6b62}.etActRij .pr{font-size:22px}
 .hfHand .hfKiepKnop{width:100%;margin-top:10px}
@@ -1808,7 +1809,7 @@ const LIVE_SAMEN = new Set(['partij_mutaties', 'etiketten', 'scan_log', 'res_inv
 function renderStraks() { clearTimeout(renderStraks.t); renderStraks.t = setTimeout(() => render(), 150); }
 function verwerkLive(pl) {
   if (pl.table === 'percelen' || pl.table === 'partijen') spoorPartijMap = null;
-  if (pl.table === 'wagens_weg') setTimeout(() => { if (TM.aan) { if (!TM.wagen) tmRender(); } else render(); }, 80);
+  if (pl.table === 'wagens_weg') setTimeout(() => { if (TM.aan) { if (!TM.wagen) tmRender(); } else render(); if (psAan) psCheck(); }, 80);
   if (pl.table === 'res_invoer' || pl.table === 'res_kistinhoud') setTimeout(() => { if ($('#kiepScherm')) toonKiep(true); else if (TM.aan) { if (!TM.wagen) tmRender(); } else if (/^res|vandaag|watstaatwaar/.test(tab)) render(); }, 60);
   if (pl.table === 'seizoenen') {
     if (pl.eventType !== 'DELETE' && pl.new.actief && pl.new.id !== actiefSeizoen()?.id) toast(`Nieuw seizoen gestart: ${pl.new.naam}`);
@@ -11548,7 +11549,7 @@ async function laadBedrijf() {
   // partijen van een vorig teeltjaar die nog in de koelcel liggen ook laden
   if (pa && pm && !archief) { const al = new Set(pa.map(x => x.id)), som = {}; pm.forEach(m => { if (al.has(m.partij_id)) return; som[m.partij_id] = (som[m.partij_id] || 0) + (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0) * (m.eenheid && m.eenheid !== 'planten' ? (+m.per_eenheid || 1) : 1); });
     const ids = Object.keys(som).filter(k => som[k] > .5); if (ids.length) { const {data} = await sb.from('partijen').select('*').in('id', ids.slice(0, 300)); if (data) pa.push(...data); } }
-  S.rooiplanning = rp || []; S.plantplanning = ppl || []; laadKlok(); laadResultaten().then(() => { if (/^res|gebeurtenissen|uren|mij/.test(tab)) render(true); }); setTimeout(() => rooiSyncRollen().catch(() => {}), 1500);
+  S.rooiplanning = rp || []; S.plantplanning = ppl || []; laadKlok(); laadResultaten().then(() => { if (/^res|gebeurtenissen|uren|mij/.test(tab)) render(true); if (psAan) psCheck(); }); setTimeout(() => rooiSyncRollen().catch(() => {}), 1500);
   S.partijen = pa || []; partijenVanSporen(); S.monsters = mo || []; S.partij_mutaties = pm || []; S.waarnemingen = wn || []; S.plantbehoefte = pb || [];
   laadBestellingen(); laadBeregening();
   S.middelen = md || []; S.oogst = oo || []; S.machines = ma || []; S.machine_log = ml || []; S.kosten = ko || []; S.meldingen = me2 || [];
@@ -14369,12 +14370,12 @@ function etBladen(rijen) {
   for (let i = 0; i < box.length; i += 2) uit.push(`<div class="etPagina">${etBoxHtml(box[i].data || {}, box[i].code, box[i].nr)}${box[i + 1] ? `<div class="etKnip"></div>${etBoxHtml(box[i + 1].data || {}, box[i + 1].code, box[i + 1].nr)}` : ''}</div>`);
   return uit.join('');
 }
-function etPrintVenster(bladen) {
+function etPrintVenster(bladen, stil) {
   const html = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Etiketten</title><style>@page{size:A4 portrait;margin:8mm}html,body{margin:0;background:#fff}${ET_CSS}
     .knoppen{position:sticky;top:0;background:#fff;padding:8px;text-align:center;border-bottom:1px solid #ddd;font-family:sans-serif}.knoppen button{font-size:16px;padding:8px 16px}
     @media screen{body{background:#eee}.etPagina{margin:10px auto;box-shadow:0 1px 6px #0003;padding:0}}@media print{.knoppen{display:none}}</style></head>
     <body><div class="knoppen"><button onclick="print()">🖨️ Afdrukken</button></div>${bladen}</body></html>`;
-  const win = window.open('', '_blank');
+  const win = stil ? null : window.open('', '_blank');   // stil (printstation): onzichtbaar printen, geen nieuw venster
   if (win) { win.document.write(html); win.document.close(); setTimeout(() => { try { win.focus(); win.print(); } catch {} }, 600); return; }
   const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(fr);
   fr.contentDocument.write(html); fr.contentDocument.close(); setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch {} setTimeout(() => fr.remove(), 3000); }, 600);
@@ -14490,7 +14491,7 @@ function htmlEtActueel() {
     return `<button class="etActRij" onclick="etBoxVoor('${pid}',${nog || b})"><span class="kl" style="background:${etKleur(partijRas(y))}"></span><span class="t"><b>${esc(partijRas(y) || '?')} ${esc(y.batch || '')}</b>${y.klasse ? ' · ' + esc(y.klasse) : ''}
       <small>${getal(b)} bakken gerooid${al ? ` · ${getal(al)} boxkaarten al gedrukt` : ''}${nog ? ` · <b>nog ${getal(nog)}</b>` : ' · ✅ allemaal gedrukt'}</small></span><span class="pr">🖨️</span></button>`; }).join('')
     || `<p class="hint">${etActDag === 'gisteren' ? 'Gisteren' : 'Vandaag'} is er (nog) niets gerooid.</p>`;
-  return `${etGescandHtml()}<section class="kaartje"><div class="rij" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h4 style="margin:0">📋 Klaar om te printen</h4>
+  return `${psHtml()}${etGescandHtml()}<section class="kaartje"><div class="rij" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h4 style="margin:0">📋 Klaar om te printen</h4>
       <div class="pnoSeg">${[['vandaag', 'Vandaag'], ['gisteren', 'Gisteren']].map(([k, t]) => `<button class="${etActDag === k ? 'aan' : ''}" onclick="etActDag='${k}';render(true)">${t}</button>`).join('')}</div></div>
       <p class="hint" style="margin-top:6px">Tik op een regel en kies wat je wilt printen. Het aantal staat al ingevuld.</p></section>
     <section class="kaartje"><h4>🗂️ Gesorteerd <small>paspoortkaartjes of palletkaarten</small></h4>${sorHtml}</section>
@@ -14520,6 +14521,77 @@ async function etBoxVoor(pid, n) {
   etVorm = etNieuweVorm(); etSoort = 'box'; etKiesPartij(pid); Object.assign(etVorm, {aantal: parseInt(w.aantal, 10), datum: vandaag()});
   await etAfdrukken();
 }
+/* ---------- printstation: boxkaarten automatisch printen zodra de rooier een wagen terugstuurt ----------
+   Zet je op een computer bij de printer (Etiketten → Actueel → 🖨️ Printstation) aan. Hij print dan bij elke gemelde wagen
+   meteen één boxkaart per bak. Eén computer print het: wie het eerst de wagen claimt (wagen_boxkaarten_claim). */
+const PS_WACHT = 20000;   // 20 s wachten na het melden: zo kan de chauffeur een verkeerd getikte wagen nog terugdraaien
+let psAan = (() => { try { return localStorage.getItem('printstation_box') === '1'; } catch { return false; } })();
+let psSinds = (() => { try { return localStorage.getItem('printstation_sinds') || ''; } catch { return ''; } })();
+let psLog = (() => { try { return JSON.parse(localStorage.getItem('printstation_log') || '[]') || []; } catch { return []; } })();
+let psFout = '', psTimer = null;
+const psBezig = new Set();
+function psZet(aan) {
+  psAan = !!aan; psFout = '';
+  if (aan) psSinds = new Date().toISOString();   // alleen wagens vanaf nu (oudere heb je misschien al met de hand geprint)
+  try { localStorage.setItem('printstation_box', aan ? '1' : '0'); localStorage.setItem('printstation_sinds', psSinds); } catch {}
+  if (aan) toast('🖨️ Deze computer print nu automatisch de boxkaarten van elke wagen'); psCheck(); render(true);
+}
+function psLogBij(r) { psLog = [r, ...psLog].slice(0, 30); try { localStorage.setItem('printstation_log', JSON.stringify(psLog)); } catch {} if (tab === 'etiketten') render(true); }
+function psCheck() {
+  clearTimeout(psTimer);
+  if (!psAan || !me || !magEtiket()) return;
+  const nu = Date.now(), grens = Math.max(nu - 12 * 36e5, psSinds ? new Date(psSinds).getTime() - 60000 : nu);
+  let volgende = 60000;   // ook elke minuut kijken (voor als een melding via de verbinding gemist is)
+  (S.wagens_weg || []).forEach(w => {
+    const t = new Date(w.gemeld_op).getTime();
+    if (w.boxkaarten_op || psBezig.has(w.id) || !['onderweg', 'legen'].includes(w.status) || !(t >= grens)) return;
+    if (nu - t < PS_WACHT) { volgende = Math.min(volgende, PS_WACHT - (nu - t) + 500); return; }
+    psPrint(w);
+  });
+  psTimer = setTimeout(psCheck, volgende);
+}
+async function psPrint(w) {
+  psBezig.add(w.id);
+  let rijen = [];
+  try {
+    const {data: ok, error} = await sb.rpc('wagen_boxkaarten_claim', {p_wagen: w.id});
+    if (error) { psFout = /function|schema cache|does not exist/i.test(error.message) ? 'Draai eerst boxkaarten-auto.sql in Supabase' : foutTekst(error); if (tab === 'etiketten') render(true); return; }
+    psFout = '';
+    if (!ok) { w.boxkaarten_op = w.boxkaarten_op || new Date().toISOString(); return; }   // al geprint (door een andere computer) of de wagen is weg
+    w.boxkaarten_op = new Date().toISOString();
+    for (const x of (w.inhoud || [])) {
+      const n = Math.min(200, Math.round(n0(x.bakken))); if (!x.partij_id || !(n > 0)) continue;
+      const y = (S.partijen || []).find(z => z.id === x.partij_id) || {};
+      const data = {datum: dKey(new Date(w.gemeld_op)), ras: partijRas(y) || soort(y.soort_id)?.naam || x.naam || '?', batch: y.batch || '', klasse: y.klasse || '',
+        perceel: partijPerceelNaam(y) || y.perceel_tekst || '', bio: !!(y.bio || isBioPerceel(perceel(y.perceel_id))), opmerking: '', wagen_id: w.id};
+      const r = await etNummersMaken('box', n, x.partij_id, data);
+      if (r.fout || !r.rijen) throw r.fout || new Error('Etiketten maken mislukt');
+      rijen.push(...r.rijen);
+    }
+    if (rijen.length) etPrintVenster(etBladen(rijen), true);
+    psLogBij({t: new Date().toISOString(), wagen: w.wagen || 'wagen', gemeld: w.gemeld_op, door: w.gemeld_door || '', tekst: w.tekst || '', n: rijen.length, codes: rijen.map(r => r.code)});
+    if (rijen.length) toast(`🖨️ ${rijen.length} boxkaarten geprint · ${w.wagen || 'wagen'} van ${wagenTijd(w.gemeld_op)}`);
+  } catch (e) {
+    if (!rijen.length) { await sb.rpc('wagen_boxkaarten_vrij', {p_wagen: w.id}).catch(() => {}); w.boxkaarten_op = null; }   // niets gemaakt: straks opnieuw proberen
+    else etPrintVenster(etBladen(rijen), true);   // een deel is gemaakt: dat deel printen, de rest met de hand
+    psLogBij({t: new Date().toISOString(), wagen: w.wagen || 'wagen', gemeld: w.gemeld_op, door: w.gemeld_door || '', tekst: w.tekst || '', n: rijen.length, codes: rijen.map(r => r.code), fout: foutTekst(e)});
+  } finally { psBezig.delete(w.id); }
+}
+function psHtml() {
+  if (!magEtiket()) return '';
+  const nu = psAan;
+  return `<section class="kaartje psKaart ${nu ? 'aan' : ''}"><div class="rij" style="justify-content:space-between;align-items:center;gap:10px;margin:0">
+      <div><h4 style="margin:0">🖨️ Printstation <small>boxkaarten automatisch</small></h4>
+      <p class="hint" style="margin:4px 0 0">${nu ? `<b>Aan op deze computer.</b> Zodra de rooier een wagen terugstuurt, komt er per bak een boxkaart uit (na ${PS_WACHT / 1000} s, zodat een verkeerd getikte wagen nog teruggedraaid kan worden).` : 'Zet dit aan op de computer bij de printer. Dan komen de boxkaarten vanzelf uit zodra de rooier een wagen terugstuurt.'}</p></div>
+      <button class="knop ${nu ? 'licht' : ''} klein" style="width:auto;white-space:nowrap" onclick="psZet(${!nu})">${nu ? 'Uitzetten' : 'Aanzetten'}</button></div>
+    ${psFout ? `<p class="hint" style="color:var(--rood,#c0392b)">⚠️ ${esc(psFout)}</p>` : ''}
+    ${nu ? `<details class="psUitleg"><summary>Zonder afdrukvenster printen (eenmalig instellen)</summary><p class="hint">Start Chrome of Edge op deze computer met <code>--kiosk-printing</code>, dan print hij meteen op de standaardprinter zonder te vragen.
+      Maak een snelkoppeling met als doel bijvoorbeeld:<br><code>"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe" --kiosk-printing ${esc(location.origin + location.pathname)}</code><br>
+      Zet de standaardprinter in Windows op de A4-printer, laat de app op deze computer openstaan (ingelogd) en zet de computer niet in slaapstand.</p></details>
+      ${psLog.length ? `<div class="psLog">${psLog.slice(0, 8).map(r => `<div class="srRij"><div class="t"><b>${r.fout ? '⚠️' : '✅'} ${esc(r.wagen)} van ${wagenTijd(r.gemeld)}${r.door ? ' · ' + esc(r.door) : ''} · ${getal(r.n)} ${r.n === 1 ? 'boxkaart' : 'boxkaarten'}</b>
+        <small>${esc(r.tekst)}${r.fout ? ' · ' + esc(r.fout) : ''}${r.codes?.length ? ` · ${esc(r.codes[0])}${r.codes.length > 1 ? '–' + esc(r.codes[r.codes.length - 1]) : ''}` : ''}</small></div>
+        ${r.codes?.length ? `<span class="logknoppen"><button class="weg" title="Opnieuw afdrukken" onclick="etOpnieuw(${esc(JSON.stringify(r.codes))})">🖨️</button></span>` : ''}</div>`).join('')}</div>` : '<p class="hint">Nog geen wagens geprint sinds het aanzetten.</p>'}` : ''}</section>`;
+}
 // recent geprinte kistkaarten (paspoort), met opnieuw printen
 function htmlKkRecent() {
   const l = (S.kistkaart_opdrachten || []).filter(k => k.status !== 'weg').slice(0, 25);
@@ -14534,6 +14606,19 @@ async function etVolgendNr(soort) {
   if (soort === 'pallet') m = Math.max(m, ...(S.partij_mutaties || []).map(x => parseInt(x.pallet) || 0));
   return m + 1;
 }
+// n etiketten met een eigen (volgend) nummer aanmaken; bij een botsing (iemand anders printte tegelijk) opnieuw proberen
+async function etNummersMaken(soortE, n, pid, data) {
+  const letter = soortE === 'pallet' ? 'P' : 'B';
+  let rijen = null, fout = null, start = await etVolgendNr(soortE);
+  for (let poging = 0; poging < 4; poging++) {
+    const nieuw = [...Array(n)].map((_, i) => ({code: letter + (start + i), soort: soortE, nr: start + i, partij_id: pid || null, seizoen_id: bekeken || null, data, door: naamMe()}));
+    const res = await sb.from('etiketten').insert(nieuw).select();
+    if (!res.error) { rijen = res.data; fout = null; break; }
+    fout = res.error; if (!/duplicate|unique/i.test(fout.message)) break; start = await etVolgendNr(soortE) + poging;
+  }
+  if (rijen) { rijen.sort((a, b) => a.nr - b.nr); S.etiketten = [...rijen, ...(S.etiketten || [])]; }
+  return {rijen, fout};
+}
 async function etAfdrukken() {
   if (!magEtiket()) return;
   const v = {...etVorm}, n = Math.max(1, Math.min(200, parseInt(v.aantal) || 1)), pal = etSoort === 'pallet';
@@ -14542,16 +14627,9 @@ async function etAfdrukken() {
   try { localStorage.setItem('etiket_laatst', JSON.stringify({sortering: v.sortering, klasse: v.klasse, fust: v.fust, per_kist: v.per_kist})); } catch {}
   const data = {datum: v.datum || null, ras: v.ras.trim(), batch: v.batch || '', klasse: v.klasse || '', perceel: v.perceel || '', bio: !!v.bio,
     ...(pal ? {sortering: v.sortering || '', maat: v.maat || '', fust: v.fust || '', per_kist: v.per_kist || '', kistjes: leesGetal(v.kistjes, null)} : {opmerking: v.opmerking || ''})};
-  const soortE = pal ? 'pallet' : 'box', letter = pal ? 'P' : 'B';
-  let rijen = null, fout = null, start = await etVolgendNr(soortE);
-  for (let poging = 0; poging < 4; poging++) {
-    const nieuw = [...Array(n)].map((_, i) => ({code: letter + (start + i), soort: soortE, nr: start + i, partij_id: v.partij_id || null, seizoen_id: bekeken || null, data, door: naamMe()}));
-    const res = await sb.from('etiketten').insert(nieuw).select();
-    if (!res.error) { rijen = res.data; fout = null; break; }
-    fout = res.error; if (!/duplicate|unique/i.test(fout.message)) break; start = await etVolgendNr(soortE) + poging;
-  }
+  const soortE = pal ? 'pallet' : 'box';
+  const {rijen, fout} = await etNummersMaken(soortE, n, v.partij_id || null, data);
   if (fout || !rijen) { toast(/does not exist|schema cache/i.test(fout?.message || '') ? 'Draai eerst het nieuwe beheer.sql in Supabase' : foutTekst(fout), 1); return; }
-  rijen.sort((a, b) => a.nr - b.nr); S.etiketten = [...rijen, ...(S.etiketten || [])];
   // meteen inslaan
   const kist = leesGetal(v.kistjes, 0);
   if (pal && v.koelcel && mag('voorraad_beheren')) {
