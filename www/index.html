@@ -1809,6 +1809,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) liveV
 const LIVE_SAMEN = new Set(['partij_mutaties', 'etiketten', 'scan_log', 'res_invoer', 'kiep_planning', 'voorraad_reserveringen', 'voorraad_bestemmingen']);
 function renderStraks() { clearTimeout(renderStraks.t); renderStraks.t = setTimeout(() => render(), 150); }
 function verwerkLive(pl) {
+  // terugkoppeling van onze eigen (snelle) wijzigingen aan een perceel: die hebben we al, en een oudere tussenstand zou het terugzetten
+  if (pl.table === 'percelen' && pl.eventType === 'UPDATE' && pl.new?.id && eigenWijzigingBezig(pl.new.id)) return;
   if (pl.table === 'percelen' || pl.table === 'partijen') spoorPartijMap = null;
   if (pl.table === 'wagens_weg') setTimeout(() => { if (TM.aan) { if (!TM.wagen) tmRender(); } else render(); if (psAan) psCheck(); }, 80);
   if (pl.table === 'res_invoer' || pl.table === 'res_kistinhoud') setTimeout(() => { if ($('#kiepScherm')) toonKiep(true); else if (TM.aan) { if (!TM.wagen) tmRender(); } else if (/^res|vandaag|watstaatwaar/.test(tab)) render(); }, 60);
@@ -1861,11 +1863,24 @@ async function herlaadRij(tabel, id) {
 }
 
 /* ============ database-acties ============ */
+// Opslaan per perceel netjes achter elkaar (en steeds de nieuwste stand): snel achter elkaar tikken kon anders
+// een oudere versie als laatste in de database zetten (een sproeier kwam terug, een spuitpad verdween)
+const wijzigRij = new Map();
+const eigenWijzigingBezig = id => { const r = wijzigRij.get(id); return !!r && (r.velden.size > 0 || r.bezig || Date.now() - r.laatst < 4000); };
 async function wijzig(id, patch) {
   const p = perceel(id); if (!p) return;
   Object.assign(p, patch); spoorPartijMap = null; render(true);
-  const {error} = await sb.from('percelen').update({...patch, updated_at: new Date().toISOString()}).eq('id', id);
-  if (error) toast('Opslaan mislukt: ' + error.message, 1);
+  let r = wijzigRij.get(id); if (!r) { r = {velden: new Set(), keten: Promise.resolve(), laatst: 0, bezig: false}; wijzigRij.set(id, r); }
+  Object.keys(patch).forEach(k => r.velden.add(k)); r.laatst = Date.now();
+  r.keten = r.keten.then(async () => {
+    if (!r.velden.size) return;
+    const velden = [...r.velden]; r.velden.clear(); r.bezig = true;
+    const nu = perceel(id) || p, body = {}; velden.forEach(k => { body[k] = nu[k]; });
+    try { const {error} = await sb.from('percelen').update({...body, updated_at: new Date().toISOString()}).eq('id', id); if (error) toast('Opslaan mislukt: ' + error.message, 1); }
+    catch (e) { toast('Opslaan mislukt: ' + (e.message || e), 1); }
+    r.bezig = false; r.laatst = Date.now();
+  });
+  return r.keten;
 }
 async function nieuwPerceel(geo, voorstel, uitleg, extra = {}) {
   const n = S.percelen.filter(x => (x.type || 'veld') === nieuwType).length + 1;
