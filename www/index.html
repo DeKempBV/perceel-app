@@ -10036,8 +10036,12 @@ const PI_KLEUREN = ['#ffffff', '#ffeb3b', '#80deea', '#ffab91', '#ce93d8', '#a5d
 function partijKleurRang(p) {
   const c = partijKleurRang.c || (partijKleurRang.c = new Map()), sl = spoorPartijIndex(); let e = c.get(p.id);
   if (e && e.sl === sl && e.v === S.partijen) return e.r;
+  // partijen van hetzelfde ras bij elkaar: zelfde ras-koppeling óf zelfde rasnaam (de ene kan gekoppeld zijn, de andere alleen als tekst)
+  const lijst = (S.partijen || []).filter(x => x.perceel_id === p.id && partijSporen(x).length), ou = lijst.map((_, i) => i), vind = i => ou[i] === i ? i : (ou[i] = vind(ou[i]));
+  const sleutels = x => [x.ras_id && 'id:' + x.ras_id, normTekst(partijRas(x) || '') && 'nm:' + normTekst(partijRas(x) || ''), normTekst(x.ras_tekst || '') && 'nm:' + normTekst(x.ras_tekst || ''), !x.ras_id && !partijRas(x) && x.soort_id && 'so:' + x.soort_id].filter(Boolean);
+  const eerste = new Map(); lijst.forEach((x, i) => sleutels(x).forEach(k => { if (eerste.has(k)) { const a2 = vind(eerste.get(k)), b2 = vind(i); if (a2 !== b2) ou[Math.max(a2, b2)] = Math.min(a2, b2); } else eerste.set(k, i); }));
   const per = new Map();
-  (S.partijen || []).filter(x => x.perceel_id === p.id && partijSporen(x).length).forEach(x => { const k = normTekst(partijRas(x) || '') || x.ras_id || x.soort_id || ''; if (!per.has(k)) per.set(k, []); per.get(k).push({x, m: partijMeters(x)}); });
+  lijst.forEach((x, i) => { const k = vind(i); if (!per.has(k)) per.set(k, []); per.get(k).push({x, m: partijMeters(x)}); });
   const r = new Map(); per.forEach(l => l.sort((a, b) => b.m - a.m).forEach((q, i) => r.set(q.x.id, i)));
   c.set(p.id, {sl, v: S.partijen, r}); return r;
 }
@@ -10069,6 +10073,7 @@ function tekenPlantInfo(p) {
       let hull = null;
       for (const q of g.geos) { try { const b = turf.buffer(q, 0.3, {units: 'meters', steps: 2}); hull = hull ? (turf.union(hull, b) || hull) : b; } catch {} }
       try { if (hull) hull = turf.buffer(hull, -0.3, {units: 'meters', steps: 2}) || hull; } catch {}
+      if (!hull) hull = turf.featureCollection(g.geos.map(q => q.type === 'Feature' ? q : turf.feature(q)));   // samenvoegen lukte niet: dan per stuk een randje
       if (hull) { const f = () => L.geoJSON(hull, {interactive: false, style: {color: kleur, weight: 3, opacity: .95, fill: false}}).addTo(laag); teken.push(f); f(); }
     } catch {} }
     const html = `<div style="color:${kleur}"><b>${r1}</b><span>${r2}</span></div>`, f = () => L.marker([lat, lng], {interactive: false, keyboard: false, icon: L.divIcon({className: 'plantInfo', html, iconSize: [0, 0]})}).addTo(laag);
