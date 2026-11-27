@@ -3496,8 +3496,9 @@ function tekenSpuit(z) {
     try { const c = turf.intersect(bn.geo, rechthoek(meta, o - .15, o + .15, bn.t0 - 1, bn.t1 + 1)); lijn = c ? L.geoJSON(c) : null; } catch {}
     geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#000', weight: 6, opacity: .35, interactive: false})).addTo(laag);
     if (spuitOokSproeier(z, bn.nr)) {   // spuitspoor waar ook een sproeier op ligt: rode en blauwe streepjes om en om
-      geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#ff6d00', weight: 3, dashArray: '9,9', interactive: false})).addTo(laag);
-      geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#29b6f6', weight: 3, dashArray: '9,9', dashOffset: '9', interactive: false})).addTo(laag);
+      // één doorlopende lijn: eronder heel rood/oranje, erbovenop blauwe streepjes in de gaten (werkt ook op de canvas-kaart, zonder dashOffset)
+      geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#ff6d00', weight: 3, interactive: false})).addTo(laag);
+      geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#29b6f6', weight: 3, dashArray: '10,10', lineCap: 'butt', interactive: false})).addTo(laag);
     } else geenSnap(L.polyline([pt(bn.t0), pt(bn.t1)], {color: '#ff6d00', weight: 3, dashArray: '10,6', interactive: false})).addTo(laag);
   });
 }
