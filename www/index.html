@@ -3362,6 +3362,7 @@ function sproeierLijnenVan(z) {
   const los = (spuitVan(z).sproeierLijn || []).map(Number), t = String(spuitVan(z).patroon || ''); if (!t.includes('-')) return new Set(los);
   const d = patroonDelen(t), na = [...d.lijnen], per = d.per, st = Math.max(1, parseInt(spuitVan(z).patroonStart) || 1), uit = new Set(), tot = banenVan(z).length;
   if (per) for (let base = st - 1 - per * Math.ceil(st / per); base < tot; base += per) na.forEach(i => { const nr = base + i; if (nr >= 1 && nr < tot) uit.add(nr); });
+  (spuitVan(z).lijnUit || []).map(Number).forEach(nr => uit.delete(nr));   // met de hand weggehaalde leidingen uit het patroon
   los.forEach(nr => uit.add(nr)); return uit;
 }
 const patroonVan = z => { const t = spuitVan(z).patroon; if (!t) return null; const pp = patroonLees(t); return pp.length ? pp : null; };
@@ -3372,7 +3373,7 @@ function rijWaardeRuw(z, nr) {   // 1, 0,5, 0, 2 (spuitspoor) of 3 (sproeierspoo
   if ((spuitVan(z).sproeier || []).includes(nr)) return 3;
   const pp = patroonVan(z);
   if (pp) { const st = Math.max(1, parseInt(spuitVan(z).patroonStart) || 1), i = (((nr - st) % pp.length) + pp.length) % pp.length; const s = spuitVan(z);
-    if ((s.uit || []).includes(nr) && pp[i] === 2) return 1; if ((s.extra || []).includes(nr)) return 2; return pp[i]; }
+    if ((s.uit || []).includes(nr) && pp[i] === 2) return 1; if ((s.sproeierUit || []).includes(nr) && pp[i] === 3) return 1; if ((s.extra || []).includes(nr)) return 2; return pp[i]; }
   return spuitSet(z).has(nr) ? 2 : 1;
 }
 // plantrijtjes per spoor (bijv. asperges: 4 op 1,5 m) en hoeveel daarvan er onder een spuitspoor staan (bijv. 3; 0 = spuitspoor leeg)
@@ -3521,17 +3522,24 @@ function tekenSproeier(z) {
   });
 }
 function wisselSproeierLijn(z, na) {   // leiding op de lijn tussen spoor na en na+1
-  const s = {...spuitVan(z)}, l = new Set((s.sproeierLijn || []).map(Number));
-  if (l.has(na)) l.delete(na); else if (sproeierLijnenVan(z).has(na)) { toast('Deze leiding komt uit het spoorpatroon; pas het patroon aan', 1); return; } else l.add(na);
-  s.sproeierLijn = [...l].sort((a, b) => a - b); zetSpuit(z, s);
-  toast(`${z._vak ? z.naam + ' · ' : ''}${l.has(na) ? '💧 Sproeierleiding tussen' : 'Geen leiding meer tussen'} spoor ${na} en ${na + 1}`);
+  const s = {...spuitVan(z)}, l = new Set((s.sproeierLijn || []).map(Number)), u = new Set((s.lijnUit || []).map(Number));
+  let nu;
+  if (l.has(na)) { l.delete(na); nu = false; }
+  else if (sproeierLijnenVan(z).has(na)) { u.add(na); nu = false; }   // leiding uit het patroon: met de hand weghalen
+  else if (u.has(na)) { u.delete(na); nu = true; }
+  else { l.add(na); nu = true; }
+  s.sproeierLijn = [...l].sort((a, b) => a - b); s.lijnUit = [...u].sort((a, b) => a - b); zetSpuit(z, s);
+  toast(`${z._vak ? z.naam + ' · ' : ''}${nu ? '💧 Sproeierleiding tussen' : 'Geen leiding meer tussen'} spoor ${na} en ${na + 1}`);
 }
 function wisselSproeier(z, nr) {
-  const s = {...spuitVan(z)}, l = new Set(s.sproeier || []), was = rijWaarde(z, nr) === 3;
-  if (l.has(nr)) l.delete(nr); else if (!was) l.add(nr);
-  else { toast('Dit sproeierspoor komt uit het spoorpatroon; pas het patroon aan', 1); return; }
-  s.sproeier = [...l].sort((a, b) => a - b); zetSpuit(z, s);
-  toast(`${z._vak ? z.naam + ' · ' : ''}Spoor ${nr} ${l.has(nr) ? 'is nu een 💧 sproeierspoor' : 'is geen sproeierspoor meer'}`);
+  const s = {...spuitVan(z)}, l = new Set(s.sproeier || []), u = new Set((s.sproeierUit || []).map(Number)), was = rijWaardeRuw(z, nr) === 3;
+  let nu;
+  if (l.has(nr)) { l.delete(nr); nu = false; }
+  else if (was) { u.add(nr); nu = false; }               // sproeierspoor uit het patroon: met de hand weghalen
+  else if (u.has(nr)) { u.delete(nr); nu = true; }       // weggehaald patroon-sproeierspoor weer terug
+  else { l.add(nr); nu = true; }
+  s.sproeier = [...l].sort((a, b) => a - b); s.sproeierUit = [...u].sort((a, b) => a - b); zetSpuit(z, s);
+  toast(`${z._vak ? z.naam + ' · ' : ''}Spoor ${nr} ${nu ? 'is nu een 💧 sproeierspoor' : 'is geen sproeierspoor meer'}`);
 }
 function patroonVoorbeeld(z) {
   const n = Math.min(banenVan(z).length || 40, 48); let h = '';
@@ -3606,7 +3614,7 @@ async function opbouwBeheer() {
 async function opbouwToepassen(zid, i) {
   const p = perceel(actief), z = alleZones(p).find(x => x.id === zid), o = opbouwLijst()[i]; if (!z || !o) return;
   if (!await bevestigJa(`"${esc(o.naam)}" toepassen?`, `${z._vak ? esc(z.naam) + ': s' : 'S'}poorbreedte wordt ${String(o.breedte).replace('.', ',')} m en het patroon "${esc(o.patroon)}"${o.rijtjes ? `, ${o.rijtjes} rijtjes per spoor${o.spuitRijtjes ? ` en ${o.spuitRijtjes} onder het spuitspoor` : ''}` : ''}. Losse spuit- en sproeiersporen gaan eraf.`, '📐 Toepassen')) return;
-  const patch = {spuit: {...spuitVan(z), patroon: o.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], rijtjes: o.rijtjes || 0, spuitRijtjes: o.spuitRijtjes || 0}};
+  const patch = {spuit: {...spuitVan(z), patroon: o.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], rijtjes: o.rijtjes || 0, spuitRijtjes: o.spuitRijtjes || 0}};
   if (+o.breedte && +o.breedte !== +z.breedte) patch.breedte = +o.breedte;
   await zoneZetten(p, z, patch); banenCache.delete(z.id); render(true); toast(`📐 ${o.naam} toegepast`);
 }
@@ -3660,7 +3668,7 @@ async function wisselMoeder(zid, pid = actief) {
   const oudBanen = [...(z.banen || [])], banen = v.uit.map(x => x.bron && (x.w === 1 || x.w === .5) ? oudBanen[x.bron.nr - 1] ?? null : null);
   const patroon = vals.map((q, i) => (v.lijnNa.has(i) ? '-' : '') + (q === .5 ? '0,5' : String(q))).join('');
   const sp = spuitVan(z);
-  await zoneZetten(p, z, {verschuiving: v.proef.verschuiving, banen, spuit: {...sp, patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierLijn: [], elke: 0, start: 0, moeder: false, gewisseld: new Date().toISOString()}});
+  await zoneZetten(p, z, {verschuiving: v.proef.verschuiving, banen, spuit: {...sp, patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], sproeierLijn: [], elke: 0, start: 0, moeder: false, gewisseld: new Date().toISOString()}});
   banenCache.delete(z.id);
   // partijen: het nieuwe spoor hoort bij de partij van de moederrij waar (het meeste van) zijn plantjes vandaan komen
   const naar = new Map(); v.uit.forEach(x => { if (x.bron && banen[x.bn.nr - 1] != null) { if (!naar.has(x.bron.nr)) naar.set(x.bron.nr, []); naar.get(x.bron.nr).push(x.bn.nr); } });
@@ -3843,7 +3851,7 @@ async function pzToevoegen() {
     if (!z._vak) { const nieuw = await pzDeelveld(p, sporen[0], opb, PZ.teeltwijze); if (!nieuw) return; PZ.sel = nieuw.flatMap(q => q.nrs.map(nr => pzKey(q.z, nr))); }
     else if (opb && !heel && !await bevestigJa('Sporensysteem van het hele deelveld?', `Deze sporen liggen al in het deelveld <b>${esc(z.naam)}</b>. "${esc(opb.naam)}" geldt dan voor dat hele deelveld.`, '📐 Ja, hele deelveld')) return;
     else if (!opb) { /* al een eigen deelveld: gewoon daarin plannen */ }
-    else { const patch = {spuit: {...spuitVan(z), ...(opb ? {patroon: opb.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], rijtjes: opb.rijtjes || 0, spuitRijtjes: opb.spuitRijtjes || 0} : {})}};
+    else { const patch = {spuit: {...spuitVan(z), ...(opb ? {patroon: opb.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], rijtjes: opb.rijtjes || 0, spuitRijtjes: opb.spuitRijtjes || 0} : {})}};
       if (opb && +opb.breedte && +opb.breedte !== +z.breedte) patch.breedte = +opb.breedte; await zoneZetten(p, z, patch); banenCache.delete(z.id); }
   }
   const rr = pzRichting(perceel(p.id), PZ.sel), v = pzVerdeel(perceel(p.id), PZ.sel, PZ.items, PZ.teeltwijze === 'vermeerdering' ? PZ.breed : 1, rr.kant, rr.omg);
@@ -11211,7 +11219,7 @@ async function sporenOmzetten(pid, zid, patch, melding) {
   const sproeiOud = new Set((sp.sproeier || []));
   if (pp || spuitOud.size || sproeiOud.size) {
     const sproeier = nieuw.filter(bn => sproeiOud.has(oudNr(bn))).map(bn => bn.nr);
-    if (pp) extraPatch.spuit = {...sp, patroon: nieuw.map(bn => { const w = oudWaarde(oudNr(bn)); return w === .5 ? '0,5' : String(w); }).join(''), patroonStart: 1, extra: [], uit: [], sproeier: []};   // losse sproeiers gaan mee in het patroon (3)
+    if (pp) extraPatch.spuit = {...sp, patroon: nieuw.map(bn => { const w = oudWaarde(oudNr(bn)); return w === .5 ? '0,5' : String(w); }).join(''), patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: []};   // losse sproeiers gaan mee in het patroon (3)
     else extraPatch.spuit = {...sp, elke: 0, start: 0, uit: [], extra: nieuw.filter(bn => !sproeiOud.has(oudNr(bn)) && oudWaarde(oudNr(bn)) === 2).map(bn => bn.nr), sproeier};
     if ((sp.sproeierLijn || []).length) { const lijn = []; nieuw.forEach((bn, i) => { const o = oudNr(bn), o2 = i + 1 < nieuw.length ? oudNr(nieuw[i + 1]) : null; if (o2 === o + 1 && sp.sproeierLijn.includes(o)) lijn.push(bn.nr); }); extraPatch.spuit.sproeierLijn = lijn; }
   }
