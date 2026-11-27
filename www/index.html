@@ -4910,7 +4910,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v136';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v138';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -14253,7 +14253,11 @@ function kcOnderweg() {
 function nietIngeslagen() {
   const ow = new Map(kcOnderweg().map(o => [o.pid, o.nog])), inCel = new Map();
   (S.partij_mutaties || []).forEach(m => { if (!m.koelcel || m.eenheid !== 'kuubskisten') return; inCel.set(m.partij_id, (inCel.get(m.partij_id) || 0) + (m.soort === 'in' || m.soort === 'correctie' ? 1 : -1) * (+m.aantal || 0)); });
-  return kiepLijst().map(y => ({x: y.x, pid: y.x.id, n: Math.round(y.nog - Math.max(0, inCel.get(y.x.id) || 0) - (ow.get(y.x.id) || 0)), oudste: y.oudste})).filter(o => o.n > 0);
+  // al ingeslagen en daarna weggehaald (levering, uitval, naar het veld; niet gekiept): die zijn er niet meer, dus niet opnieuw tonen
+  const gekiepteBox = new Set((S.etiketten || []).filter(e => e.soort === 'box' && e.gekiept_op).map(e => 'Box ' + e.nr)), weg = new Map();
+  (S.partij_mutaties || []).forEach(m => { if (!m.koelcel || m.eenheid !== 'kuubskisten' || !['uit', 'uitval', 'veld'].includes(m.soort) || m.notitie === 'gekiept' || gekiepteBox.has(m.notitie)) return;
+    weg.set(m.partij_id, (weg.get(m.partij_id) || 0) + (+m.aantal || 0)); });
+  return kiepLijst().map(y => ({x: y.x, pid: y.x.id, n: Math.round(y.nog - Math.max(0, inCel.get(y.x.id) || 0) - (ow.get(y.x.id) || 0) - (weg.get(y.x.id) || 0)), oudste: y.oudste})).filter(o => o.n > 0);
 }
 function nietIngeslagenHtml(cel) {
   const l = nietIngeslagen(); if (!l.length) return '';
@@ -15796,11 +15800,12 @@ async function hfScan(raw, cam) {
   if (e.soort === 'pallet') {
     hfKistPopDicht();
     const al = HF.paletten.find(p => p.code === e.code);
-    if (al) {   // dezelfde pallet 3x achter elkaar scannen = kistjes toevoegen of verwijderen zonder kistkaart
-      HF.palTel = (HF.palCode === e.code && Date.now() - (HF.palT || 0) < 20000 ? HF.palTel || 1 : 1) + 1; HF.palCode = e.code; HF.palT = Date.now(); hfPalErbij(e);
+    // dezelfde pallet in totaal 3x achter elkaar scannen = kistjes erbij/eraf zonder kistkaart (elke scan telt, ook de eerste)
+    HF.palTel = HF.palCode === e.code && Date.now() - (HF.palT || 0) < 20000 ? (HF.palTel || 0) + 1 : 1; HF.palCode = e.code; HF.palT = Date.now();
+    if (al || HF.palTel > 1) {
+      hfPalErbij(e);
       if (HF.palTel >= 3) { HF.palTel = 0; await hfPalletAanpassen(e); return; }
-      hfMeld(`Pallet ${e.nr} heb je al gescand · nog 1 keer = kistjes toevoegen of verwijderen`); return; }
-    HF.palCode = e.code; HF.palTel = 1; HF.palT = Date.now();
+      hfMeld(`Pallet ${e.nr} heb je al gescand · nog ${3 - HF.palTel} keer = kistjes erbij of eraf`); return; }
     try { const {data} = await sb.from('etiketten').select('*').eq('op_pallet', e.code); if (data?.length) { const ids = new Set(data.map(x => x.id)); S.etiketten = [...data, ...(S.etiketten || []).filter(x => !ids.has(x.id))]; } } catch {}
     if (HF.kist.some(k => k.n > 0 && !k.pal)) {   // kistjes in je hand → op deze pallet
       HF.hand = []; HF.paletten = []; hfPalErbij(e); await hfKistOpPallet(e); hfTeken(); return; }
