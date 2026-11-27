@@ -4925,7 +4925,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v145';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v146';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -9591,7 +9591,7 @@ const ssorKleuren = () => { let k = null; try { k = JSON.parse(S.inst?.ssor_kleu
   const volg = Object.keys(SSOR_KLEUR_STD); return Object.entries(k).sort((a, b) => (volg.indexOf(a[0]) + 1 || 99) - (volg.indexOf(b[0]) + 1 || 99)); };
 const ssorKleurNaam = code => (ssorKleuren().find(([, c]) => +c === +code) || ['Kleur ' + code])[0];
 const ssorKoppeling = () => { try { return JSON.parse(S.inst?.ssor_lijn_koppeling || '{}') || {}; } catch { return {}; } };
-const magLijnenSsor = () => !archief && (isKiep() || mag('lijnen_instellen') || isBeheerder());
+const magLijnenSsor = () => !archief && (isKiep() || isKoelcelPlek?.() || recht('lijnen_instellen') || recht('voorraad_beheren') || isBeheerder());
 // de SSOR-lijn bij een app-lijn: eerst de vaste koppeling, anders alleen bij precies dezelfde naam
 const ssorLijnVan = appLijn => { const k = ssorKoppeling()[appLijn]; if (k) return k; const l = (S.ssorL?.lijnen || []).find(x => x.naam === appLijn); return l ? l.naam : ''; };
 async function ssorLijnenLaden(forceer) {
