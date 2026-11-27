@@ -4912,7 +4912,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v140';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v141';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -9485,8 +9485,18 @@ const KSL = {log: [], bezig: false, laatst: '', t: 0};
 const kiepScanActief = () => kiepModus === 'scan' && (!!$('#kiepScherm') || tab === 'reskiep');
 function kiepZetModus(m) { kiepModus = m; try { localStorage.setItem('kiepModus', m); } catch {} if (m !== 'scan' && hfStroom) hfCamStop(); kiepVerversen(); }
 /* ---------- sorteerlijnen: op welke lijn wordt er gekiept (namen zoals in SSOR) ---------- */
+const sorteerLijnenOpgeslagen = () => { try { return JSON.parse(S.inst?.sorteerlijnen || '[]') || []; } catch { return []; } };
+let sorteerLijnenAutoBezig = false;
+async function sorteerLijnenAutoOpslaan(l) {   // lijst kwam uit SSOR op dit apparaat → opslaan zodat alle tablets hem zien
+  if (sorteerLijnenAutoBezig || !l.length || sorteerLijnenOpgeslagen().length) return;
+  if (!(mag('voorraad_beheren') || magInstellingen())) return;
+  sorteerLijnenAutoBezig = true;
+  const {error} = await sb.rpc('zet_instelling', {p_sleutel: 'sorteerlijnen', p_waarde: JSON.stringify(l)});
+  sorteerLijnenAutoBezig = false;
+  if (!error) { S.inst = {...(S.inst || {}), sorteerlijnen: JSON.stringify(l)}; toast(`🏭 ${l.length} sorteerlijnen uit SSOR opgeslagen, nu ook op de tablets`); }
+}
 const sorteerLijnen = () => {
-  let l = []; try { l = JSON.parse(S.inst?.sorteerlijnen || '[]') || []; } catch {}
+  let l = sorteerLijnenOpgeslagen();
   if (!l.length) { const set = new Set(); Object.values(sorCache || {}).forEach(c => (c?.data?.regels || []).forEach(r => { if (r.lijn) set.add(r.lijn); })); l = [...set]; }
   return l.sort((a, b) => String(a).localeCompare(String(b), 'nl', {numeric: true}));
 };
@@ -9494,6 +9504,7 @@ const kiepLijnNu = () => { const p = mijnProfiel(); if (p && 'kiep_lijn' in p) r
 const lijnKort = n => String(n || '').replace(/lijn\/linia\s*/i, '').replace(/\s*-\s*/, ' ').trim();
 function kiepLijnHtml() {
   const l = sorteerLijnen(), nu = kiepLijnNu(), beh = mag('voorraad_beheren') || isBeheerder();
+  if (l.length && !sorteerLijnenOpgeslagen().length) setTimeout(() => sorteerLijnenAutoOpslaan(l), 0);
   if (!l.length) return beh ? `<div class="kiepUitleg">🏭 Nog geen sorteerlijnen. <button class="kiepLijnInst" onclick="sorteerLijnenInstellen()">⚙️ Sorteerlijnen opgeven</button></div>` : '';
   return `<div class="kiepLijnen"><span>🏭 Ik kiep op:</span>${l.map(n => `<button class="${n === nu ? 'aan' : ''}" onclick='kiepZetLijn(${esc(JSON.stringify(n))})' title="${esc(n)}">${esc(lijnKort(n))}</button>`).join('')}${beh ? '<button class="kiepLijnInst" onclick="sorteerLijnenInstellen()" title="Sorteerlijnen aanpassen">⚙️</button>' : ''}</div>
     ${nu ? '' : '<div class="kiepUitleg" style="color:#ffd54f">⚠️ Kies eerst op welke lijn je kiept.</div>'}`;
