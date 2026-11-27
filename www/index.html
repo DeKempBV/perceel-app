@@ -1105,7 +1105,8 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 #appNieuw{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9999;background:#1f4d2b;color:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 8px 30px rgba(0,0,0,.3);font-weight:700;display:flex;gap:10px;align-items:center;max-width:94%}#appNieuw button{border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:800;background:#f4c430;color:#1f4d2b;cursor:pointer}#appNieuw button.x{background:transparent;color:#fff;padding:4px 8px}.mVersie{color:inherit;opacity:.8;text-decoration:none;white-space:nowrap}
 .kcGroepInfo{padding:6px 12px}.kcPerPallet{color:#1f4d2b;white-space:nowrap}.kcHerkomst{display:block;color:#5a6b5e;margin-top:2px}.kcPalNrs{display:flex;flex-wrap:wrap;gap:6px;padding:4px 12px 10px}.kcPalNr{border:1px solid #d5ded8;background:#fff;border-radius:10px;padding:8px 12px;font:inherit;font-weight:700;cursor:pointer}.kcPalNr.aan{background:#1f4d2b;color:#fff;border-color:#1f4d2b}.kcPalNr small{font-weight:500;opacity:.8}.kcPalActies{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px 12px;border-top:1px dashed #d5ded8}.kcPalActies .kcItemKnop{margin-left:auto}.kcPalActies[hidden]{display:none}
 .eigenIc{height:1.25em;width:1.25em;vertical-align:-.25em;display:inline-block}
-.kiepLijnen{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}.kiepLijnen>span{font-weight:800;color:#c8e6c9;margin-right:4px}.kiepLijnen button{border:2px solid #1565c0;background:transparent;color:#fff;border-radius:10px;padding:9px 13px;font:inherit;font-weight:800;font-size:16px;cursor:pointer;min-width:64px}.kiepLijnen button.aan{background:#1565c0}.kiepLijnSync{display:block;width:100%;margin:4px 0 8px;border:0;background:#1565c0;color:#fff;border-radius:12px;padding:12px;font:inherit;font-weight:800;font-size:16px;cursor:pointer}.kiepLijnInst{border:1px solid #888;background:transparent;color:#ddd;border-radius:9px;padding:6px 10px;cursor:pointer}
+.kiepLijnen{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}.kiepLijnen>span{font-weight:800;color:#c8e6c9;margin-right:4px}.kiepLijnen button{border:2px solid #1565c0;background:transparent;color:#fff;border-radius:10px;padding:9px 13px;font:inherit;font-weight:800;font-size:16px;cursor:pointer;min-width:64px}.kiepLijnen button.aan{background:#1565c0}.kiepLijnStand{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#1e3a26;border-radius:10px;padding:8px 10px;margin:0 0 8px}.kiepLijnStand>span{flex:1;min-width:0}.kiepLijnStand small{opacity:.7}.kiepLijnStand button{border:2px solid #ffb74d;background:transparent;color:#ffcc80;border-radius:10px;padding:8px 12px;font:inherit;font-weight:800;cursor:pointer}
+.kiepLijnSync{display:block;width:100%;margin:4px 0 8px;border:0;background:#1565c0;color:#fff;border-radius:12px;padding:12px;font:inherit;font-weight:800;font-size:16px;cursor:pointer}.kiepLijnInst{border:1px solid #888;background:transparent;color:#ddd;border-radius:9px;padding:6px 10px;cursor:pointer}
 .kiepTabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}.kiepTabs button{border:2px solid #2e7d32;background:transparent;color:#fff;border-radius:12px;padding:12px;font:inherit;font-weight:800;font-size:17px;cursor:pointer}.kiepTabs button.aan{background:#2e7d32}.kiepTabs small{background:#ffd54f;color:#222;border-radius:9px;padding:0 7px;font-size:12px;margin-left:4px}.kiepPlan.groot .kiepPlanRij{min-height:76px;font-size:18px}
 .psKaart.aan{border:2px solid #2e7d32;background:#f3faf3}.psKaart code{background:#eef;padding:1px 4px;border-radius:4px;word-break:break-all}.psUitleg summary{cursor:pointer;font-weight:600;margin-top:8px}.psLog{margin-top:8px}
 .etActRij{display:flex;align-items:center;gap:10px;width:100%;border:1px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;margin-bottom:6px;text-align:left;font:inherit;cursor:pointer}.etActRij:active{background:#eef6ef}
@@ -4912,7 +4913,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v142';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v143';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -9507,7 +9508,65 @@ function kiepLijnHtml() {
   if (!l.length) return beh ? `<div class="kiepUitleg">🏭 Nog geen sorteerlijnen. <button class="kiepLijnInst" onclick="sorteerLijnenInstellen()">⚙️ Sorteerlijnen opgeven</button></div>` : '';
   return `<div class="kiepLijnen"><span>🏭 Ik kiep op:</span>${l.map(n => `<button class="${n === nu ? 'aan' : ''}" onclick='kiepZetLijn(${esc(JSON.stringify(n))})' title="${esc(n)}">${esc(lijnKort(n))}</button>`).join('')}${beh ? '<button class="kiepLijnInst" onclick="sorteerLijnenInstellen()" title="Sorteerlijnen aanpassen">⚙️</button>' : ''}</div>
     ${beh && !sorteerLijnenOpgeslagen().length ? '<button class="kiepLijnSync" onclick="sorteerLijnenAutoOpslaan()">📤 Zet deze lijnen op alle tablets en apparaten</button>' : ''}
-    ${nu ? '' : '<div class="kiepUitleg" style="color:#ffd54f">⚠️ Kies eerst op welke lijn je kiept.</div>'}`;
+    ${nu ? kiepLijnStandHtml(nu) : '<div class="kiepUitleg" style="color:#ffd54f">⚠️ Kies eerst op welke lijn je kiept.</div>'}`;
+}
+function kiepLijnStandHtml(lijn) {
+  if (!S.lijnStandT || Date.now() - S.lijnStandT > 20000) setTimeout(() => lijnStandLaden(), 0);
+  if (S.lijnStandFout) return '';
+  const st = (S.lijnStand || {})[lijn];
+  return `<div class="kiepLijnStand"><span>${st?.partij_id ? `Op ${esc(lijnKort(lijn))} ligt: <b>${esc(lijnStandTekst(st))}</b>${st.sinds ? ` <small>sinds ${tijdKort(st.sinds)}</small>` : ''}` : `✅ ${esc(lijnKort(lijn))} is leeg${st?.leeg_op ? ` <small>${tijdKort(st.leeg_op)}${st.leeg_door ? ' · ' + esc(st.leeg_door) : ''}</small>` : ''}`}</span>
+    ${st?.partij_id ? '<button onclick="lijnLeegMaken()">🧹 Lijn leeg</button>' : ''}</div>`;
+}
+/* ---------- wat ligt er op de lijn (tabel sorteerlijn_stand) ---------- */
+async function lijnStandLaden(stil) {
+  if (lijnStandLaden.bezig) return lijnStandLaden.bezig;
+  lijnStandLaden.bezig = (async () => {
+    try {
+      const {data, error} = await sb.from('sorteerlijn_stand').select('*');
+      if (error) { S.lijnStandFout = true; return; }
+      const oud = JSON.stringify(S.lijnStand || {});
+      S.lijnStand = Object.fromEntries((data || []).map(r => [r.lijn, r])); S.lijnStandT = Date.now(); S.lijnStandFout = false;
+      if (!stil && oud !== JSON.stringify(S.lijnStand)) kiepVerversen();
+    } catch { S.lijnStandFout = true; } finally { lijnStandLaden.bezig = null; }
+  })();
+  return lijnStandLaden.bezig;
+}
+const lijnStandRas = st => { const x = st?.partij_id && (S.partijen || []).find(y => y.id === st.partij_id); return (x ? partijRas(x) : st?.ras) || ''; };
+const lijnStandTekst = st => { const x = st?.partij_id && (S.partijen || []).find(y => y.id === st.partij_id); return [lijnStandRas(st) || '?', x ? (x.batch || x.nak || '') : ''].filter(Boolean).join(' '); };
+// partijen van gescande codes (bakken, of de bakken op een pallet)
+function kiepPidsVanCodes(codes) {
+  const et = S.etiketten || [], set = new Set();
+  (codes || []).forEach(c => { const e = et.find(z => z.code === c); if (!e) return; if (e.soort === 'pallet') et.filter(b => b.op_pallet === c && !b.gekiept_op).forEach(b => b.partij_id && set.add(b.partij_id)); else if (e.partij_id) set.add(e.partij_id); });
+  return [...set];
+}
+// kiep je een andere soort dan er op de lijn ligt? dan eerst vragen of de lijn leeg is
+async function kiepLijnCheck(pids) {
+  const lijn = kiepLijnNu(); pids = (pids || []).filter(Boolean);
+  if (!lijn || !pids.length) return true;
+  await Promise.race([lijnStandLaden(true), new Promise(r => setTimeout(r, 2500))]);
+  const st = (S.lijnStand || {})[lijn]; if (!st?.partij_id) return true;
+  const oud = lijnStandRas(st).trim().toLowerCase();
+  const nieuw = pids.map(id => (S.partijen || []).find(y => y.id === id)).filter(Boolean);
+  const anders = nieuw.filter(x => partijRas(x).trim().toLowerCase() !== oud);
+  if (!anders.length) return true;
+  const nTekst = [...new Set(anders.map(x => partijKort(x)))].join(', ');
+  const k = await keuze(`🏭 ${esc(lijnKort(lijn))}: is de lijn leeg?`,
+    `Op deze lijn ligt nog <b>${esc(lijnStandTekst(st))}</b>${st.sinds ? ' (sinds ' + tijdKort(st.sinds) + ')' : ''}.<br>Je kiept nu <b>${esc(nTekst)}</b>, een andere soort.`,
+    [['leeg', `✅ Ja, lijn is leeg: kiep ${esc(nTekst)}`]]);
+  if (k !== 'leeg') { toast('Niet gekiept'); return false; }
+  return await lijnLeegMaken(lijn, true);
+}
+async function lijnLeegMaken(lijn = kiepLijnNu(), zonderVraag) {
+  if (!lijn) return false;
+  if (!zonderVraag) {
+    const st = (S.lijnStand || {})[lijn];
+    const k = await keuze(`🧹 ${esc(lijnKort(lijn))} leeg maken?`, st?.partij_id ? `Er ligt nu <b>${esc(lijnStandTekst(st))}</b> op. Is alles eraf, zodat je met een nieuwe soort kunt beginnen?` : 'De lijn staat al als leeg.', [['ja', '🧹 Ja, de lijn is leeg']]);
+    if (k !== 'ja') return false;
+  }
+  const {error} = await sb.rpc('lijn_leeg', {p_lijn: lijn});
+  if (error) { toast(/lijn_leeg|schema cache/i.test(error.message) ? 'Draai eerst lijn-stand.sql in Supabase' : foutTekst(error), 1); return false; }
+  S.lijnStand = {...(S.lijnStand || {}), [lijn]: {lijn, partij_id: null, ras: null, sinds: null, leeg_op: new Date().toISOString(), leeg_door: naamMe()}};
+  toast(`🧹 ${lijnKort(lijn)} is leeg`); kiepVerversen(); return true;
 }
 async function kiepZetLijn(n) {
   const p = mijnProfiel(), nieuw = kiepLijnNu() === n ? '' : n;
@@ -9559,7 +9618,9 @@ async function kiepScanCode(raw) {
   const code = etCodeUit(s) || (/^[PB]\d+$/i.test(s) ? s.toUpperCase() : null);
   const meld = (t, fout) => { KSL.log.unshift({t, fout, tijd: new Date()}); KSL.log = KSL.log.slice(0, 30); if (fout) { toast(t, 1); try { navigator.vibrate?.([90, 60, 90]); } catch {} } kiepVerversen(); };
   if (!code) { meld(kcCodeUit(s) ? 'Dat is een koelcelcode; scan de bak of de pallet die je kiept' : `Onbekende code: ${s}`, true); return; }
-  KSL.bezig = true; kiepVerversen();
+  KSL.bezig = true;
+  if (!await kiepLijnCheck(kiepPidsVanCodes([code]))) { KSL.bezig = false; kiepVerversen(); return; }
+  kiepVerversen();
   let data, error;
   try { ({data, error} = await sb.rpc('scan_boek', {p_actie: 'kiep', p_codes: [code]})); } catch (e) { error = e; }
   KSL.bezig = false;
@@ -9620,6 +9681,7 @@ function kiepKcDicht() { $('#kiepPop')?.remove(); }
 async function kiepKcBoek() {
   if (kiepBezig) return; kiepBezig = true;
   try {
+    if (!await kiepLijnCheck([KKC.pid])) return;
     const {data, error} = await sb.rpc('kiep_uit_koelcel', {p_partij: KKC.pid, p_cel: KKC.cel, p_aantal: KKC.n});
     if (error) { toast(/kiep_uit_koelcel|schema cache/i.test(error.message) ? 'Draai eerst kiep-uit-koelcel.sql in Supabase' : foutTekst(error), 1); return; }
     navigator.vibrate?.(40); kiepKcDicht();
@@ -9642,6 +9704,7 @@ let kiepBezig = false;
 async function kiepTik(pid) {
   if (kiepBezig) return; kiepBezig = true;
   try {
+    if (!await kiepLijnCheck([pid])) return;
     const x = (S.partijen || []).find(y => y.id === pid);
     const d = await resOpslaan({soort: 'kiepen', partij_id: pid, bakken: 1, bron: 'kiep', door: naamMe(), datum: vandaag()}, true);
     if (d) { navigator.vibrate?.(40); toast(`🧺 1 bak ${x ? partijKort(x) : ''} gekiept`); }
@@ -9667,7 +9730,8 @@ async function kiepBakWeg(pid) {
   if (data) S.res_invoer = [...(S.res_invoer || []).filter(i => i.partij_id !== pid), ...data];
   toast('✖ Bak van de kieplijst gehaald'); kiepVerversen();
 }
-function kiepVerversen() { if ($('#kiepScherm')) toonKiep(true); else if (tab === 'reskiep') render(true); }
+function kiepVerversen() { if (kiepLijnNu() && S.lijnStandT && Date.now() - S.lijnStandT > 1500) S.lijnStandT = 0; kiepVerversen0(); }
+function kiepVerversen0() { if ($('#kiepScherm')) toonKiep(true); else if (tab === 'reskiep') render(true); }
 function htmlKiepPaneel() {
   return `<section class="kaartje"><h4>🧺 Kieplijst</h4>${isKoelcelPlek() ? '' : '<p class="hint">Dit ziet de heftruckchauffeur op zijn telefoon. Maak bij Mensen en uren → Team een account met het vinkje 🧺 Kieplijst; dat opent meteen dit scherm.</p>'}</section>
     <section class="kaartje kiepPaneel">${kiepInhoud()}</section>`;
@@ -15806,6 +15870,7 @@ async function hfBoek0(actie, doel, codes, houd) {
   if (metKist) HF.paletten.forEach(pe => { if (HF.kist.some(k => k.pal === String(pe.nr)) && !hfCel(pe) && !hfOpPallet(pe.code).length) codes = codes.filter(c => c !== pe.code); });
   if (metKist && !codes.length) { HF.bezig = true; hfTeken(); const ok = await hfKistInslaan(doel); HF.bezig = false; if (ok) hfLeeg(true); hfTeken(); return; }
   if (!codes.length) { hfMeld(actie === 'kiep' ? 'Scan eerst de bakken die je kiept' : 'Scan eerst een pallet of de bakken, daarna de koelcel', 1); return; }
+  if (actie === 'kiep') { HF.bezig = true; const ok = await kiepLijnCheck(kiepPidsVanCodes(codes)); HF.bezig = false; if (!ok) { hfTeken(); return; } }
   HF.bezig = true; hfTeken();
   const sinds = new Date(Date.now() - 10000).toISOString();
   let data, error;
