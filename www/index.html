@@ -3174,8 +3174,8 @@ function banenVan(p) {
       res.push(hk ? {nr: res.length + 1, k, geo: hk.geo, m2: hk.m2, a: aa, b: bb, t0: hk.t0, t1: hk.t1, half, ...(gaten ? {gaten, delen: hk.st.map(([l, h]) => [l - hk.t0, h - hk.t0])} : {})} : {nr: res.length + 1, k, geo: stuk, m2: sr.m2, a: aa, b: bb, t0: Math.min(...t), t1: Math.max(...t), half});
     };
     // spoor dat maar over een deel van de lengte gesplitst is: tot T heel en daarna twee halve sporen (of andersom)
-    const deelsDoen = (a, k, mode, T) => {
-      const sk = Math.round(a * 1000) + '|' + mode + T;
+    const deelsDoen = (a, k, h0, h1) => {   // tussen h0 en h1 (langs het spoor) half-half, daarbuiten heel
+      const sk = Math.round(a * 1000) + '|' + h0 + '_' + h1;
       let sr = strook.m.get(sk);
       if (!sr) { sr = {};
         try {
@@ -3183,10 +3183,10 @@ function banenVan(p) {
           if (vol && turf.area(vol) > 0.5) {
             const hk = haaks(a, b), vorm = hk ? hk.geo : vol;
             const t = hk ? [hk.t0, hk.t1] : (() => { const ts = turf.coordAll(vol).map(q => { const z = naarM(q); return z[0] * d[0] + z[1] * d[1]; }); return [Math.min(...ts), Math.max(...ts)]; })();
-            const [h0, h1] = mode === 'v' ? [T, lengte] : [-lengte, T], [v0, v1] = mode === 'v' ? [-lengte, T] : [T, lengte];   // h = gesplitst deel, v = heel deel
             const rh = (o1, o2, t1, t2) => turf.polygon([[[o1, t1], [o2, t1], [o2, t2], [o1, t2], [o1, t1]].map(([o, tt]) => naarG([n[0] * o + d[0] * tt, n[1] * o + d[1] * tt]))]);
-            const heel = turf.intersect(vorm, rh(a - 1, a + b + 1, v0, v1)), half1 = turf.intersect(vorm, rh(a - 1, a + b / 2, h0, h1)), half2 = turf.intersect(vorm, rh(a + b / 2, a + b + 1, h0, h1));
-            let g1 = heel && half1 ? turf.union(heel, half1) : heel || half1;
+            const L = lengte + 10, heelA = h0 > -L ? turf.intersect(vorm, rh(a - 1, a + b + 1, -L, h0)) : null, heelB = h1 < L ? turf.intersect(vorm, rh(a - 1, a + b + 1, h1, L)) : null;
+            const half1 = turf.intersect(vorm, rh(a - 1, a + b / 2, h0, h1)), half2 = turf.intersect(vorm, rh(a + b / 2, a + b + 1, h0, h1));
+            let g1 = null; for (const x of [heelA, half1, heelB]) if (x) g1 = g1 ? (turf.union(g1, x) || g1) : x;
             sr.g1 = g1 ? {geo: g1, m2: turf.area(g1), t0: t[0], t1: t[1]} : null;
             sr.g2 = half2 && turf.area(half2) > 0.5 ? {geo: half2, m2: turf.area(half2), t0: Math.max(t[0], h0), t1: Math.min(t[1], h1)} : null;
             if (hk && turf.area(vol) - hk.m2 > 1) { const rr = zonderSnippers(verschil(vol, hk.geo)); if (rr && turf.area(rr) > 1) sr.rest = rr; }
@@ -3197,13 +3197,14 @@ function banenVan(p) {
       if (sr.g1) { if (weg.has(k)) res.weg.push({k, geo: sr.g1.geo, a, b}); else res.push({nr: res.length + 1, k, geo: sr.g1.geo, m2: sr.g1.m2, a, b, t0: sr.g1.t0, t1: sr.g1.t1, deels: true}); }
       if (sr.g2) { if (weg.has(k + 0.5)) res.weg.push({k: k + 0.5, geo: sr.g2.geo, a: a + b / 2, b: b / 2}); else res.push({nr: res.length + 1, k: k + 0.5, geo: sr.g2.geo, m2: sr.g2.m2, a: a + b / 2, b: b / 2, t0: sr.g2.t0, t1: sr.g2.t1, half: true}); }
     };
-    const splits = new Map();   // k → {mode: 'heel' | 'v' (vanaf T gesplitst) | 't' (tot T gesplitst), T}
-    weg.forEach(x => { const mm = typeof x === 'string' && x.match(/^h(-?\d+)(?:([ab])|([vt])(-?[\d.]+))?$/); if (mm) splits.set(+mm[1], mm[3] ? {mode: mm[3], T: +mm[4]} : {mode: 'heel'}); });
+    const splits = new Map();   // k → {heel: true} of {h0, h1}: tussen h0 en h1 (meters langs, zelfde maat als bn.t0) half-half
+    weg.forEach(x => { const mm = typeof x === 'string' && x.match(/^h(-?\d+)(?:([ab])|([vt])(-?[\d.]+)|r(-?[\d.]+)_(-?[\d.]+))?$/); if (!mm) return;
+      splits.set(+mm[1], mm[3] === 'v' ? {h0: +mm[4], h1: 1e5} : mm[3] === 't' ? {h0: -1e5, h1: +mm[4]} : mm[5] != null ? {h0: +mm[5], h1: +mm[6]} : {heel: true}); });
     for (let i = 0; a < max && res.length < maxAantal && i < 5000; i++, a += b) {
       const k0 = Math.round((a - start) / b), sp = splits.get(k0);
       // gesplitst spoor: twee halve sporen naast elkaar, elk met een eigen nummer (planten, spuitspoor, sproeier, weghalen = kopeinde)
-      if (sp?.mode === 'heel') { strookDoen(a, b / 2, k0, Math.round(a * 1000) + '|a'); strookDoen(a + b / 2, b / 2, k0 + 0.5, Math.round(a * 1000) + '|b'); }
-      else if (sp) deelsDoen(a, k0, sp.mode, sp.T);
+      if (sp?.heel) { strookDoen(a, b / 2, k0, Math.round(a * 1000) + '|a'); strookDoen(a + b / 2, b / 2, k0 + 0.5, Math.round(a * 1000) + '|b'); }
+      else if (sp) deelsDoen(a, k0, sp.h0, sp.h1);
       else strookDoen(a, b, k0, Math.round(a * 1000));
     }
   } catch (e) { console.warn('Banen berekenen mislukt', e); }
@@ -5125,7 +5126,7 @@ function htmlDetail(p) {
     ${bew && totaalSporen ? `<button class="knop ${gereedschap === 'spoorweg' ? '' : 'licht'}" onclick="zetGereedschap('spoorweg')">✂️ ${gereedschap === 'spoorweg' ? 'Klaar met sporen weghalen' : 'Losse sporen weghalen of terugzetten'}</button>
       ${gereedschap === 'spoorweg' ? '<p class="hint"><b>Tik op een spoor</b> om het weg te halen. Weggehaalde sporen zie je rood gestippeld; tik erop om ze terug te zetten. Werkt ook in deelvelden.</p>' : ''}
       <button class="knop ${gereedschap === 'spoorhalf' ? '' : 'licht'}" onclick="zetGereedschap('spoorhalf')">½ ${gereedschap === 'spoorhalf' ? 'Klaar met halve sporen' : 'Spoor in twee halve sporen splitsen'}</button>
-      ${gereedschap === 'spoorhalf' ? '<p class="hint"><b>Tik op het spoor op de plek waar de splitsing begint</b>, en daarna aan de kant die half-half moet worden (de andere kant blijft heel). Of kies dan Hele spoor splitsen. Tik op een gesplitst spoor om het weer één spoor te maken. Een helft kun je daarna gewoon beplanten, spuitspoor of sproeier maken, of met ✂️ weghalen als het kopeinde moet worden.</p>' : ''}` : ''}
+      ${gereedschap === 'spoorhalf' ? '<p class="hint"><b>Tik op het spoor</b> en kies <b>Hele spoor</b> of <b>Dit stuk (tot het kopeinde)</b>. Of tik daarna nog een keer aan de kant die half-half moet worden: dan begint de splitsing op de plek van je eerste tik. Tik op een gesplitst spoor om het weer één spoor te maken. Een helft kun je daarna gewoon beplanten, spuitspoor of sproeier maken, of met ✂️ weghalen als het kopeinde moet worden.</p>' : ''}` : ''}
     ${bew ? abInvoer(p, bew) : ''}
     ${totaalSporen && ziet('exporteren') ? `<button class="knop licht" onclick="exportTrekker('${p.id}')">📤 Exporteren voor de trekker (shapefile)</button>` : ''}
     ${bew ? `<p class="hint">0° = noord, 90° = oost. Gebruik dezelfde hoek als in je GPS. Met een vast A-punt liggen de sporen precies op je GPS-lijnen; "Verschuif" kun je dan op 0 laten. Laat "Aantal" leeg om het hele perceel te vullen.</p>` : ''}
@@ -11223,12 +11224,12 @@ async function spoorWeg(z, bn) {
   await sporenOmzetten(p.id, z.id, {sporen_weg: [...new Set([...(z.sporen_weg || []), bn.k])]}, `✂️ Spoor ${bn.nr} weggehaald`);
 }
 // spoor splitsen in twee halve sporen (elk half zo breed, elk een eigen nummer); nog eens tikken = weer één heel spoor
-const halfMerk = v => typeof v === 'string' && /^h-?\d+([ab]|[vt]-?[\d.]+)?$/.test(v);
+const halfMerk = v => typeof v === 'string' && /^h-?\d+([ab]|[vt]-?[\d.]+|r-?[\d.]+_-?[\d.]+)?$/.test(v);
 const sporenWegEcht = z => (z.sporen_weg || []).filter(x => !halfMerk(x));   // echt weggehaalde sporen (zonder de splitsingen)
 let SPH = null;   // splitsen: eerst de plek, dan de kant
 async function spoorHalf(z, bn, ll) {
   if (!mag('percelen_bewerken')) { toast('Je mag geen sporen aanpassen', 1); return; }
-  const p = ouder(z), l = z.sporen_weg || [], k = Math.floor(bn.k), merk = x => typeof x === 'string' && new RegExp('^h' + k + '([ab]|[vt]-?[\\d.]+)?$').test(x);
+  const p = ouder(z), l = z.sporen_weg || [], k = Math.floor(bn.k), merk = x => typeof x === 'string' && new RegExp('^h' + k + '([ab]|[vt]-?[\\d.]+|r-?[\\d.]+_-?[\\d.]+)?$').test(x);
   const meta = banenVan(z).meta, t = ll && meta ? Math.round(langs(meta, ll) * 10) / 10 : null;
   if (l.some(merk)) {   // weer heel: de tweede helft verdwijnt (staat daar iets op, dan eerst vragen)
     SPH = null; banner();
@@ -11236,15 +11237,21 @@ async function spoorHalf(z, bn, ll) {
     if (had && !await bevestig('Weer één heel spoor maken?', `Op de tweede helft (spoor ${z2.nr}) staan planten; die gaan eraf. De planten van de eerste helft komen op het hele spoor.`)) return;
     await sporenOmzetten(p.id, z.id, {sporen_weg: l.filter(x => !merk(x) && x !== k + 0.5)}, `Spoor ${bn.nr} is weer één heel spoor`); return;
   }
-  const doe = async merkNieuw => { SPH = null; banner(); await sporenOmzetten(p.id, z.id, {sporen_weg: [...l, merkNieuw]}, `½ Spoor ${bn.nr} is gesplitst${/[vt]/.test(merkNieuw) ? ' (deels)' : ''} in twee halve sporen`); };
+  const doe = async merkNieuw => { SPH = null; banner(); await sporenOmzetten(p.id, z.id, {sporen_weg: [...l, merkNieuw]}, `½ Spoor ${bn.nr} is gesplitst${/[vtr]/.test(merkNieuw) ? ' (deels)' : ''} in twee halve sporen`); };
+  // het stuk tussen twee kopeindes waar je op tikte (of tot het eind van het spoor)
+  const stukMerk = () => { if (!bn.delen || t == null) return null; const r = t - bn.t0, dl = bn.delen;
+    let i = dl.findIndex(([x, y]) => r >= x - .5 && r <= y + .5); if (i < 0) i = dl.reduce((bi, [x, y], j) => Math.abs(r - (x + y) / 2) < Math.abs(r - (dl[bi][0] + dl[bi][1]) / 2) ? j : bi, 0);
+    const h0 = i === 0 ? -1e5 : Math.round((bn.t0 + (dl[i - 1][1] + dl[i][0]) / 2) * 10) / 10, h1 = i === dl.length - 1 ? 1e5 : Math.round((bn.t0 + (dl[i][1] + dl[i + 1][0]) / 2) * 10) / 10;
+    return 'h' + k + 'r' + h0 + '_' + h1; };
   if (SPH && SPH.zid === z.id && SPH.k === k && t != null) {   // tweede tik: aan die kant wordt het spoor half-half
     if (Math.abs(t - SPH.T) < 0.5) { toast('Tik iets verder van de plek, aan de kant die half moet worden', 1); return; }
     return doe('h' + k + (t > SPH.T ? 'v' : 't') + SPH.T);
   }
   if (t == null) return doe('h' + k);
   SPH = {zid: z.id, k, T: t};
-  banner(`<b>½ Spoor ${bn.nr} splitsen vanaf ${t.toLocaleString('nl-NL')} m</b><br>Tik nu op het spoor <b>aan de kant die half-half moet worden</b>. De andere kant blijft één heel spoor.`,
-    [['Annuleren', () => { SPH = null; banner(); }], ['Hele spoor splitsen', () => doe('h' + k)]]);
+  const sm = stukMerk();
+  banner(`<b>½ Spoor ${bn.nr} splitsen</b><br>Kies hieronder, of tik nog een keer op het spoor <b>aan de kant die half-half moet worden</b> (dan begint de splitsing op de plek waar je net tikte).`,
+    [['Annuleren', () => { SPH = null; banner(); }], ...(sm ? [['Dit stuk (tot het kopeinde)', () => doe(sm)]] : []), ['Hele spoor', () => doe('h' + k)]]);
 }
 async function spoorTerug(z, k) {
   const p = ouder(z); await sporenOmzetten(p.id, z.id, {sporen_weg: (z.sporen_weg || []).filter(x => x !== k)}, '↩︎ Spoor teruggezet');
