@@ -4192,7 +4192,8 @@ function tekenMarkeringen() {
       l = geenSnap(L.geoJSON(m.geo, {style: {color: '#37474f', weight: 2, dashArray: '3,5', fillColor: '#90a4ae', fillOpacity: .62}}));
     } else if (m.soort === 'kopeinde') {
       const g = kopeindeGeo(m); if (!g) return;
-      l = L.geoJSON(g, {style: {color: m.kleur, weight: 1.5, fillColor: m.kleur, fillOpacity: .45}});
+      const pk = perceel(m.perceel_id), samen = pk && pk.banen_aan && zichtbaar(pk.id).sporen && kopHeeftRest(pk);   // dan krijgt het hele kopeinde samen één rand (tekenKopOmtrek)
+      l = L.geoJSON(g, {style: {color: m.kleur, weight: samen ? 0 : 1.5, stroke: !samen, fillColor: m.kleur, fillOpacity: .45}});
     } else {
       l = L.geoJSON(m.geo, {style: {color: m.kleur, weight: 4}});
     }
@@ -4428,6 +4429,7 @@ function renderKaart() {
       .on('click', () => { if (tmAan) { tmPerceelKiezen(p.id); return; } if (!tekent()) kies(p.id); }).addTo(laag);
     const zb = zichtbaar(p.id);
     if (!p.uitgeschakeld && !licht) alleZones(p).forEach(z => { if (zb.sporen) { tekenGewasVlak(z, p, isA); tekenZone(z, isA); tekenPlan(z, isA); if (isA) tekenABLijn(z); } if (zb.spuit) { tekenSpuit(z); if (isA) tekenVakLetters(z); } });
+    if (!p.uitgeschakeld && !licht && zb.sporen) { try { tekenKopOmtrek(p); } catch (e) { console.warn('kopeinde omtrek', e); } }
     if (isA && !p.uitgeschakeld && !licht && zb.sporen && lagenVan(p.id).info && p.type !== 'pand' && map.getZoom() >= 15) { try { tekenPlantInfo(p); } catch (e) { console.warn('plantinfo', e); } }
     if (toonOmtrek) {
       (p.vakken || []).map(v => vakZone(p, v).binnen).filter(Boolean).forEach(g => L.geoJSON(g, {interactive: false,
@@ -4507,6 +4509,27 @@ function kopBewerken(pid) {
   banner('<b>🟫 Kopeinde aanpassen</b><br>Tik op een spoor om het kopeinde te maken. Kopeinde-sporen zie je rood gestippeld: tik erop om er weer een spoor van te maken.', [['✓ Klaar', () => kopBewerken(pid)]]);
 }
 const kopKleur = z => { const ou = ouder(z); return S.markeringen.find(m => m.perceel_id === ou?.id && m.soort === 'kopeinde')?.kleur || braakSoort()?.kleur || '#8d6e63'; };
+// het hele kopeinde als één stuk: getekend kopeinde + rijen die niet af zijn + weggehaalde sporen, met één rand eromheen
+const kopOmtrekCache = new Map();
+function kopDelen(p) {
+  const delen = [...kopeindenVan(p)];
+  alleZones(p).forEach(z => { const b = banenVan(z); delen.push(...(b.rest || [])); if (!(gereedschap === 'spoorweg' && p.id === actief)) (b.weg || []).forEach(w => delen.push(w.geo)); });
+  return delen;
+}
+const kopHeeftRest = p => alleZones(p).some(z => { const b = banenVan(z); return (b.rest || []).length || (b.weg || []).length; });
+function tekenKopOmtrek(p) {
+  const delen = kopDelen(p); if (!delen.length || !kopHeeftRest(p)) return;
+  const c = kopOmtrekCache.get(p.id);
+  let u = c && c.delen.length === delen.length && c.delen.every((x, i) => x === delen[i]) ? c.u : undefined;
+  if (u === undefined) {
+    u = null;
+    // een heel klein beetje opblazen en weer krimpen, zodat naden tussen de stukjes wegvallen
+    for (const g of delen) { try { const b = turf.buffer(g, 0.05, {units: 'meters', steps: 2}); u = u ? (turf.union(u, b) || u) : b; } catch {} }
+    try { if (u) u = turf.buffer(u, -0.05, {units: 'meters', steps: 2}) || u; } catch {}
+    kopOmtrekCache.set(p.id, {delen, u});
+  }
+  if (u) geenSnap(L.geoJSON(u, {interactive: false, style: {color: kopKleur(p), weight: 1.5, fill: false}})).addTo(laag);
+}
 // oppervlak kopeinde: getekend kopeinde + restjes + weggehaalde sporen
 function kopOppervlak(p) {
   let m2 = 0, nWeg = 0;
