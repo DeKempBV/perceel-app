@@ -3096,6 +3096,13 @@ function zetBanen(z, arr) {
   wijzig(p.id, {vakken: (p.vakken || []).map(v => v.id === z._vak.id ? {...v, banen: arr} : v)});
 }
 const banenCache = new Map(), stroken = new Map();
+// dunne snippertjes (smaller dan ± 0,4 m, bijv. een randje langs een spoor) weglaten: dat is geen echt stuk kopeinde
+function zonderSnippers(g) {
+  if (!g?.geometry) return null;
+  const delen = g.geometry.type === 'MultiPolygon' ? g.geometry.coordinates : g.geometry.type === 'Polygon' ? [g.geometry.coordinates] : [];
+  const goed = delen.filter(c => { try { const f = turf.polygon(c), a = turf.area(f), omtrek = turf.length(turf.polygonToLine(f)) * 1000; return a > 1 && a / Math.max(0.01, omtrek / 2) > 0.4; } catch { return false; } });
+  return !goed.length ? null : goed.length === 1 ? turf.polygon(goed[0]) : turf.multiPolygon(goed);
+}
 function banenVan(p) {
   if (!p || p.type === 'pand' || !p.banen_aan || !(+p.breedte > 0)) return [];
   const gebied = p._vak ? p.vulgeo : vulGebied(p);   // waar sporen mogen komen
@@ -3150,7 +3157,7 @@ function banenVan(p) {
       let sr = strook.m.get(sk);
       if (!sr) { const stuk = turf.intersect(gebied, turf.polygon([r])); sr = {stuk}; if (stuk) { sr.m2 = turf.area(stuk);
           if (sr.m2 > 0.5) { sr.t = turf.coordAll(stuk).map(q => { const z = naarM(q); return z[0] * d[0] + z[1] * d[1]; }); sr.hk = haaks(a, b);
-            if (sr.hk && sr.m2 - sr.hk.m2 > 1) { try { const rr = verschil(stuk, sr.hk.geo); if (rr && turf.area(rr) > 1) sr.rest = rr; } catch {} } } }
+            if (sr.hk && sr.m2 - sr.hk.m2 > 1) { try { const rr = zonderSnippers(verschil(stuk, sr.hk.geo)); if (rr && turf.area(rr) > 1) sr.rest = rr; } catch {} } } }
         strook.m.set(sk, sr); }
       const stuk = sr.stuk;
       if (stuk) {
@@ -4095,6 +4102,13 @@ function erafMarkering(id) {
     [['Annuleren', () => tekenModus(false)]]);
   tekenDoel = {eraf: id};
 }
+// het vlak dat een getekende kopeinde-lijn beslaat (lijn met breedte)
+const kopLijnVlak = (lijn, breedte) => { try { return turf.buffer({type: 'Feature', properties: {}, geometry: lijn.geometry}, +breedte || 12, {units: 'meters'}); } catch { return null; } };
+// afgeknipte stukken kleiner maken met wat er opnieuw bij getekend wordt
+function erafZonder(eraf, nieuw) {
+  if (!eraf?.length || !nieuw) return eraf;
+  return eraf.flatMap(c => { let r = null; try { r = turf.difference(turf.polygon(c), nieuw); } catch { return [c]; } return !r ? [] : r.geometry.type === 'Polygon' ? [r.geometry.coordinates] : r.geometry.coordinates; });
+}
 function voegAanMarkeringToe(id, nieuw) {
   const m = S.markeringen.find(x => x.id === id); if (!m) return;
   if (isVlakMark(m)) {
@@ -4105,12 +4119,13 @@ function voegAanMarkeringToe(id, nieuw) {
   if (m.soort === 'kopeinde' && isVlak(nieuw)) {   // vlak erbij: precies het getekende stuk wordt kopeinde
     const props = {...(m.geo.properties || {})};
     props.vlakken = [...(props.vlakken || []), ...(nieuw.geometry.type === 'Polygon' ? [nieuw.geometry.coordinates] : nieuw.geometry.coordinates)];
-    if (props.eraf?.length) props.eraf = props.eraf.flatMap(c => { let r = null; try { r = turf.difference(turf.polygon(c), nieuw); } catch { return [c]; } return !r ? [] : r.geometry.type === 'Polygon' ? [r.geometry.coordinates] : r.geometry.coordinates; });   // wat je er weer bij tekent, is niet meer afgeknipt
+    props.eraf = erafZonder(props.eraf, nieuw);   // wat je er weer bij tekent, is niet meer afgeknipt
     slaMarkGeoOp(m, {...m.geo, properties: props}, 'Stuk kopeinde toegevoegd'); return;
   }
   if (m.soort === 'kopeinde' && !kopHeeftLijn(m)) {   // eerste lijn bij een kopeinde dat alleen uit vlakken bestond
     if (!(+m.breedte)) { m.breedte = (+perceel(m.perceel_id)?.breedte || 6) * 2; sb.from('markeringen').update({breedte: m.breedte}).eq('id', m.id).then(() => {}); }
-    slaMarkGeoOp(m, {type: 'Feature', properties: {vlakken: kopVlakken(m), ...(m.geo.properties?.eraf ? {eraf: m.geo.properties.eraf} : {})}, geometry: nieuw.geometry}, 'Stuk kopeinde toegevoegd'); return;
+    const eraf = erafZonder(m.geo.properties?.eraf, kopLijnVlak(nieuw, m.breedte));
+    slaMarkGeoOp(m, {type: 'Feature', properties: {vlakken: kopVlakken(m), ...(eraf?.length ? {eraf} : {})}, geometry: nieuw.geometry}, 'Stuk kopeinde toegevoegd'); return;
   }
   const delen = lijnDelen(m.geo), extra = nieuw.geometry.coordinates, d = (a, b) => turf.distance(a, b) * 1000;
   // sluit het nieuwe stuk aan op een uiteinde als het daar begint of eindigt (binnen 3 m): dan wordt de lijn verlengd
@@ -4123,7 +4138,9 @@ function voegAanMarkeringToe(id, nieuw) {
     if (d(begin, extra[0]) < 3) { deel.unshift(...extra.slice(1).reverse()); gekoppeld = true; break; }
   }
   if (!gekoppeld) delen.push(extra);
-  slaMarkGeoOp(m, {...alsLijn(delen), properties: {...(m.geo.properties || {})}}, gekoppeld ? 'Lijn verlengd' : 'Stuk toegevoegd');
+  const props = {...(m.geo.properties || {})};
+  if (m.soort === 'kopeinde' && props.eraf?.length) props.eraf = erafZonder(props.eraf, kopLijnVlak(nieuw, m.breedte));   // opnieuw getekend: niet meer afgeknipt
+  slaMarkGeoOp(m, {...alsLijn(delen), properties: props}, gekoppeld ? 'Lijn verlengd' : 'Stuk toegevoegd');
 }
 function knipVanMarkering(id, vlak) {
   let m = S.markeringen.find(x => x.id === id); if (!m) return;
