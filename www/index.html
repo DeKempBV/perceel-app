@@ -1103,6 +1103,7 @@ body.sleept #panel,body.sleept #map,body.sleept #kaartUI,body.sleept #paneelKnop
 .etGescand{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid #d5ded8;border-radius:12px;padding:10px 12px;margin-bottom:6px;background:#fff}.etGescand .t{flex:1;min-width:180px}.etGescand small{display:block;color:#5d6b62}.etGescand .k{display:flex;gap:6px;flex-wrap:wrap}
 .wagenPlekken{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:10px 0}.wagenPlekken button{font:inherit;font-weight:700;font-size:17px;padding:16px 10px;border:1px solid #c9d6cc;border-radius:12px;background:#fff;cursor:pointer}.wagenPlekken button:active{background:#e6f2e8}
 #appNieuw{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9999;background:#1f4d2b;color:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 8px 30px rgba(0,0,0,.3);font-weight:700;display:flex;gap:10px;align-items:center;max-width:94%}#appNieuw button{border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:800;background:#f4c430;color:#1f4d2b;cursor:pointer}#appNieuw button.x{background:transparent;color:#fff;padding:4px 8px}.mVersie{color:inherit;opacity:.8;text-decoration:none;white-space:nowrap}
+.kcGroepInfo{padding:6px 12px}.kcHerkomst{display:block;color:#5a6b5e;margin-top:2px}.kcPalNrs{display:flex;flex-wrap:wrap;gap:6px;padding:4px 12px 10px}.kcPalNr{border:1px solid #d5ded8;background:#fff;border-radius:10px;padding:8px 12px;font:inherit;font-weight:700;cursor:pointer}.kcPalNr.aan{background:#1f4d2b;color:#fff;border-color:#1f4d2b}.kcPalNr small{font-weight:500;opacity:.8}.kcPalActies{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px 12px;border-top:1px dashed #d5ded8}.kcPalActies .kcItemKnop{margin-left:auto}
 .psKaart.aan{border:2px solid #2e7d32;background:#f3faf3}.psKaart code{background:#eef;padding:1px 4px;border-radius:4px;word-break:break-all}.psUitleg summary{cursor:pointer;font-weight:600;margin-top:8px}.psLog{margin-top:8px}
 .etActRij{display:flex;align-items:center;gap:10px;width:100%;border:1px solid #d5ded8;background:#fff;border-radius:12px;padding:12px;margin-bottom:6px;text-align:left;font:inherit;cursor:pointer}.etActRij:active{background:#eef6ef}
 .etActRij .kl{width:10px;align-self:stretch;border-radius:4px;flex:0 0 auto}.etActRij .t{flex:1;min-width:0}.etActRij small{display:block;color:#5d6b62}.etActRij .pr{font-size:22px}
@@ -4908,7 +4909,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v129';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v131';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -14020,7 +14021,17 @@ async function mutatieUitFormulier(partijId, soort, voor = {}) {
   const lbl = o => `${o.cel || 'geen koelcel'} · ${partijRas(o.x) || '?'} ${o.x.batch || o.x.nak || ''}${o.x.klasse ? ' ' + o.x.klasse : ''}${o.pallet ? ' · pallet ' + o.pallet : ''} · ${getal(o.n)} ${eenheidNaam(o.eenheid, o.n)}`;
   const klanten = [...new Set((S.partij_mutaties || []).map(x => x.klant).filter(Boolean))];
   const percelen = (S.percelen || []).slice().sort((a, b) => String(a.naam || '').localeCompare(String(b.naam || ''), 'nl', {numeric: true}));
-  const w = await formulier(MUT_SOORTEN.find(x => x[0] === soort)?.[1] || 'Eruit halen', [
+  // eerst kiezen waar het heen gaat (grote knoppen); uitval is daarna alleen nog: hoeveel → weg
+  if (!voor.gekozen) { const k = await keuze('Eruit halen', 'Waar gaat het heen?', [['uit', '⬆️ Levering aan klant'], ['veld', '🌱 Naar het veld (poten)'], ['uitval', '🗑️ Uitval / afgekeurd']]); if (!k) return; soort = k; }
+  const controle = r => { const o = regels.find(x => x.k === r.regel), n = parseFloat(String(r.aantal ?? '').replace(',', '.'));
+    if (!o) return ['Kies wat eruit gaat', 'regel']; if (!(n > 0)) return ['Vul het aantal in', 'aantal'];
+    if (r.hoe !== 'planten' && n > o.n + .001) return [`Er staan maar ${getal(o.n)} ${eenheidNaam(o.eenheid, o.n)}`, 'aantal']; return ''; };
+  const w = soort === 'uitval' ? {soort: 'uitval', datum: dKey(new Date()), ...(await formulier('🗑️ Uitval / afgekeurd', [
+      {k: 'regel', label: 'Uit de koelcel', type: 'select', waarde: kies.k, opties: regels.map(o => [o.k, lbl(o)])},
+      {k: 'hoe', label: 'Wat gaat weg?', type: 'select', waarde: 'heel', opties: [['heel', 'Hele kistjes / trays / kisten'], ['planten', 'Losse planten']]},
+      {k: 'aantal', label: 'Hoeveel gaan er weg?', type: 'number', waarde: voor.aantal ?? '', placeholder: 'aantal', autofocus: true},
+      {k: 'notitie', label: 'Reden (mag leeg)', waarde: voor.notitie || '', placeholder: 'bijv. schimmel, kapot, te klein'}], '🗑️ Weghalen', controle) || {_leeg: true})}
+    : await formulier(MUT_SOORTEN.find(x => x[0] === soort)?.[1] || 'Eruit halen', [
     {k: 'soort', label: 'Waar gaat het heen?', type: 'select', waarde: soort, opties: MUT_SOORTEN.filter(x => ['uit', 'veld', 'uitval'].includes(x[0]))},
     {k: 'perceel_id', label: 'Naar welk perceel? (mag leeg)', type: 'select', waarde: voor.perceel_id || '', opties: [['', '– nog niet bekend –'], ...percelen.map(q => [q.id, q.naam || '?'])], als: ['soort', 'veld']},
     {k: 'regel', label: 'Uit de koelcel', type: 'select', waarde: kies.k, opties: regels.map(o => [o.k, lbl(o)])},
@@ -14030,8 +14041,8 @@ async function mutatieUitFormulier(partijId, soort, voor = {}) {
     {k: 'klant', label: 'Klant', waarde: voor.klant || '', lijst: klanten, als: ['soort', 'uit']},
     {k: 'pakbon', label: 'Pakbon / ordernummer', waarde: '', als: ['soort', 'uit']},
     {k: 'prijs', label: 'Prijs per eenheid (€)', type: 'number', waarde: '', als: ['soort', 'uit']},
-    {k: 'notitie', label: 'Aantekeningen', type: 'textarea', waarde: voor.notitie || ''}], 'Boeken');
-  if (!w) return;
+    {k: 'notitie', label: 'Aantekeningen', type: 'textarea', waarde: voor.notitie || ''}], 'Boeken', controle);
+  if (!w || w._leeg) return;
   const o = regels.find(r => r.k === w.regel); const n = parseFloat(String(w.aantal).replace(',', '.'));
   if (!o) { toast('Kies wat eruit gaat', 1); return; }
   if (!(n > 0)) { toast('Vul het aantal in', 1); return; }
@@ -14367,7 +14378,7 @@ function kcPalletInfo(p, cel) {
     const mi = ms.filter(m => m.partij_id === r.partij_id), kk = [...mi].reverse().find(m => /^kistkaart K/.test(m.notitie || ''));
     const sort = kk ? kk.notitie.replace(/^kistkaart K[^-]*-?/, '') : (e?.partij_id === r.partij_id ? [d.sortering, d.maat].filter(Boolean).join(' ') : '');
     const per = +r.per || 0, pl = per ? r.kistjes * per : 0, res = vbGereserveerd?.(r.partij_id, cel);
-    return `<div class="kcPInfoRij"><b>${esc(partijRas(y) || '?')} ${esc(y.batch || y.nak || '')}</b>${y.klasse ? ' · ' + esc(y.klasse) : ''}${sort ? ' · ' + esc(sort) : ''}
+    return `<div class="kcPInfoRij"><b>${esc(partijRas(y) || '?')} ${esc(y.batch || y.nak || '')}</b>${y.klasse ? ' · ' + esc(y.klasse) : ''}${sort ? ' · ' + esc(sort) : ''}${kcHerkomst(y, cel) ? `<small class="kcHerkomst">${kcHerkomst(y, cel)}</small>` : ''}
       <span>${getal(Math.round(r.kistjes * 10) / 10)} kistjes${per ? ` × ${getal(per)} = <b>${getal(Math.round(pl))}</b> planten` : ''}${res ? ` · 🧾 ${getal(res)} voor een order` : ''}</span></div>`; }).join('');
   const eerst = ms.find(m => m.soort === 'in'), laatst = ms[ms.length - 1];
   const tijd = m => m ? `${datumKort(m.datum ? m.datum + 'T12:00' : m.created_at)}${m.door ? ' door ' + esc(m.door) : ''}` : '';
@@ -14437,6 +14448,23 @@ function kcGeschiedenis(pid, cel, pallet) {
     <div class="rij"><button class="knop licht" onclick="$('#modal').classList.remove('open')">Sluiten</button></div></div>`;
   $('#modal').classList.add('open');
 }
+// waar komt een partij vandaan: veld, teelt/doel, bio, wanneer gerooid en wanneer hier binnengekomen
+function kcHerkomst(y, cel) {
+  if (!y?.id) return '';
+  const veld = partijPerceelNaam?.(y) || y.perceel_tekst || '', bio = y.bio || isBioPerceel?.(perceel(y.perceel_id));
+  const rooi = (S.res_invoer || []).filter(i => i.partij_id === y.id && i.soort === 'rooien' && i.datum).map(i => i.datum).sort();
+  const inHier = (S.partij_mutaties || []).filter(m => m.partij_id === y.id && m.koelcel === cel && (m.soort === 'in' || (m.soort === 'correctie' && +m.aantal > 0))).map(m => m.datum || String(m.created_at || '').slice(0, 10)).filter(Boolean).sort();
+  const dat = d => datumKort(d + 'T12:00');
+  return [veld && '🗺️ ' + esc(veld), (y.doel || y.teeltdoel) && esc(y.doel || y.teeltdoel), bio && '🌿 BIO',
+    rooi.length && '🚜 gerooid ' + (rooi[0] === rooi[rooi.length - 1] ? dat(rooi[0]) : dat(rooi[0]) + ' – ' + dat(rooi[rooi.length - 1])),
+    inHier.length && '⬇️ hier sinds ' + dat(inHier[0])].filter(Boolean).join(' · ');
+}
+// pallet in een groepje aantikken: alleen de knoppen van die pallet tonen (nog een keer tikken = weer dicht)
+function kcPalKies(knop, nr) {
+  const groep = knop.closest('.kcGroep'); if (!groep) return; const al = knop.classList.contains('aan');
+  groep.querySelectorAll('.kcPalNr').forEach(b => b.classList.remove('aan')); groep.querySelectorAll('.kcPalActies').forEach(d => { d.hidden = true; });
+  if (!al) { knop.classList.add('aan'); const d = groep.querySelector(`.kcPalActies[data-pal="${CSS.escape(nr)}"]`); if (d) d.hidden = false; }
+}
 // pallets in een koelcel per soort (zelfde partij/partijen erop) samen: "3 pallets Rumba 260046"
 function kcPalletGroepen(pallets) {
   const m = new Map();
@@ -14460,11 +14488,13 @@ function kcOpen(naam) {
       ${knop('🧱 Pallet (kistjes)', `kcPalletInslag(${esc(JSON.stringify(naam))})`)}${knop('📦 Kuubskist', `mutatieFormulier('','in',null,{eenheid:'kuubskisten',koelcel:${esc(JSON.stringify(naam))}})`)}
       ${knop('🥡 Trays', `mutatieFormulier('','in',null,{eenheid:'trays',koelcel:${esc(JSON.stringify(naam))}})`)}${knop('🌱 Losse planten', `mutatieFormulier('','in',null,{eenheid:'planten',koelcel:${esc(JSON.stringify(naam))}})`)}</div></div>` : ''}
     ${kcPalletGroepen(inh.pallets).map(g => `<details class="kcGroep"><summary class="kcItem pallet"><div><b>🧱 ${g.l.length} ${g.l.length === 1 ? 'pallet' : 'pallets'} × ${getal(g.l[0].kistjes)} kistjes</b> ${g.naam}
-        <small>${g.l.length > 1 ? `samen ${getal(g.kistjes)} kistjes · ` : ''}nr. ${g.l.map(p => esc(p.nr)).join(', ')} · tik voor alle info</small></div></summary>
-      ${g.l.map(p => `<div class="kcItem pallet"><div><b>🧱 Pallet ${esc(p.nr)}</b> <span class="kcHoog">${getal(p.kistjes)}/${KC_PALLET_MAX} kistjes</span>
-        ${kcPalletInfo(p, naam)}</div>
+        <small>${g.l.length > 1 ? `samen ${getal(g.kistjes)} kistjes · ` : ''}nr. ${g.l.map(p => esc(p.nr)).join(', ')} · tik voor info en de pallets</small></div></summary>
+      <div class="kcGroepInfo">${kcPalletInfo(g.l[0], naam)}</div>
+      <div class="kcPalNrs">${g.l.map(p => `<button class="kcPalNr" onclick="kcPalKies(this,'${esc(String(p.nr))}')" title="Pallet ${esc(p.nr)}: tik voor verplaatsen, eruit halen, geschiedenis">🧱 ${esc(p.nr)}${Math.abs(p.kistjes - g.l[0].kistjes) > .05 ? ` <small>${getal(p.kistjes)}</small>` : ''}</button>`).join('')}</div>
+      ${g.l.map(p => `<div class="kcPalActies" data-pal="${esc(String(p.nr))}" hidden><b>🧱 Pallet ${esc(p.nr)}</b> <span class="kcHoog">${getal(p.kistjes)}/${KC_PALLET_MAX} kistjes</span>
       <div class="kcItemKnop">${knop('↔ Verplaatsen', ver(null, p.nr, 'pallet ' + p.nr))}${knop('⬆️ Eruit halen', `kcPalletUit(${esc(JSON.stringify(naam))},${esc(JSON.stringify(p.nr))})`)}${knop('📜', `kcGeschiedenis(null,null,${esc(JSON.stringify(String(p.nr)))})`)}${magEtiket() && (S.etiketten || []).some(x => x.soort === 'pallet' && String(x.nr) === String(p.nr)) ? knop('🖨️ Kaart', `etOpnieuw(['P${esc(p.nr)}'])`) : ''}${beh ? `<button class="kcX" title="Pallet verwijderen" onclick="$('#modal').classList.remove('open');kcPalletWeg(${esc(JSON.stringify(p.nr))},${esc(JSON.stringify(naam))})">✕</button>` : ''}</div></div>`).join('')}</details>`).join('')}
-    ${los.map(({y, x}) => `<div class="kcItem"><div><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}<small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)}${vbGereserveerd(y.id, naam) ? ` · ${getal(vbGereserveerd(y.id, naam))} voor een order` : ''}</small></div>
+    ${los.map(({y, x}) => `<div class="kcItem"><div><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}<small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)}${vbGereserveerd(y.id, naam) ? ` · ${getal(vbGereserveerd(y.id, naam))} voor een order` : ''}</small>
+      <small class="kcHerkomst">${kcHerkomst(y, naam)}</small></div>
       <div class="kcItemKnop">${knop('📜', `kcGeschiedenis('${y.id}',${esc(JSON.stringify(naam))})`)}${knop('↔ Verplaatsen', ver(y.id, null, partijRas(y) || 'deze partij'))}${knop('🧾 Order', `vbKies('${y.id}',${esc(JSON.stringify(naam))})`)}${knop('⬆️ Eruit halen', `mutatieFormulier('${y.id}','uit',null,{koelcel:${esc(JSON.stringify(naam))}})`)}</div></div>`).join('')}
     <div class="rij"><button class="knop licht" id="mNee">Sluiten</button></div></div>`;
   const m = $('#modal'); m.classList.add('open'); $('#mNee').onclick = () => m.classList.remove('open');
@@ -14619,7 +14649,7 @@ function htmlVoorraad() {
     return `<div class="kcTabletKop"><span>Tik op een koelcel om te zien wat erin staat, in te slaan of eruit te halen</span></div>${kcPlattegrondHtml(beh)}`; }
   const kop = `<section class="kaartje"><h4>📦 Van partij tot klant</h4>
     <div class="ptabs" style="grid-template-columns:repeat(${isKoelcelPlek() ? 2 : 3},1fr)">${[['voorraad', '🧊', 'In de koelcel'], ['leveringen', '🚚', 'Leveringen'], ...(isKoelcelPlek() ? [] : [['zoek', '🔎', 'Terugzoeken']])].map(([k, i, l]) => `<button class="${vrWeergave === k ? 'aan' : ''}" onclick="vrWeergave='${k}';render(true)"><span>${i}</span>${l}</button>`).join('')}</div>
-    ${beh ? `<div class="rij"><button class="knop licht" onclick="mutatieFormulier('', 'in')">⬇️ Inslag</button><button class="knop licht" onclick="mutatieFormulier('', 'uit')">⬆️ Levering</button><button class="knop licht" onclick="mutatieFormulier('', 'veld')">🌱 Naar het veld</button><button class="knop licht" onclick="mutatieFormulier('', 'uitval')">🗑️ Uitval</button></div>` : ''}
+    ${beh ? `<div class="rij"><button class="knop licht" onclick="mutatieFormulier('', 'in')">⬇️ Inslag</button><button class="knop licht" onclick="mutatieFormulier('', 'uit', null, {gekozen: true})">⬆️ Levering</button><button class="knop licht" onclick="mutatieFormulier('', 'veld', null, {gekozen: true})">🌱 Naar het veld</button><button class="knop licht" onclick="mutatieFormulier('', 'uitval', null, {gekozen: true})">🗑️ Uitval</button></div>` : ''}
     <div class="rij">${beh ? '<button class="knop" onclick="kcScan()">❄️ Koelcel inscannen</button>' : ''}<button class="knop licht" onclick="etScan()">📷 Etiket scannen</button>${isKoelcelPlek() ? '' : `<button class="knop licht" onclick="zetTab('etiketten')">🏷️ Etiketten</button>`}</div>
     ${beh ? '<div class="rij" style="margin-top:4px"><button class="knop licht klein" onclick="kcQrAfdrukken()">🖨️ QR-codes van de koelcellen afdrukken</button></div>' : ''}</section>`;
   if (vrWeergave === 'leveringen') {
@@ -14643,7 +14673,7 @@ function htmlVoorraad() {
       return `<div class="srRij vbPartij ${sl ? 'sleep' : ''} ${vrij <= 0 ? 'verdeeld' : ''}" ${sl ? `onpointerdown="vbSleepStart(event,'${y.id}','${esc(cel)}')" onclick="if(!this.dataset.gesleept&&!event.target.closest('button'))vbKies('${y.id}','${esc(cel)}')"` : ''}>${sl ? '<span class="vbGreep">⠿</span>' : ''}<div class="t"><b>${esc(partijRas(y) || soort(y.soort_id)?.naam || '?')}</b> ${esc(y.batch || '')} ${esc(y.klasse || '')}${y.bio ? ' <span class="badge bio">BIO</span>' : ''}
       <small>${eenhedenTekst(x.planten, x.eenheid, x.per_eenheid)} · ${esc(partijPerceelNaam(y) || '')}</small>
       ${res ? `<small class="vbStand">${vrij > 0 ? `<b>${eenhedenTekst(vrij, x.eenheid, x.per_eenheid)} vrij</b>` : '<b>helemaal verdeeld</b>'} · ${getal(res)} verdeeld (${vbRes().filter(r => r.partij_id === y.id && (r.koelcel || '—') === cel).map(r => esc(S.voorraad_bestemmingen.find(b => b.id === r.bestemming_id)?.naam || '?')).join(', ')})</small>` : ''}</div>
-      ${beh ? `<span class="logknoppen"><button class="weg" title="Levering" onclick="mutatieFormulier('${y.id}','uit')">⬆️</button></span>` : ''}</div>`; }).join('')}</section>`).join('')
+      ${beh ? `<span class="logknoppen"><button class="weg" title="Levering" onclick="mutatieFormulier('${y.id}','uit',null,{gekozen:true})">⬆️</button></span>` : ''}</div>`; }).join('')}</section>`).join('')
     || '<section class="kaartje"><p class="hint">Er staat niets in de koelcel. Boek een ⬇️ inslag als er gerooid is.</p></section>');
   const kcKop = `<section class="kaartje kcBalk"><div class="schakel">${[['plattegrond', '🗺️ Plattegrond'], ['lijst', '📋 Lijst']].map(([k, t]) => `<button class="${kcWeergave === k ? 'aan' : ''}" onclick="kcZetWeergave('${k}')">${t}</button>`).join('')}</div>
     ${beh ? `<div class="rij" style="gap:6px;flex-wrap:wrap"><button class="knop licht klein" style="width:auto" onclick="kcErbij()">＋ Koelcel / plek</button><button class="knop licht klein" style="width:auto" onclick="kcPalletInslag()">🧱 Pallet inslaan</button>${kcWeergave === 'plattegrond' ? `<button class="knop ${kcBewerk ? '' : 'licht'} klein" style="width:auto" onclick="kcBewerk=!kcBewerk;render(true)">${kcBewerk ? '✓ Klaar met indelen' : '✏️ Plattegrond indelen'}</button>` : ''}</div>` : ''}
@@ -15262,7 +15292,7 @@ async function etOpen(code) {
     ${!e.partij_id ? '<p class="hint">Dit etiket is niet aan een partij gekoppeld; bij inslaan kies je de partij.</p>' : ''}
     <div class="rij" style="flex-wrap:wrap;gap:6px">
       ${beh && pal && !p ? knop('⬇️ Inslaan', `etPalletIn('${e.code}')`, false) : ''}
-      ${beh && pal && p ? knop('↔ Verplaatsen', `etVerplaats('${e.code}')`, false) + knop('⬆️ Leveren', `mutatieFormulier('${p.regels[0]?.partij_id || e.partij_id || ''}','uit',null,{koelcel:${esc(JSON.stringify(p.cel))},eenheid:'kistjes',pallet:${esc(JSON.stringify(p.nr))},aantal:${p.kistjes}})`) : ''}
+      ${beh && pal && p ? knop('↔ Verplaatsen', `etVerplaats('${e.code}')`, false) + knop('⬆️ Leveren', `mutatieFormulier('${p.regels[0]?.partij_id || e.partij_id || ''}','uit',null,{gekozen:true,koelcel:${esc(JSON.stringify(p.cel))},eenheid:'kistjes',pallet:${esc(JSON.stringify(p.nr))},aantal:${p.kistjes}})`) : ''}
       ${beh && !pal ? knop('⬇️ In koelcel zetten', `mutatieFormulier('${e.partij_id || ''}','in',null,{eenheid:'kuubskisten',aantal:1,notitie:'Box ${e.nr}'})`, false) : ''}
       ${magEtiket() ? knop('🖨️ Opnieuw afdrukken', `etOpnieuw(['${e.code}'])`) : ''}
       ${(ziet('voorraad_bekijken') || beh) && (d.batch || y) ? knop('🔎 Terugzoeken', `vrZoek=${esc(JSON.stringify(d.batch || y?.batch || ''))};vrWeergave='zoek';zetTab('voorraad')`) : ''}
