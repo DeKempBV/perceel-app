@@ -2059,8 +2059,11 @@ function klikBaan(p, bn, ll) {
 
   if (gereedschap === 'spoorweg') { spoorWeg(p, bn, ll); return; }
   if (gereedschap === 'spoorhalf') { spoorHalf(p, bn, ll); return; }
+  const tAbs = ll && meta ? langs(meta, ll) : null;
   if (gereedschap === 'spuit') {
     if (!mag('spuitsporen_bewerken')) { toast('Je mag geen spuitsporen aanpassen', 1); return; }
+    // spoor met een wissel of een kopeinde ertussen: alleen het stuk waar je op tikt
+    if (tAbs != null && stukWissel(p, 'stukSpuit', bn, tAbs, spuitSet(p).has(bn.nr), 'spuitspoor')) return;
     wisselSpuit(p, bn.nr); return;
   }
   if (gereedschap === 'sproeier') {
@@ -2071,7 +2074,10 @@ function klikBaan(p, bn, ll) {
       if (bn.split && tl >= bn.split[0] && tl <= bn.split[1]) w = bn.b / 2;   // deels gesplitst spoor: hier is het maar half zo breed
       dx = o - bn.a; }
     const zone = Math.min(w * .45, Math.max(w * .25, .4));
-    if (dx < zone && bn.nr > 1) wisselSproeierLijn(p, bn.nr - 1); else if (dx > w - zone && bn.nr < banenVan(p).length) wisselSproeierLijn(p, bn.nr); else wisselSproeier(p, bn.nr);
+    const bz = banenVan(p), lijnen = sproeierLijnenVan(p);
+    if (dx < zone && bn.nr > 1) { const vb = bz[bn.nr - 2]; if (!(tAbs != null && vb && stukWissel(p, 'stukLijn', vb, tAbs, lijnen.has(vb.nr), 'sproeierleiding'))) wisselSproeierLijn(p, bn.nr - 1); }
+    else if (dx > w - zone && bn.nr < bz.length) { if (!(tAbs != null && stukWissel(p, 'stukLijn', bn, tAbs, lijnen.has(bn.nr), 'sproeierleiding'))) wisselSproeierLijn(p, bn.nr); }
+    else if (!(tAbs != null && stukWissel(p, 'stukSproeier', bn, tAbs, rijWaarde(p, bn.nr) === 3 || spuitOokSproeier(p, bn.nr), 'sproeier'))) wisselSproeier(p, bn.nr);
     return;
   }
   if (gereedschap === 'knip' && magIndelen) {
@@ -3475,7 +3481,7 @@ function htmlSpuitvakken(z) {
 }
 function zetSpuit(z, s) {
   if (!z._vak) { wijzig(z.id, {spuit: s}); return; }
-  const p = z._perceel;
+  const p = perceel(z._perceel.id) || z._perceel;
   wijzig(p.id, {vakken: (p.vakken || []).map(v => v.id === z._vak.id ? {...v, spuit: s} : v)});
 }
 function zetSpuitGetal(zoneId, veld, waarde) {
@@ -3494,43 +3500,75 @@ function spuitHerstel(zoneId) {
   const z = alleZones(perceel(actief)).find(x => x.id === zoneId); if (!z) return;
   zetSpuit(z, {elke: spuitVan(z).elke, start: spuitVan(z).start}); toast('Losse aanpassingen weggehaald');
 }
+/* ---- spuitspoor / sproeier per stuk: een spoor dat door een kopeinde loopt of een wissel heeft, kan per stuk anders zijn ----
+   spuit.stukSpuit / stukSproeier / stukLijn = {"<k>|<h0>_<h1>": 1 (aan) | 0 (uit)}, h0/h1 = meters langs (zelfde maat als bn.t0) */
+function stukGrenzen(z, bn) {   // wissels en kopeindes, in meters vanaf het begin van het spoor
+  const v = (z.banen || [])[bn.nr - 1];
+  return [...new Set([...(isGeknipt(v) ? v.k : []), ...(bn.gaten || [])])].sort((x, y) => x - y);
+}
+function stukBereik(z, bn, tAbs) {   // het stuk waar tAbs in ligt → [h0, h1] (absoluut, ±1e5 = tot het eind)
+  const g = stukGrenzen(z, bn); if (!g.length) return null; const r = tAbs - bn.t0, i = g.filter(x => x <= r).length;
+  return [i === 0 ? -1e5 : Math.round((bn.t0 + g[i - 1]) * 10) / 10, i === g.length ? 1e5 : Math.round((bn.t0 + g[i]) * 10) / 10];
+}
+function stukWaarde(kaart, k, tAbs) {   // 1 / 0 als er voor dit stuk iets apart is gezet, anders undefined
+  if (!kaart) return undefined;
+  for (const [key, w] of Object.entries(kaart)) { const [kk, r] = key.split('|'); if (+kk !== k) continue; const [h0, h1] = r.split('_').map(Number); if (tAbs >= h0 && tAbs <= h1) return w; }
+  return undefined;
+}
+// de stukken langs een spoor waar iets aan staat: basis (heel spoor) met per stuk een uitzondering
+function stukkenAan(kaart, bn, t0, t1, basis) {
+  const knip = new Set([t0, t1]);
+  Object.keys(kaart || {}).forEach(key => { const [kk, r] = key.split('|'); if (+kk !== bn.k) return; r.split('_').map(Number).forEach(x => { if (x > t0 && x < t1) knip.add(x); }); });
+  const l = [...knip].sort((a, b) => a - b), uit = [];
+  for (let i = 0; i + 1 < l.length; i++) { const m = (l[i] + l[i + 1]) / 2, w = stukWaarde(kaart, bn.k, m); if (w === undefined ? basis : !!w) {
+    const vorige = uit[uit.length - 1]; if (vorige && Math.abs(vorige[1] - l[i]) < .01) vorige[1] = l[i + 1]; else uit.push([l[i], l[i + 1]]); } }
+  return uit;
+}
+function stukWissel(z, veld, bn, tAbs, basis, naam) {   // aan/uit voor alleen dit stuk
+  const r = stukBereik(z, bn, tAbs); if (!r) return false;
+  const s = {...spuitVan(z)}, kaart = {...(s[veld] || {})}, key = bn.k + '|' + r[0] + '_' + r[1], nu = stukWaarde(kaart, bn.k, tAbs) ?? (basis ? 1 : 0);
+  Object.keys(kaart).forEach(x => { const [kk, rr] = x.split('|'); const [h0, h1] = rr.split('_').map(Number); if (+kk === bn.k && h0 < r[1] && h1 > r[0]) delete kaart[x]; });
+  if ((nu ? 0 : 1) !== (basis ? 1 : 0)) kaart[key] = nu ? 0 : 1;   // gelijk aan de rest van het spoor: geen uitzondering nodig
+  s[veld] = kaart; zetSpuit(z, s);
+  toast(`${z._vak ? z.naam + ' · ' : ''}Spoor ${bn.nr}, alleen dit stuk: ${nu ? 'geen ' + naam + ' meer' : 'nu ' + naam}`);
+  return true;
+}
 function tekenSpuit(z) {
-  const meta = banenVan(z).meta, set = spuitSet(z);
+  const meta = banenVan(z).meta, set = spuitSet(z), sp = spuitVan(z);
   tekenSproeier(z);
   banenVan(z).forEach(bn => {
-    if (!set.has(bn.nr)) return;
+    const basis = set.has(bn.nr); if (!basis && !Object.keys(sp.stukSpuit || {}).some(x => +x.split('|')[0] === bn.k)) return;
     const o = bn.a + bn.b / 2, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
-    let lijn;
-    try { const c = turf.intersect(bn.geo, rechthoek(meta, o - .15, o + .15, bn.t0 - 1, bn.t1 + 1)); lijn = c ? L.geoJSON(c) : null; } catch {}
-    spoorSegs(bn).forEach(([t0, t1]) => {
-    geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#000', weight: 6, opacity: .35, interactive: false})).addTo(laag);
-    if (spuitOokSproeier(z, bn.nr)) {   // spuitspoor waar ook een sproeier op ligt: rode en blauwe streepjes om en om
-      // één doorlopende lijn: eronder heel rood/oranje, erbovenop blauwe streepjes in de gaten (werkt ook op de canvas-kaart, zonder dashOffset)
-      geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#ff6d00', weight: 3, interactive: false})).addTo(laag);
-      geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#29b6f6', weight: 3, dashArray: '10,10', lineCap: 'butt', interactive: false})).addTo(laag);
-    } else geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#ff6d00', weight: 3, dashArray: '10,6', interactive: false})).addTo(laag);
-    });
+    spoorSegs(bn).forEach(([a, b]) => stukkenAan(sp.stukSpuit, bn, a, b, basis).forEach(([t0, t1]) => {
+      const metSproeier = stukWaarde(sp.stukSproeier, bn.k, (t0 + t1) / 2) ?? (spuitOokSproeier(z, bn.nr) ? 1 : 0);
+      geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#000', weight: 6, opacity: .35, interactive: false})).addTo(laag);
+      if (metSproeier) {   // spuitspoor waar ook een sproeier op ligt: één doorlopende lijn, rood/oranje en blauw om en om
+        geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#ff6d00', weight: 3, interactive: false})).addTo(laag);
+        geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#29b6f6', weight: 3, dashArray: '10,10', lineCap: 'butt', interactive: false})).addTo(laag);
+      } else geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#ff6d00', weight: 3, dashArray: '10,6', interactive: false})).addTo(laag);
+    }));
   });
 }
 const spuitOokSproeier = (z, nr) => (spuitVan(z).sproeier || []).includes(nr) || rijWaardeRuw(z, nr) === 3;
-// sproeiersporen: blauwe stippellijn midden in het spoor
+// is dit stuk een spuitspoor (met de uitzonderingen per stuk)
+const spuitBij = (z, bn, tAbs) => stukWaarde(spuitVan(z).stukSpuit, bn.k, tAbs) ?? (spuitSet(z).has(bn.nr) ? 1 : 0);
+// sproeiersporen: blauwe stippellijn midden in het spoor; leidingen op de lijn tussen twee sporen
 function tekenSproeier(z) {
-  const meta = banenVan(z).meta, lijnen = sproeierLijnenVan(z);
-  if (meta && lijnen.size) banenVan(z).forEach(bn => { if (!lijnen.has(bn.nr)) return;   // leiding op de lijn tussen spoor nr en nr+1
+  const meta = banenVan(z).meta, lijnen = sproeierLijnenVan(z), sp = spuitVan(z); if (!meta) return;
+  const blauw = (pt, t0, t1) => { geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#000', weight: 6, opacity: .3, interactive: false})).addTo(laag);
+    geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#29b6f6', weight: 3, dashArray: '2,7', interactive: false})).addTo(laag); };
+  banenVan(z).forEach(bn => {   // leiding op de lijn tussen spoor nr en nr+1
+    const basis = lijnen.has(bn.nr); if (!basis && !Object.keys(sp.stukLijn || {}).some(x => +x.split('|')[0] === bn.k)) return;
     const o = bn.split ? bn.a + bn.b / 2 : bn.a + bn.b, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
     const v0 = bn.split ? Math.max(bn.t0, bn.split[0]) : bn.t0, v1 = bn.split ? Math.min(bn.t1, bn.split[1]) : bn.t1;   // deels gesplitst: alleen langs het halve stuk
     const nb = banenVan(z)[bn.nr];   // de leiding ligt alleen waar beide sporen echt liggen (niet door een kopeinde)
-    spoorSegs(bn, v0, v1).flatMap(([a, b]) => nb ? spoorSegs(nb, a, b) : [[a, b]]).forEach(([t0, t1]) => {
-    geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#000', weight: 6, opacity: .3, interactive: false})).addTo(laag);
-    geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#29b6f6', weight: 3, dashArray: '2,7', interactive: false})).addTo(laag); }); });
-  const l = (spuitVan(z).sproeier || []).length || patroonVan(z)?.includes(3); if (!l || !meta) return;
+    spoorSegs(bn, v0, v1).flatMap(([a, b]) => nb ? spoorSegs(nb, a, b) : [[a, b]]).forEach(([a, b]) => stukkenAan(sp.stukLijn, bn, a, b, basis).forEach(([t0, t1]) => blauw(pt, t0, t1)));
+  });
   const spuit = spuitSet(z);
-  banenVan(z).forEach(bn => {
-    if (rijWaarde(z, bn.nr) !== 3 || spuit.has(bn.nr)) return;   // op een spuitspoor tekent tekenSpuit hem (om en om)
+  banenVan(z).forEach(bn => {   // sproeierspoor (midden); op een spuitspoor tekent tekenSpuit hem (om en om)
+    const basis = rijWaarde(z, bn.nr) === 3 && !spuit.has(bn.nr); if (!basis && !Object.keys(sp.stukSproeier || {}).some(x => +x.split('|')[0] === bn.k)) return;
     const o = bn.a + bn.b / 2, pt = t => { const q = meta.naarG([meta.n[0] * o + meta.d[0] * t, meta.n[1] * o + meta.d[1] * t]); return [q[1], q[0]]; };
-    spoorSegs(bn).forEach(([t0, t1]) => {
-    geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#000', weight: 6, opacity: .3, interactive: false})).addTo(laag);
-    geenSnap(L.polyline([pt(t0), pt(t1)], {color: '#29b6f6', weight: 3, dashArray: '2,7', interactive: false})).addTo(laag); });
+    spoorSegs(bn).forEach(([a, b]) => stukkenAan(sp.stukSproeier, bn, a, b, basis).forEach(([t0, t1]) => { if (!spuitBij(z, bn, (t0 + t1) / 2)) blauw(pt, t0, t1); }));
   });
 }
 function wisselSproeierLijn(z, na) {   // leiding op de lijn tussen spoor na en na+1
@@ -3626,7 +3664,7 @@ async function opbouwBeheer() {
 async function opbouwToepassen(zid, i) {
   const p = perceel(actief), z = alleZones(p).find(x => x.id === zid), o = opbouwLijst()[i]; if (!z || !o) return;
   if (!await bevestigJa(`"${esc(o.naam)}" toepassen?`, `${z._vak ? esc(z.naam) + ': s' : 'S'}poorbreedte wordt ${String(o.breedte).replace('.', ',')} m en het patroon "${esc(o.patroon)}"${o.rijtjes ? `, ${o.rijtjes} rijtjes per spoor${o.spuitRijtjes ? ` en ${o.spuitRijtjes} onder het spuitspoor` : ''}` : ''}. Losse spuit- en sproeiersporen gaan eraf.`, '📐 Toepassen')) return;
-  const patch = {spuit: {...spuitVan(z), patroon: o.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], rijtjes: o.rijtjes || 0, spuitRijtjes: o.spuitRijtjes || 0}};
+  const patch = {spuit: {...spuitVan(z), patroon: o.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], stukSpuit: {}, stukSproeier: {}, stukLijn: {}, rijtjes: o.rijtjes || 0, spuitRijtjes: o.spuitRijtjes || 0}};
   if (+o.breedte && +o.breedte !== +z.breedte) patch.breedte = +o.breedte;
   await zoneZetten(p, z, patch); banenCache.delete(z.id); render(true); toast(`📐 ${o.naam} toegepast`);
 }
@@ -3680,7 +3718,7 @@ async function wisselMoeder(zid, pid = actief) {
   const oudBanen = [...(z.banen || [])], banen = v.uit.map(x => x.bron && (x.w === 1 || x.w === .5) ? oudBanen[x.bron.nr - 1] ?? null : null);
   const patroon = vals.map((q, i) => (v.lijnNa.has(i) ? '-' : '') + (q === .5 ? '0,5' : String(q))).join('');
   const sp = spuitVan(z);
-  await zoneZetten(p, z, {verschuiving: v.proef.verschuiving, banen, spuit: {...sp, patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], sproeierLijn: [], elke: 0, start: 0, moeder: false, gewisseld: new Date().toISOString()}});
+  await zoneZetten(p, z, {verschuiving: v.proef.verschuiving, banen, spuit: {...sp, patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], stukSpuit: {}, stukSproeier: {}, stukLijn: {}, sproeierLijn: [], elke: 0, start: 0, moeder: false, gewisseld: new Date().toISOString()}});
   banenCache.delete(z.id);
   // partijen: het nieuwe spoor hoort bij de partij van de moederrij waar (het meeste van) zijn plantjes vandaan komen
   const naar = new Map(); v.uit.forEach(x => { if (x.bron && banen[x.bn.nr - 1] != null) { if (!naar.has(x.bron.nr)) naar.set(x.bron.nr, []); naar.get(x.bron.nr).push(x.bn.nr); } });
@@ -3863,7 +3901,7 @@ async function pzToevoegen() {
     if (!z._vak) { const nieuw = await pzDeelveld(p, sporen[0], opb, PZ.teeltwijze); if (!nieuw) return; PZ.sel = nieuw.flatMap(q => q.nrs.map(nr => pzKey(q.z, nr))); }
     else if (opb && !heel && !await bevestigJa('Sporensysteem van het hele deelveld?', `Deze sporen liggen al in het deelveld <b>${esc(z.naam)}</b>. "${esc(opb.naam)}" geldt dan voor dat hele deelveld.`, '📐 Ja, hele deelveld')) return;
     else if (!opb) { /* al een eigen deelveld: gewoon daarin plannen */ }
-    else { const patch = {spuit: {...spuitVan(z), ...(opb ? {patroon: opb.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], rijtjes: opb.rijtjes || 0, spuitRijtjes: opb.spuitRijtjes || 0} : {})}};
+    else { const patch = {spuit: {...spuitVan(z), ...(opb ? {patroon: opb.patroon, patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], stukSpuit: {}, stukSproeier: {}, stukLijn: {}, rijtjes: opb.rijtjes || 0, spuitRijtjes: opb.spuitRijtjes || 0} : {})}};
       if (opb && +opb.breedte && +opb.breedte !== +z.breedte) patch.breedte = +opb.breedte; await zoneZetten(p, z, patch); banenCache.delete(z.id); }
   }
   const rr = pzRichting(perceel(p.id), PZ.sel), v = pzVerdeel(perceel(p.id), PZ.sel, PZ.items, PZ.teeltwijze === 'vermeerdering' ? PZ.breed : 1, rr.kant, rr.omg);
@@ -11232,7 +11270,7 @@ async function sporenOmzetten(pid, zid, patch, melding) {
   const sproeiOud = new Set((sp.sproeier || []));
   if (pp || spuitOud.size || sproeiOud.size) {
     const sproeier = nieuw.filter(bn => sproeiOud.has(oudNr(bn))).map(bn => bn.nr);
-    if (pp) extraPatch.spuit = {...sp, patroon: nieuw.map(bn => { const w = oudWaarde(oudNr(bn)); return w === .5 ? '0,5' : String(w); }).join(''), patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: []};   // losse sproeiers gaan mee in het patroon (3)
+    if (pp) extraPatch.spuit = {...sp, patroon: nieuw.map(bn => { const w = oudWaarde(oudNr(bn)); return w === .5 ? '0,5' : String(w); }).join(''), patroonStart: 1, extra: [], uit: [], sproeier: [], sproeierUit: [], lijnUit: [], stukSpuit: {}, stukSproeier: {}, stukLijn: {}};   // losse sproeiers gaan mee in het patroon (3)
     else extraPatch.spuit = {...sp, elke: 0, start: 0, uit: [], extra: nieuw.filter(bn => !sproeiOud.has(oudNr(bn)) && oudWaarde(oudNr(bn)) === 2).map(bn => bn.nr), sproeier};
     if ((sp.sproeierLijn || []).length) { const lijn = []; nieuw.forEach((bn, i) => { const o = oudNr(bn), o2 = i + 1 < nieuw.length ? oudNr(nieuw[i + 1]) : null; if (o2 === o + 1 && sp.sproeierLijn.includes(o)) lijn.push(bn.nr); }); extraPatch.spuit.sproeierLijn = lijn; }
   }
