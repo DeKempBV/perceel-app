@@ -3502,31 +3502,24 @@ function vakGroepen(z) {
   const banen = banenVan(z), set = spuitSet(z); if (!banen.length) return [];
   const sp = spuitVan(z), perStuk = Object.keys(sp.stukSpuit || {}).length > 0;
   if (!set.size && !perStuk) return [];
-  const delenVan = bn => (bn.delen || [[0, bn.t1 - bn.t0]]).map(([a, b]) => [bn.t0 + a, bn.t0 + b]);
-  const nSeg = Math.max(1, ...banen.map(bn => bn.delen ? bn.delen.length : 1));
-  // spoor zonder kopeinde erdoor: hoort bij de kant waar het ligt (zoals de buren met een kopeinde)
-  const segVan = bn => { if (bn.delen || nSeg === 1) return null;
-    const m = (bn.t0 + bn.t1) / 2; let best = null, d = 1e9;
-    banen.forEach(b2 => { if (!b2.delen) return; const dd = Math.abs(b2.nr - bn.nr); if (dd < d) { d = dd; best = b2; } });
-    if (!best) return 0; const dl = delenVan(best); let s0 = dl.findIndex(([a, b]) => m >= a && m <= b);
-    if (s0 < 0) s0 = dl.reduce((bi, [a, b], j) => Math.abs(m - (a + b) / 2) < Math.abs(m - (dl[bi][0] + dl[bi][1]) / 2) ? j : bi, 0); return s0; };
-  const uit = [];
-  for (let s0 = 0; s0 < nSeg; s0++) {
-    let huidig = null;
-    const sluit = () => { if (huidig && huidig.nrs.length) uit.push(huidig); huidig = null; };
-    banen.forEach(bn => {
-      let stuk = null;
-      if (bn.delen) stuk = delenVan(bn)[s0] || null; else if ((segVan(bn) ?? 0) === s0) stuk = [bn.t0, bn.t1];
-      if (!stuk) { sluit(); return; }
-      const mid = (stuk[0] + stuk[1]) / 2;
-      if (perStuk ? spuitBij(z, bn, mid) : set.has(bn.nr)) { sluit(); return; }
-      if (!huidig) huidig = {nrs: [], m2: 0, lengte: 0, beplant: 0, seg: s0, rng: {}, delen: []};
-      const frac = (stuk[1] - stuk[0]) / Math.max(1, spoorLen(bn));
-      huidig.nrs.push(bn.nr); huidig.rng[bn.nr] = stuk; huidig.delen.push(bn); huidig.m2 += bn.m2 * Math.min(1, frac); huidig.lengte = Math.max(huidig.lengte, stuk[1] - stuk[0]); huidig.beplant += rijFactor(z, bn.nr);
-    });
-    sluit();
-  }
-  return uit;
+  // stukken spoor (tussen kopeindes) die geen spuitpad zijn; buren (spoor nr en nr+1) die naast elkaar liggen horen bij hetzelfde vak.
+  // Een kopeinde scheidt dus alleen vakken waar het ook echt tussen ligt.
+  const stukken = [];
+  banen.forEach(bn => (bn.delen || [[0, bn.t1 - bn.t0]]).forEach(([a, b]) => { const t0 = bn.t0 + a, t1 = bn.t0 + b, mid = (t0 + t1) / 2;
+    if (perStuk ? spuitBij(z, bn, mid) : set.has(bn.nr)) return; stukken.push({bn, t0, t1, i: stukken.length}); }));
+  const ouderVan = stukken.map((_, i) => i), vind = i => ouderVan[i] === i ? i : (ouderVan[i] = vind(ouderVan[i])), koppel = (a, b) => { a = vind(a); b = vind(b); if (a !== b) ouderVan[Math.max(a, b)] = Math.min(a, b); };
+  const perNr = new Map(); stukken.forEach(x => { if (!perNr.has(x.bn.nr)) perNr.set(x.bn.nr, []); perNr.get(x.bn.nr).push(x); });
+  stukken.forEach(x => (perNr.get(x.bn.nr + 1) || []).forEach(y => { if (Math.min(x.t1, y.t1) - Math.max(x.t0, y.t0) > 1) koppel(x.i, y.i); }));
+  const groep = new Map(); stukken.forEach(x => { const r = vind(x.i); if (!groep.has(r)) groep.set(r, []); groep.get(r).push(x); });
+  return [...groep.values()].map(l => {
+    const v = {nrs: [], m2: 0, lengte: 0, beplant: 0, rng: {}, delen: [], tMid: 0}; let tw = 0;
+    l.sort((a, b) => a.bn.nr - b.bn.nr || a.t0 - b.t0).forEach(x => {
+      const bn = x.bn, len = x.t1 - x.t0;
+      if (!v.rng[bn.nr]) { v.nrs.push(bn.nr); v.delen.push(bn); v.rng[bn.nr] = [x.t0, x.t1]; v.beplant += rijFactor(z, bn.nr); }
+      else v.rng[bn.nr] = [Math.min(v.rng[bn.nr][0], x.t0), Math.max(v.rng[bn.nr][1], x.t1)];
+      v.m2 += bn.m2 * Math.min(1, len / Math.max(1, spoorLen(bn))); v.lengte = Math.max(v.lengte, len); v.tMid += (x.t0 + x.t1) / 2 * len; tw += len; });
+    v.tMid /= Math.max(1, tw); return v;
+  }).sort((a, b) => a.nrs[0] - b.nrs[0] || a.tMid - b.tMid);
 }
 function spuitvakkenVan(z) {
   const uit = vakGroepen(z); if (!uit.length) return uit;
@@ -3550,9 +3543,9 @@ function vakLettersPerceel(p) {
     zs.forEach(z => {
       const eigen = vakGroepen(z).map((g, i) => { const mid = g.delen[Math.floor(g.delen.length / 2)]; let pos = i;
         try { const q = meta.naarM(turf.centroid(mid.geo).geometry.coordinates); pos = q[0] * meta.n[0] + q[1] * meta.n[1]; } catch {}
-        return {k: z.id + '#' + i, pos, seg: g.seg || 0}; });
+        return {k: z.id + '#' + i, pos, t: g.tMid || 0}; });
       if (!eigen.length) return;
-      eigen.sort((x, y) => x.seg - y.seg || x.pos - y.pos); alle.push({pos: eigen.reduce((t, x) => t + x.pos, 0) / eigen.length, eigen});
+      eigen.sort((x, y) => Math.abs(x.pos - y.pos) > 1 ? x.pos - y.pos : x.t - y.t); alle.push({pos: eigen.reduce((t, x) => t + x.pos, 0) / eigen.length, eigen});
     });
     // per deel aaneengesloten, de delen op volgorde van ligging
     alle.sort((x, y) => x.pos - y.pos).flatMap(x => x.eigen).forEach((x, i) => map.set(x.k, vakLetter(i)));
@@ -10072,7 +10065,10 @@ function tekenPlantInfo(p) {
     const r2 = `${n} ${n === 1 ? 'rij' : 'rijen'} · ${Math.round(g.m / n).toLocaleString('nl-NL')} m · ${Math.round(g.m2).toLocaleString('nl-NL')} m²${plm ? ` · ${getal(plm, 1)} pl/m` : ''}`;
     // tweede (derde …) partij van hetzelfde ras: een randje in dezelfde kleur als de tekst, zodat je het onderscheid ziet
     if (x && (rang.get(x.id) || 0) > 0 && g.geos?.length) { try {
-      const hull = turf.convex(turf.featureCollection(g.geos.flatMap(q => turf.coordAll(q)).map(c => turf.point(c))));
+      // precies om de sporen van deze partij heen: de stukken samenvoegen (iets opblazen en weer krimpen, zodat de naadjes tussen de sporen dicht gaan)
+      let hull = null;
+      for (const q of g.geos) { try { const b = turf.buffer(q, 0.3, {units: 'meters', steps: 2}); hull = hull ? (turf.union(hull, b) || hull) : b; } catch {} }
+      try { if (hull) hull = turf.buffer(hull, -0.3, {units: 'meters', steps: 2}) || hull; } catch {}
       if (hull) { const f = () => L.geoJSON(hull, {interactive: false, style: {color: kleur, weight: 3, opacity: .95, fill: false}}).addTo(laag); teken.push(f); f(); }
     } catch {} }
     const html = `<div style="color:${kleur}"><b>${r1}</b><span>${r2}</span></div>`, f = () => L.marker([lat, lng], {interactive: false, keyboard: false, icon: L.divIcon({className: 'plantInfo', html, iconSize: [0, 0]})}).addTo(laag);
