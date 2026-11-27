@@ -4784,8 +4784,9 @@ function tekenZone(p, isA) {
     (banenVan(p).weg || []).forEach(w => geenSnap(L.geoJSON(w.geo, {style: {stroke: false, fillColor: kl, fillOpacity: .45}})).bindTooltip('🟫 Kopeinde', {sticky: true}).addTo(laag));
   const moeder = !!spuitVan(p).moeder, mMeta = moeder ? banenVan(p).meta : null;
   banenVan(p).forEach(bn => {
-    const stukken = stukkenVan(p, bn), f = metPatroon || rijWaarde(p, bn.nr) === 3 || spuitBeplant(p) ? rijFactor(p, bn.nr) : 1;
+    const stukken = stukkenVan(p, bn), f0 = metPatroon || rijWaarde(p, bn.nr) === 3 || spuitBeplant(p) ? rijFactor(p, bn.nr) : 1;
     stukken.forEach(st => {
+      const f = stukFactor(p, bn, st, f0);   // per stuk: een stuk zonder spuitpad/sproeier is een gewoon plantspoor
       const s = teelt(st.id), mLijn = moeder && s && f > 0;
       geenSnap(L.geoJSON(st.geo, {style: {color: isA ? '#ffffff' : '#111', weight: isA ? .9 : .4, opacity: .75,
         fillColor: s ? s.kleur : '#ffffff', fillOpacity: mLijn ? .07 : s ? (f >= .99 ? .62 : f === 0 ? .04 : f >= .6 ? .48 : .12) : .06}}))
@@ -7028,6 +7029,18 @@ function spoorPartijIndex() {
 // spuitsporen (en lege sporen uit het rijpatroon) horen bij geen enkele partij
 const isSpuitRij = (z, nr) => { try { const w = rijWaarde(z, nr); if (w === 2 && spuitBeplant(z)) return false;   // er staan planten onder het spuitspoor
   return w === 3 || (patroonVan(z) ? w === 2 || w === 0 : spuitSet(z).has(nr)); } catch { return false; } };
+// wat dit stuk is als er per stuk iets apart is gezet: 1 (plantspoor), 2 (spuitpad) of 3 (sproeier); null = zoals het hele spoor
+function stukSoort(z, bn, st) {
+  const sp = spuitVan(z); if (!Object.keys(sp.stukSpuit || {}).length && !Object.keys(sp.stukSproeier || {}).length) return null;
+  const tAbs = bn.t0 + (st.van + st.tot) / 2, a = stukWaarde(sp.stukSpuit, bn.k, tAbs), b = stukWaarde(sp.stukSproeier, bn.k, tAbs);
+  if (a === undefined && b === undefined) return null;
+  const w = rijWaarde(z, bn.nr), spuit = a ?? (spuitSet(z).has(bn.nr) || (patroonVan(z) && w === 2) ? 1 : 0), sproei = b ?? (w === 3 ? 1 : 0);
+  return spuit ? 2 : sproei ? 3 : (w === 2 || w === 3 ? 1 : w);
+}
+function stukFactor(z, bn, st, f0) {
+  const sw = stukSoort(z, bn, st); if (sw == null) return f0;
+  return sw === 3 ? 0 : sw === 2 ? (spuitBeplant(z) ? f0 || .5 : 0) : sw === 1 ? 1 : sw;
+}
 // is dít stuk van het spoor een spuitpad of sproeier (met de uitzonderingen per stuk)? zonder st: het hele spoor
 function isSpuitStuk(z, nr, st, tAbs) {
   if (st == null && tAbs == null) return isSpuitRij(z, nr);
@@ -7404,9 +7417,10 @@ const partijRegel = (y, metRas, metKnop) => `<div class="pi">🏷️ ${metRas ? 
   ${sporenLabel(y)}${metKnop && mag('partijen_beheren') ? ` <button class="link klein" onclick="partijKwastStart('${y.id}')">🖌️ ${partijSporen(y).length ? 'sporen aanpassen' : 'aanwijzen op welke sporen'}</button>` : ''}</div>`;
 // wat je ziet als je met de muis over een spoor gaat (of erop tikt)
 function spoorTip(p, bn, st) {
-  const t = teelt(st.id), f = patroonVan(p) ? rijWaarde(p, bn.nr) : (spuitSet(p).has(bn.nr) ? 2 : 1);
+  const t = teelt(st.id), sw = stukSoort(p, bn, st);
+  const f = sw ?? (patroonVan(p) ? rijWaarde(p, bn.nr) : (spuitSet(p).has(bn.nr) ? 2 : 1));
   const vak = spuitvakkenVan(p).find(v => v.nrs.includes(bn.nr));
-  const f3 = rijWaarde(p, bn.nr) === 3, moe = spuitVan(p).moeder;
+  const f3 = sw != null ? sw === 3 : rijWaarde(p, bn.nr) === 3, moe = spuitVan(p).moeder;
   const rt = rijtjesVan(p), rtHier = f3 ? 0 : f === 2 ? spuitRijtjesVan(p) : rt ? Math.round(rt * (f === .5 ? .5 : f === 0 ? 0 : 1)) : 0;
   const kop = `<b>Spoor ${bn.nr}</b>${vak ? ` · vak ${vak.letter}` : ''}${f3 ? ' · 💧 sproeierspoor' : f === 2 ? ' · 🚜 spuitspoor' : f === .5 ? ' · half gevuld' : f === 0 ? ' · leeg' : ''}${rtHier ? ` · ${rtHier} ${rtHier === 1 ? 'rijtje' : 'rijtjes'}${f === 2 ? ' eronder' : ''}` : ''}${moe && !f3 ? ' · 🌱 moederplanten (onder de trekker)' : ''}`;
   if (!t) return `${kop}<br><small>Niet ingedeeld · ${Math.round(st.echt ?? st.len ?? st.tot - st.van)} m${st.helft || bn.halfBraak?.length ? ' (half zo breed)' : ''}</small>`;
