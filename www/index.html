@@ -4926,7 +4926,7 @@ function plekTerug() {
   } catch (e) { console.warn('plek terugzetten', e); return false; }
 }
 let plekTimer = null;
-const APP_VERSIE = 'v150';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
+const APP_VERSIE = 'v153';   // ophogen bij elke nieuwe versie (zelfde nummer als in sw.js)
 function render(forceer) {
   clearTimeout(plekTimer); plekTimer = setTimeout(plekBewaar, 300);
   renderKaart(); if (drieDTaakId) ververs3dTaak();
@@ -15314,8 +15314,21 @@ function etBandHtml(v, half) {
   return `<div class="etBand" style="background:${kl};color:${etTekstKleur(kl)}">${v.bio ? `<div class="etBio">BIO</div>` : ''}<div class="etRas" style="font-size:${etPt(v.ras, basis, v.bio ? 9 : 12)}pt">${esc(v.ras || '')}</div></div>`
     + (v.bio ? `<div class="etSkal"><span>${esc(etInst().skal)}</span><span>${esc(etInst().biocode)}</span><img src="${ET_EU}" alt=""></div>` : '');
 }
+// planttype voluit op de palletkaart: FR-A2+/250 → "Frigo A2+" (de A/B-letters zijn de sortering; /250 staat al bij per kist)
+const PLANTTYPE_VOLUIT = [['FR MIS', 'Frigo Misted Tip'], ['MT AMB', 'Mini Tray AMB'], ['FR', 'Frigo'], ['MT', 'Mini Tray'], ['TR', 'Tray'], ['WB', 'Wachtbed']];
+function planttypeVoluit(sortering, perKist) {
+  let t = String(sortering || '').trim(); if (!t) return '';
+  const hit = PLANTTYPE_VOLUIT.find(([afk]) => new RegExp('^' + afk.replace(' ', '[\\s_-]*') + '(?=[\\s_-]|$)', 'i').test(t));
+  if (!hit) return t;   // onbekend (bijv. Modules, Modules gekoeld): zoals het is
+  let rest = t.replace(new RegExp('^' + hit[0].replace(' ', '[\\s_-]*'), 'i'), '').replace(/^[\s_-]+/, '');
+  if (perKist) rest = rest.replace(/\s*\/\s*\d+.*$/, '');   // "/250" en "> 1000 per kist" weg: het aantal per kist staat ernaast
+  return [hit[1], rest.trim()].filter(Boolean).join(' ');
+}
+// planttype van een partij (veld "Doel / planttype"), voluit: FR → Frigo, WB → Wachtbed, frigo → Frigo
+const planttypeNaam = doel => { const t = planttypeVoluit(doel, true); return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''; };
+const etPlanttype = v => v.planttype || planttypeNaam((S.partijen || []).find(y => y.id === v.partij_id)?.doel);
 function etPalletHtml(v, code, nr) {
-  const sort = [v.sortering, v.maat].filter(Boolean).join(' ');
+  const sort = [planttypeVoluit(v.sortering, v.per_kist), v.maat].filter(Boolean).join(' ');
   const qr = code ? qrSvg(etQrTekst(code), 46) : '<div class="etQrLeeg">QR</div>';
   return `<div class="etBlad ${v.bio ? 'bio' : ''}">${etKopHtml(v, 'pallet')}${etBandHtml(v)}
     <table class="etT"><colgroup><col style="width:23%"><col style="width:17%"><col style="width:40%"><col style="width:20%"></colgroup>
@@ -15332,6 +15345,7 @@ function etBoxHtml(v, code, nr) {
     <div class="etRijen"><table class="etT"><colgroup><col style="width:40%"><col style="width:60%"></colgroup>
       <tr><td class="l">Batchnummer</td><td class="w" style="font-size:${etPt(v.batch, 36, 9)}pt">${esc(v.batch || '')}</td></tr>
       <tr><td class="l">Klasse / Klasa</td><td class="w" style="font-size:${etPt(v.klasse, 30, 10)}pt">${esc(v.klasse || '')}</td></tr>
+      <tr><td class="l">Planttype / Typ</td><td class="w" style="font-size:${etPt(etPlanttype(v), 30, 10)}pt">${esc(etPlanttype(v))}</td></tr>
       <tr><td class="l">Perceel/Imie pola</td><td class="w" style="font-size:${etPt(v.perceel, 34, 9)}pt">${esc(v.perceel || '')}</td></tr>
       <tr><td class="l">Opmerking /Uwagi</td><td class="w" style="font-size:${etPt(v.opmerking, 30, 10)}pt">${esc(v.opmerking || '')}</td></tr></table>
       <div class="etQr">${qr}<span>Box ${esc(nr ?? '…')}</span></div></div></div>`;
@@ -15341,7 +15355,8 @@ const ET_PAL_KOPIEEN = 2;
 function etBladen(rijen) {
   const pal = rijen.filter(r => r.soort === 'pallet'), box = rijen.filter(r => r.soort === 'box'), uit = [];
   pal.forEach(r => { for (let k = 0; k < ET_PAL_KOPIEEN; k++) uit.push(`<div class="etPagina">${etPalletHtml(r.data || {}, r.code, r.nr)}</div>`); });   // elke palletkaart 2x (twee kanten van de pallet)
-  for (let i = 0; i < box.length; i += 2) uit.push(`<div class="etPagina">${etBoxHtml(box[i].data || {}, box[i].code, box[i].nr)}${box[i + 1] ? `<div class="etKnip"></div>${etBoxHtml(box[i + 1].data || {}, box[i + 1].code, box[i + 1].nr)}` : ''}</div>`);
+  const bd = r => ({partij_id: r.partij_id, ...(r.data || {})});
+  for (let i = 0; i < box.length; i += 2) uit.push(`<div class="etPagina">${etBoxHtml(bd(box[i]), box[i].code, box[i].nr)}${box[i + 1] ? `<div class="etKnip"></div>${etBoxHtml(bd(box[i + 1]), box[i + 1].code, box[i + 1].nr)}` : ''}</div>`);
   return uit.join('');
 }
 function etPrintVenster(bladen, stil) {
@@ -15370,7 +15385,7 @@ function etZet(k, w) { if (!etVorm) etVorm = etNieuweVorm(); etVorm[k] = w; etVo
 function etKiesPartij(id) {
   const y = (S.partijen || []).find(x => x.id === id); etVorm.partij_id = id || '';
   if (y) Object.assign(etVorm, {ras: partijRas(y) || soort(y.soort_id)?.naam || '', batch: y.batch || '', perceel: partijPerceelNaam(y) || y.perceel_tekst || '',
-    klasse: y.klasse || etVorm.klasse, bio: !!(y.bio || isBioPerceel(perceel(y.perceel_id)))});
+    klasse: y.klasse || etVorm.klasse, planttype: planttypeNaam(y.doel), bio: !!(y.bio || isBioPerceel(perceel(y.perceel_id)))});
   render(true);
 }
 const etVoorbeeldHtml = () => etSoort === 'pallet' ? `<div class="etPagina">${etPalletHtml(etVorm, null, null)}</div>` : `<div class="etPagina">${etBoxHtml(etVorm, null, null)}<div class="etKnip"></div>${etBoxHtml(etVorm, null, null)}</div>`;
@@ -15537,7 +15552,7 @@ async function psPrint(w) {
       const n = Math.min(200, Math.round(n0(x.bakken))); if (!x.partij_id || !(n > 0)) continue;
       const y = (S.partijen || []).find(z => z.id === x.partij_id) || {};
       const data = {datum: dKey(new Date(w.gemeld_op)), ras: partijRas(y) || soort(y.soort_id)?.naam || x.naam || '?', batch: y.batch || '', klasse: y.klasse || '',
-        perceel: partijPerceelNaam(y) || y.perceel_tekst || '', bio: !!(y.bio || isBioPerceel(perceel(y.perceel_id))), opmerking: '', wagen_id: w.id};
+        perceel: partijPerceelNaam(y) || y.perceel_tekst || '', planttype: planttypeNaam(y.doel), bio: !!(y.bio || isBioPerceel(perceel(y.perceel_id))), opmerking: '', wagen_id: w.id};
       const r = await etNummersMaken('box', n, x.partij_id, data);
       if (r.fout || !r.rijen) throw r.fout || new Error('Etiketten maken mislukt');
       rijen.push(...r.rijen);
